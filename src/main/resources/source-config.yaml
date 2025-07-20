@@ -1,0 +1,11 @@
+sources:
+  - type: csv
+    filePath: /data/input/customers.csv
+    delimiter: ","
+    columns:
+      - name: id
+        type: int
+      - name: name
+        type: string
+      - name: email
+        type: string
