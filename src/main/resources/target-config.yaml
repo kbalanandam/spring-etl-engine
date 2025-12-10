@@ -1,13 +1,12 @@
 target:
   type: xml
   packageName: com.etl.models.target
-  className: Customers
+  filePath: D:/ETLDemo/data/output/customers.xml
+  targetName: Customers
   fields:
     - name: id
       type: int
     - name: name
       type: String
     - name: email
-      type: String
-    - name: phone
       type: String

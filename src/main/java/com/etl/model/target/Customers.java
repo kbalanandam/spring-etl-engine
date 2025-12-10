@@ -1,10 +1,14 @@
-package com.etl.models.target;
+package com.etl.model.target;
 
 import jakarta.xml.bind.annotation.*;
 
 @XmlRootElement(name = "customers")
 @XmlAccessorType(XmlAccessType.FIELD)
 public class Customers {
+
+    public Customers() {
+        // Default constructor required by JAXB
+    }
 
     @XmlElement(name = "id")
     private int id;
@@ -14,9 +18,6 @@ public class Customers {
 
     @XmlElement(name = "email")
     private String email;
-
-    @XmlElement(name = "phone")
-    private String phone;
 
     public int getId() {
         return id;
@@ -40,14 +41,6 @@ public class Customers {
 
     public void setEmail(String email) {
         this.email = email;
-    }
-
-    public String getPhone() {
-        return phone;
-    }
-
-    public void setPhone(String phone) {
-        this.phone = phone;
     }
 
 }

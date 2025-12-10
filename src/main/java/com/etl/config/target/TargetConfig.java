@@ -2,75 +2,52 @@ package com.etl.config.target;
 
 import java.util.List;
 
-//TargetConfig.java
-public class TargetConfig {
-	private Target target;
+import com.etl.config.ModelConfig;
 
-	public Target getTarget() {
-		return target;
+public class TargetConfig implements ModelConfig{
+	private String type;
+	private String packageName;
+	private String filePath;
+	private String targetName;
+	private List<ColumnConfig> fields;
+
+	public String getType() {
+		return type;
 	}
 
-	public void setTarget(Target target) {
-		this.target = target;
+	public void setType(String type) {
+		this.type = type;
 	}
 
-	public static class Target {
-		private String packageName;
-		private String className;
-		private List<Field> fields;
-		private String type; // e.g., "xml", "json", etc.
-
-		public String getType() {
-			return type;
-		}
-
-		public void setType(String type) {
-			this.type = type;
-		}
-
-		public String getPackageName() {
-			return packageName;
-		}
-
-		public void setPackageName(String packageName) {
-			this.packageName = packageName;
-		}
-
-		public String getClassName() {
-			return className;
-		}
-
-		public void setClassName(String className) {
-			this.className = className;
-		}
-
-		public List<Field> getFields() {
-			return fields;
-		}
-
-		public void setFields(List<Field> fields) {
-			this.fields = fields;
-		}
+	public String getPackageName() {
+		return packageName;
 	}
 
-	public static class Field {
-		private String name;
-		private String type;
+	public void setPackageName(String packageName) {
+		this.packageName = packageName;
+	}
 
-		public String getName() {
-			return name;
-		}
+	public String getFilePath() {
+		return filePath;
+	}
 
-		public void setName(String name) {
-			this.name = name;
-		}
+	public void setFilePath(String filePath) {
+		this.filePath = filePath;
+	}
 
-		public String getType() {
-			return type;
-		}
+	public String getTargetName() {
+		return targetName;
+	}
 
-		public void setType(String type) {
-			this.type = type;
-		}
+	public void setTargetName(String targetName) {
+		this.targetName = targetName;
+	}
+
+	public List<ColumnConfig> getFields() {
+		return fields;
+	}
+
+	public void setFields(List<ColumnConfig> fields) {
+		this.fields = fields;
 	}
 }

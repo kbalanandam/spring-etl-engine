@@ -1,11 +1,12 @@
 sources:
   - type: csv
-    filePath: /data/input/customers.csv
+    sourceName: Customers
+    filePath: D:/ETLDemo/data/Customers.csv
     delimiter: ","
     columns:
       - name: id
         type: int
       - name: name
-        type: string
+        type: String
       - name: email
-        type: string
+        type: String

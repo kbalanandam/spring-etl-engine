@@ -1,4 +1,4 @@
-package com.etl.models.source;
+package com.etl.model.source;
 
 public class Customers {
   private Integer id;

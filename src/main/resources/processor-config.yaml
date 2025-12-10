@@ -1,0 +1,19 @@
+type: default
+mappings:
+  - source: Customers
+    target: Customers
+    fields:
+      - from: id
+        to: id
+      - from: name
+        to: name
+      - from: email
+        to: email
+
+  - source: Department
+    target: Department
+    fields:
+      - from: id
+        to: id
+      - from: name
+        to: name
