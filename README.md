@@ -1,114 +1,66 @@
 # Spring ETL Engine
 
-A lightweight, configurable ETL (Extract–Transform–Load) engine built using **Spring Batch**. The goal is to create an ETL system that is fully dynamic — meaning **no hard‑coded readers, writers, processors, or POJO types**. Everything is configuration-driven.
+A lightweight, configurable, and modular ETL (Extract–Transform–Load) framework built using **Spring Boot**, designed for handling multiple source formats and multiple target destinations dynamically. The engine supports CSV/XML ingestion, dynamic field mappings, reflection-based transformations, type conversion utilities, profile‑based configuration, and structured logging.
 
-This makes the engine easy to extend, reusable across projects, and ideal for teams that need to onboard new file formats or database targets without changing Java code.
+## Features
+- **Dynamic Mapping Framework**: Map any source structure to any target using configs.
+- **Reusable Utilities**: Centralized `*Utils` for type conversion, reflection, validation.
+- **Custom Exceptions**: Domain‑specific exceptions to identify issues clearly.
+- **AOP Logging**: Automatic method-level logging for ETL flow visibility.
+- **Builder Pattern**: Clean and safe object construction.
+- **Profile-based Execution**: Separate dev, test, prod behaviour.
+- **Multi‑Source Input**: Currently CSV/XML; extendable.
+- **Multi‑Target Output**: Extendable (e.g., MySQL Writer, File Writer, API Writer).
 
----
-
-## ⭐ Features
-
-### ✔ Dynamic Readers, Processors, and Writers
-- Readers, processors, and writers are selected at runtime using a **type-based factory**.
-- Supports multiple source and target types.
-- Adding support for a new type requires implementing **one interface**.
-
-### ✔ Dynamic Mapping Engine
-- Transforms source objects into target objects using mapping rules defined in configuration.
-- Supports nested fields (`address.street → streetName`).
-- Uses shared reflection + type conversion utilities.
-
-### ✔ Shared Utility Layer
-- `TypeConversionUtils` – converts values safely.
-- `ReflectionUtils` – read/write fields dynamically.
-- `MappingUtils` – apply field-to-field mapping.
-- Includes custom exceptions for better debugging.
-
-### ✔ Multi-Step ETL Job
-- Each Source–Target pair becomes an independent Spring Batch **Step**.
-- All steps run inside a single ETL job.
-
-### ✔ AOP Logging
-- Automatic method logging, execution time tracking.
-
-### ✔ Spring Profiles
-- Separate configurations for `dev`, `test`, `prod` environments.
-
----
-
-## 📁 Directory Structure (Simplified)
+## Repository Structure
 ```
-src/main/java/com/etl
-├── common
-│   ├── exception/
-│   ├── util/
-├── reader/
-├── writer/
-├── processor/
-├── config/
-├── aspect/
+/spring-etl-engine
+ ├── src/main/java
+ │    ├── config/          # Profile configs, dynamic mapping configs
+ │    ├── mapper/          # FieldSetMapper, DynamicMapper
+ │    ├── utils/           # ReflectionUtils, TypeConversionUtils, FileUtils
+ │    ├── writer/          # Target writers (CSV Writer, MySQL Writer, etc.)
+ │    ├── exception/       # Custom exception classes
+ │    ├── aop/             # Logging AOP
+ │    └── service/         # Core ETL service
+ ├── src/main/resources
+ │    ├── mapping/         # Mapping JSON/YAML files
+ │    └── application.yml
+ ├── README.md
+ └── LICENSE
 ```
 
----
-
-## 🚀 How It Works
-
-### 1️⃣ Load ETL Configuration
-The engine reads configuration (YAML/JSON) that defines:
-- Source type
-- Target type
-- Column mapping rules
-- Processor type
-
-### 2️⃣ Build Dynamic Steps
-Spring Batch creates one step per source–target pair:
+## Installation
+Clone the repository:
 ```
-reader → processor → writer
+git clone https://github.com/<your-username>/spring-etl-engine.git
 ```
 
-### 3️⃣ Execute the Job
-All steps run sequentially (or can be parallelized).
-
----
-
-## 📝 Example Mapping
-```yaml
-fields:
-  - from: id
-    to: customerId
-  - from: name
-    to: fullName
-```
-
----
-
-## ▶ Running the Project
+Run the project:
 ```
 mvn spring-boot:run
 ```
-Or run from IntelliJ.
 
----
+## Usage
+1. Place your CSV/XML files in the configured input directory.
+2. Define mapping configuration in `/resources/mapping/`.
+3. Enable desired writer (e.g., MySQL Writer) via profile.
+4. The ETL engine automatically loads, maps, transforms, and writes data.
 
-## 📦 Packaging
+## Example Mapping
+```yaml
+source: customer.csv
+fields:
+  - source: id
+    target: customerId
+  - source: first_name
+    target: firstName
 ```
-mvn clean package
-```
-Runs ETL job inside a Spring Boot executable jar.
 
----
+## License
+This project is licensed under the **MIT License**.
 
-## 📘 Documentation
-- `CHANGELOG.md` – version history
-- `README.md` – project overview
+![License](https://img.shields.io/badge/License-MIT-green.svg)
 
----
-
-## 🤝 Contributing
-Feel free to submit PRs or suggest improvements.
-
----
-
-## 📜 License
-MIT License.
+See the full license in the `LICENSE` file.
 
