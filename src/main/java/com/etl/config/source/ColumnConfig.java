@@ -1,10 +1,13 @@
 package com.etl.config.source;
 
-public class ColumnConfig {
+import com.etl.config.FieldDefinition;
+
+public class ColumnConfig implements FieldDefinition {
     private String name;
     private String type;
 
     // Getters and Setters
+    @Override
     public String getName() {
         return name;
     }
@@ -13,6 +16,7 @@ public class ColumnConfig {
         this.name = name;
     }
 
+    @Override
     public String getType() {
         return type;
     }

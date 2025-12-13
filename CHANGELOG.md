@@ -4,6 +4,30 @@ All notable changes to this project will be documented in this file.
 The format is based on **Keep a Changelog**  
 and this project adheres to **Semantic Versioning**.
 
+## [Unreleased]
+### Added
+- N/A
+
+
+---
+
+## [1.2.0] - 2025-12-13
+### Added
+- Implemented **XmlDynamicWriter**, enabling dynamic XML generation for target models.
+- Added unified **FieldDefinition** model for both source and target configurations.
+- Enhanced **model generator engine** to support XML targets using dynamic field reflection.
+- Added automatic JAXB-annotated model generation for XML target structures.
+- Integrated XML writer into the **DynamicWriterFactory** for seamless runtime selection.
+- Improved error handling and logging around XML marshaling operations.
+
+### Changed
+- Refactored internal writer architecture to support pluggable dynamic writers (CSV, XML, DB, etc.).
+- Updated configuration loader to use unified `fields` property for both source and target YML definitions.
+
+### Fixed
+- Addressed inconsistencies between ColumnConfig vs. FieldDefinition naming.
+- Fixed field-level mapping issues when switching target types.
+
 ---
 
 ## [1.1.0] - 2025-12-10
@@ -37,3 +61,5 @@ and this project adheres to **Semantic Versioning**.
 - Job, Step, Reader, Processor, Writer bootstrapping.
 
 ---
+
+

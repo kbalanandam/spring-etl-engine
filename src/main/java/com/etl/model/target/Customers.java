@@ -1,46 +1,33 @@
 package com.etl.model.target;
 
-import jakarta.xml.bind.annotation.*;
-
-@XmlRootElement(name = "customers")
-@XmlAccessorType(XmlAccessType.FIELD)
 public class Customers {
+  private Integer id;
 
-    public Customers() {
-        // Default constructor required by JAXB
-    }
+  private String name;
 
-    @XmlElement(name = "id")
-    private int id;
+  private String email;
 
-    @XmlElement(name = "name")
-    private String name;
+  public Integer getId() {
+    return this.id;
+  }
 
-    @XmlElement(name = "email")
-    private String email;
+  public void setId(Integer id) {
+    this.id = id;
+  }
 
-    public int getId() {
-        return id;
-    }
+  public String getName() {
+    return this.name;
+  }
 
-    public void setId(int id) {
-        this.id = id;
-    }
+  public void setName(String name) {
+    this.name = name;
+  }
 
-    public String getName() {
-        return name;
-    }
+  public String getEmail() {
+    return this.email;
+  }
 
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
+  public void setEmail(String email) {
+    this.email = email;
+  }
 }

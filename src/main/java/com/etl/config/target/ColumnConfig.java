@@ -1,9 +1,12 @@
 package com.etl.config.target;
 
-public class ColumnConfig {
+import com.etl.config.FieldDefinition;
+
+public class ColumnConfig implements FieldDefinition {
 	private String name;
 	private String type;
 
+	@Override
 	public String getName() {
 		return name;
 	}
@@ -12,6 +15,7 @@ public class ColumnConfig {
 		this.name = name;
 	}
 
+	@Override
 	public String getType() {
 		return type;
 	}

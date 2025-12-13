@@ -1,8 +1,9 @@
 package com.etl.reader.impl;
 
-import java.util.Arrays;
-import java.util.stream.Collectors;
-
+import com.etl.config.FieldDefinition;
+import com.etl.config.source.SourceConfig;
+import com.etl.reader.DynamicReader;
+import com.etl.reader.mapper.DynamicFieldSetMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ItemReader;
@@ -12,10 +13,9 @@ import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Component;
 
-import com.etl.config.source.ColumnConfig;
-import com.etl.config.source.SourceConfig;
-import com.etl.reader.DynamicReader;
-import com.etl.reader.mapper.DynamicFieldSetMapper;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * CsvDynamicReader is a DynamicReader implementation for reading CSV files.
@@ -62,8 +62,8 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 		tokenizer.setDelimiter(config.getDelimiter());
 
 		// Extract column names
-		String[] columnNames = config.getColumns().stream()
-				.map(ColumnConfig::getName)
+		String[] columnNames = config.getFields().stream()
+				.map(FieldDefinition::getName)
 				.toArray(String[]::new);
 
 		// Log configured column names (S2629 compliant)
@@ -76,9 +76,10 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 
 		tokenizer.setNames(columnNames);
 		lineMapper.setLineTokenizer(tokenizer);
+		List<FieldDefinition> fields = config.getFields();
 
 		// Map fields to target class dynamically
-		lineMapper.setFieldSetMapper(new DynamicFieldSetMapper<>(config.getColumns(), clazz));
+		lineMapper.setFieldSetMapper(new DynamicFieldSetMapper<>(fields, clazz));
 
 		reader.setLineMapper(lineMapper);
 		reader.setStrict(true);

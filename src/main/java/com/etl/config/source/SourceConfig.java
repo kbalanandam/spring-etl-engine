@@ -1,8 +1,10 @@
 package com.etl.config.source;
 
-import java.util.List;
-
+import com.etl.config.FieldDefinition;
 import com.etl.config.ModelConfig;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+
+import java.util.List;
 
 public class SourceConfig implements ModelConfig {
 	private String type;
@@ -10,7 +12,8 @@ public class SourceConfig implements ModelConfig {
 	private String packageName;
 	private String filePath;
 	private String delimiter;
-	private List<ColumnConfig> columns;
+	@JsonDeserialize(contentAs = ColumnConfig.class)
+	private List<ColumnConfig> fields;
 
 	// Getters and Setters
 
@@ -54,12 +57,12 @@ public class SourceConfig implements ModelConfig {
 		this.delimiter = delimiter;
 	}
 
-	public List<ColumnConfig> getColumns() {
-		return columns;
+	public List<FieldDefinition> getFields() {
+		return List.copyOf(fields); // safe, immutable view
 	}
 
-	public void setColumns(List<ColumnConfig> columns) {
-		this.columns = columns;
+	public void setColumns(List<ColumnConfig> fields) {
+		this.fields = fields;
 	}
 
 

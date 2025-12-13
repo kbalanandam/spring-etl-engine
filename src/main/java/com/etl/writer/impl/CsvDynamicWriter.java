@@ -1,0 +1,54 @@
+package com.etl.writer.impl;
+
+import com.etl.config.FieldDefinition;
+import com.etl.config.target.ColumnConfig;
+import com.etl.config.target.TargetConfig;
+import com.etl.writer.DynamicWriter;
+import org.springframework.batch.item.ItemWriter;
+import org.springframework.batch.item.file.FlatFileItemWriter;
+import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
+import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
+import org.springframework.core.io.FileSystemResource;
+import org.springframework.stereotype.Component;
+
+import java.io.File;
+
+@Component("csvWriter")
+public class CsvDynamicWriter implements DynamicWriter {
+
+    @Override
+    public String getType() {
+        return "csv";
+    }
+
+    @Override
+    public ItemWriter<Object> getWriter(TargetConfig config, Class<?> clazz) throws Exception {
+
+        FlatFileItemWriter<Object> writer = new FlatFileItemWriter<>();
+
+        String path = config.getFilePath();
+        if (path.endsWith("/") || new File(path).isDirectory()) {
+            path += config.getTargetName().toLowerCase() + ".csv";
+        }
+
+        writer.setResource(new FileSystemResource(path));
+
+        // Dynamic line aggregator – converts object → CSV row
+        BeanWrapperFieldExtractor<Object> extractor = new BeanWrapperFieldExtractor<>();
+        extractor.setNames(
+                config.getFields()
+                        .stream()
+                        .map(FieldDefinition::getName)
+                        .toArray(String[]::new)
+        );
+
+        DelimitedLineAggregator<Object> aggregator = new DelimitedLineAggregator<>();
+        aggregator.setDelimiter(",");
+        aggregator.setFieldExtractor(extractor);
+
+        writer.setLineAggregator(aggregator);
+        writer.afterPropertiesSet();
+
+        return writer;
+    }
+}

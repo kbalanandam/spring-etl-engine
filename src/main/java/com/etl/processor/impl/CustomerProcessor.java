@@ -3,7 +3,7 @@ package com.etl.processor.impl;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
-@Component
+/*@Component
 public class CustomerProcessor implements ItemProcessor<com.etl.model.source.Customers, com.etl.model.target.Customers> {
     @Override
     public com.etl.model.target.Customers process(com.etl.model.source.Customers source) {
@@ -13,5 +13,5 @@ public class CustomerProcessor implements ItemProcessor<com.etl.model.source.Cus
         target.setEmail(source.getEmail());
         return target;
     }
-}
+}*/
 

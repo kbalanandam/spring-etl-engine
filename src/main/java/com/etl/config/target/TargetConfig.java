@@ -2,14 +2,17 @@ package com.etl.config.target;
 
 import java.util.List;
 
+import com.etl.config.FieldDefinition;
 import com.etl.config.ModelConfig;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
 public class TargetConfig implements ModelConfig{
 	private String type;
 	private String packageName;
 	private String filePath;
 	private String targetName;
-	private List<ColumnConfig> fields;
+	@JsonDeserialize(contentAs = ColumnConfig.class)
+	private List<FieldDefinition> fields;
 
 	public String getType() {
 		return type;
@@ -43,11 +46,11 @@ public class TargetConfig implements ModelConfig{
 		this.targetName = targetName;
 	}
 
-	public List<ColumnConfig> getFields() {
-		return fields;
+	public List<FieldDefinition> getFields() {
+		return (List<FieldDefinition>)(List<?>) fields;
 	}
 
-	public void setFields(List<ColumnConfig> fields) {
+	public void setFields(List<FieldDefinition> fields) {
 		this.fields = fields;
 	}
 }

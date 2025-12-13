@@ -10,57 +10,11 @@ public final class ReflectionUtils {
 
     private ReflectionUtils() {}
 
-    /**
-     * Get a field value using reflection.
-     * Supports private + inherited fields.
-     */
-   /* public static Object getField(Object obj, String fieldName) {
-        if (obj == null) {
-            throw new IllegalArgumentException("Object is null while trying to read field: " + fieldName);
-        }
 
-        Field field = findField(obj.getClass(), fieldName);
-
-        if (field == null) {
-            throw new IllegalArgumentException("Field '" + fieldName + "' not found in class: " + obj.getClass());
-        }
-
-        try {
-            field.setAccessible(true);
-            return field.get(obj);
-        } catch (Exception e) {
-            throw new RuntimeException("Unable to read field '" + fieldName + "' from " + obj.getClass(), e);
-        }
-    } *
-
-    /**
-     * Set a field value using reflection.
-     * Supports private + inherited fields.
-     */
-  /*  public static void setField(Object obj, String fieldName, Object value) {
-        if (obj == null) {
-            throw new IllegalArgumentException("Object is null while trying to write field: " + fieldName);
-        }
-
-        Field field = findField(obj.getClass(), fieldName);
-
-        if (field == null) {
-            throw new IllegalArgumentException("Field '" + fieldName + "' not found in class: " + obj.getClass());
-        }
-
-        try {
-            field.setAccessible(true);
-            field.set(obj, TypeConversionUtils.convertValue(value, field.getType()));
-        } catch (Exception e) {
-            throw new RuntimeException(
-                    "Unable to write field '" + fieldName + "' on " + obj.getClass() + " with value: " + value, e);
-        }
-    }
-*/
     /**
      * Recursively find a field in the class + its superclasses.
      */
-    private static Field findField(Class<?> clazz, String name) {
+ /*   private static Field findField(Class<?> clazz, String name) {
         while (clazz != null && clazz != Object.class) {
             try {
                 return clazz.getDeclaredField(name);
@@ -69,49 +23,6 @@ public final class ReflectionUtils {
             }
         }
         return null;
-    }
-
-    /**
-     * Convert raw values (strings, numbers) to the appropriate field type.
-     * Extend this method as needed.
-     */
-  /*  private static Object castValue(Object value, Class<?> targetType) {
-
-        if (value == null) {
-            return null;
-        }
-
-        if (targetType.isAssignableFrom(value.getClass())) {
-            return value;
-        }
-
-        // Basic conversions
-        if (targetType == Integer.class || targetType == int.class) {
-            return Integer.parseInt(value.toString());
-        }
-
-        if (targetType == Long.class || targetType == long.class) {
-            return Long.parseLong(value.toString());
-        }
-
-        if (targetType == Double.class || targetType == double.class) {
-            return Double.parseDouble(value.toString());
-        }
-
-        if (targetType == Float.class || targetType == float.class) {
-            return Float.parseFloat(value.toString());
-        }
-
-        if (targetType == Boolean.class || targetType == boolean.class) {
-            return Boolean.parseBoolean(value.toString());
-        }
-
-        if (targetType == String.class) {
-            return value.toString();
-        }
-
-        // Unknown type → let Spring or custom convertor handle it later
-        return value;
     } */
 
     /**

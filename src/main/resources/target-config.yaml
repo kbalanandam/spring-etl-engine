@@ -1,7 +1,7 @@
 target:
-  type: xml
+  type: csv
   packageName: com.etl.models.target
-  filePath: D:/ETLDemo/data/output/customers.xml
+  filePath: D:/ETLDemo/data/output/customers.csv
   targetName: Customers
   fields:
     - name: id

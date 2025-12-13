@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import com.etl.config.target.TargetWrapper;
 import com.etl.writer.DynamicWriter;
 
-@Component("xml")
+@Component("xmlWriter")
 public class XmlDynamicWriter implements DynamicWriter {
 
 	@Override

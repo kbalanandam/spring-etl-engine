@@ -5,6 +5,7 @@ import java.lang.reflect.Method;
 import java.util.List;
 
 import com.etl.common.util.TypeConversionUtils;
+import com.etl.config.FieldDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.file.mapping.FieldSetMapper;
@@ -17,10 +18,10 @@ public class DynamicFieldSetMapper<T> implements FieldSetMapper<T> {
 	
 	private static final Logger logger = LoggerFactory.getLogger(DynamicFieldSetMapper.class);
 	
-	private final List<ColumnConfig> columns;
+	private final List<FieldDefinition> columns;
 	private final Class<T> clazz;
 
-	public DynamicFieldSetMapper(List<ColumnConfig> columns, Class<T> clazz) {
+	public DynamicFieldSetMapper(List<FieldDefinition> columns, Class<T> clazz) {
 		this.columns = columns;
 		this.clazz = clazz;
 	}
@@ -29,7 +30,7 @@ public class DynamicFieldSetMapper<T> implements FieldSetMapper<T> {
 	public T mapFieldSet(FieldSet fieldSet) throws BindException {
 		try {
 			T instance = clazz.getDeclaredConstructor().newInstance();
-			for (ColumnConfig col : columns) {
+			for (FieldDefinition col : columns) {
 				String name = col.getName();
 				String type = col.getType();
 

@@ -5,6 +5,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 
+import com.etl.config.FieldDefinition;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Profile;
@@ -40,7 +41,7 @@ public class XmlModelGenerator<T extends ModelConfig> implements ModelGenerator<
 		String className = null;
 		String packageName = null;
 		Object config = null;
-		List<com.etl.config.target.ColumnConfig> fields = null;
+		List<FieldDefinition> fields = null;
 
 		if (object instanceof TargetConfig) {
 			config = object;
@@ -67,12 +68,12 @@ public class XmlModelGenerator<T extends ModelConfig> implements ModelGenerator<
 		sb.append("        // Default constructor required by JAXB\n");
 		sb.append("    }\n\n");
 
-		for (com.etl.config.target.ColumnConfig field : fields) {
+		for (FieldDefinition field : fields) {
 			sb.append("    @XmlElement(name = \"").append(field.getName()).append("\")\n");
 			sb.append("    private ").append(field.getType()).append(" ").append(field.getName()).append(";\n\n");
 		}
 
-		for (com.etl.config.target.ColumnConfig field : fields) {
+		for (FieldDefinition field : fields) {
 			String camel = field.getName().substring(0, 1).toUpperCase() + field.getName().substring(1);
 			sb.append("    public ").append(field.getType()).append(" get").append(camel).append("() {\n");
 			sb.append("        return ").append(field.getName()).append(";\n    }\n\n");

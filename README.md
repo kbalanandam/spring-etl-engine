@@ -33,7 +33,7 @@ A lightweight, configurable, and modular ETL (Extract–Transform–Load) framew
 ## Installation
 Clone the repository:
 ```
-git clone https://github.com/<your-username>/spring-etl-engine.git
+git clone https://github.com/kbalanandam/spring-etl-engine.git
 ```
 
 Run the project:
