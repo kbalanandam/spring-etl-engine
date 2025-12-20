@@ -1,16 +1,15 @@
 package com.etl.writer.impl;
 
-import java.io.File;
-
 import com.etl.config.target.TargetConfig;
+import com.etl.writer.DynamicWriter;
+import com.etl.writer.exception.MarshallerException;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.xml.StaxEventItemWriter;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 import org.springframework.stereotype.Component;
 
-import com.etl.config.target.TargetWrapper;
-import com.etl.writer.DynamicWriter;
+import java.io.File;
 
 @Component("xmlWriter")
 public class XmlDynamicWriter implements DynamicWriter {
@@ -42,7 +41,7 @@ public class XmlDynamicWriter implements DynamicWriter {
 		try {
 			marshaller.afterPropertiesSet();
 		} catch (Exception e) {
-			throw new RuntimeException("Failed to initialize JAXB Marshaller", e);
+			throw new MarshallerException("Failed to initialize JAXB Marshaller", e);
 		}
 		return marshaller;
 	}

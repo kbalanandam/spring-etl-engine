@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.etl.common.util.DynamicBatchUtils;
+import com.etl.config.source.SourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
@@ -20,7 +21,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import com.etl.config.processor.ProcessorConfig;
-import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
@@ -87,7 +87,7 @@ public class BatchConfig {
 	@SuppressWarnings("unchecked")
 	private List<Step> buildSteps() throws Exception {
 		List<Step> steps = new ArrayList<>();
-		List<SourceConfig> sources = sourceWrapper.getSources();
+		List<? extends SourceConfig> sources = sourceWrapper.getSources();
 		List<TargetConfig> targets = targetWrapper.getTargets();
 
 		if (sources == null || sources.isEmpty()) {

@@ -2,11 +2,12 @@ package com.etl.processor;
 
 import java.util.Map;
 
+import com.etl.config.source.SourceConfig;
+import com.etl.processor.exception.NoProcessorFoundException;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
 import com.etl.config.processor.ProcessorConfig;
-import com.etl.config.source.SourceConfig;
 import com.etl.config.target.TargetConfig;
 
 @Component
@@ -39,7 +40,7 @@ public class DynamicProcessorFactory {
         var dp = (DynamicProcessor<I, O>) processorMap.get(type);
 
 		if (dp == null) {
-			throw new IllegalArgumentException("No processor found for type: " + type);
+			throw new NoProcessorFoundException("No processor found for type: " + type);
 		}
 
 		return dp.getProcessor(processorConfig, sourceConfig, targetConfig);

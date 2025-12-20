@@ -1,8 +1,9 @@
 package com.etl.reader.impl;
 
 import com.etl.config.FieldDefinition;
-import com.etl.config.source.SourceConfig;
+import com.etl.config.source.CsvSourceConfig;
 import com.etl.reader.DynamicReader;
+import com.etl.config.source.SourceConfig;
 import com.etl.reader.mapper.DynamicFieldSetMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,12 +45,14 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 	@Override
 	public ItemReader<T> getReader(SourceConfig config, Class<T> clazz) {
 
+		CsvSourceConfig csvConfig = (CsvSourceConfig) config;
+
 		if (config == null || clazz == null) {
 			throw new IllegalArgumentException("SourceConfig and target class must not be null.");
 		}
 
 		FlatFileItemReader<T> reader = new FlatFileItemReader<>();
-		reader.setResource(new FileSystemResource(config.getFilePath()));
+		reader.setResource(new FileSystemResource(csvConfig.getFilePath()));
 		reader.setLinesToSkip(1); // Skip header
 
 		// ------------------------------
@@ -59,7 +62,7 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 
 		// Configure tokenizer
 		DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer();
-		tokenizer.setDelimiter(config.getDelimiter());
+		tokenizer.setDelimiter(csvConfig.getDelimiter());
 
 		// Extract column names
 		String[] columnNames = config.getFields().stream()
@@ -76,7 +79,7 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 
 		tokenizer.setNames(columnNames);
 		lineMapper.setLineTokenizer(tokenizer);
-		List<FieldDefinition> fields = config.getFields();
+		List<? extends FieldDefinition> fields = config.getFields();
 
 		// Map fields to target class dynamically
 		lineMapper.setFieldSetMapper(new DynamicFieldSetMapper<>(fields, clazz));

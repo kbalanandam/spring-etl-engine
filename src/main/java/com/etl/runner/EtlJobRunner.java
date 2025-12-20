@@ -1,15 +1,16 @@
 package com.etl.runner;
 
-import java.util.Date;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecutionException;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.JobParametersBuilder;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
+
+import java.util.Date;
 
 /**
  * EtlJobRunner is responsible for executing the ETL job when the application
@@ -19,7 +20,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class EtlJobRunner implements CommandLineRunner {
 
-	private static Logger logger = LoggerFactory.getLogger(EtlJobRunner.class);
+	private static final Logger logger = LoggerFactory.getLogger(EtlJobRunner.class);
 
 	private final JobLauncher jobLauncher;
 	private final Job etlJob;
@@ -33,13 +34,12 @@ public class EtlJobRunner implements CommandLineRunner {
 	public void run(String... args) throws Exception {
 		JobParameters jobParameters = new JobParametersBuilder().addDate("runDate", new Date()).toJobParameters();
 
-		try {
-			logger.info("Starting ETL Job...");
-			jobLauncher.run(etlJob, jobParameters);
-			logger.info("ETL Job Finished.");
-		} catch (Exception e) {
-			logger.error("ETL Job failed: " + e.getMessage());
-			e.printStackTrace();
-		}
+        try {
+            logger.info("Starting ETL Job...");
+            jobLauncher.run(etlJob, jobParameters);
+            logger.info("ETL Job Finished.");
+        } catch (Exception e) {
+            throw new JobExecutionException("ETL Job failed for date: " + jobParameters.getDate("runDate"), e);
+        }
 	}
 }

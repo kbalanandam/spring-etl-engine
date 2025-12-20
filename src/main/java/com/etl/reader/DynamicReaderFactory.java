@@ -5,12 +5,11 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.etl.config.source.SourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.stereotype.Component;
-
-import com.etl.config.source.SourceConfig;
 
 @Component
 public class DynamicReaderFactory {

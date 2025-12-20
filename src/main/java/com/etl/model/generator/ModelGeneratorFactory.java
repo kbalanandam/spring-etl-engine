@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.etl.config.source.SourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -11,7 +12,6 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
@@ -24,17 +24,14 @@ import com.etl.enums.ModelFormat;
  * factory is a Spring component and will be initialized and managed by the
  * Spring container. It's active only when the "dev" profile is enabled.
  */
-
 @Profile("dev")
 @Component
 public class ModelGeneratorFactory {
 
 	private static final Logger logger = LoggerFactory.getLogger(ModelGeneratorFactory.class);
-
 	private final SourceWrapper sourceWrapper;
 	private final TargetWrapper targetWrapper;
 	private final Map<String, ModelGenerator<?>> generators;
-
 	private boolean alreadyGenerated = false;
 
 	/**
@@ -48,88 +45,79 @@ public class ModelGeneratorFactory {
 	 */
 
 	public ModelGeneratorFactory(SourceWrapper sourceWrapper, TargetWrapper targetWrapper,
-			List<ModelGenerator<?>> modelGenerators) {
+								 List<ModelGenerator<?>> modelGenerators) {
 		this.sourceWrapper = sourceWrapper;
 		this.targetWrapper = targetWrapper;
 		this.generators = new HashMap<>();
 
 		for (ModelGenerator<?> generator : modelGenerators) {
-			if (generator == null || generator.getType() == null || generator.getType().isEmpty()) {
-				logger.warn("Skipping invalid generator found by Spring: {}", generator);
-				continue;
+			if (generator != null && generator.getType() != null) {
+				this.generators.put(generator.getType().toLowerCase(), generator);
+				logger.info("Spring registered generator: {}", generator.getType());
 			}
-			this.generators.put(generator.getType().toLowerCase(), generator);
-			logger.info("Spring registered generator: {}", generator.getType());
 		}
 	}
-	/**
-	 * This method is automatically invoked by Spring when the application is fully
-	 * started and ready to handle requests (specifically, when an ApplicationReadyEvent is published).
-	 * It orchestrates the generation of source and target model classes based on the configurations.
-	 * It ensures that the model generation process runs only once during the application lifecycle.
-	 */
 
 	@EventListener(ApplicationReadyEvent.class)
 	public void generateModels() {
 		if (alreadyGenerated) {
-			logger.info("Model generation already completed. Skipping.");
+			logger.info("Model generation already completed. Skipping..");
 			return;
 		}
-		logger.info("Starting source model generation...");
-		for (SourceConfig source : sourceWrapper.getSources()) {
-			logger.info("Processing source: {}", source.getSourceName());
-			try {
 
-				ModelFormat format = ModelFormat.fromString(source.getType());
-				ModelGenerator<?> generator = generators.get(format.getFormat().toLowerCase());
+		// Logic is now clean and readable
+		processModels(sourceWrapper.getSources(), "source");
+		processModels(targetWrapper.getTargets(), "target");
 
-				if (generator != null) {
-					generator.generateModel(source);
-				} else {
-					logger.error(
-							"❌ No model generator found for validated source type: '{}'. Skipping generation for {}.",
-							format.getFormat(), source.getSourceName());
-					System.exit(1);
-				}
-			} catch (IllegalArgumentException e) {
-
-				logger.error("❌ Unsupported model format for source '{}': '{}'. Skipping generation for {}.",
-						source.getSourceName(), source.getType(), source.getSourceName());
-				System.exit(1);
-			} catch (Exception e) {
-				logger.error("❌ Failed to generate source model class for {}: {}", source.getSourceName(),
-						e.getMessage(), e);
-				System.exit(1);
-			}
-		}
-		logger.info("✅ Source model generation completed.");
-
-		logger.info("Starting target model generation...");
-		for (TargetConfig target : targetWrapper.getTargets()) {
-			logger.info("Processing target: {}", target.getTargetName());
-			try {
-
-				ModelFormat format = ModelFormat.fromString(target.getType());
-				ModelGenerator<?> generator = generators.get(format.getFormat().toLowerCase());
-
-				if (generator != null) {
-					generator.generateModel(target);
-				} else {
-					logger.error(
-							"❌ No model generator found for validated target type: '{}'. Skipping generation for {}.",
-							format.getFormat(), target.getTargetName());
-					System.exit(1);
-				}
-			} catch (IllegalArgumentException e) {
-				logger.error("❌ Unsupported model format for target '{}': '{}'. Skipping generation for {}.",
-						target.getTargetName(), target.getType(), target.getTargetName());
-				System.exit(1);
-			} catch (Exception e) {
-				logger.error("❌ Failed to generate target model class for {}: {}", target.getTargetName(), e.getMessage(), e);
-				System.exit(1);
-			}
-		}
-		logger.info("✅ Target model generation completed.");
 		alreadyGenerated = true;
+	}
+
+	/**
+	 * Helper method to handle model generation logic for any list of configurations.
+	 * This reduces cognitive complexity by eliminating code duplication.
+	 */
+	private void processModels(List<?> configs, String label) {
+		logger.info("Starting {} model generation...", label);
+		for (Object config : configs) {
+			generateSingleModel(config, label);
+		}
+		logger.info("{} model generation completed.", label);
+	}
+
+	private void generateSingleModel(Object config, String label) {
+		String name = getModelName(config);
+		String type = getModelType(config);
+
+		logger.info("Processing {}: {}", label, name);
+		try {
+			ModelFormat format = ModelFormat.fromString(type);
+			ModelGenerator<?> generator = generators.get(format.getFormat().toLowerCase());
+
+			if (generator == null) {
+				handleFailure("No model generator found for type: " + type, name);
+				return;
+			}
+			generator.generateModel(config);
+
+		} catch (IllegalArgumentException e) {
+			handleFailure("Unsupported model format: " + type, name);
+		} catch (Exception e) {
+			handleFailure("Critical failure: " + e.getMessage(), name);
+		}
+	}
+
+	private void handleFailure(String message, String name) {
+		logger.error("{} for {}. Exiting.", message, name);
+		System.exit(1);
+	}
+	// Helper methods to treat Source and Target configs generically
+	private String getModelName(Object config) {
+		return (config instanceof SourceConfig) ?
+				((SourceConfig) config).getSourceName() : ((TargetConfig) config).getTargetName();
+	}
+
+	private String getModelType(Object config) {
+		return (config instanceof SourceConfig) ?
+				((SourceConfig) config).getType() : ((TargetConfig) config).getType();
 	}
 }

@@ -1,9 +1,9 @@
 package com.etl.processor;
 
+import com.etl.config.source.SourceConfig;
 import org.springframework.batch.item.ItemProcessor;
 
 import com.etl.config.processor.ProcessorConfig;
-import com.etl.config.source.SourceConfig;
 import com.etl.config.target.TargetConfig;
 
 public interface DynamicProcessor<I, O> {

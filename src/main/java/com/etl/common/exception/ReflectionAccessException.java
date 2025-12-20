@@ -1,6 +1,6 @@
 package com.etl.common.exception;
 
-public class ReflectionAccessException extends RuntimeException {
+public class ReflectionAccessException extends CommonException {
 
     public ReflectionAccessException(String message) {
         super(message);

@@ -1,6 +1,6 @@
 package com.etl.common.exception;
 
-public class TypeConversionException extends RuntimeException {
+public class TypeConversionException extends CommonException {
 
     public TypeConversionException(String message) {
         super(message);

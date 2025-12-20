@@ -2,12 +2,11 @@ package com.etl.common.util;
 
 import java.lang.reflect.Method;
 
+import com.etl.config.source.SourceConfig;
 import com.etl.config.target.TargetConfig;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
 
-import com.etl.config.source.SourceConfig;
-import com.etl.config.target.TargetWrapper;
 import com.etl.reader.DynamicReaderFactory;
 import com.etl.writer.DynamicWriterFactory;
 

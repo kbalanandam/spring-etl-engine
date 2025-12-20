@@ -8,10 +8,23 @@ and this project adheres to **Semantic Versioning**.
 ### Added
 - N/A
 
+---
+
+## [1.1.2] - 2025-12-18
+### Changed
+- Refactored dynamic Source/Target configuration hierarchy using abstract base classes.
+- Stabilized YAML polymorphic loading for CSV, XML, and DB sources.
+- Improved DynamicReaderFactory and DynamicWriterFactory error handling.
+- Unified field abstraction using FieldDefinition across readers, processors, and writers.
+- Centralized ETL exception hierarchy for clearer error reporting.
+
+### Fixed
+- Resolved null `type` issues during dynamic reader resolution.
+- Fixed JAXB marshaller configuration for dynamic XML writers.
 
 ---
 
-## [1.2.0] - 2025-12-13
+## [1.1.1] - 2025-12-13
 ### Added
 - Implemented **XmlDynamicWriter**, enabling dynamic XML generation for target models.
 - Added unified **FieldDefinition** model for both source and target configurations.

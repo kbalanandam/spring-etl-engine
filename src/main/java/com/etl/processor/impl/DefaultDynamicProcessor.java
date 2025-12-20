@@ -1,8 +1,8 @@
 package com.etl.processor.impl;
 
 import com.etl.config.processor.ProcessorConfig;
-import com.etl.config.processor.ProcessorConfig.EntityMapping;
 import com.etl.config.source.SourceConfig;
+import com.etl.config.processor.ProcessorConfig.EntityMapping;
 import com.etl.config.target.TargetConfig;
 import com.etl.mapping.DynamicMapping;
 import com.etl.processor.DynamicProcessor;
