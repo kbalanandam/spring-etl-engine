@@ -23,10 +23,10 @@ public class DynamicWriterFactory {
     }
 
     public ItemWriter<Object> createWriter(TargetConfig config, Class<?> clazz) throws Exception {
-        DynamicWriter writer = writers.get(config.getType());
+        DynamicWriter writer = writers.get(config.getFormat());
         if (writer == null) {
-        	logger.error("No writer found for type: {}", config.getType());
-            throw new NoWriterFoundException("No writer found for type: " + config.getType());
+        	logger.error("No writer found for type: {}", config.getFormat());
+            throw new NoWriterFoundException("No writer found for type: " + config.getFormat());
         }
         return writer.getWriter(config, clazz);
     }

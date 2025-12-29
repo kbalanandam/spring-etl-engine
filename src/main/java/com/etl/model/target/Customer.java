@@ -2,13 +2,10 @@ package com.etl.model.target;
 
 import jakarta.xml.bind.annotation.*;
 
-@XmlRootElement(name = "customers")
 @XmlAccessorType(XmlAccessType.FIELD)
-public class Customers {
+public class Customer {
 
-    public Customers() {
-        // Default constructor required by JAXB
-    }
+    public Customer() {}
 
     @XmlElement(name = "id")
     private int id;

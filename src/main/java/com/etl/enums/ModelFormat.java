@@ -4,7 +4,7 @@ package com.etl.enums;
 public enum ModelFormat {
 	CSV("csv"), JSON("json"), XML("xml"), RELATIONAL("relational");
 
-	private String format;
+	private final String format;
 
 	ModelFormat(String format) {
 		this.format = format;

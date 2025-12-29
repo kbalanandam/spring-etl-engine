@@ -1,6 +1,7 @@
 package com.etl.writer.impl;
 
 import com.etl.config.target.TargetConfig;
+import com.etl.config.target.XmlTargetConfig;
 import com.etl.writer.DynamicWriter;
 import com.etl.writer.exception.MarshallerException;
 import org.springframework.batch.item.ItemWriter;
@@ -21,14 +22,17 @@ public class XmlDynamicWriter implements DynamicWriter {
 
 	@Override
 	public ItemWriter<Object> getWriter(TargetConfig config, Class<?> clazz) throws Exception {
+
+		XmlTargetConfig xmlConfig = (XmlTargetConfig) config;
+
 		StaxEventItemWriter<Object> writer = new StaxEventItemWriter<>();
 
-		String path = config.getFilePath();
+		String path = xmlConfig.getFilePath();
 		if (path.endsWith("/") || new File(path).isDirectory()) {
 			path += config.getTargetName().toLowerCase() + ".xml";
 		}
 		writer.setResource(new FileSystemResource(path));
-		writer.setRootTagName(config.getTargetName());
+		writer.setRootTagName(((XmlTargetConfig) config).getRootElement());
 		writer.setMarshaller(jaxbMarshaller(clazz));
 		writer.afterPropertiesSet();
 		return writer;

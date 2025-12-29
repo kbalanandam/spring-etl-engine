@@ -1,7 +1,9 @@
 package com.etl.writer.impl;
 
 import com.etl.config.FieldDefinition;
+import com.etl.config.ModelConfig;
 import com.etl.config.target.ColumnConfig;
+import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.writer.DynamicWriter;
 import org.springframework.batch.item.ItemWriter;
@@ -24,11 +26,13 @@ public class CsvDynamicWriter implements DynamicWriter {
     @Override
     public ItemWriter<Object> getWriter(TargetConfig config, Class<?> clazz) throws Exception {
 
+        CsvTargetConfig csvConfig = (CsvTargetConfig) config;
+
         FlatFileItemWriter<Object> writer = new FlatFileItemWriter<>();
 
-        String path = config.getFilePath();
+        String path = csvConfig.getFilePath();
         if (path.endsWith("/") || new File(path).isDirectory()) {
-            path += config.getTargetName().toLowerCase() + ".csv";
+            path += csvConfig.getTargetName().toLowerCase() + ".csv";
         }
 
         writer.setResource(new FileSystemResource(path));
@@ -36,7 +40,7 @@ public class CsvDynamicWriter implements DynamicWriter {
         // Dynamic line aggregator – converts object → CSV row
         BeanWrapperFieldExtractor<Object> extractor = new BeanWrapperFieldExtractor<>();
         extractor.setNames(
-                config.getFields()
+                csvConfig.getFields()
                         .stream()
                         .map(FieldDefinition::getName)
                         .toArray(String[]::new)

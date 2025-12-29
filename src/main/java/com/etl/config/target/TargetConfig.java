@@ -1,56 +1,61 @@
 package com.etl.config.target;
 
-import java.util.List;
-
 import com.etl.config.FieldDefinition;
 import com.etl.config.ModelConfig;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.etl.enums.ModelType;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
 
-public class TargetConfig implements ModelConfig{
-	private String type;
-	private String packageName;
-	private String filePath;
-	private String targetName;
-	@JsonDeserialize(contentAs = ColumnConfig.class)
-	private List<FieldDefinition> fields;
+import java.util.List;
 
-	public String getType() {
-		return type;
-	}
+@JsonTypeInfo(
+		use = JsonTypeInfo.Id.NAME,
+		include = JsonTypeInfo.As.PROPERTY,
+		property = "format" // <-- discriminator in YAML
+)
+@JsonSubTypes({
+		@JsonSubTypes.Type(value = CsvTargetConfig.class, name = "csv"),
+		@JsonSubTypes.Type(value = XmlTargetConfig.class, name = "xml")
+		// future: db, kafka, etc.
+})
+public abstract class TargetConfig implements ModelConfig {
 
-	public void setType(String type) {
-		this.type = type;
-	}
+	private final String targetName;
+	private final String packageName;
+	private final List<? extends FieldDefinition> fields;
 
-	public String getPackageName() {
-		return packageName;
-	}
-
-	public void setPackageName(String packageName) {
+	protected TargetConfig(
+			String targetName,
+			String packageName,
+			List<? extends FieldDefinition> fields
+	) {
+		this.targetName = targetName;
 		this.packageName = packageName;
-	}
-
-	public String getFilePath() {
-		return filePath;
-	}
-
-	public void setFilePath(String filePath) {
-		this.filePath = filePath;
+		this.fields = fields;
 	}
 
 	public String getTargetName() {
 		return targetName;
 	}
 
-	public void setTargetName(String targetName) {
-		this.targetName = targetName;
+	public String getPackageName() {
+		return packageName;
 	}
 
-	public List<FieldDefinition> getFields() {
-		return (List<FieldDefinition>)(List<?>) fields;
+	public List<? extends FieldDefinition> getFields() {
+		return fields;
 	}
 
-	public void setFields(List<FieldDefinition> fields) {
-		this.fields = fields;
+	/** csv, xml, mysql, etc */
+	public abstract String getFormat();
+
+	@Override
+	public String getModelName() {
+		return this.getTargetName();
+	}
+
+	@Override
+	public ModelType getModelType() {
+		return ModelType.TARGET;
 	}
 }

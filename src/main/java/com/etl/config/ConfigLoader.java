@@ -1,19 +1,20 @@
 package com.etl.config;
 
-import java.io.File;
-import java.nio.file.Files;
-
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import org.slf4j.Logger; // <--- Change this import
-import org.slf4j.LoggerFactory; // <--- Add this import
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-
+import com.etl.config.exception.ConfigException;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.TargetWrapper;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import java.io.File;
+
+import static java.nio.file.Files.readString;
 
 @Configuration
 public class ConfigLoader {
@@ -36,8 +37,7 @@ public class ConfigLoader {
 			return mapper.readValue(new File("D:/ETLDemo/config/source-config.yaml"), SourceWrapper.class);
 
 		} catch (Exception e) {
-
-			throw new RuntimeException("Failed to load source config YAML", e);
+			throw new ConfigException("Failed to load source config YAML", e);
 		}
 	}
 
@@ -49,7 +49,7 @@ public class ConfigLoader {
 			return mapper.readValue(yamlFile, TargetWrapper.class);
 		} catch (Exception e) {
 
-			throw new RuntimeException("Failed to load target config YAML", e);
+			throw new ConfigException("Failed to load target config YAML", e);
 		}
 	}
 
@@ -59,14 +59,11 @@ public class ConfigLoader {
 			ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 			mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 			mapper.findAndRegisterModules();
-			File yamlFile = new File("D:/ETLDemo/config/processor-config.yaml");
-			System.out.println("YAML content:\n" + Files.readString(yamlFile.toPath()));
+            File yamlFile = new File("D:/ETLDemo/config/processor-config.yaml");
+            logger.debug("YAML content:\n{}", readString(yamlFile.toPath()));
 			ProcessorConfig config = mapper.readValue(yamlFile, ProcessorConfig.class);
 
-
-
 			// --- Validation step ---
-
 
 			if (config.getMappings() == null || config.getMappings().isEmpty()) {
 				throw new IllegalStateException("No entity mappings found in processor YAML");
@@ -75,9 +72,9 @@ public class ConfigLoader {
 			for (ProcessorConfig.EntityMapping em : config.getMappings()) {
 				for (int i = 0; i < config.getMappings().size(); i++) {
 					ProcessorConfig.EntityMapping m = config.getMappings().get(i);
-					System.out.println("Mapping " + i + ": source=" + m.getSource() + ", target=" + m.getTarget());
+                    logger.debug("Mapping {}: source={}, target={}", i, m.getSource(), m.getTarget());
 				}
-				System.out.println("Validating EntityMapping size: " + config.getMappings().size());
+                logger.debug("Validating EntityMapping size: {}", config.getMappings().size());
 				if (em.getSource() == null || em.getSource().isEmpty()) {
 					throw new IllegalStateException("EntityMapping missing 'source' property: " + em);
 				}
@@ -98,12 +95,10 @@ public class ConfigLoader {
 					}
 				}
 			}
-
 			logger.info("Processor configuration loaded and validated successfully from YAML");
 			return config;
-
 		} catch (Exception e) {
-			throw new RuntimeException("Failed to load or validate processor config YAML", e);
+			throw new ConfigException("Failed to load or validate processor config YAML", e);
 		}
 	}
 

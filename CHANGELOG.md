@@ -7,6 +7,18 @@ and this project adheres to **Semantic Versioning**.
 ## [Unreleased]
 ### Added
 - N/A
+---
+## [1.1.3] - 2025-12-29
+
+### Fixed
+- Centralized null and blank validation using `ValidationUtils`
+- Improved validation consistency across CSV and XML model generators
+- Prevented model generation with empty or invalid field definitions
+
+### Improved
+- Cleaner generator implementations with reduced duplication
+- More robust error handling using model-specific exceptions
+- Increased flexibility using `List<? extends FieldDefinition>`
 
 ---
 

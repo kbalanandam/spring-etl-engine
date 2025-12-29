@@ -40,7 +40,7 @@ public class DynamicReaderFactory {
 
 	@SuppressWarnings("unchecked")
 	public <T> ItemReader<T> createReader(SourceConfig config, Class<T> clazz) throws Exception {
-		DynamicReader<T> reader = (DynamicReader<T>) getReaderByType(config.getType());
+		DynamicReader<T> reader = (DynamicReader<T>) getReaderByType(config.getFormat());
 		return reader.getReader(config, clazz);
 	}
 }

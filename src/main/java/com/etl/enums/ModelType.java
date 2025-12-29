@@ -4,7 +4,7 @@ public enum ModelType {
 	
 	SOURCE("source"), TARGET("target"), PROCESSOR("processor");
 
-	private String type;
+	private final String type;
 
 	ModelType(String type) {
 		this.type = type;

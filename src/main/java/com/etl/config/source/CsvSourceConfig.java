@@ -1,33 +1,82 @@
 package com.etl.config.source;
 
 import com.etl.config.FieldDefinition;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 
+/**
+ * Configuration class for CSV data sources.
+ * <p>
+ * Holds CSV-specific properties such as file path and delimiter.
+ * The format for this config is always "csv".
+ */
 public class CsvSourceConfig extends SourceConfig {
 
-    private String filePath;
-    private String delimiter;
-    @JsonDeserialize(contentAs = ColumnConfig.class)
-    private List<ColumnConfig> fields;
+    /** Path to the CSV file. */
+    private final String filePath;
 
+    /** Delimiter used in the CSV file. */
+    private final String delimiter;
+
+    /**
+     * Constructs a new {@code CsvSourceConfig} instance.
+     *
+     * @param sourceName   the name of the source
+     * @param packageName  the package name for generated code
+     * @param fields       the list of column definitions for the CSV
+     * @param filePath     the path to the CSV file
+     * @param delimiter    the delimiter used in the CSV file
+     */
+    @JsonCreator
+    public CsvSourceConfig(
+            @JsonProperty("sourceName") String sourceName,
+            @JsonProperty("packageName") String packageName,
+            @JsonProperty("fields") List<ColumnConfig> fields,
+            @JsonProperty("filePath") String filePath,
+            @JsonProperty("delimiter") String delimiter
+    ) {
+        super("csv", sourceName, packageName, fields);
+        this.filePath = filePath;
+        this.delimiter = delimiter;
+    }
+
+    /**
+     * Returns the file path of the CSV source.
+     *
+     * @return the CSV file path
+     */
     public String getFilePath() {
         return filePath;
     }
 
+    /**
+     * Returns the delimiter used in the CSV file.
+     *
+     * @return the delimiter character or string
+     */
     public String getDelimiter() {
         return delimiter;
     }
 
+    /**
+     * Returns the format of the source configuration.
+     *
+     * @return the string "csv"
+     */
     @Override
-    public String getType() {
+    public String getFormat() {
         return "csv";
     }
 
+    /**
+     * Returns the list of column definitions for the CSV source.
+     *
+     * @return the list of {@link ColumnConfig}
+     */
     @Override
     public List<? extends FieldDefinition> getFields() {
-        return fields;
+        return super.getFields();
     }
-
 }
