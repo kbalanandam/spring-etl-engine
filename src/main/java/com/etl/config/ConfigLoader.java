@@ -34,7 +34,7 @@ public class ConfigLoader {
 
 		try {
 			ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-			return mapper.readValue(new File("D:/ETLDemo/config/source-config.yaml"), SourceWrapper.class);
+			return mapper.readValue(new File("C:/ETLDemo/config/source-config.yaml"), SourceWrapper.class);
 
 		} catch (Exception e) {
 			throw new ConfigException("Failed to load source config YAML", e);
@@ -45,7 +45,7 @@ public class ConfigLoader {
 	TargetWrapper targetWrapper() {
 		try {
 			ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-			File yamlFile = new File("D:/ETLDemo/config/target-config.yaml");
+			File yamlFile = new File("C:/ETLDemo/config/target-config.yaml");
 			return mapper.readValue(yamlFile, TargetWrapper.class);
 		} catch (Exception e) {
 
@@ -59,7 +59,7 @@ public class ConfigLoader {
 			ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 			mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 			mapper.findAndRegisterModules();
-            File yamlFile = new File("D:/ETLDemo/config/processor-config.yaml");
+            File yamlFile = new File("C:/ETLDemo/config/processor-config.yaml");
             logger.debug("YAML content:\n{}", readString(yamlFile.toPath()));
 			ProcessorConfig config = mapper.readValue(yamlFile, ProcessorConfig.class);
 

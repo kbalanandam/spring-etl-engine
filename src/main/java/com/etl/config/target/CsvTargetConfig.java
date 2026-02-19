@@ -1,12 +1,15 @@
 package com.etl.config.target;
 
 import com.etl.config.FieldDefinition;
-import com.etl.config.source.ColumnConfig;
+import com.etl.config.ColumnConfig;
+import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
 
 import java.util.List;
 
+@Getter
 public class CsvTargetConfig extends TargetConfig {
 
     private final String filePath;
@@ -26,20 +29,12 @@ public class CsvTargetConfig extends TargetConfig {
     }
 
     @Override
-    public String getFormat() {
-        return "csv";
+    public ModelFormat getFormat() {
+        return ModelFormat.CSV;
     }
 
     @Override
     public List<? extends FieldDefinition> getFields() {
         return super.getFields();
-    }
-
-    public String getFilePath() {
-        return filePath;
-    }
-
-    public String getDelimiter() {
-        return delimiter;
     }
 }

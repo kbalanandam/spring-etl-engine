@@ -1,12 +1,15 @@
 package com.etl.config.target;
 
 import com.etl.config.FieldDefinition;
-import com.etl.config.source.ColumnConfig;
+import com.etl.config.ColumnConfig;
+import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
 
 import java.util.List;
 
+@Getter
 public class XmlTargetConfig extends TargetConfig {
 
     private final String filePath;
@@ -29,8 +32,8 @@ public class XmlTargetConfig extends TargetConfig {
     }
 
     @Override
-    public String getFormat() {
-        return "xml";
+    public ModelFormat getFormat() {
+        return ModelFormat.XML;
     }
 
     @Override
@@ -38,15 +41,4 @@ public class XmlTargetConfig extends TargetConfig {
         return super.getFields();
     }
 
-    public String getFilePath() {
-        return filePath;
-    }
-
-    public String getRootElement() {
-        return rootElement;
-    }
-
-    public String getRecordElement() {
-        return recordElement;
-    }
 }

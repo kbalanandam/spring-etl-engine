@@ -31,7 +31,7 @@ import static com.etl.common.util.ValidationUtils.requireNonEmpty;
  */
 @Profile("dev")
 @Component
-public class XmlModelGenerator implements ModelGenerator<ModelConfig> {
+public class XmlModelGenerator<T extends ModelConfig> implements ModelGenerator<T> {
 
 	private static final Logger logger = LoggerFactory.getLogger(XmlModelGenerator.class);
 	private static final ModelFormat MODEL_FORMAT = ModelFormat.XML;
@@ -44,15 +44,11 @@ public class XmlModelGenerator implements ModelGenerator<ModelConfig> {
 	 * Generates a Java model class file for the given configuration.
 	 * The generated class will be annotated for JAXB XML binding.
 	 *
-	 * @param object the model configuration (must be {@link XmlSourceConfig} or {@link XmlTargetConfig})
+	 * @param config the model configuration (must be {@link XmlSourceConfig} or {@link XmlTargetConfig})
 	 * @throws Exception if file writing fails or the config type is unknown
 	 */
 	@Override
-	public void generateModel(Object object) throws Exception {
-		if (!(object instanceof ModelConfig config)) {
-			logger.error("Invalid config object passed to XmlModelGenerator");
-			throw new InvalidModelConfigException("Invalid config object passed to XmlModelGenerator");
-		}
+	public void generateModel(T config) throws Exception {
 
         String className;
 		String packageName;
@@ -85,7 +81,7 @@ public class XmlModelGenerator implements ModelGenerator<ModelConfig> {
 		String dirPath = "src/main/java/" + packageName.replace(".", "/");
 		createDirectory(dirPath);
 
-		String javaSource = generateSource(packageName, className, fields);
+		String javaSource = generateSource(packageName, className, rootElement, fields);
 		writeFile(dirPath, className, javaSource);
 
 		logger.info("XML model generated: {}.{}", packageName, className);
@@ -118,12 +114,14 @@ public class XmlModelGenerator implements ModelGenerator<ModelConfig> {
 	private String generateSource(
 			String packageName,
 			String className,
+			String rootElement,
 			List<? extends FieldDefinition> fields
 	) {
 		StringBuilder sb = new StringBuilder();
 
 		sb.append("package ").append(packageName).append(";\n\n");
 		sb.append("import jakarta.xml.bind.annotation.*;\n\n");
+		sb.append("@XmlRootElement(name = \"").append(rootElement).append("\")\n");
 		sb.append("@XmlAccessorType(XmlAccessType.FIELD)\n");
 		sb.append("public class ").append(className).append(" {\n\n");
 		sb.append("    public ").append(className).append("() {}\n\n");

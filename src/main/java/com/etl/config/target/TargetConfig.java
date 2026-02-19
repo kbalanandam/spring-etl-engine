@@ -3,11 +3,14 @@ package com.etl.config.target;
 import com.etl.config.FieldDefinition;
 import com.etl.config.ModelConfig;
 import com.etl.enums.ModelType;
+import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
+import lombok.Getter;
 
 import java.util.List;
 
+@Getter
 @JsonTypeInfo(
 		use = JsonTypeInfo.Id.NAME,
 		include = JsonTypeInfo.As.PROPERTY,
@@ -34,20 +37,8 @@ public abstract class TargetConfig implements ModelConfig {
 		this.fields = fields;
 	}
 
-	public String getTargetName() {
-		return targetName;
-	}
-
-	public String getPackageName() {
-		return packageName;
-	}
-
-	public List<? extends FieldDefinition> getFields() {
-		return fields;
-	}
-
-	/** csv, xml, mysql, etc */
-	public abstract String getFormat();
+    /** csv, xml, mysql, etc */
+	public abstract ModelFormat getFormat();
 
 	@Override
 	public String getModelName() {

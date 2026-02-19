@@ -23,5 +23,5 @@ public interface ModelGenerator<T extends ModelConfig> {
 	 * @param object the configuration object used for model generation
 	 * @throws Exception if model generation fails
 	 */
-	void generateModel(Object object) throws Exception;
+	void generateModel(T object) throws Exception;
 }

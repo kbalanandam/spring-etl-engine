@@ -1,6 +1,7 @@
 package com.etl.model.generator;
 
 import com.etl.config.ModelConfig;
+import com.etl.config.ModelPathConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.TargetConfig;
@@ -9,15 +10,17 @@ import com.etl.enums.ModelFormat;
 import com.etl.model.exception.ModelGenerationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Profile;
-import org.springframework.context.event.EventListener;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import javax.tools.JavaCompiler;
+import javax.tools.ToolProvider;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.JavaFileObject;
+import java.io.File;
+import java.net.URL;
+import java.net.URLClassLoader;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -37,11 +40,12 @@ public class ModelGeneratorFactory {
 	private final Map<String, ModelGenerator<?>> generators;
 	private final Map<String, GenerationStatus> generationStatus = new ConcurrentHashMap<>();
 	private boolean alreadyGenerated = false;
+	private final ModelPathConfig modelPathConfig;
 
 	/**
 	 * Enum to track the status of each model generation.
 	 */
-	private enum GenerationStatus {
+	enum GenerationStatus {
 		PENDING, SUCCESS, FAILED
 	}
 
@@ -53,13 +57,16 @@ public class ModelGeneratorFactory {
 	 * @param sourceWrapper     The wrapper containing source configurations, typically loaded from a YAML file.
 	 * @param targetWrapper     The wrapper containing target configurations, typically loaded from a YAML file.
 	 * @param modelGenerators   A list of all ModelGenerator beans discovered and managed by Spring.
+	 * @param modelPathConfig   The configuration for model source and class paths.
 	 */
 	public ModelGeneratorFactory(SourceWrapper sourceWrapper,
 								 TargetWrapper targetWrapper,
-								 List<ModelGenerator<?>> modelGenerators) {
+								 List<ModelGenerator<?>> modelGenerators,
+								 ModelPathConfig modelPathConfig) {
 		this.sourceWrapper = sourceWrapper;
 		this.targetWrapper = targetWrapper;
 		this.generators = new HashMap<>();
+		this.modelPathConfig = modelPathConfig;
 
 		// Safely register generators with trimmed keys
 		Optional.ofNullable(modelGenerators).ifPresent(generatorsList ->
@@ -83,6 +90,8 @@ public class ModelGeneratorFactory {
 		if (logger.isDebugEnabled()) {
 			logGeneratorDetails();
 		}
+
+		this.generateModels();
 	}
 
 	/**
@@ -106,7 +115,7 @@ public class ModelGeneratorFactory {
 	 * Event listener that triggers model generation when the application is ready.
 	 * Prevents duplicate generation attempts.
 	 */
-	@EventListener(ApplicationReadyEvent.class)
+
 	public void generateModels() {
 		if (alreadyGenerated) {
 			logger.info("Model generation already completed. Skipping..");
@@ -121,18 +130,19 @@ public class ModelGeneratorFactory {
 
 			// Process source and target models
 			int totalSuccessCount = 0;
-			int totalProcessedCount = 0;
-
 			totalSuccessCount += processModels(sourceWrapper.getSources(), "source");
 			totalSuccessCount += processModels(targetWrapper.getTargets(), "target");
 
-			totalProcessedCount = getTotalConfigCount();
+			int totalProcessedCount = getTotalConfigCount();
 
 			logger.info("Model generation completed. Total: {} processed, {} successful, {} failed",
-					totalProcessedCount, totalSuccessCount, totalProcessedCount - totalSuccessCount);
+				totalProcessedCount, totalSuccessCount, totalProcessedCount - totalSuccessCount);
 
 			// Log detailed status
 			logGenerationStatus();
+
+			// Compile and load generated model classes
+			compileAndLoadGeneratedModels();
 
 			alreadyGenerated = true;
 
@@ -142,6 +152,100 @@ public class ModelGeneratorFactory {
 		} catch (Exception e) {
 			logger.error("Unexpected error during model generation", e);
 			throw new ModelGenerationException("Unexpected error during model generation: " + e.getMessage());
+		}
+	}
+
+	/**
+	 * Compiles and loads all generated model classes from both source and target model packages.
+	 * Looks in 'src/main/java/com/etl/model/source' and 'src/main/java/com/etl/model/target'.
+	 */
+	private void compileAndLoadGeneratedModels() {
+		try {
+			// Always compile to the main output directory
+			String outputDir = "target/classes";
+			String[] generatedSrcDirs = {
+				modelPathConfig.getSourceDir(),
+				modelPathConfig.getTargetDir()
+			};
+			List<File> javaFiles = new ArrayList<>();
+			for (String dirPath : generatedSrcDirs) {
+				File srcDir = new File(dirPath);
+				if (srcDir.exists() && srcDir.isDirectory()) {
+					collectJavaFiles(srcDir, javaFiles);
+				} else {
+					logger.warn("No generated source directory found at {}. Skipping.", dirPath);
+				}
+			}
+			if (javaFiles.isEmpty()) {
+				logger.warn("No generated Java files found in source/target model directories. Skipping compilation.");
+				return;
+			}
+
+			// Compile Java files to target/classes
+			JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+			if (compiler == null) {
+				throw new IllegalStateException("No Java compiler available. Are you running a JRE instead of a JDK?");
+			}
+			List<String> options = List.of("-d", outputDir);
+			try (StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null)) {
+				Iterable<? extends JavaFileObject> compilationUnits = fileManager.getJavaFileObjectsFromFiles(javaFiles);
+				boolean success = compiler.getTask(null, fileManager, null, options, null, compilationUnits).call();
+				if (!success) {
+					throw new IllegalStateException("Compilation of generated model classes failed.");
+				}
+			}
+
+			// Load all .class files from target/classes/com/etl/model/source and target
+			List<File> classFiles = new ArrayList<>();
+			collectClassFiles(new File(outputDir + "/com/etl/model/source"), classFiles);
+			collectClassFiles(new File(outputDir + "/com/etl/model/target"), classFiles);
+			if (classFiles.isEmpty()) {
+				logger.warn("No compiled class files found in output directory. Skipping class loading.");
+				return;
+			}
+			try (URLClassLoader classLoader = new URLClassLoader(new URL[]{new File(outputDir).getAbsoluteFile().toURI().toURL()}, Thread.currentThread().getContextClassLoader())) {
+				for (File classFile : classFiles) {
+					String absPath = classFile.getAbsolutePath().replace("\\", "/");
+					int idx = absPath.indexOf("/com/etl/model/");
+					if (idx == -1) continue;
+					String relPath = absPath.substring(idx + 1); // skip leading /
+					String className = relPath.replace("/", ".").replace(".class", "");
+					try {
+						Class<?> loadedClass = classLoader.loadClass(className);
+						logger.info("Loaded generated model class: {}", loadedClass.getName());
+					} catch (ClassNotFoundException e) {
+						logger.error("Failed to load generated class: {}", className, e);
+					}
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Error during compilation/loading of generated models", e);
+			throw new ModelGenerationException("Failed to compile/load generated models: " + e.getMessage());
+		}
+	}
+
+	private void collectJavaFiles(File dir, List<File> javaFiles) {
+		File[] files = dir.listFiles();
+		if (files == null) return;
+		for (File file : files) {
+			if (file.isDirectory()) {
+				collectJavaFiles(file, javaFiles);
+			} else if (file.getName().endsWith(".java")) {
+				javaFiles.add(file);
+			}
+		}
+	}
+
+	private void collectClassFiles(File dir, List<File> classFiles) {
+		if (dir == null || !dir.exists()) return;
+		File[] files = dir.listFiles();
+		if (files == null) return;
+		for (File file : files) {
+			if (file.isDirectory()) {
+				collectClassFiles(file, classFiles);
+			} else if (file.getName().endsWith(".class")) {
+				classFiles.add(file);
+			}
 		}
 	}
 
@@ -201,69 +305,53 @@ public class ModelGeneratorFactory {
 	 * @return true if generation was successful, false otherwise
 	 */
 	private boolean generateSingleModel(Object config, String label) {
-		// Validate input
-		if (!(config instanceof ModelConfig)) {
+		// Use pattern matching for instanceof
+		if (!(config instanceof ModelConfig modelConfig)) {
 			String errorMsg = String.format("Invalid config type for %s. Expected ModelConfig, got %s",
 					label, config != null ? config.getClass().getName() : "null");
-			handleFailure(errorMsg, "unknown-config", false);
+			handleFailure(errorMsg, "unknown-config");
 			return false;
 		}
-
-		ModelConfig modelConfig = (ModelConfig) config;
 		String name = modelConfig.getModelName();
-
 		if (name == null || name.isBlank()) {
-			handleFailure("Model name is null or empty", "unnamed-model", false);
+			handleFailure("Model name is null or empty", "unnamed-model");
 			return false;
 		}
-
 		// Track generation status
 		generationStatus.put(name, GenerationStatus.PENDING);
 		logger.info("Processing {}: {}", label, name);
 
 		try {
-			// Extract format based on model type
 			String format = extractFormat(modelConfig, name);
 			if (format == null) {
-				return false; // Error already logged in extractFormat
-			}
-
-			// Get model format enum
-			ModelFormat modelFormat = ModelFormat.fromString(format);
-			if (modelFormat == null) {
-				handleFailure("Unsupported model format: " + format, name, false);
 				return false;
 			}
-
-			// Find appropriate generator with trimmed key
-			String formatKey = modelFormat.getFormat().trim().toLowerCase();
+			ModelFormat modelFormat = ModelFormat.fromString(format);
+            String formatKey = modelFormat.getFormat().trim().toLowerCase();
 			ModelGenerator<?> generator = generators.get(formatKey);
-
 			if (generator == null) {
-				// Provide more helpful error message
 				String available = String.join(", ", generators.keySet());
 				handleFailure(String.format("No model generator found for type: '%s'. Available: [%s]",
-						formatKey, available), name, false);
+						formatKey, available), name);
 				return false;
 			}
-
-			// Generate the model
-			generator.generateModel(config);
-
-			// Update status on success
+			generateModelWithGeneric(generator, config);
 			generationStatus.put(name, GenerationStatus.SUCCESS);
 			logger.debug("Successfully generated model: {}", name);
 			return true;
-
 		} catch (IllegalArgumentException e) {
-			handleFailure("Invalid configuration: " + e.getMessage(), name, false);
+			handleFailure("Invalid configuration: " + e.getMessage(), name);
 			return false;
 		} catch (Exception e) {
-			handleFailure("Generation failed: " + e.getMessage(), name, false);
+			handleFailure("Generation failed: " + e.getMessage(), name);
 			return false;
 		}
 	}
-
+	// Helper method for type-safe generic invocation
+	@SuppressWarnings("unchecked")
+	private <T extends ModelConfig> void generateModelWithGeneric(ModelGenerator<?> generator, Object config) throws Exception {
+		((ModelGenerator<T>) generator).generateModel((T) config);
+	}
 	/**
 	 * Extracts the format string from a ModelConfig based on its type.
 	 * Uses pattern matching for type safety.
@@ -276,32 +364,32 @@ public class ModelGeneratorFactory {
 		return switch (modelConfig.getModelType()) {
 			case TARGET -> {
 				if (modelConfig instanceof TargetConfig targetConfig) {
-					String format = targetConfig.getFormat();
-					if (format == null || format.isBlank()) {
-						handleFailure("Format is null or empty for TARGET config", name, false);
+					String format = targetConfig.getFormat().getFormat();
+					if (format.isBlank()) {
+						handleFailure("Format is blank for TARGET config", name);
 						yield null;
 					}
 					yield format.trim();
 				} else {
-					handleFailure("Config is marked as TARGET but not a TargetConfig instance", name, false);
+					handleFailure("Config is marked as TARGET but not a TargetConfig instance", name);
 					yield null;
 				}
 			}
 			case SOURCE -> {
 				if (modelConfig instanceof SourceConfig sourceConfig) {
-					String format = sourceConfig.getFormat();
-					if (format == null || format.isBlank()) {
-						handleFailure("Format is null or empty for SOURCE config", name, false);
+					String format = sourceConfig.getFormat().getFormat();
+					if (format.isBlank()) {
+						handleFailure("Format is blank for SOURCE config", name);
 						yield null;
 					}
 					yield format.trim();
 				} else {
-					handleFailure("Config is marked as SOURCE but not a SourceConfig instance", name, false);
+					handleFailure("Config is marked as SOURCE but not a SourceConfig instance", name);
 					yield null;
 				}
 			}
 			default -> {
-				handleFailure("Unknown ModelType: " + modelConfig.getModelType(), name, false);
+				handleFailure("Unknown ModelType: " + modelConfig.getModelType(), name);
 				yield null;
 			}
 		};
@@ -312,15 +400,10 @@ public class ModelGeneratorFactory {
 	 *
 	 * @param message    The error message
 	 * @param modelName  The name of the model that failed
-	 * @param critical   Whether this is a critical failure that should stop the entire process
 	 */
-	private void handleFailure(String message, String modelName, boolean critical) {
+	private void handleFailure(String message, String modelName) {
 		logger.error("{} for model: {}", message, modelName);
 		generationStatus.put(modelName, GenerationStatus.FAILED);
-
-		if (critical) {
-			throw new ModelGenerationException(message + " for model: " + modelName);
-		}
 	}
 
 	/**
@@ -455,44 +538,5 @@ public class ModelGeneratorFactory {
 		int targetCount = targetWrapper.getTargets() != null ? targetWrapper.getTargets().size() : 0;
 		return sourceCount + targetCount;
 	}
-
-	/**
-	 * Gets the current generation status for all models.
-	 * Useful for monitoring and debugging.
-	 *
-	 * @return A copy of the generation status map
-	 */
-	public Map<String, GenerationStatus> getGenerationStatus() {
-		return new HashMap<>(generationStatus);
-	}
-
-	/**
-	 * Gets a summary of generation statistics.
-	 *
-	 * @return Map with success, failed, and pending counts
-	 */
-	public Map<String, Long> getGenerationStatistics() {
-		Map<String, Long> stats = new HashMap<>();
-		stats.put("total", (long) generationStatus.size());
-		stats.put("success", generationStatus.values().stream()
-				.filter(status -> status == GenerationStatus.SUCCESS)
-				.count());
-		stats.put("failed", generationStatus.values().stream()
-				.filter(status -> status == GenerationStatus.FAILED)
-				.count());
-		stats.put("pending", generationStatus.values().stream()
-				.filter(status -> status == GenerationStatus.PENDING)
-				.count());
-		return stats;
-	}
-
-	/**
-	 * Resets the factory state for testing purposes.
-	 * Package-private for unit testing.
-	 */
-	void reset() {
-		alreadyGenerated = false;
-		generationStatus.clear();
-		logger.info("ModelGeneratorFactory has been reset");
-	}
 }
+

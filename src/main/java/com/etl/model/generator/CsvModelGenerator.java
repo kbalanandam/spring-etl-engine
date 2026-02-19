@@ -48,13 +48,7 @@ public class CsvModelGenerator<T extends ModelConfig> implements ModelGenerator<
      * @param object configuration object
      */
     @Override
-    public void generateModel(Object object) throws Exception {
-
-        if (!(object instanceof ModelConfig)) {
-            throw new InvalidModelConfigException(
-                    "Invalid config object passed to CsvModelGenerator"
-            );
-        }
+    public void generateModel(T object) throws Exception {
 
         String className;
         String packageName;

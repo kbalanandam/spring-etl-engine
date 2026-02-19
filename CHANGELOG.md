@@ -8,8 +8,18 @@ and this project adheres to **Semantic Versioning**.
 ### Added
 - N/A
 ---
-## [1.1.3] - 2025-12-29
 
+## [1.1.4] - 2026-02-19
+### Added
+- Added support for dynamic compilation and class loading of generated model classes
+- Enhanced XmlModelGenerator with improved validation and file generation logic
+- Updated model generation to support both source and target configs for XML and relational formats
+- Added helper methods for directory creation and file writing
+- Improved error handling and logging around model generation processes
+
+---
+
+## [1.1.3] - 2025-12-29
 ### Fixed
 - Centralized null and blank validation using `ValidationUtils`
 - Improved validation consistency across CSV and XML model generators

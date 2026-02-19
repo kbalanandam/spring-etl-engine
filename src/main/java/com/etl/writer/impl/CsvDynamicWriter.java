@@ -1,8 +1,6 @@
 package com.etl.writer.impl;
 
 import com.etl.config.FieldDefinition;
-import com.etl.config.ModelConfig;
-import com.etl.config.target.ColumnConfig;
 import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.writer.DynamicWriter;
