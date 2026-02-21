@@ -7,6 +7,7 @@ import com.etl.enums.ModelType;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.Collections;
 import java.util.List;
@@ -32,21 +33,27 @@ public abstract class SourceConfig implements ModelConfig {
      * The name of the source.
      * -- GETTER --
      *  Returns the name of the source.
-     *
+     * -- SETTER --
+     *  Setter for sourceName (for YAML binding and manual setting).
+
 
      */
 
-    private final String sourceName;
+    @Setter
+    private String sourceName;
 
     /**
      * The package name associated with the source.
      * -- GETTER --
      *  Returns the package name associated with the source.
-     *
+     * -- SETTER --
+     *  Setter for packageName (for YAML binding and manual setting).
+
 
      */
 
-    private final String packageName;
+    @Setter
+    private String packageName;
 
     /**
      * The list of field definitions for the source.
@@ -56,7 +63,12 @@ public abstract class SourceConfig implements ModelConfig {
 
      */
 
-    private final List<? extends FieldDefinition> fields;
+    private List<? extends FieldDefinition> fields;
+
+    /**
+     * No-args constructor for YAML/object mapping.
+     */
+    protected SourceConfig() {}
 
     /**
      * Constructs a new SourceConfig.
@@ -68,9 +80,15 @@ public abstract class SourceConfig implements ModelConfig {
     protected SourceConfig(String sourceName, String packageName, List<? extends FieldDefinition> fields) {
         this.sourceName = sourceName;
         this.packageName = packageName;
-        this.fields = fields != null ? Collections.unmodifiableList(fields) : Collections.emptyList();
+        this.setFields(fields);
     }
 
+    /**
+     * Setter for fields (for YAML binding and manual setting).
+     */
+    public void setFields(List<? extends FieldDefinition> fields) {
+        this.fields = fields != null ? Collections.unmodifiableList(fields) : Collections.emptyList();
+    }
     /**
      * Returns the type of the source.
      *

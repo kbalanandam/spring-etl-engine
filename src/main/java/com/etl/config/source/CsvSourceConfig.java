@@ -19,10 +19,15 @@ import java.util.List;
 public class CsvSourceConfig extends SourceConfig {
 
     /** Path to the CSV file. */
-    private final String filePath;
+    private String filePath;
 
     /** Delimiter used in the CSV file. */
-    private final String delimiter;
+    private String delimiter;
+
+    // No-args constructor for YAML/object mapping
+    public CsvSourceConfig() {
+        super();
+    }
 
     /**
      * Constructs a new {@code CsvSourceConfig} instance.
@@ -46,6 +51,13 @@ public class CsvSourceConfig extends SourceConfig {
         this.delimiter = delimiter;
     }
 
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public void setDelimiter(String delimiter) {
+        this.delimiter = delimiter;
+    }
 
     /**
      * Returns the format of the source configuration.
@@ -67,3 +79,4 @@ public class CsvSourceConfig extends SourceConfig {
         return super.getFields();
     }
 }
+	

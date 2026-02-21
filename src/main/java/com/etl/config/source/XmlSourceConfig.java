@@ -3,9 +3,9 @@ package com.etl.config.source;
 import com.etl.config.ColumnConfig;
 import com.etl.config.FieldDefinition;
 import com.etl.enums.ModelFormat;
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.util.List;
 
@@ -13,80 +13,62 @@ import java.util.List;
  * Configuration class for XML source definitions.
  * Holds XML-specific properties such as file path, root element, and record element.
  */
-@Setter
+@Getter
 public class XmlSourceConfig extends SourceConfig {
 
-    /**
-     * -- SETTER --
-     *  Sets the file path of the XML source.
-     * <p>
-     * -- GETTER --
-     *  Gets the file path of the XML source.
-     *
-
-     */
-    @Getter
+    /** Path to the XML file. */
     private String filePath;
-    /**
-     * -- SETTER --
-     *  Sets the root element name of the XML.
-     * <p>
-     * -- GETTER --
-     *  Gets the root element name of the XML.
-     *
 
-     */
-    @Getter
+    /** Root element name of the XML. */
     private String rootElement;
-    /**
-     * -- SETTER --
-     *  Sets the record element name of the XML.
-     * <p>
-     * -- GETTER --
-     *  Gets the record element name of the XML.
-     *
 
-     */
-    @Getter
+    /** Record element name of the XML. */
     private String recordElement;
 
-    /**
-     * -- SETTER --
-     *  Sets the list of field definitions for the XML source.
-     *
-     */
-    @JsonDeserialize(contentAs = ColumnConfig.class)
-    private List<ColumnConfig> fields;
+    // No-args constructor for YAML/object mapping
+    public XmlSourceConfig() {
+        super();
+    }
 
     /**
      * Constructs an XmlSourceConfig with the specified parameters.
      *
-     * @param sourceName  the name of the source
-     * @param packageName the package name for generated classes
-     * @param fields      the list of field definitions
+     * @param sourceName   the name of the source
+     * @param packageName  the package name for generated classes
+     * @param fields       the list of field definitions
+     * @param filePath     the XML file path
+     * @param rootElement  the root element name
+     * @param recordElement the record element name
      */
-    protected XmlSourceConfig(String sourceName, String packageName, List<? extends FieldDefinition> fields) {
+    @JsonCreator
+    public XmlSourceConfig(
+            @JsonProperty("sourceName") String sourceName,
+            @JsonProperty("packageName") String packageName,
+            @JsonProperty("fields") List<ColumnConfig> fields,
+            @JsonProperty("filePath") String filePath,
+            @JsonProperty("rootElement") String rootElement,
+            @JsonProperty("recordElement") String recordElement
+    ) {
         super(sourceName, packageName, fields);
+        this.filePath = filePath;
+        this.rootElement = rootElement;
+        this.recordElement = recordElement;
     }
 
-    /**
-     * Returns the format type for this source config.
-     *
-     * @return ModelFormat.XML
-     */
+    public void setFilePath(String filePath) {
+        this.filePath = filePath;
+    }
+
+    public void setRootElement(String rootElement) {
+        this.rootElement = rootElement;
+    }
+
+    public void setRecordElement(String recordElement) {
+        this.recordElement = recordElement;
+    }
+
     @Override
     public ModelFormat getFormat() {
         return ModelFormat.XML;
     }
-
-    /**
-     * Gets the list of field definitions for the XML source.
-     *
-     * @return the list of fields
-     */
-    @Override
-    public List<? extends FieldDefinition> getFields() {
-        return fields;
-    }
-
 }
