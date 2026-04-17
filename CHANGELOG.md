@@ -7,6 +7,27 @@ and this project adheres to **Semantic Versioning**.
 ## [Unreleased]
 ### Added
 - N/A
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+---
+
+## [1.1.5] - 2026-04-17
+### Changed
+- Introduced `ResolvedModelMetadata` to normalize runtime source, processing, and write class resolution.
+- Centralized runtime model interpretation in `GeneratedModelClassResolver` and threaded resolved metadata through batch, processor, and writer setup.
+- Improved XML runtime handling so tasklet mode continues to use wrapper objects while chunk mode streams XML record classes directly.
+- Deprecated the unused `TypeConversionUtils.mapToJavaType` helper for future cleanup.
+
+### Fixed
+- Fixed large-file XML chunk processing so record classes marshal correctly during chunk-oriented writes.
+- Updated XML record generation to include `@XmlRootElement`, allowing streamed record marshalling for XML chunk mode.
+- Verified generated model sources and classes can be deleted and regenerated successfully during application startup.
+- Validated ETL execution with 20k and 50k CSV inputs, including correct chunk selection and XML output structure.
+
 ---
 
 ## [1.1.4] - 2026-02-19
