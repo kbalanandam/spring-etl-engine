@@ -1,5 +1,6 @@
 package com.etl.processor;
 
+import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.source.SourceConfig;
 import org.springframework.batch.item.ItemProcessor;
 
@@ -15,8 +16,17 @@ public interface DynamicProcessor<I, O> {
     }
     default ItemProcessor<I, O> getProcessorWithMapping(ProcessorConfig fullConfig, ProcessorConfig.EntityMapping selectedMapping) throws Exception {
         // default fallback → existing processors still work
-        return getProcessor(fullConfig, null, null);
+        return getProcessor(fullConfig, null, null, null);
     }
 
-    ItemProcessor<I, O> getProcessor(ProcessorConfig processorConfig, SourceConfig sourceConfig, TargetConfig targetConfig) throws Exception;
+    default ItemProcessor<I, O> getProcessor(ProcessorConfig processorConfig,
+                                             SourceConfig sourceConfig,
+                                             TargetConfig targetConfig) throws Exception {
+        return getProcessor(processorConfig, sourceConfig, targetConfig, null);
+    }
+
+    ItemProcessor<I, O> getProcessor(ProcessorConfig processorConfig,
+                                     SourceConfig sourceConfig,
+                                     TargetConfig targetConfig,
+                                     ResolvedModelMetadata metadata) throws Exception;
 }

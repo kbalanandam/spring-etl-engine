@@ -1,13 +1,17 @@
 package com.etl.model.generator;
 
 import com.etl.common.util.StringUtils;
-import com.etl.common.util.TypeConversionUtils;
 import com.etl.config.FieldDefinition;
 import com.etl.config.ModelConfig;
+import com.etl.config.ModelPathConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.enums.ModelFormat;
+import com.etl.enums.ModelType;
 import com.etl.model.exception.InvalidModelConfigException;
+import com.etl.model.exception.ModelGenerationException;
+import com.etl.model.generator.support.GeneratedSourcePathResolver;
+import com.etl.model.generator.support.JavaTypeNameResolver;
 import com.squareup.javapoet.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +19,8 @@ import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import javax.lang.model.element.Modifier;
-import java.nio.file.Paths;
+import java.io.IOException;
+import java.nio.file.Path;
 import java.util.List;
 
 import static com.etl.common.util.ValidationUtils.requireNonBlank;
@@ -36,6 +41,11 @@ public class CsvModelGenerator<T extends ModelConfig> implements ModelGenerator<
 
     private static final Logger logger = LoggerFactory.getLogger(CsvModelGenerator.class);
     private static final ModelFormat MODEL_FORMAT = ModelFormat.CSV;
+    private final ModelPathConfig modelPathConfig;
+
+    public CsvModelGenerator(ModelPathConfig modelPathConfig) {
+        this.modelPathConfig = modelPathConfig;
+    }
 
     @Override
     public ModelFormat getType() {
@@ -48,17 +58,19 @@ public class CsvModelGenerator<T extends ModelConfig> implements ModelGenerator<
      * @param object configuration object
      */
     @Override
-    public void generateModel(T object) throws Exception {
+	public void generateModel(T object) {
 
         String className;
         String packageName;
         List<? extends FieldDefinition> fields;
+        ModelType modelType;
 
         if (object instanceof SourceConfig sourceCfg) {
 
             className = StringUtils.capitalize(sourceCfg.getSourceName());
             packageName = sourceCfg.getPackageName();
             fields = sourceCfg.getFields();
+            modelType = ModelType.SOURCE;
 
             logger.info("Generating CSV model for source: {}", sourceCfg.getSourceName());
 
@@ -67,6 +79,7 @@ public class CsvModelGenerator<T extends ModelConfig> implements ModelGenerator<
             className = StringUtils.capitalize(targetCfg.getTargetName());
             packageName = targetCfg.getPackageName();
             fields = targetCfg.getFields();
+            modelType = ModelType.TARGET;
 
             logger.info("Generating CSV model for target: {}", targetCfg.getTargetName());
 
@@ -84,7 +97,12 @@ public class CsvModelGenerator<T extends ModelConfig> implements ModelGenerator<
         buildFields(classBuilder, fields);
 
         JavaFile javaFile = JavaFile.builder(packageName, classBuilder.build()).build();
-        javaFile.writeTo(Paths.get("src/main/java"));
+              Path outputDirectory = GeneratedSourcePathResolver.resolveSourceRoot(modelPathConfig, modelType, packageName);
+            try {
+              javaFile.writeTo(outputDirectory);
+            } catch (IOException e) {
+              throw new ModelGenerationException("Failed to write CSV model class: " + packageName + "." + className, e);
+            }
 
         logger.info("CSV model class generated: {}.{}", packageName, className);
     }
@@ -112,15 +130,13 @@ public class CsvModelGenerator<T extends ModelConfig> implements ModelGenerator<
     private void buildFields(TypeSpec.Builder typeBuilder,
                              List<? extends FieldDefinition> fields) {
 
+        requireNonEmpty(
+            fields,
+            "CSV model must contain at least one field"
+        );
+
         for (FieldDefinition field : fields) {
-
-            requireNonEmpty(
-                    fields,
-                    "CSV model must contain at least one field"
-            );
-
-            String javaTypeName = TypeConversionUtils.mapToJavaType(field.getType());
-            ClassName javaType = ClassName.bestGuess(javaTypeName);
+          TypeName javaType = JavaTypeNameResolver.resolvePoetType(field.getType());
             String fieldName = field.getName();
 
             // private field

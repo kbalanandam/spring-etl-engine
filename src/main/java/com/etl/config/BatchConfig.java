@@ -1,12 +1,12 @@
 package com.etl.config;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
 import com.etl.common.util.DynamicBatchUtils;
+import com.etl.common.util.GeneratedModelClassResolver;
+import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.source.SourceConfig;
-import com.etl.config.target.XmlTargetConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
@@ -146,14 +146,6 @@ public class BatchConfig {
 
             String stepName = "etlStep_" + i + "_" + s.getSourceName();
 
-            String sourceClass = s.getPackageName() + "." + s.getSourceName();
-            String targetClass = t.getPackageName() + "." + t.getTargetName();
-
-            // Dynamically create reader, writer, and processor for each step
-            ItemReader<Object> reader = DynamicBatchUtils.getDynamicReader(readerFactory, s, sourceClass);
-            ItemWriter<Object> writer = DynamicBatchUtils.getDynamicWriter(writerFactory, t, targetClass);
-            ItemProcessor<Object, Object> processor = processorFactory.getProcessor(processorConfig, s, t);
-
             boolean useChunk;
             int recordCount;
             try {
@@ -163,6 +155,14 @@ public class BatchConfig {
                 recordCount = chunkThreshold + 1;
             }
             useChunk = recordCount > chunkThreshold;
+
+            ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(s, t);
+            ItemReader<Object> reader = DynamicBatchUtils.getDynamicReader(readerFactory, s, metadata);
+            Class<?> writerClass = metadata.isWrapperRequired() && useChunk
+                    ? GeneratedModelClassResolver.resolveTargetProcessingClass(metadata)
+                    : GeneratedModelClassResolver.resolveTargetWriteClass(metadata);
+            ItemWriter<Object> writer = DynamicBatchUtils.getDynamicWriter(writerFactory, t, writerClass);
+            ItemProcessor<Object, Object> processor = processorFactory.getProcessor(processorConfig, s, t, metadata);
 
             StepBuilder stepBuilder = new StepBuilder(stepName, jobRepository);
             Step step;
@@ -194,19 +194,15 @@ public class BatchConfig {
                                     buffer.add(processed);
                                 }
                                 if (!buffer.isEmpty()) {
-                                    if (t instanceof XmlTargetConfig xmlTarget) {
-                                        Class<?> wrapperClass = Class.forName(xmlTarget.getPackageName() + "." + xmlTarget.getRootElement());
-                                        Object wrapper = wrapperClass.getDeclaredConstructor().newInstance();
-                                        String recordField = xmlTarget.getRecordElement();
-                                        String fieldName = Character.toLowerCase(recordField.charAt(0)) + recordField.substring(1);
-                                        Field field = wrapperClass.getDeclaredField(fieldName);
-                                        field.setAccessible(true);
-                                        // Debug: log the type and contents before writing
-                                        logger.info("[DEBUG] Writing XML wrapper: {}.{} with {} records", wrapperClass.getSimpleName(), fieldName, buffer.size());
+                                    if (metadata.isWrapperRequired()) {
+                                        Object wrapper = GeneratedModelClassResolver.createWrapper(metadata, buffer);
+                                        logger.info("[DEBUG] Writing wrapper: {}.{} with {} records",
+                                                metadata.getTargetWriteClassName(),
+                                                metadata.getWrapperFieldName(),
+                                                buffer.size());
                                         for (Object rec : buffer) {
                                             logger.info("[DEBUG] Record type: {}", rec.getClass().getName());
                                         }
-                                        field.set(wrapper, buffer);
                                         writer.write(new Chunk<>(List.of(wrapper)));
                                     } else {
                                         writer.write(new Chunk<>(buffer));

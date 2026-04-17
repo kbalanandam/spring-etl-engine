@@ -4,4 +4,8 @@ public class ModelGenerationException extends ModelException {
     public ModelGenerationException(String message) {
         super(message);
     }
+
+	public ModelGenerationException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }
