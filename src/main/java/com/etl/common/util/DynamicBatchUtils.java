@@ -4,6 +4,7 @@ import java.lang.reflect.Method;
 
 import com.etl.config.source.SourceConfig;
 import com.etl.config.target.TargetConfig;
+import com.etl.config.target.XmlTargetConfig;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
 
@@ -49,8 +50,13 @@ public class DynamicBatchUtils {
     public static ItemWriter<Object> getDynamicWriter(DynamicWriterFactory writerFactory,
                                                       TargetConfig targetConfig,
                                                       String targetClassName) throws Exception {
-      //  Class<?> targetClass = Class.forName(targetClassName);
-        Class<?> targetClass = Class.forName(targetConfig.getPackageName() + "." + targetConfig.getTargetName());
+        Class<?> targetClass;
+        if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
+            // For XML, use the wrapper/root class for marshalling
+            targetClass = Class.forName(xmlTargetConfig.getPackageName() + "." + xmlTargetConfig.getRootElement());
+        } else {
+            targetClass = Class.forName(targetConfig.getPackageName() + "." + targetConfig.getTargetName());
+        }
 
         Method createWriterMethod = writerFactory.getClass()
                 .getMethod("createWriter", TargetConfig.class, Class.class);

@@ -1,5 +1,5 @@
-validation:
-  csv:
+csv:
+  files:
     customers:
       - field: id
         rule: notNull
@@ -8,7 +8,8 @@ validation:
         rule: regex
         pattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
         enabled: false
-  xml:
+xml:
+  files:
     orders:
       - rule: xsd
         xsdPath: "schemas/orders.xsd"

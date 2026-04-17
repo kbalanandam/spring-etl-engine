@@ -1,12 +1,23 @@
 sources:
-  - type: csv
+  - format: csv
     sourceName: Customers
-    filePath: D:/ETLDemo/data/Customers.csv
+    packageName: com.etl.model.source
+    filePath: src/main/resources/demo-input/Customers.csv
     delimiter: ","
-    columns:
+    fields:
       - name: id
         type: int
       - name: name
         type: String
       - name: email
+        type: String
+  - format: csv
+    sourceName: Department
+    packageName: com.etl.model.source
+    filePath: src/main/resources/demo-input/Department.csv
+    delimiter: ","
+    fields:
+      - name: id
+        type: int
+      - name: name
         type: String

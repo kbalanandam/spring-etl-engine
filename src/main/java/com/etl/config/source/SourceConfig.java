@@ -117,4 +117,12 @@ public abstract class SourceConfig implements ModelConfig {
         return ModelType.SOURCE;
     }
 
+    /**
+     * Returns the number of records in the source. Used for chunk/tasklet decision.
+     *
+     * @return the record count (or -1 if not supported)
+     * @throws Exception if record counting fails
+     */
+    public abstract int getRecordCount() throws Exception;
+
 }

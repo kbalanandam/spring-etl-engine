@@ -119,12 +119,17 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 				.findFirst()
 				.orElseThrow(() -> new IllegalStateException(
 						"Mapping not found for " + sourceConfig.getSourceName()
-								+ " → " + targetConfig.getTargetName()
+							+ " > " + targetConfig.getTargetName()
 				));
 
 		@SuppressWarnings("unchecked")
-		Class<Object> targetClass = (Class<Object>) Class.forName(targetConfig.getPackageName() + "." + targetConfig.getTargetName());
-		logger.info("Using mapping for {} → {} with {} fields",
+		Class<Object> targetClass;
+		if (targetConfig instanceof com.etl.config.target.XmlTargetConfig xmlTargetConfig) {
+			targetClass = (Class<Object>) Class.forName(xmlTargetConfig.getPackageName() + "." + xmlTargetConfig.getRecordElement());
+		} else {
+			targetClass = (Class<Object>) Class.forName(targetConfig.getPackageName() + "." + targetConfig.getTargetName());
+		}
+		logger.info("Using mapping for {} > {} with {} fields",
 				sourceConfig.getSourceName(),
 				targetConfig.getTargetName(),
 				mapping.getFields().size()

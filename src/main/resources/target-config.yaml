@@ -1,12 +1,26 @@
-target:
-  type: csv
-  packageName: com.etl.models.target
-  filePath: D:/ETLDemo/data/output/customers.csv
-  targetName: Customers
-  fields:
-    - name: id
-      type: int
-    - name: name
-      type: String
-    - name: email
-      type: String
+targets:
+  - format: xml
+    packageName: com.etl.model.target
+    filePath: target/
+    targetName: Customers
+    rootElement: Customers
+    recordElement: Customer
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+      - name: email
+        type: String
+
+  - format: xml
+    packageName: com.etl.model.target
+    filePath: target/
+    targetName: Departments
+    rootElement: Departments
+    recordElement: Department
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String

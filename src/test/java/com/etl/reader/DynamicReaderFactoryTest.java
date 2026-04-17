@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.util.List;
 
+import com.etl.model.source.Customers;
 import jakarta.annotation.Nonnull;
 import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -15,7 +16,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import com.etl.config.ColumnConfig;
 import com.etl.config.source.CsvSourceConfig;
-import com.etl.model.source.Customers;
 
 @SpringBootTest
 class DynamicReaderFactoryTest {

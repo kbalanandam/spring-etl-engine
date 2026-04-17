@@ -1,28 +1,46 @@
 package com.etl.config.source;
 
 import com.etl.config.ColumnConfig;
-import com.etl.config.FieldDefinition;
 import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
+import lombok.Setter;
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.List;
+import javax.xml.stream.XMLInputFactory;
+import javax.xml.stream.XMLStreamConstants;
+import javax.xml.stream.XMLStreamReader;
 
 /**
  * Configuration class for XML source definitions.
  * Holds XML-specific properties such as file path, root element, and record element.
  */
 @Getter
+@Setter
 public class XmlSourceConfig extends SourceConfig {
 
-    /** Path to the XML file. */
+    /** Path to the XML file.
+     * -- SETTER --
+     *  Sets the file path for the XML source.
+     *
+     */
     private String filePath;
 
-    /** Root element name of the XML. */
+    /** Root element name of the XML.
+     * -- SETTER --
+     *  Sets the root element name for the XML source.
+     *
+     */
     private String rootElement;
 
-    /** Record element name of the XML. */
+    /** Record element name of the XML.
+     * -- SETTER --
+     *  Sets the record element name for the XML source.
+     *
+     */
     private String recordElement;
 
     // No-args constructor for YAML/object mapping
@@ -55,20 +73,35 @@ public class XmlSourceConfig extends SourceConfig {
         this.recordElement = recordElement;
     }
 
-    public void setFilePath(String filePath) {
-        this.filePath = filePath;
-    }
-
-    public void setRootElement(String rootElement) {
-        this.rootElement = rootElement;
-    }
-
-    public void setRecordElement(String recordElement) {
-        this.recordElement = recordElement;
-    }
-
     @Override
     public ModelFormat getFormat() {
         return ModelFormat.XML;
+    }
+
+    /**
+     * Returns the number of records in the XML file by counting the record elements.
+     *
+     * @return the record count
+     * @throws IOException if file reading fails
+     */
+    @Override
+    public int getRecordCount() throws IOException {
+        int count = 0;
+        XMLInputFactory factory = XMLInputFactory.newInstance();
+        try (FileInputStream fis = new FileInputStream(filePath)) {
+            XMLStreamReader reader = factory.createXMLStreamReader(fis);
+            while (reader.hasNext()) {
+                int event = reader.next();
+                if (event == XMLStreamConstants.START_ELEMENT &&
+                        recordElement != null &&
+                        recordElement.equals(reader.getLocalName())) {
+                    count++;
+                }
+            }
+            reader.close();
+        } catch (Exception e) {
+            throw new IOException("Failed to count records in XML file: " + filePath, e);
+        }
+        return count;
     }
 }

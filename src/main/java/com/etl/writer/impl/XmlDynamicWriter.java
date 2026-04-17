@@ -25,17 +25,26 @@ public class XmlDynamicWriter implements DynamicWriter {
 
 		XmlTargetConfig xmlConfig = (XmlTargetConfig) config;
 
-		StaxEventItemWriter<Object> writer = new StaxEventItemWriter<>();
-
 		String path = xmlConfig.getFilePath();
 		if (path.endsWith("/") || new File(path).isDirectory()) {
 			path += config.getTargetName().toLowerCase() + ".xml";
 		}
-		writer.setResource(new FileSystemResource(path));
-		writer.setRootTagName(((XmlTargetConfig) config).getRootElement());
-		writer.setMarshaller(jaxbMarshaller(clazz));
-		writer.afterPropertiesSet();
-		return writer;
+		Jaxb2Marshaller marshaller = jaxbMarshaller(clazz);
+		// Use record count threshold to select writer
+		int recordCount = xmlConfig.getFields() != null ? xmlConfig.getFields().size() : 0;
+		int chunkThreshold = 100000; // You can make this configurable
+		if (recordCount > chunkThreshold) {
+			// Use StaxEventItemWriter for large files (chunked streaming)
+			StaxEventItemWriter<Object> writer = new StaxEventItemWriter<>();
+			writer.setResource(new FileSystemResource(path));
+			writer.setRootTagName(xmlConfig.getRootElement());
+			writer.setMarshaller(marshaller);
+			writer.afterPropertiesSet();
+			return writer;
+		} else {
+			// Use SingleObjectXmlWriter for small/medium files
+			return new SingleObjectXmlWriter(marshaller, path);
+		}
 	}
 
 	private Jaxb2Marshaller jaxbMarshaller(Class<?> clazz) {
