@@ -1,5 +1,7 @@
 package com.etl.processor.impl;
 
+import com.etl.common.util.GeneratedModelClassResolver;
+import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.processor.ProcessorConfig.EntityMapping;
@@ -110,7 +112,8 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 	public ItemProcessor<Object, Object> getProcessor(
 			ProcessorConfig processorConfig,
 			SourceConfig sourceConfig,
-			TargetConfig targetConfig) throws ClassNotFoundException {
+			TargetConfig targetConfig,
+			ResolvedModelMetadata metadata) throws ClassNotFoundException {
 
 		var mapping = processorConfig.getMappings()
 				.stream()
@@ -119,12 +122,13 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 				.findFirst()
 				.orElseThrow(() -> new IllegalStateException(
 						"Mapping not found for " + sourceConfig.getSourceName()
-								+ " → " + targetConfig.getTargetName()
+							+ " -> " + targetConfig.getTargetName()
 				));
 
-		@SuppressWarnings("unchecked")
-		Class<Object> targetClass = (Class<Object>) Class.forName(targetConfig.getPackageName() + "." + targetConfig.getTargetName());
-		logger.info("Using mapping for {} → {} with {} fields",
+		Class<Object> targetClass = metadata != null
+				? GeneratedModelClassResolver.resolveTargetProcessingClass(metadata)
+				: GeneratedModelClassResolver.resolveTargetProcessingClass(targetConfig);
+		logger.info("Using mapping for {} -> {} with {} fields",
 				sourceConfig.getSourceName(),
 				targetConfig.getTargetName(),
 				mapping.getFields().size()

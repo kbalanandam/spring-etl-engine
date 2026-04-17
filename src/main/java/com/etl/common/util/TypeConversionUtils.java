@@ -42,8 +42,14 @@ public final class TypeConversionUtils {
     }
 
     /**
-     * Map CSV/XML config type → Java type (for model generation, not runtime conversion)
+     * Map CSV/XML config type → Java type (for model generation, not runtime conversion).
+     *
+     * @deprecated This method is currently unused and retained only for backward compatibility.
+     * Prefer generator-specific type resolution such as
+     * {@code com.etl.model.generator.support.JavaTypeNameResolver#resolveJavaSourceType(String)}.
+     * This method may be removed in a future cleanup release.
      */
+    @Deprecated(since = "1.1.5")
     public static String mapToJavaType(String type) {
         return switch (type.toLowerCase()) {
             case "int", "integer" -> "Integer";

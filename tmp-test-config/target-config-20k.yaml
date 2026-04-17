@@ -1,0 +1,15 @@
+targets:
+  - format: xml
+    packageName: com.etl.model.target
+    filePath: C:/spring-etl-engine/target/large-file-test/
+    targetName: Customers
+    rootElement: Customers
+    recordElement: Customer
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+      - name: email
+        type: String
+

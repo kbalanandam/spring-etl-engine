@@ -25,17 +25,23 @@ public class XmlDynamicWriter implements DynamicWriter {
 
 		XmlTargetConfig xmlConfig = (XmlTargetConfig) config;
 
-		StaxEventItemWriter<Object> writer = new StaxEventItemWriter<>();
-
 		String path = xmlConfig.getFilePath();
 		if (path.endsWith("/") || new File(path).isDirectory()) {
 			path += config.getTargetName().toLowerCase() + ".xml";
 		}
-		writer.setResource(new FileSystemResource(path));
-		writer.setRootTagName(((XmlTargetConfig) config).getRootElement());
-		writer.setMarshaller(jaxbMarshaller(clazz));
-		writer.afterPropertiesSet();
-		return writer;
+		Jaxb2Marshaller marshaller = jaxbMarshaller(clazz);
+		if (clazz.getSimpleName().equals(xmlConfig.getRecordElement())) {
+			// Stream individual record elements for chunk-oriented XML writes.
+			StaxEventItemWriter<Object> writer = new StaxEventItemWriter<>();
+			writer.setResource(new FileSystemResource(path));
+			writer.setRootTagName(xmlConfig.getRootElement());
+			writer.setMarshaller(marshaller);
+			writer.afterPropertiesSet();
+			return writer;
+		} else {
+			// Use wrapper-based writing for tasklet/single-object XML output.
+			return new SingleObjectXmlWriter(marshaller, path);
+		}
 	}
 
 	private Jaxb2Marshaller jaxbMarshaller(Class<?> clazz) {

@@ -11,7 +11,7 @@ mappings:
         to: email
 
   - source: Department
-    target: Department
+    target: Departments
     fields:
       - from: id
         to: id

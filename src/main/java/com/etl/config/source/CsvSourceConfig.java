@@ -6,7 +6,11 @@ import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
+import lombok.Setter;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -15,14 +19,20 @@ import java.util.List;
  * Holds CSV-specific properties such as file path and delimiter.
  * The format for this config is always "csv".
  */
+@Setter
 @Getter
 public class CsvSourceConfig extends SourceConfig {
 
     /** Path to the CSV file. */
-    private final String filePath;
+    private String filePath;
 
     /** Delimiter used in the CSV file. */
-    private final String delimiter;
+    private String delimiter;
+
+    // No-args constructor for YAML/object mapping
+    public CsvSourceConfig() {
+        super();
+    }
 
     /**
      * Constructs a new {@code CsvSourceConfig} instance.
@@ -46,7 +56,6 @@ public class CsvSourceConfig extends SourceConfig {
         this.delimiter = delimiter;
     }
 
-
     /**
      * Returns the format of the source configuration.
      *
@@ -65,5 +74,23 @@ public class CsvSourceConfig extends SourceConfig {
     @Override
     public List<? extends FieldDefinition> getFields() {
         return super.getFields();
+    }
+
+    /**
+     * Returns the number of records in the CSV file (excluding header if present).
+     *
+     * @return the record count
+     * @throws IOException if file reading fails
+     */
+    @Override
+    public int getRecordCount() throws IOException {
+        int count = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+            while (br.readLine() != null) {
+                count++;
+            }
+        }
+        // Optionally subtract 1 if header is present
+        return count > 0 ? count - 1 : 0;
     }
 }

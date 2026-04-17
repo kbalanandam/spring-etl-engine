@@ -1,0 +1,14 @@
+sources:
+  - format: csv
+    sourceName: Customers
+    packageName: com.etl.model.source
+    filePath: C:/spring-etl-engine/src/test/resources/customers_20k.csv
+    delimiter: ","
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+      - name: email
+        type: String
+

@@ -1,0 +1,16 @@
+csv:
+  files:
+    customers:
+      - field: id
+        rule: notNull
+        enabled: true
+      - field: email
+        rule: regex
+        pattern: "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+        enabled: false
+xml:
+  files:
+    orders:
+      - rule: xsd
+        xsdPath: "schemas/orders.xsd"
+        enabled: true
