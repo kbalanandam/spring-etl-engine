@@ -1,0 +1,79 @@
+name: Architecture Doc Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  architecture-doc-guard:
+    name: Require architecture docs for architecture-sensitive changes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect architecture-sensitive changes
+        id: guard
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch --no-tags origin "${{ github.base_ref }}" --depth=1
+
+          mapfile -t changed_files < <(git diff --name-only "origin/${{ github.base_ref }}...${{ github.sha }}")
+
+          echo "Changed files:"
+          printf ' - %s\n' "${changed_files[@]}"
+
+          sensitive=false
+          docs_updated=false
+
+          for file in "${changed_files[@]}"; do
+            case "$file" in
+              docs/architecture/*|docs/adr/*|docs/README.md)
+                docs_updated=true
+                ;;
+            esac
+
+            case "$file" in
+              src/main/java/com/etl/config/*|\
+              src/main/java/com/etl/reader/*|\
+              src/main/java/com/etl/writer/*|\
+              src/main/java/com/etl/processor/*|\
+              src/main/java/com/etl/model/generator/*|\
+              src/main/java/com/etl/common/util/GeneratedModelClassResolver.java|\
+              src/main/resources/source-config.yaml|\
+              src/main/resources/target-config.yaml|\
+              src/main/resources/processor-config.yaml|\
+              src/main/resources/validation-config.yaml|\
+              src/main/resources/application.properties|\
+              src/main/resources/application-*.properties)
+                sensitive=true
+                ;;
+            esac
+          done
+
+          echo "sensitive=$sensitive" >> "$GITHUB_OUTPUT"
+          echo "docs_updated=$docs_updated" >> "$GITHUB_OUTPUT"
+
+      - name: Fail when docs were not updated
+        if: steps.guard.outputs.sensitive == 'true' && steps.guard.outputs.docs_updated != 'true'
+        shell: bash
+        run: |
+          echo "Architecture-sensitive files changed, but no architecture doc or ADR was updated."
+          echo "Please update a relevant file under docs/architecture/ or docs/adr/ in the same pull request."
+          exit 1
+
+      - name: Report pass condition
+        if: steps.guard.outputs.sensitive != 'true' || steps.guard.outputs.docs_updated == 'true'
+        shell: bash
+        run: |
+          echo "Architecture documentation guard passed."
+

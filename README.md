@@ -12,6 +12,18 @@ A lightweight, configurable, and modular ETL (Extract–Transform–Load) framew
 - **Multi‑Source Input**: Currently CSV/XML; extendable.
 - **Multi‑Target Output**: Extendable (e.g., MySQL Writer, File Writer, API Writer).
 
+## Architecture Docs
+
+Architecture and design notes now live in-repo under [`docs/`](docs/README.md).
+
+Start here:
+
+- [`docs/README.md`](docs/README.md)
+- [`docs/architecture/overview.md`](docs/architecture/overview.md)
+- [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md)
+- [`docs/architecture/extension-points.md`](docs/architecture/extension-points.md)
+- [`docs/adr/`](docs/adr/)
+
 ## Repository Structure
 ```
 /spring-etl-engine
