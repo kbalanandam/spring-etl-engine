@@ -6,12 +6,17 @@ import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.XmlTargetConfig;
 import com.etl.model.target.Customer;
 import com.etl.model.target.Customers;
+import jakarta.xml.bind.annotation.XmlRootElement;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class GeneratedModelClassResolverTest {
 
@@ -41,7 +46,7 @@ class GeneratedModelClassResolverTest {
         assertEquals("com.etl.model.source.Customers", metadata.getSourceClassName());
         assertEquals("com.etl.model.target.Customer", metadata.getTargetProcessingClassName());
         assertEquals("com.etl.model.target.Customers", metadata.getTargetWriteClassName());
-        assertEquals(true, metadata.isWrapperRequired());
+        assertTrue(metadata.isWrapperRequired());
         assertEquals("customer", metadata.getWrapperFieldName());
 
         assertEquals(Customers.class, GeneratedModelClassResolver.resolveTargetWriteClass(config));
@@ -57,6 +62,17 @@ class GeneratedModelClassResolverTest {
         assertInstanceOf(Customers.class, resolvedWrapper);
         assertEquals(1, ((Customers) resolvedWrapper).getCustomer().size());
     }
+
+  @Test
+  void xmlGeneratedClassesExposeRootAnnotationsNeededForChunkWriting() {
+    XmlRootElement recordAnnotation = Customer.class.getAnnotation(XmlRootElement.class);
+    XmlRootElement wrapperAnnotation = Customers.class.getAnnotation(XmlRootElement.class);
+
+    assertNotNull(recordAnnotation);
+    assertEquals("Customer", recordAnnotation.name());
+    assertNotNull(wrapperAnnotation);
+    assertEquals("Customers", wrapperAnnotation.name());
+  }
 
     @Test
     void resolvesNonXmlTargetToTargetNameForBothPhases() {
@@ -82,8 +98,8 @@ class GeneratedModelClassResolverTest {
         assertEquals("com.etl.model.source.Customers", metadata.getSourceClassName());
         assertEquals("com.etl.model.target.Customers", metadata.getTargetProcessingClassName());
         assertEquals("com.etl.model.target.Customers", metadata.getTargetWriteClassName());
-        assertEquals(false, metadata.isWrapperRequired());
-        assertEquals(null, metadata.getWrapperFieldName());
+        assertFalse(metadata.isWrapperRequired());
+        assertNull(metadata.getWrapperFieldName());
     }
 
     private static ColumnConfig column(String name, String type) {
