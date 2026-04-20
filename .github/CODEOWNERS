@@ -1,0 +1,25 @@
+# Replace @kbalanandam with the correct GitHub user or team if needed.
+# GitHub CODEOWNERS are enforced only when branch protection requires code owner review.
+
+* @kbalanandam
+
+/docs/README.md @kbalanandam
+/docs/architecture/ @kbalanandam
+/docs/adr/ @kbalanandam
+/.github/PULL_REQUEST_TEMPLATE.md @kbalanandam
+/.github/CODEOWNERS @kbalanandam
+/.github/workflows/architecture-doc-guard.yml @kbalanandam
+
+/src/main/java/com/etl/config/ @kbalanandam
+/src/main/java/com/etl/reader/ @kbalanandam
+/src/main/java/com/etl/writer/ @kbalanandam
+/src/main/java/com/etl/processor/ @kbalanandam
+/src/main/java/com/etl/model/generator/ @kbalanandam
+/src/main/java/com/etl/common/util/GeneratedModelClassResolver.java @kbalanandam
+/src/main/resources/source-config.yaml @kbalanandam
+/src/main/resources/target-config.yaml @kbalanandam
+/src/main/resources/processor-config.yaml @kbalanandam
+/src/main/resources/validation-config.yaml @kbalanandam
+/src/main/resources/application.properties @kbalanandam
+/src/main/resources/application-dev.properties @kbalanandam
+
