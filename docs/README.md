@@ -23,6 +23,9 @@ For every significant enhancement, add or update:
 - [`architecture/overview.md`](architecture/overview.md) — current high-level system architecture
 - [`architecture/runtime-flow.md`](architecture/runtime-flow.md) — end-to-end ETL runtime flow
 - [`architecture/extension-points.md`](architecture/extension-points.md) — where new formats, processors, and future capabilities plug in
+- [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md) — top architectural risks to watch during roadmap execution
+- [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase and future enterprise integration direction
+- [`architecture/relational-db-support.md`](architecture/relational-db-support.md) — proposed architecture for relational database support before implementation
 - [`architecture/TEMPLATE.md`](architecture/TEMPLATE.md) — template for future design notes
 
 ### ADRs
@@ -47,6 +50,8 @@ The repository enforces this in three layers:
 2. ownership and review rules in `.github/CODEOWNERS`
 3. CI guardrails in `.github/workflows/architecture-doc-guard.yml`
 
+In addition, pull requests should run the automated Maven test suite through `.github/workflows/pr-unit-tests.yml`, and that status check should also be required in branch protection once it has executed in GitHub at least once.
+
 If architecture-sensitive code changes without a corresponding documentation update, the workflow is expected to fail until a relevant file under `docs/architecture/` or `docs/adr/` is updated.
 
 ## Suggested triggers for a new doc or ADR
@@ -68,4 +73,10 @@ Create or update docs when a change:
 - multi-job / multi-step flow design
 - validation and error handling flow
 - restartability and idempotency rules
+
+The relational database support topic is now started in [`architecture/relational-db-support.md`](architecture/relational-db-support.md).
+
+The product-direction baseline is now captured in [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md).
+
+The main architectural watchpoints are captured in [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md).
 

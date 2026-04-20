@@ -13,80 +13,74 @@ import com.etl.config.target.XmlTargetConfig;
 import com.etl.model.target.Customer;
 import com.etl.model.target.Customers;
 import com.etl.writer.impl.SingleObjectXmlWriter;
-import org.assertj.core.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.xml.StaxEventItemWriter;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 
-@SpringBootTest
 class XmlDynamicWriterTest {
 
-    @Autowired
-    private DynamicWriterFactory factory;
+    private final DynamicWriterFactory factory = new DynamicWriterFactory(List.of(new com.etl.writer.impl.XmlDynamicWriter()));
 
     @Test
-    void testXmlWriterCreation() throws Exception {
-        XmlTargetConfig config = getXmlTargetConfig();
+    void createsWrapperXmlWriterForTaskletMode(@TempDir Path tempDir) throws Exception {
+    Path outputFile = tempDir.resolve("customers_test.xml");
+    XmlTargetConfig config = getXmlTargetConfig(outputFile);
         ItemWriter<Object> writer = factory.createWriter(config, Customers.class);
         assertNotNull(writer);
         assertInstanceOf(SingleObjectXmlWriter.class, writer);
-        try {
-            Customer customer = new Customer();
-            customer.setId(1);
-            customer.setName("Jane Doe");
-            customer.setEmail("jane@example.com");
 
-            Customers customers = new Customers();
-            customers.setCustomer(List.of(customer));
+    Customer customer = new Customer();
+    customer.setId(1);
+    customer.setName("Jane Doe");
+    customer.setEmail("jane@example.com");
 
-            writer.write(new Chunk<>(List.of(customers)));
+    Customers customers = new Customers();
+    customers.setCustomer(List.of(customer));
 
-            String xml = Files.readString(Path.of("C:/ETLDemo/data/output/customers_test.xml"));
-            assertTrue(xml.contains("<Customers>"));
-            assertTrue(xml.contains("<Customer>"));
-            assertTrue(xml.contains("Jane Doe"));
-        } catch (Exception e) {
-            e.printStackTrace();
-            Assertions.fail("Failed to write records to XML: " + e.getMessage());
-        }
+    writer.write(new Chunk<>(List.of(customers)));
+
+    String xml = Files.readString(outputFile);
+    assertTrue(xml.contains("<Customers>"));
+    assertTrue(xml.contains("<Customer>"));
+    assertTrue(xml.contains("Jane Doe"));
     }
 
     @Test
-    void testXmlChunkWriterCreationForRecordClass() throws Exception {
-        XmlTargetConfig config = getXmlTargetConfig();
+    void createsChunkXmlWriterForRecordClass(@TempDir Path tempDir) throws Exception {
+    Path outputFile = tempDir.resolve("customers_test.xml");
+    XmlTargetConfig config = getXmlTargetConfig(outputFile);
         ItemWriter<Object> writer = factory.createWriter(config, Customer.class);
         assertNotNull(writer);
         assertInstanceOf(StaxEventItemWriter.class, writer);
 
-        try {
-            @SuppressWarnings("unchecked")
-            StaxEventItemWriter<Object> xmlWriter = (StaxEventItemWriter<Object>) writer;
-            xmlWriter.afterPropertiesSet();
-            xmlWriter.open(new ExecutionContext());
+    StaxEventItemWriter<Object> xmlWriter = (StaxEventItemWriter<Object>) writer;
+    xmlWriter.afterPropertiesSet();
+    xmlWriter.open(new ExecutionContext());
 
-            Customer customer = new Customer();
-            customer.setId(2);
-            customer.setName("Chunk Jane");
-            customer.setEmail("chunk.jane@example.com");
+    Customer firstCustomer = new Customer();
+    firstCustomer.setId(2);
+    firstCustomer.setName("Chunk Jane");
+    firstCustomer.setEmail("chunk.jane@example.com");
 
-            xmlWriter.write(new Chunk<>(List.of(customer)));
-            xmlWriter.close();
+    Customer secondCustomer = new Customer();
+    secondCustomer.setId(3);
+    secondCustomer.setName("Chunk John");
+    secondCustomer.setEmail("chunk.john@example.com");
 
-            String xml = Files.readString(Path.of("C:/ETLDemo/data/output/customers_test.xml"));
-            assertTrue(xml.contains("<Customers>"));
-            assertTrue(xml.contains("<Customer>"));
-            assertTrue(xml.contains("Chunk Jane"));
-        } catch (Exception e) {
-            e.printStackTrace();
-            Assertions.fail("Failed to write chunked records to XML: " + e.getMessage());
-        }
+    xmlWriter.write(new Chunk<>(List.of(firstCustomer, secondCustomer)));
+    xmlWriter.close();
+
+    String xml = Files.readString(outputFile);
+    assertTrue(xml.contains("<Customers>"));
+    assertTrue(xml.contains("<Customer>"));
+    assertTrue(xml.contains("Chunk Jane"));
+    assertTrue(xml.contains("Chunk John"));
     }
 
-    private static XmlTargetConfig getXmlTargetConfig() {
+  private static XmlTargetConfig getXmlTargetConfig(Path outputFile) {
         ColumnConfig col1 = new ColumnConfig();
         col1.setName("id");
         col1.setType("integer");
@@ -104,7 +98,7 @@ class XmlDynamicWriterTest {
                 "customers",
                 "com.etl.model.target",
                 columnConfig,
-                "C:/ETLDemo/data/output/customers_test.xml",
+                outputFile.toString(),
                 "Customers",
                 "Customer"
         );
