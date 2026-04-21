@@ -8,6 +8,7 @@ As features grow, the goal is to keep architectural intent in the repository ins
 
 - `architecture/` — feature and system-level design notes
 - `adr/` — Architecture Decision Records (why a decision was made)
+- `config/` — field-level config references and preserved scenario examples
 
 ## Documentation standard
 
@@ -32,7 +33,21 @@ For every significant enhancement, add or update:
 - [`adr/0001-use-architecture-docs-and-adrs.md`](adr/0001-use-architecture-docs-and-adrs.md)
 - [`adr/0002-config-driven-etl-pipeline.md`](adr/0002-config-driven-etl-pipeline.md)
 - [`adr/0003-adaptive-step-selection-and-generated-model-contract.md`](adr/0003-adaptive-step-selection-and-generated-model-contract.md)
+- [`adr/0004-use-explicit-job-config-for-business-scenario-selection.md`](adr/0004-use-explicit-job-config-for-business-scenario-selection.md)
 - [`adr/TEMPLATE.md`](adr/TEMPLATE.md) — template for future ADRs
+
+### Configuration references
+- [`config/README.md`](config/README.md) — config documentation strategy, support matrix, and scenario usage
+- [`config/source/csv-source.md`](config/source/csv-source.md) — CSV source fields supported today
+- [`config/source/relational-source.md`](config/source/relational-source.md) — relational source fields and current phase-1 limitations
+- [`config/target/relational-target.md`](config/target/relational-target.md) — relational target fields and current SQL Server phase-1 limitations
+- [`config/processor/default-processor.md`](config/processor/default-processor.md) — default processor mapping contract
+
+### Scenario examples
+- `src/main/resources/config-scenarios/csv-to-sqlserver/` — preserved example for CSV source to SQL Server target without changing the default resource YAMLs
+- `src/main/resources/config-scenarios/customer-load/` — business scenario for customer-only ETL
+- `src/main/resources/config-scenarios/department-load/` — business scenario for department-only ETL
+- `src/main/resources/config-scenarios/cust-dept-load/` — business scenario for multi-step customer + department ETL
 
 ## Maintenance rules
 

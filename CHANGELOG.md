@@ -6,13 +6,15 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 ### Added
-- N/A
+- Added a preserved `relational-to-relational` scenario bundle selected through `etl.config.job`.
+- Added H2-backed large-volume relational flow coverage with a 20k-row source-to-target integration test.
 
 ### Changed
-- N/A
+- Updated relational documentation to reflect phase-1 support, large-volume tuning guidance, and preserved scenario usage.
+- Sanitized committed SQL Server scenario YAML to use placeholders instead of live connection values.
 
 ### Fixed
-- N/A
+- Normalized relational writer tests to use the relational target model class consistently.
 ---
 
 ## [1.1.5] - 2026-04-17

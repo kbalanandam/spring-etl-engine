@@ -9,6 +9,7 @@ This document captures the current architectural baseline of `spring-etl-engine`
 The engine is a **config-driven Spring Batch ETL runtime** with these core ideas:
 
 - source, target, and processor behavior is loaded from YAML
+- one ETL run may be selected through a single business-scenario `job-config.yaml`
 - supported formats are represented as config subtypes
 - readers, processors, and writers are selected through factories
 - model classes are generated and resolved dynamically at runtime
@@ -19,29 +20,29 @@ The engine is a **config-driven Spring Batch ETL runtime** with these core ideas
 ```mermaid
 flowchart TD
     A[Spring Boot startup] --> B[ConfigLoader]
-    B --> C[source-config.yaml -> SourceWrapper]
-    B --> D[target-config.yaml -> TargetWrapper]
-    B --> E[processor-config.yaml -> ProcessorConfig]
+    B --> C{etl.config.job set?}
+    C -- Yes --> D[selected job-config.yaml]
+    D --> E[source/target/processor config trio]
+    C -- No --> F[direct source/target/processor paths]
 
-    C --> F[BatchConfig]
-    D --> F
-    E --> F
+    E --> G[BatchConfig]
+    F --> G
 
-    F --> G[GeneratedModelClassResolver]
-    F --> H[DynamicReaderFactory]
-    F --> I[DynamicProcessorFactory]
-    F --> J[DynamicWriterFactory]
+    G --> H[GeneratedModelClassResolver]
+    G --> I[DynamicReaderFactory]
+    G --> J[DynamicProcessorFactory]
+    G --> K[DynamicWriterFactory]
 
-    H --> K[Reader implementation]
-    I --> L[Processor implementation]
-    J --> M[Writer implementation]
+    I --> L[Reader implementation]
+    J --> M[Processor implementation]
+    K --> N[Writer implementation]
 
-    K --> N[Spring Batch Step]
-    L --> N
-    M --> N
+    L --> O[Spring Batch Step]
+    M --> O
+    N --> O
 
-    N --> O[ETL Job]
-    O --> P[Output files / targets]
+    O --> P[ETL Job]
+    P --> Q[Output files / targets]
 ```
 
 ## Main runtime components
@@ -55,12 +56,12 @@ Spring Boot starts the app, builds the context, and launches the ETL job through
 ### Config loading
 - `src/main/java/com/etl/config/ConfigLoader.java`
 
-`ConfigLoader` reads source, target, and processor YAML from external paths first, then falls back to classpath resources.
+`ConfigLoader` selects one effective config set for the run. The preferred product-facing mode is `etl.config.job`, where one selected `job-config.yaml` points to the exact source, target, and processor YAML to load. If `etl.config.job` is not set, the loader uses the direct config-path properties and may fall back to bundled classpath resources.
 
 ### Batch orchestration
 - `src/main/java/com/etl/config/BatchConfig.java`
 
-`BatchConfig` constructs the job and dynamically builds steps by pairing sources and targets. It also chooses chunk or tasklet execution depending on the record count threshold.
+`BatchConfig` constructs the job from the selected config set and dynamically builds steps by pairing sources and targets. It also chooses chunk or tasklet execution depending on the record count threshold.
 
 ### Dynamic extension points
 - `src/main/java/com/etl/reader/DynamicReaderFactory.java`
@@ -77,6 +78,7 @@ This is the central contract between configuration, generated model classes, pro
 ## Current strengths
 
 - clear separation between config loading and runtime execution
+- explicit business-scenario selection without scenario auto-discovery
 - pluggable reader/processor/writer model
 - dynamic support for multiple source and target formats
 - adaptive execution model for smaller vs larger workloads
@@ -85,6 +87,7 @@ This is the central contract between configuration, generated model classes, pro
 ## Current architectural constraints
 
 - `BatchConfig` currently pairs sources and targets by index
+- `etl.config.job` currently resolves a selected scenario by file path, not by a short scenario-name registry
 - orchestration is step-based but still centered on `source -> processor -> target`
 - stored procedures and richer multi-job flows will require a higher-level step operation model
 - generated models currently remain an important runtime dependency and contract surface
@@ -93,7 +96,7 @@ This is the central contract between configuration, generated model classes, pro
 
 The next architecture topics that should extend this baseline rather than bypass it are:
 
-- relational source and target configuration
+- relational-source and relational-target hardening for larger data volumes
 - stored procedure execution as a first-class step type
 - multi-step and multi-job orchestration
 - vendor/dialect abstraction for relational platforms
