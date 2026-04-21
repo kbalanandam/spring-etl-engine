@@ -1,0 +1,23 @@
+sources:
+  - format: relational
+    sourceName: Customers
+    packageName: com.etl.model.source
+    schema: dbo
+    table: CustomersSource
+    countQuery: SELECT COUNT(*) FROM dbo.CustomersSource
+    fetchSize: 500
+    connection:
+      vendor: sqlserver
+      jdbcUrl: jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true
+      schema: dbo
+      username: <SQLSERVER_USERNAME>
+      password: <SQLSERVER_PASSWORD>
+      driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+      - name: email
+        type: String
+

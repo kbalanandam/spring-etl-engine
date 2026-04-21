@@ -1,0 +1,5 @@
+name: csv-to-sqlserver
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+

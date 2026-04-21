@@ -1,0 +1,12 @@
+sources:
+  - format: csv
+    sourceName: Department
+    packageName: com.etl.model.source
+    filePath: src/main/resources/demo-input/Department.csv
+    delimiter: ","
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+

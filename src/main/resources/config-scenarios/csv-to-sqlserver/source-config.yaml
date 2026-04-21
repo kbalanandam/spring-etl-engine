@@ -1,0 +1,14 @@
+sources:
+  - format: csv
+    sourceName: Customers
+    packageName: com.etl.model.source
+    filePath: src/main/resources/demo-input/Customers.csv
+    delimiter: ","
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+      - name: email
+        type: String
+
