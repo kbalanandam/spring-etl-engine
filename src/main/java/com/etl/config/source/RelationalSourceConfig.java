@@ -138,11 +138,18 @@ public class RelationalSourceConfig extends SourceConfig {
         if (connection == null) {
             throw new IllegalArgumentException("Relational source connection must be provided.");
         }
+        connection.validate();
         if (getFields() == null || getFields().isEmpty()) {
             throw new IllegalArgumentException("Relational source fields must be provided.");
         }
         if (hasTable() == hasQuery()) {
             throw new IllegalArgumentException("Relational source must define exactly one of 'table' or 'query'.");
+        }
+        if (fetchSize != null && fetchSize <= 0) {
+            throw new IllegalArgumentException("Relational source fetchSize must be greater than zero when provided.");
+        }
+        if (maxRows != null && maxRows <= 0) {
+            throw new IllegalArgumentException("Relational source maxRows must be greater than zero when provided.");
         }
     }
 

@@ -87,6 +87,35 @@ public class RelationalConnectionConfig {
     public DatabaseVendor getResolvedVendor() {
         return DatabaseVendor.fromString(vendor);
     }
+
+    public void validate() {
+        if (vendor == null || vendor.isBlank()) {
+            throw new IllegalArgumentException("Relational connection vendor must be provided.");
+        }
+
+        DatabaseVendor resolvedVendor = getResolvedVendor();
+
+        if (port != null && port <= 0) {
+            throw new IllegalArgumentException("Relational connection port must be greater than zero when provided.");
+        }
+
+        if (username == null || username.isBlank()) {
+            throw new IllegalArgumentException("Relational connection username must be provided.");
+        }
+
+        if (jdbcUrl != null && !jdbcUrl.isBlank()) {
+            return;
+        }
+
+        if (resolvedVendor == DatabaseVendor.SQLSERVER) {
+            if (host == null || host.isBlank()) {
+                throw new IllegalArgumentException("Relational connection host must be provided when jdbcUrl is not configured.");
+            }
+            if (database == null || database.isBlank()) {
+                throw new IllegalArgumentException("Relational connection database must be provided when jdbcUrl is not configured.");
+            }
+        }
+    }
 }
 
 

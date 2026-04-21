@@ -17,6 +17,7 @@ import java.sql.Statement;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -76,6 +77,24 @@ class RelationalDynamicWriterTest {
             assertEquals("Jane Doe", rs.getString("name"));
             assertEquals("jane@example.com", rs.getString("email"));
         }
+    }
+
+    @Test
+    void rejectsSqlServerTargetWithoutJdbcUrlOrHostDatabase() {
+        DynamicWriterFactory factory = new DynamicWriterFactory(List.of(new RelationalDynamicWriter()));
+        RelationalTargetConfig config = relationalTargetConfig(null);
+        config.getConnection().setVendor("sqlserver");
+        config.getConnection().setJdbcUrl(null);
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> factory.createWriter(config, CustomersSql.class)
+        );
+
+        assertEquals(
+                "Relational connection host must be provided when jdbcUrl is not configured.",
+                ex.getMessage()
+        );
     }
 
     private static void setupCustomersTable(String qualifiedTableName) throws Exception {

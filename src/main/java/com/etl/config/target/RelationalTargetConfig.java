@@ -72,6 +72,25 @@ public class RelationalTargetConfig extends TargetConfig {
         }
         return connection != null ? connection.getSchema() : null;
     }
+
+    public void validate() {
+        if (connection == null) {
+            throw new IllegalArgumentException("Relational target connection must be provided.");
+        }
+        connection.validate();
+        if (table == null || table.isBlank()) {
+            throw new IllegalArgumentException("Relational target table must be provided.");
+        }
+        if (getFields() == null || getFields().isEmpty()) {
+            throw new IllegalArgumentException("Relational target fields must be provided.");
+        }
+        if (writeMode != WriteMode.INSERT) {
+            throw new IllegalArgumentException("Phase 1 relational target support only supports INSERT mode.");
+        }
+        if (batchSize == null || batchSize <= 0) {
+            throw new IllegalArgumentException("Relational target batchSize must be greater than zero.");
+        }
+    }
 }
 
 

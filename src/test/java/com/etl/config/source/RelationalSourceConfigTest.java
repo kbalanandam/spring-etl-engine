@@ -10,6 +10,7 @@ import java.sql.Statement;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class RelationalSourceConfigTest {
 
@@ -48,6 +49,33 @@ class RelationalSourceConfigTest {
         config.getConnection().setSchema("dbo");
 
         assertEquals(3, config.getRecordCount());
+    }
+
+    @Test
+    void validateRejectsMissingConnectionVendor() {
+        RelationalSourceConfig config = relationalTableConfig();
+        config.getConnection().setVendor(null);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, config::validate);
+        assertEquals("Relational connection vendor must be provided.", ex.getMessage());
+    }
+
+    @Test
+    void validateRejectsNonPositiveFetchSize() {
+        RelationalSourceConfig config = relationalTableConfig();
+        config.setFetchSize(0);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, config::validate);
+        assertEquals("Relational source fetchSize must be greater than zero when provided.", ex.getMessage());
+    }
+
+    @Test
+    void validateRejectsNonPositiveMaxRows() {
+        RelationalSourceConfig config = relationalTableConfig();
+        config.setMaxRows(-1);
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, config::validate);
+        assertEquals("Relational source maxRows must be greater than zero when provided.", ex.getMessage());
     }
 
     private static void setupCustomersTable() throws Exception {

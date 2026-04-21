@@ -6,7 +6,7 @@ import com.etl.config.relational.RelationalConnectionConfig;
 import com.etl.config.relational.RelationalDataSourceFactory;
 import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
-import com.etl.config.target.WriteMode;
+import com.etl.enums.ModelFormat;
 import com.etl.relational.dialect.DatabaseDialect;
 import com.etl.relational.dialect.DatabaseDialectResolver;
 import com.etl.writer.DynamicWriter;
@@ -23,14 +23,14 @@ import java.util.stream.Collectors;
 public class RelationalDynamicWriter implements DynamicWriter {
 
     @Override
-    public String getType() {
-        return "relational";
+    public ModelFormat getFormat() {
+        return ModelFormat.RELATIONAL;
     }
 
     @Override
     public ItemWriter<Object> getWriter(TargetConfig config, Class<?> clazz) throws Exception {
         RelationalTargetConfig relationalConfig = (RelationalTargetConfig) config;
-        validate(relationalConfig);
+        relationalConfig.validate();
 
         RelationalConnectionConfig connection = relationalConfig.getConnection();
         DatabaseDialect dialect = DatabaseDialectResolver.resolve(connection.getResolvedVendor());
@@ -50,21 +50,6 @@ public class RelationalDynamicWriter implements DynamicWriter {
                 .build();
         writer.afterPropertiesSet();
         return writer;
-    }
-
-    private void validate(RelationalTargetConfig config) {
-        if (config.getConnection() == null) {
-            throw new IllegalArgumentException("Relational target connection must be provided.");
-        }
-        if (config.getTable() == null || config.getTable().isBlank()) {
-            throw new IllegalArgumentException("Relational target table must be provided.");
-        }
-        if (config.getFields() == null || config.getFields().isEmpty()) {
-            throw new IllegalArgumentException("Relational target fields must be provided.");
-        }
-        if (config.getWriteMode() != WriteMode.INSERT) {
-            throw new IllegalArgumentException("Phase 1 relational target support only supports INSERT mode.");
-        }
     }
 
 

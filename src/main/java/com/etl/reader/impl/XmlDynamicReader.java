@@ -2,6 +2,7 @@ package com.etl.reader.impl;
 
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.XmlSourceConfig;
+import com.etl.enums.ModelFormat;
 import com.etl.reader.DynamicReader;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.xml.StaxEventItemReader;
@@ -13,8 +14,8 @@ import org.springframework.stereotype.Component;
 public class XmlDynamicReader<T> implements DynamicReader<T> {
 
 	@Override
-	public String getType() {
-		return "xml";
+	public ModelFormat getFormat() {
+		return ModelFormat.XML;
 	}
 
 	@Override
@@ -38,3 +39,4 @@ public class XmlDynamicReader<T> implements DynamicReader<T> {
 		return reader;
 	}
 }
+

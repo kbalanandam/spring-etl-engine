@@ -5,6 +5,7 @@ import com.etl.config.FieldDefinition;
 import com.etl.config.relational.RelationalDataSourceFactory;
 import com.etl.config.source.RelationalSourceConfig;
 import com.etl.config.source.SourceConfig;
+import com.etl.enums.ModelFormat;
 import com.etl.reader.DynamicReader;
 import com.etl.relational.dialect.DatabaseDialect;
 import com.etl.relational.dialect.DatabaseDialectResolver;
@@ -20,8 +21,8 @@ import java.util.stream.Collectors;
 public class RelationalDynamicReader<T> implements DynamicReader<T> {
 
     @Override
-    public String getType() {
-        return "relational";
+    public ModelFormat getFormat() {
+        return ModelFormat.RELATIONAL;
     }
 
     @Override

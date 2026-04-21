@@ -2,6 +2,7 @@ package com.etl.reader.impl;
 
 import com.etl.config.FieldDefinition;
 import com.etl.config.source.CsvSourceConfig;
+import com.etl.enums.ModelFormat;
 import com.etl.reader.DynamicReader;
 import com.etl.config.source.SourceConfig;
 import com.etl.reader.mapper.DynamicFieldSetMapper;
@@ -31,8 +32,8 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 	private static final Logger logger = LoggerFactory.getLogger(CsvDynamicReader.class);
 
 	@Override
-	public String getType() {
-		return "csv";
+	public ModelFormat getFormat() {
+		return ModelFormat.CSV;
 	}
 
 	/**

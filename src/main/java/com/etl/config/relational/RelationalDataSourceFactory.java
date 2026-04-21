@@ -13,6 +13,7 @@ public final class RelationalDataSourceFactory {
     }
 
     public static DataSource buildDataSource(RelationalConnectionConfig connection) {
+        connection.validate();
         DriverManagerDataSource dataSource = new DriverManagerDataSource();
         dataSource.setDriverClassName(resolveDriverClassName(connection));
         dataSource.setUrl(resolveJdbcUrl(connection));
@@ -22,6 +23,7 @@ public final class RelationalDataSourceFactory {
     }
 
     public static String resolveDriverClassName(RelationalConnectionConfig connection) {
+        connection.validate();
         if (connection.getDriverClassName() != null && !connection.getDriverClassName().isBlank()) {
             return connection.getDriverClassName();
         }
@@ -33,6 +35,7 @@ public final class RelationalDataSourceFactory {
     }
 
     public static String resolveJdbcUrl(RelationalConnectionConfig connection) {
+        connection.validate();
         if (connection.getJdbcUrl() != null && !connection.getJdbcUrl().isBlank()) {
             return connection.getJdbcUrl();
         }
