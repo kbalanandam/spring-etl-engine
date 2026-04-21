@@ -4,11 +4,14 @@ import com.etl.config.ModelConfig;
 import com.etl.config.ModelPathConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
+import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
+import com.etl.config.target.XmlTargetConfig;
 import com.etl.enums.ModelFormat;
 import com.etl.enums.ModelType;
 import com.etl.model.exception.ModelGenerationException;
+import com.etl.model.generator.support.GeneratedSourcePathResolver;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -168,21 +171,9 @@ public class ModelGeneratorFactory {
 		try {
 			// Always compile to the main output directory
 			String outputDir = resolveCompileOutputDir();
-			String[] generatedSrcDirs = {
-				modelPathConfig.getSourceDir(),
-				modelPathConfig.getTargetDir()
-			};
-			List<File> javaFiles = new ArrayList<>();
-			for (String dirPath : generatedSrcDirs) {
-				File srcDir = new File(dirPath);
-				if (srcDir.exists() && srcDir.isDirectory()) {
-					collectJavaFiles(srcDir, javaFiles);
-				} else {
-					logger.warn("No generated source directory found at {}. Skipping.", dirPath);
-				}
-			}
+			List<File> javaFiles = resolveConfiguredGeneratedJavaFiles();
 			if (javaFiles.isEmpty()) {
-				logger.warn("No generated Java files found in source/target model directories. Skipping compilation.");
+				logger.warn("No generated Java files found for active source/target configs. Skipping compilation.");
 				return;
 			}
 
@@ -191,7 +182,16 @@ public class ModelGeneratorFactory {
 			if (compiler == null) {
 				throw new IllegalStateException("No Java compiler available. Are you running a JRE instead of a JDK?");
 			}
-			List<String> options = List.of("-d", outputDir);
+			String runtimeClasspath = System.getProperty("java.class.path", "");
+			String compileClasspath = runtimeClasspath == null || runtimeClasspath.isBlank()
+					? outputDir
+					: outputDir + File.pathSeparator + runtimeClasspath;
+			List<String> options = List.of(
+					"-d", outputDir,
+					"-classpath", compileClasspath,
+					"-sourcepath", "",
+					"-implicit:none"
+			);
 			try (StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null)) {
 				Iterable<? extends JavaFileObject> compilationUnits = fileManager.getJavaFileObjectsFromFiles(javaFiles);
 				boolean success = compiler.getTask(null, fileManager, null, options, null, compilationUnits).call();
@@ -200,21 +200,8 @@ public class ModelGeneratorFactory {
 				}
 			}
 
-			// Load all .class files from target/classes/com/etl/model/source and target
-			List<File> classFiles = new ArrayList<>();
-			collectClassFiles(new File(modelPathConfig.getSourceClassDir()), classFiles);
-			collectClassFiles(new File(modelPathConfig.getTargetClassDir()), classFiles);
-			if (classFiles.isEmpty()) {
-				logger.warn("No compiled class files found in output directory. Skipping class loading.");
-				return;
-			}
 			try (URLClassLoader classLoader = new URLClassLoader(new URL[]{new File(outputDir).getAbsoluteFile().toURI().toURL()}, Thread.currentThread().getContextClassLoader())) {
-				for (File classFile : classFiles) {
-					String absPath = classFile.getAbsolutePath().replace("\\", "/");
-					int idx = absPath.indexOf("/com/etl/model/");
-					if (idx == -1) continue;
-					String relPath = absPath.substring(idx + 1); // skip leading /
-					String className = relPath.replace("/", ".").replace(".class", "");
+				for (String className : resolveConfiguredGeneratedClassNames()) {
 					try {
 						Class<?> loadedClass = classLoader.loadClass(className);
 						logger.info("Loaded generated model class: {}", loadedClass.getName());
@@ -227,6 +214,81 @@ public class ModelGeneratorFactory {
 			logger.error("Error during compilation/loading of generated models", e);
 			throw new ModelGenerationException("Failed to compile/load generated models: " + e.getMessage(), e);
 		}
+	}
+
+	private List<File> resolveConfiguredGeneratedJavaFiles() {
+		List<File> javaFiles = new ArrayList<>();
+		addConfiguredJavaFiles(sourceWrapper.getSources(), ModelType.SOURCE, javaFiles);
+		addConfiguredJavaFiles(targetWrapper.getTargets(), ModelType.TARGET, javaFiles);
+		return javaFiles;
+	}
+
+	private List<String> resolveConfiguredGeneratedClassNames() {
+		List<String> classNames = new ArrayList<>();
+		addConfiguredClassNames(sourceWrapper.getSources(), classNames);
+		addConfiguredClassNames(targetWrapper.getTargets(), classNames);
+		return classNames;
+	}
+
+	private void addConfiguredJavaFiles(List<?> configs, ModelType modelType, List<File> javaFiles) {
+		if (configs == null) {
+			return;
+		}
+		for (Object config : configs) {
+			if (config instanceof ModelConfig modelConfig) {
+				for (String className : resolveGeneratedClassNames(modelConfig)) {
+					String packageName = resolvePackageName(modelConfig);
+					if (packageName == null || packageName.isBlank()) {
+						continue;
+					}
+					File javaFile = GeneratedSourcePathResolver
+							.resolveJavaFile(modelPathConfig, modelType, packageName, className)
+							.toFile();
+					if (javaFile.exists()) {
+						javaFiles.add(javaFile);
+					} else {
+						logger.warn("Expected generated model source not found: {}", javaFile.getPath());
+					}
+				}
+			}
+		}
+	}
+
+	private void addConfiguredClassNames(List<?> configs, List<String> classNames) {
+		if (configs == null) {
+			return;
+		}
+		for (Object config : configs) {
+			if (config instanceof ModelConfig modelConfig) {
+				String packageName = resolvePackageName(modelConfig);
+				if (packageName == null || packageName.isBlank()) {
+					continue;
+				}
+				for (String className : resolveGeneratedClassNames(modelConfig)) {
+					classNames.add(packageName + "." + className);
+				}
+			}
+		}
+	}
+
+	private String resolvePackageName(ModelConfig modelConfig) {
+		if (modelConfig instanceof SourceConfig sourceConfig) {
+			return sourceConfig.getPackageName();
+		}
+		if (modelConfig instanceof TargetConfig targetConfig) {
+			return targetConfig.getPackageName();
+		}
+		return null;
+	}
+
+	private List<String> resolveGeneratedClassNames(ModelConfig modelConfig) {
+		if (modelConfig instanceof XmlSourceConfig xmlSourceConfig) {
+			return List.of(xmlSourceConfig.getRootElement(), xmlSourceConfig.getRecordElement());
+		}
+		if (modelConfig instanceof XmlTargetConfig xmlTargetConfig) {
+			return List.of(xmlTargetConfig.getRootElement(), xmlTargetConfig.getRecordElement());
+		}
+		return List.of(modelConfig.getModelName());
 	}
 
 	private String resolveCompileOutputDir() {
@@ -428,7 +490,7 @@ public class ModelGeneratorFactory {
 	 * Handles generation failures with configurable error handling.
 	 *
 	 * @param message    The error message
-	 * @param modelName  The name of the model that failed
+	 * @param statusKey  The tracked status key for the model that failed
 	 */
 	private void handleFailure(String message, String statusKey) {
 		logger.error("{} [{}]", message, statusKey);

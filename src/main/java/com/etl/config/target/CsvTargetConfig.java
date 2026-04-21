@@ -5,11 +5,9 @@ import com.etl.config.ColumnConfig;
 import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Getter;
 
 import java.util.List;
 
-@Getter
 public class CsvTargetConfig extends TargetConfig {
 
     private final String filePath;
@@ -27,6 +25,14 @@ public class CsvTargetConfig extends TargetConfig {
         this.filePath = filePath;
         this.delimiter = delimiter;
     }
+
+          public String getFilePath() {
+            return filePath;
+          }
+
+          public String getDelimiter() {
+            return delimiter;
+          }
 
     @Override
     public ModelFormat getFormat() {

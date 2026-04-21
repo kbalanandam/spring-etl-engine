@@ -1,6 +1,7 @@
 package com.etl.common.util;
 
 import com.etl.config.source.SourceConfig;
+import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.XmlTargetConfig;
 
@@ -20,6 +21,9 @@ public final class GeneratedModelClassResolver {
     }
 
     public static String resolveSourceClassName(SourceConfig sourceConfig) {
+		if (sourceConfig instanceof XmlSourceConfig xmlSourceConfig) {
+			return xmlSourceConfig.getPackageName() + "." + xmlSourceConfig.getRecordElement();
+		}
         return sourceConfig.getPackageName() + "." + sourceConfig.getSourceName();
     }
 

@@ -4,8 +4,6 @@ import com.etl.config.ColumnConfig;
 import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -18,8 +16,6 @@ import javax.xml.stream.XMLStreamReader;
  * Configuration class for XML source definitions.
  * Holds XML-specific properties such as file path, root element, and record element.
  */
-@Getter
-@Setter
 public class XmlSourceConfig extends SourceConfig {
 
     /** Path to the XML file.
@@ -42,6 +38,30 @@ public class XmlSourceConfig extends SourceConfig {
      *
      */
     private String recordElement;
+
+  public String getFilePath() {
+    return filePath;
+  }
+
+  public void setFilePath(String filePath) {
+    this.filePath = filePath;
+  }
+
+  public String getRootElement() {
+    return rootElement;
+  }
+
+  public void setRootElement(String rootElement) {
+    this.rootElement = rootElement;
+  }
+
+  public String getRecordElement() {
+    return recordElement;
+  }
+
+  public void setRecordElement(String recordElement) {
+    this.recordElement = recordElement;
+  }
 
     // No-args constructor for YAML/object mapping
     public XmlSourceConfig() {

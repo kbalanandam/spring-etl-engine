@@ -5,11 +5,9 @@ import com.etl.config.ColumnConfig;
 import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Getter;
 
 import java.util.List;
 
-@Getter
 public class XmlTargetConfig extends TargetConfig {
 
     private final String filePath;
@@ -30,6 +28,18 @@ public class XmlTargetConfig extends TargetConfig {
         this.rootElement = rootElement;
         this.recordElement = recordElement;
     }
+
+          public String getFilePath() {
+            return filePath;
+          }
+
+          public String getRootElement() {
+            return rootElement;
+          }
+
+          public String getRecordElement() {
+            return recordElement;
+          }
 
     @Override
     public ModelFormat getFormat() {

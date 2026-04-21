@@ -5,8 +5,6 @@ import com.etl.config.FieldDefinition;
 import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -19,8 +17,6 @@ import java.util.List;
  * Holds CSV-specific properties such as file path and delimiter.
  * The format for this config is always "csv".
  */
-@Setter
-@Getter
 public class CsvSourceConfig extends SourceConfig {
 
     /** Path to the CSV file. */
@@ -28,6 +24,22 @@ public class CsvSourceConfig extends SourceConfig {
 
     /** Delimiter used in the CSV file. */
     private String delimiter;
+
+  public String getFilePath() {
+    return filePath;
+  }
+
+  public void setFilePath(String filePath) {
+    this.filePath = filePath;
+  }
+
+  public String getDelimiter() {
+    return delimiter;
+  }
+
+  public void setDelimiter(String delimiter) {
+    this.delimiter = delimiter;
+  }
 
     // No-args constructor for YAML/object mapping
     public CsvSourceConfig() {

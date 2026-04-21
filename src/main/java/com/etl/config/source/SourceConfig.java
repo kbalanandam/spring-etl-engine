@@ -6,8 +6,6 @@ import com.etl.enums.ModelFormat;
 import com.etl.enums.ModelType;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import lombok.Getter;
-import lombok.Setter;
 
 import java.util.Collections;
 import java.util.List;
@@ -22,9 +20,9 @@ import java.util.List;
 )
 @JsonSubTypes({
         @JsonSubTypes.Type(value = CsvSourceConfig.class, name = "csv"),
-        @JsonSubTypes.Type(value = XmlSourceConfig.class, name = "xml")
+        @JsonSubTypes.Type(value = XmlSourceConfig.class, name = "xml"),
+        @JsonSubTypes.Type(value = RelationalSourceConfig.class, name = "relational")
 })
-@Getter
 public abstract class SourceConfig implements ModelConfig {
 
     //   private final String type="source";
@@ -39,7 +37,6 @@ public abstract class SourceConfig implements ModelConfig {
 
      */
 
-    @Setter
     private String sourceName;
 
     /**
@@ -52,7 +49,6 @@ public abstract class SourceConfig implements ModelConfig {
 
      */
 
-    @Setter
     private String packageName;
 
     /**
@@ -89,6 +85,27 @@ public abstract class SourceConfig implements ModelConfig {
     public void setFields(List<? extends FieldDefinition> fields) {
         this.fields = fields != null ? Collections.unmodifiableList(fields) : Collections.emptyList();
     }
+
+  public String getSourceName() {
+    return sourceName;
+  }
+
+  public void setSourceName(String sourceName) {
+    this.sourceName = sourceName;
+  }
+
+  public String getPackageName() {
+    return packageName;
+  }
+
+  public void setPackageName(String packageName) {
+    this.packageName = packageName;
+  }
+
+  public List<? extends FieldDefinition> getFields() {
+    return fields;
+  }
+
     /**
      * Returns the type of the source.
      *

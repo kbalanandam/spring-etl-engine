@@ -154,6 +154,10 @@ public class BatchConfig {
                 logger.warn("Could not count records for source: {}. Defaulting to chunk mode.", s.getSourceName(), e);
                 recordCount = chunkThreshold + 1;
             }
+            if (recordCount < 0) {
+                logger.info("Record count is unknown for source: {}. Defaulting to chunk mode.", s.getSourceName());
+                recordCount = chunkThreshold + 1;
+            }
             useChunk = recordCount > chunkThreshold;
 
             ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(s, t);
