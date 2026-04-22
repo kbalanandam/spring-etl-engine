@@ -11,21 +11,22 @@
 	</parent>
 	<groupId>com.etl</groupId>
 	<artifactId>spring-etl-engine</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
-	<name>ETLDemo</name>
-	<description>ETL Demo project</description>
-	<url />
+	<version>1.1.6</version>
+	<name>Spring ETL Engine</name>
+	<description>Config-driven Spring Batch ETL engine for CSV, XML, and relational data flows.</description>
+	<url>https://github.com/kbalanandam/spring-etl-engine</url>
 	<licenses>
-		<license />
+		<license>
+			<name>MIT License</name>
+			<url>https://opensource.org/license/mit/</url>
+			<distribution>repo</distribution>
+		</license>
 	</licenses>
-	<developers>
-		<developer />
-	</developers>
 	<scm>
-		<connection />
-		<developerConnection />
-		<tag />
-		<url />
+		<connection>scm:git:https://github.com/kbalanandam/spring-etl-engine.git</connection>
+		<developerConnection>scm:git:ssh://git@github.com/kbalanandam/spring-etl-engine.git</developerConnection>
+		<tag>v1.1.6</tag>
+		<url>https://github.com/kbalanandam/spring-etl-engine</url>
 	</scm>
 	<properties>
 		<generate-models>run</generate-models>
