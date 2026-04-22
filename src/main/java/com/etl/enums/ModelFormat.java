@@ -1,9 +1,6 @@
 package com.etl.enums;
 
-import lombok.Getter;
-
 // Model format can be csv, json, xml, realational table etc.
-@Getter
 public enum ModelFormat {
 	CSV("csv"), JSON("json"), XML("xml"), RELATIONAL("relational");
 
@@ -11,6 +8,10 @@ public enum ModelFormat {
 
 	ModelFormat(String format) {
 		this.format = format;
+	}
+
+	public String getFormat() {
+		return format;
 	}
 
     public static ModelFormat fromString(String format) {

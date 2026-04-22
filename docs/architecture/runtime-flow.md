@@ -8,32 +8,33 @@ This page explains how one ETL run currently executes from startup to output.
 
 ```mermaid
 flowchart TD
-    A[Application starts] --> B[EtlJobRunner builds job parameters]
-    B --> C[Spring launches etlJob]
-    C --> D[BatchConfig builds steps]
-    D --> E[Load source and target pair]
-    E --> F[Resolve runtime model metadata]
-    F --> G[Count source records]
-    G --> H{recordCount > chunkThreshold?}
+    A[Application starts] --> B[ConfigLoader resolves selected config set]
+    B --> C[EtlJobRunner builds job parameters]
+    C --> D[Spring launches etlJob]
+    D --> E[BatchConfig builds steps]
+    E --> F[Load source and target pair]
+    F --> G[Resolve runtime model metadata]
+    G --> H[Count source records]
+    H --> I{recordCount > chunkThreshold?}
 
-    H -- Yes --> I[Chunk step]
-    H -- No --> J[Tasklet step]
+    I -- Yes --> J[Chunk step]
+    I -- No --> K[Tasklet step]
 
-    I --> K[Reader reads record]
-    K --> L[Processor maps to target type]
-    L --> M[Writer writes chunk]
+    J --> L[Reader reads record]
+    L --> M[Processor maps to target type]
+    M --> N[Writer writes chunk]
 
-    J --> N[Tasklet loops through reader]
-    N --> O[Processor maps records]
-    O --> P{wrapper required?}
-    P -- Yes --> Q[Create wrapper object]
-    P -- No --> R[Write buffered records]
-    Q --> S[Writer writes single wrapped object]
-    R --> S
-
-    M --> T[Next configured step]
+    K --> O[Tasklet loops through reader]
+    O --> P[Processor maps records]
+    P --> Q{wrapper required?}
+    Q -- Yes --> R[Create wrapper object]
+    Q -- No --> S[Write buffered records]
+    R --> T[Writer writes single wrapped object]
     S --> T
-    T --> U[Job completes]
+
+    N --> U[Next configured step]
+    T --> U
+    U --> V[Job completes]
 ```
 
 ## Sequence view
@@ -49,7 +50,9 @@ sequenceDiagram
     participant ProcF as DynamicProcessorFactory
     participant WriterF as DynamicWriterFactory
 
-    App->>Loader: create config beans
+    App->>Loader: resolve selected business scenario
+    Loader->>Loader: read etl.config.job if present
+    Loader->>Loader: resolve source/target/processor paths
     App->>Batch: build etlJob
     Runner->>Batch: run job
     Batch->>Resolver: resolveMetadata(source, target)
@@ -63,7 +66,13 @@ sequenceDiagram
 ## Important runtime decisions
 
 ### 1. Config resolution
-`ConfigLoader` chooses external YAML when present, otherwise bundled classpath YAML.
+`ConfigLoader` resolves configuration in this order:
+
+1. if `etl.config.job` is set, treat it as the selected business-scenario/job config and use its explicit `sourceConfigPath`, `targetConfigPath`, and `processorConfigPath`
+2. otherwise use `etl.config.source`, `etl.config.target`, and `etl.config.processor`
+3. in legacy direct-path mode only, fall back to bundled classpath YAML when configured external files are missing
+
+`ConfigLoader` does not auto-discover scenario folders. Exactly one config set is selected for a run.
 
 ### 2. Model resolution
 `GeneratedModelClassResolver` translates config into concrete runtime class names and wrapper metadata.
@@ -88,5 +97,5 @@ This flow shows where future enhancements should plug in:
 
 - relational readers/writers should enter through the same factories
 - stored procedures may fit as reader, writer, or tasklet-style step operations
-- multi-job orchestration will likely require a higher-level flow model than the current source-target index pairing
+- multi-job orchestration will likely require a higher-level flow model than the current selected job-config plus source-target index pairing
 

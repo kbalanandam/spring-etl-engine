@@ -15,6 +15,21 @@ and this project adheres to **Semantic Versioning**.
 - N/A
 ---
 
+## [1.1.6] - 2026-04-22
+### Added
+- Added a preserved `relational-to-relational` scenario bundle selected through `etl.config.job`.
+- Added H2-backed large-volume relational flow coverage with a 20k-row source-to-target integration test.
+
+### Changed
+- Updated relational documentation to reflect phase-1 support, large-volume tuning guidance, and preserved scenario usage.
+- Sanitized committed SQL Server scenario YAML to use placeholders instead of live connection values.
+- Aligned reader and writer factory dispatch to use `ModelFormat` consistently instead of internal raw string keys.
+
+### Fixed
+- Normalized relational writer tests to use the relational target model class consistently.
+- Hardened relational config validation so malformed source/target JDBC settings fail fast before runtime reads and writes begin.
+---
+
 ## [1.1.5] - 2026-04-17
 ### Changed
 - Introduced `ResolvedModelMetadata` to normalize runtime source, processing, and write class resolution.

@@ -2,11 +2,32 @@
 
 ## Purpose
 
-This document defines the target architecture for relational database (RDBMS) support in `spring-etl-engine` before implementation starts.
+This document defines the relational database (RDBMS) architecture baseline for `spring-etl-engine` and now serves as both a design note and an implementation validation reference.
 
 The goal is to make future implementation deliberate, reviewable, and extensible rather than letting JDBC-specific decisions spread across readers, writers, and orchestration code.
 
-It also serves as a retrospective validation reference: when future code changes are made, they can be compared against the design expectations captured here.
+It also serves as a retrospective validation reference: as relational source and target code evolves, it can be compared against the design expectations captured here.
+
+## Current implementation status
+
+The current phase-1 implementation now includes:
+
+- `RelationalConnectionConfig`
+- `RelationalTargetConfig`
+- `RelationalSourceConfig`
+- `RelationalDynamicWriter`
+- `RelationalDynamicReader`
+- `DatabaseDialect` with `H2` and `SQL Server` implementations
+- H2-backed automated tests for relational reader and writer paths
+- preserved scenario bundles for `csv-to-sqlserver` and `relational-to-relational`
+- H2-backed higher-volume relational source -> relational target validation
+
+Current support remains intentionally narrow:
+
+- source reads: table or query based
+- target writes: insert only
+- field name == database column name assumption
+- SQL Server-oriented live configuration with H2 as the automated test platform
 
 ## Scope
 
@@ -405,6 +426,47 @@ Introduce foundational relational read/write support:
 - insert-oriented writes
 - explicit count handling
 - no stored procedures yet
+
+### Current phase-1 completion state
+
+This phase is now implemented at the foundational level:
+
+- CSV -> relational target is supported
+- relational source -> existing file targets is now supported through the reader path and shared processor layer
+- relational source -> relational target can now build on the same source/processor/target pattern
+
+The remaining work should focus on hardening, scenarios, large-volume behavior, and operational semantics rather than introducing a second relational design path.
+
+That hardening now includes:
+
+- preserved job-config-driven relational scenario bundles
+- sanitized committed scenario YAMLs that use placeholders instead of live connection secrets
+- automated validation of a 20k-row relational source -> relational target flow using H2
+
+### Phase 1 implementation start
+
+The first delivered implementation slice should start with **cross-connector validation** rather than relational-to-relational flow immediately.
+
+Recommended delivery order:
+
+1. existing file source (for example CSV) -> relational target
+2. relational source -> existing file target
+3. relational source -> relational target
+
+This keeps the first change isolated to the relational writer path, proves that the current source/processor pipeline can target a database cleanly, and reduces debugging ambiguity.
+
+For the first live vendor implementation, start with:
+
+- `format: relational`
+- `vendor: sqlserver`
+- `writeMode: insert`
+
+The phase-1 relational target implementation should therefore:
+
+- keep SQL Server as the first production-oriented vendor
+- keep the relational target writer insert-only
+- use H2-based automated tests for CI validation where practical
+- externalize credentials rather than committing live connection secrets into repository YAML
 
 ## Phase 2
 Add richer target semantics:

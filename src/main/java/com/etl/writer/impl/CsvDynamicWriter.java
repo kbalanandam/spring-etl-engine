@@ -3,6 +3,7 @@ package com.etl.writer.impl;
 import com.etl.config.FieldDefinition;
 import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.TargetConfig;
+import com.etl.enums.ModelFormat;
 import com.etl.writer.DynamicWriter;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.file.FlatFileItemWriter;
@@ -17,8 +18,8 @@ import java.io.File;
 public class CsvDynamicWriter implements DynamicWriter {
 
     @Override
-    public String getType() {
-        return "csv";
+    public ModelFormat getFormat() {
+        return ModelFormat.CSV;
     }
 
     @Override

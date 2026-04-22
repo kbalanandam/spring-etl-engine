@@ -1,0 +1,5 @@
+name: customer-load
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+

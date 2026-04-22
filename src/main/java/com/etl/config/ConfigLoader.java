@@ -1,6 +1,7 @@
 package com.etl.config;
 
 import com.etl.config.exception.ConfigException;
+import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.TargetWrapper;
@@ -17,6 +18,7 @@ import org.springframework.context.annotation.Configuration;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Path;
 
 import static java.nio.file.Files.readString;
 
@@ -34,6 +36,9 @@ public class ConfigLoader {
 	@Value("${etl.config.processor:C:/ETLDemo/config/processor-config.yaml}")
 	private String processorConfigPath;
 
+	@Value("${etl.config.job:}")
+	private String jobConfigPath;
+
     /**
      * ConfigLoader is a Spring configuration class that loads YAML configuration
      * files for source, target, and processor configurations. It uses Jackson's
@@ -43,7 +48,11 @@ public class ConfigLoader {
     @Bean
     SourceWrapper sourceWrapper() {
 		try {
-			return loadYamlConfig(sourceConfigPath, "source-config.yaml", SourceWrapper.class);
+			ResolvedConfigPaths paths = resolveEffectiveConfigPaths();
+			if (paths.strictJobSelection()) {
+				return loadRequiredExternalYamlConfig(paths.sourceConfigPath(), SourceWrapper.class);
+			}
+			return loadYamlConfig(paths.sourceConfigPath(), "source-config.yaml", SourceWrapper.class);
 
 		} catch (Exception e) {
 			throw new ConfigException("Failed to load source config YAML", e);
@@ -53,7 +62,11 @@ public class ConfigLoader {
 	@Bean
 	TargetWrapper targetWrapper() {
 		try {
-			return loadYamlConfig(targetConfigPath, "target-config.yaml", TargetWrapper.class);
+			ResolvedConfigPaths paths = resolveEffectiveConfigPaths();
+			if (paths.strictJobSelection()) {
+				return loadRequiredExternalYamlConfig(paths.targetConfigPath(), TargetWrapper.class);
+			}
+			return loadYamlConfig(paths.targetConfigPath(), "target-config.yaml", TargetWrapper.class);
 		} catch (Exception e) {
 
 			throw new ConfigException("Failed to load target config YAML", e);
@@ -64,7 +77,10 @@ public class ConfigLoader {
 	public ProcessorConfig processorConfig() {
 		try {
 			ObjectMapper mapper = buildYamlMapper();
-			ProcessorConfig config = loadYamlConfig(processorConfigPath, "processor-config.yaml", ProcessorConfig.class, mapper);
+			ResolvedConfigPaths paths = resolveEffectiveConfigPaths();
+			ProcessorConfig config = paths.strictJobSelection()
+					? loadRequiredExternalYamlConfig(paths.processorConfigPath(), ProcessorConfig.class, mapper)
+					: loadYamlConfig(paths.processorConfigPath(), "processor-config.yaml", ProcessorConfig.class, mapper);
 
 			// --- Validation step ---
 
@@ -116,6 +132,10 @@ public class ConfigLoader {
 		return loadYamlConfig(configuredPath, fallbackClasspathResource, targetType, buildYamlMapper());
 	}
 
+	private <T> T loadRequiredExternalYamlConfig(String configuredPath, Class<T> targetType) throws IOException {
+		return loadRequiredExternalYamlConfig(configuredPath, targetType, buildYamlMapper());
+	}
+
 	private <T> T loadYamlConfig(String configuredPath, String fallbackClasspathResource, Class<T> targetType, ObjectMapper mapper) throws IOException {
 		File externalFile = new File(configuredPath);
 		if (externalFile.exists() && externalFile.isFile()) {
@@ -135,6 +155,61 @@ public class ConfigLoader {
 		try (InputStream inputStream = classPathResource.getInputStream()) {
 			return mapper.readValue(inputStream, targetType);
 		}
+	}
+
+	private <T> T loadRequiredExternalYamlConfig(String configuredPath, Class<T> targetType, ObjectMapper mapper) throws IOException {
+		File externalFile = new File(configuredPath);
+		if (!externalFile.exists() || !externalFile.isFile()) {
+			throw new IOException("Required YAML file not found: " + configuredPath);
+		}
+
+		logger.info("Loading {} from job-config referenced YAML file: {}", targetType.getSimpleName(), configuredPath);
+		if (logger.isDebugEnabled()) {
+			logger.debug("YAML content from {}:\n{}", configuredPath, readString(externalFile.toPath()));
+		}
+		return mapper.readValue(externalFile, targetType);
+	}
+
+	private ResolvedConfigPaths resolveEffectiveConfigPaths() throws IOException {
+		if (jobConfigPath == null || jobConfigPath.isBlank()) {
+			return new ResolvedConfigPaths(sourceConfigPath, targetConfigPath, processorConfigPath, false);
+		}
+
+		ObjectMapper mapper = buildYamlMapper();
+		File jobConfigFile = new File(jobConfigPath);
+		if (!jobConfigFile.exists() || !jobConfigFile.isFile()) {
+			throw new IOException("Configured job config YAML not found at " + jobConfigPath);
+		}
+
+		logger.info("Loading JobConfig from external YAML file: {}", jobConfigPath);
+		JobConfig jobConfig = mapper.readValue(jobConfigFile, JobConfig.class);
+		Path jobConfigDirectory = jobConfigFile.getAbsoluteFile().getParentFile().toPath();
+
+		return new ResolvedConfigPaths(
+				resolveReferencedPath(jobConfigDirectory, jobConfig.getSourceConfigPath(), "sourceConfigPath"),
+				resolveReferencedPath(jobConfigDirectory, jobConfig.getTargetConfigPath(), "targetConfigPath"),
+				resolveReferencedPath(jobConfigDirectory, jobConfig.getProcessorConfigPath(), "processorConfigPath"),
+				true
+		);
+	}
+
+	private String resolveReferencedPath(Path jobConfigDirectory, String configuredPath, String propertyName) {
+		if (configuredPath == null || configuredPath.isBlank()) {
+			throw new IllegalStateException("JobConfig missing required property '" + propertyName + "'");
+		}
+
+		Path path = Path.of(configuredPath);
+		return path.isAbsolute()
+				? path.normalize().toString()
+				: jobConfigDirectory.resolve(path).normalize().toString();
+	}
+
+	private record ResolvedConfigPaths(
+			String sourceConfigPath,
+			String targetConfigPath,
+			String processorConfigPath,
+			boolean strictJobSelection
+	) {
 	}
 
 

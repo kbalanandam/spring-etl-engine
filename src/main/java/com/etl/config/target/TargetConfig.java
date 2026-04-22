@@ -6,11 +6,9 @@ import com.etl.enums.ModelType;
 import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
-import lombok.Getter;
 
 import java.util.List;
 
-@Getter
 @JsonTypeInfo(
 		use = JsonTypeInfo.Id.NAME,
 		include = JsonTypeInfo.As.PROPERTY,
@@ -18,7 +16,8 @@ import java.util.List;
 )
 @JsonSubTypes({
 		@JsonSubTypes.Type(value = CsvTargetConfig.class, name = "csv"),
-		@JsonSubTypes.Type(value = XmlTargetConfig.class, name = "xml")
+		@JsonSubTypes.Type(value = XmlTargetConfig.class, name = "xml"),
+		@JsonSubTypes.Type(value = RelationalTargetConfig.class, name = "relational")
 		// future: db, kafka, etc.
 })
 public abstract class TargetConfig implements ModelConfig {
@@ -35,6 +34,18 @@ public abstract class TargetConfig implements ModelConfig {
 		this.targetName = targetName;
 		this.packageName = packageName;
 		this.fields = fields;
+	}
+
+	public String getTargetName() {
+		return targetName;
+	}
+
+	public String getPackageName() {
+		return packageName;
+	}
+
+	public List<? extends FieldDefinition> getFields() {
+		return fields;
 	}
 
     /** csv, xml, mysql, etc */

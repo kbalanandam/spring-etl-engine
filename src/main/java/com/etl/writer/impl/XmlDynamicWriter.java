@@ -2,6 +2,7 @@ package com.etl.writer.impl;
 
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.XmlTargetConfig;
+import com.etl.enums.ModelFormat;
 import com.etl.writer.DynamicWriter;
 import com.etl.writer.exception.MarshallerException;
 import org.springframework.batch.item.ItemWriter;
@@ -16,8 +17,8 @@ import java.io.File;
 public class XmlDynamicWriter implements DynamicWriter {
 
 	@Override
-	public String getType() {
-		return "xml";
+	public ModelFormat getFormat() {
+		return ModelFormat.XML;
 	}
 
 	@Override

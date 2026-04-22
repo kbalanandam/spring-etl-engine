@@ -1,6 +1,7 @@
 package com.etl.writer;
 
 import com.etl.config.target.TargetConfig;
+import com.etl.enums.ModelFormat;
 import com.etl.writer.exception.NoWriterFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,19 +16,19 @@ import java.util.stream.Collectors;
 @Component
 public class DynamicWriterFactory {
 	private static final Logger logger = LoggerFactory.getLogger(DynamicWriterFactory.class);
-    private final Map<String, DynamicWriter> writers;
+    private final Map<ModelFormat, DynamicWriter> writers;
 
     public DynamicWriterFactory(List<DynamicWriter> writerList) {
         this.writers = writerList.stream()
-            .collect(Collectors.toMap(DynamicWriter::getType, Function.identity()));
+            .collect(Collectors.toMap(DynamicWriter::getFormat, Function.identity()));
     }
 
     public ItemWriter<Object> createWriter(TargetConfig config, Class<?> clazz) throws Exception {
-        String type = config.getFormat().getFormat().toLowerCase();
-        DynamicWriter writer = writers.get(type);
+        ModelFormat format = config.getFormat();
+        DynamicWriter writer = writers.get(format);
         if (writer == null) {
-        	logger.error("No writer found for type: {}", type);
-            throw new NoWriterFoundException("No writer found for type: " + type);
+	        	logger.error("No writer found for format: {}", format);
+	            throw new NoWriterFoundException("No writer found for format: " + format);
         }
         return writer.getWriter(config, clazz);
     }

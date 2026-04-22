@@ -1,11 +1,10 @@
 package com.etl.writer;
 
 import com.etl.config.target.TargetConfig;
+import com.etl.enums.ModelFormat;
 import org.springframework.batch.item.ItemWriter;
 
-import com.etl.config.target.TargetWrapper;
-
 public interface DynamicWriter {
-    String getType(); // e.g., "xml", "csv", etc.
+    ModelFormat getFormat();
     ItemWriter<Object> getWriter(TargetConfig config, Class<?> clazz) throws Exception;
 }

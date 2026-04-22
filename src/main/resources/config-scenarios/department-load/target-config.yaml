@@ -1,0 +1,13 @@
+targets:
+  - format: xml
+    packageName: com.etl.model.target
+    filePath: target/
+    targetName: Departments
+    rootElement: Departments
+    recordElement: Department
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+

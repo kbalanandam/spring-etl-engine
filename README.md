@@ -9,8 +9,9 @@ A lightweight, configurable, and modular ETL (Extract–Transform–Load) framew
 - **AOP Logging**: Automatic method-level logging for ETL flow visibility.
 - **Builder Pattern**: Clean and safe object construction.
 - **Profile-based Execution**: Separate dev, test, prod behaviour.
-- **Multi‑Source Input**: Currently CSV/XML; extendable.
-- **Multi‑Target Output**: Extendable (e.g., MySQL Writer, File Writer, API Writer).
+- **Multi‑Source Input**: CSV, XML, and phase-1 relational sources.
+- **Multi‑Target Output**: CSV, XML, and phase-1 relational targets.
+- **Scenario-driven execution**: one `job-config.yaml` can select a preserved business or connector scenario per run.
 
 ## Architecture Docs
 
@@ -74,18 +75,20 @@ Prerequisites:
 Choose one of the following ways to run the project:
 
 1. **Use your external ETL config** if you already have files under `C:/ETLDemo/config`.
-2. **Use the bundled fallback config** if you want to try the project immediately from the repository.
+2. **Use one explicit job config** if you want a single file to choose the source/target/processor YAMLs for the run.
+3. **Use the bundled fallback config** if you want to try the project immediately from the repository.
 
 If you want the fastest first run, go directly to **Classpath fallback mode** below.
 
 ## Run Modes
 
-The application supports two run modes:
+The application supports three run modes:
 
 1. **External config mode** - uses YAML files from `C:/ETLDemo/config`
-2. **Classpath fallback mode** - uses bundled YAML files from `src/main/resources` when the external files are missing
+2. **Explicit job-config mode** - uses one selected business-scenario/job config file that points to one source/target/processor config set
+3. **Classpath fallback mode** - uses bundled YAML files from `src/main/resources` when the external files are missing
 
-`application.properties` currently defaults to the external config locations, and `ConfigLoader` automatically falls back to the bundled classpath files if those external YAML files are not found.
+`application.properties` currently defaults to the external config locations. When `etl.config.job` is set, that selected job config takes precedence and selects the exact source/target/processor config files to load for one ETL run. When `etl.config.job` is not set, `ConfigLoader` uses the direct path properties and automatically falls back to the bundled classpath files if those external YAML files are not found.
 
 ### External config mode
 
@@ -112,6 +115,44 @@ Expected output files:
 
 - `C:/ETLDemo/data/output/customers.xml`
 - `C:/ETLDemo/data/output/departments.xml`
+
+### Explicit job-config mode
+
+Use this mode when you want one file to declare exactly which business scenario or config trio a job should run.
+
+Example `job-config.yaml`:
+
+```yaml
+name: csv-to-sqlserver
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+```
+
+The referenced paths may be absolute or relative. Relative paths are resolved from the `job-config.yaml` folder.
+
+This is the recommended product direction for preserved business scenarios such as:
+
+- `customer-load`
+- `department-load`
+- `cust-dept-load`
+- `csv-to-sqlserver`
+- `relational-to-relational`
+
+Run with:
+
+```powershell
+Set-Location 'C:\spring-etl-engine'
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=C:/spring-etl-engine/src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml" spring-boot:run
+```
+
+In this mode, the app does **not** auto-discover other scenarios or sibling config sets. It only loads the three files referenced by the job config.
+
+For relational large-volume scenarios, the current phase-1 tuning knobs are:
+
+- `countQuery` for predictable chunk/tasklet decisions on relational sources
+- `fetchSize` as the JDBC streaming hint for relational reads
+- `batchSize` as the recommended write grouping value to align with chunk-based relational loads
 
 ### Classpath fallback mode
 

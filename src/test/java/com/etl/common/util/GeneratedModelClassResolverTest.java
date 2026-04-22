@@ -2,6 +2,7 @@ package com.etl.common.util;
 
 import com.etl.config.ColumnConfig;
 import com.etl.config.source.CsvSourceConfig;
+import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.XmlTargetConfig;
 import com.etl.model.target.Customer;
@@ -19,6 +20,20 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class GeneratedModelClassResolverTest {
+
+  @Test
+  void resolvesXmlSourceClassToRecordElement() {
+    XmlSourceConfig sourceConfig = new XmlSourceConfig(
+        "Customers",
+        "com.etl.model.source.xml",
+        List.of(column("id", "int"), column("name", "String")),
+        "target/customers.xml",
+        "Customers",
+        "Customer"
+    );
+
+    assertEquals("com.etl.model.source.xml.Customer", GeneratedModelClassResolver.resolveSourceClassName(sourceConfig));
+  }
 
     @Test
     void resolvesXmlProcessingAndWriteClassesSeparately() throws Exception {
