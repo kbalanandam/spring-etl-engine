@@ -27,6 +27,8 @@ For every significant enhancement, add or update:
 - [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md) — top architectural risks to watch during roadmap execution
 - [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase and future enterprise integration direction
 - [`architecture/relational-db-support.md`](architecture/relational-db-support.md) — proposed architecture for relational database support before implementation
+- [`architecture/job-history-and-operational-observability.md`](architecture/job-history-and-operational-observability.md) — future baseline for retained run history, structured operational events, and diagnostics
+- [`architecture/ai-assisted-operations-intelligence.md`](architecture/ai-assisted-operations-intelligence.md) — future operator-assist roadmap for AI-grounded search and summarization over job history and logs
 - [`architecture/TEMPLATE.md`](architecture/TEMPLATE.md) — template for future design notes
 
 ### ADRs
@@ -89,9 +91,18 @@ Create or update docs when a change:
 - validation and error handling flow
 - restartability and idempotency rules
 
+## Future-state topics now preserved
+
+- operational observability baseline and job history design
+- AI-assisted operator diagnostics grounded in retained evidence
+
 The relational database support topic is now started in [`architecture/relational-db-support.md`](architecture/relational-db-support.md).
 
 The product-direction baseline is now captured in [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md).
 
 The main architectural watchpoints are captured in [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md).
+
+The future observability baseline is now captured in [`architecture/job-history-and-operational-observability.md`](architecture/job-history-and-operational-observability.md).
+
+The future AI-assisted operations direction is now captured in [`architecture/ai-assisted-operations-intelligence.md`](architecture/ai-assisted-operations-intelligence.md).
 

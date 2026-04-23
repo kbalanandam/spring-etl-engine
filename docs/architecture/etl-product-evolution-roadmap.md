@@ -58,6 +58,7 @@ flowchart LR
     C --> G[Docs / ADRs / tests / guardrails]
     D --> H[Canonical models / routing / security]
     E --> I[Partner isolation / governance / observability]
+    I --> J[AI-assisted job history and log intelligence]
 ```
 
 ## Current phase: ETL-first product
@@ -158,6 +159,14 @@ Move from ETL-first execution toward broader enterprise integration mediation.
 - dead-letter and replay support
 - security administration and credential governance
 - broader northbound/southbound integration design
+- AI-assisted search and summarization for job history, run diagnostics, and operational logs
+
+### Prerequisites before AI-assisted operations intelligence
+- structured job and step history with stable correlation identifiers
+- searchable operational events and retained logs with clear error taxonomy
+- log redaction, retention controls, and role-based access protections
+- operator-facing dashboards and non-AI search/filter workflows already in place
+- AI kept as an operator-assist capability, not an autonomous execution or remediation mechanism
 
 ## Key Components / Classes
 
@@ -210,6 +219,8 @@ When making current-phase design decisions:
 - avoid introducing broad platform abstractions before there is a real operational need
 - document future-facing decisions if they materially affect roadmap direction
 - keep batch-first assumptions unless a change explicitly requires a new execution model
+- defer AI log intelligence until observability, audit, replay, and security controls are already mature
+- prefer structured run metadata and searchable events first so any future semantic search is grounded in evidence
 
 ## Impact on Existing Architecture
 
@@ -271,4 +282,6 @@ Likely future notes that should build from this roadmap include:
 - canonical model strategy
 - security boundary and partner isolation
 - orchestration and retry/replay model
+- job history and operational observability architecture
+- AI-assisted log search and diagnostics for operators
 

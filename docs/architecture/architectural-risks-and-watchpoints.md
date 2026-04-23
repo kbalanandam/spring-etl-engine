@@ -203,6 +203,8 @@ Read together with:
 - `docs/architecture/runtime-flow.md`
 - `docs/architecture/extension-points.md`
 - `docs/architecture/relational-db-support.md`
+- `docs/architecture/job-history-and-operational-observability.md`
+- `docs/architecture/ai-assisted-operations-intelligence.md`
 
 ## Future Extensions
 
@@ -212,4 +214,6 @@ This note may later be expanded with:
 - streaming/runtime-specific watchpoints
 - canonical-model-specific design constraints
 - operational governance and replay watchpoints for later enterprise phases
+- observability maturity criteria for retained job history and searchable diagnostics
+- AI-assisted operator guidance watchpoints for later enterprise phases
 

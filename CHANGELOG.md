@@ -6,10 +6,13 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 ### Added
-- N/A
+- Planned improvement: better PR/CI unit-test result visibility through retained test artifacts and readable report outputs.
 
 ### Changed
-- N/A
+- Planned direction: strict-by-default configuration loading.
+- Planned direction: fallback only by explicit flag.
+- Planned direction: `etl.config.job` as the preferred enterprise configuration entry point.
+- Expanded architecture roadmap documentation for future job-history/operational observability and AI-assisted operations intelligence, including new dedicated design notes and refreshed documentation cross-references.
 
 ### Fixed
 - N/A
