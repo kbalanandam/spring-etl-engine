@@ -6,10 +6,32 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 ### Added
-- N/A
+- Planned improvement: better PR/CI unit-test result visibility through retained test artifacts and readable report outputs.
 
 ### Changed
 - N/A
+
+### Fixed
+- N/A
+
+---
+
+## [1.2.0] - 2026-04-24
+### Added
+- Added `etl.config.allow-demo-fallback` as an explicit local/demo-only switch for legacy direct-path and bundled classpath fallback.
+- Added scenario/job-run Logback output with MDC fields for `scenario`, `runCorrelationId`, `jobExecutionId`, and `stepName`, including daily scenario log files.
+- Added `docs/product/product-backlog.md` as the execution-facing product backlog, including milestone-aligned board-style tracking from current state to enterprise-grade target.
+- Added `docs/architecture/transformation-capability-roadmap.md` to make transformation maturity an explicit part of the enterprise-grade ETL product direction.
+
+### Changed
+- Configuration loading is now strict by default; startup fails fast when `etl.config.job` is not provided.
+- Fallback to direct-path or bundled classpath YAML now happens only when `etl.config.allow-demo-fallback=true` is explicitly enabled.
+- `etl.config.job` is now the default enterprise configuration entry point for one ETL run.
+- Expanded architecture roadmap documentation for future job-history/operational observability, scenario/job-run logging strategy, and AI-assisted operations intelligence, including new dedicated design notes and refreshed documentation cross-references.
+- Expanded the product roadmap and backlog to treat transformation capability as a first-class maturity track, from structural mapping toward rule-based and enterprise-grade transformation behavior.
+- Runtime config selection is now cached and also exposes resolved scenario metadata for startup and logging concerns.
+- Runtime log routing now writes to daily scenario files in the form `logs/<yyyy-MM-dd>/<scenario>.log` instead of one file per run.
+- Default demo/runtime config paths are now repo-relative and portable instead of assuming Windows-specific `C:/ETLDemo/...` locations.
 
 ### Fixed
 - N/A

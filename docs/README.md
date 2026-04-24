@@ -9,6 +9,7 @@ As features grow, the goal is to keep architectural intent in the repository ins
 - `architecture/` — feature and system-level design notes
 - `adr/` — Architecture Decision Records (why a decision was made)
 - `config/` — field-level config references and preserved scenario examples
+- `product/` — product vision, backlog, milestones, and execution tracking
 
 ## Documentation standard
 
@@ -27,6 +28,9 @@ For every significant enhancement, add or update:
 - [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md) — top architectural risks to watch during roadmap execution
 - [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase and future enterprise integration direction
 - [`architecture/relational-db-support.md`](architecture/relational-db-support.md) — proposed architecture for relational database support before implementation
+- [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md) — phased transformation maturity roadmap from structural mapping toward enterprise-grade ETL behavior
+- [`architecture/job-history-and-operational-observability.md`](architecture/job-history-and-operational-observability.md) — future baseline for retained run history, scenario/job-run logging, structured operational events, and diagnostics
+- [`architecture/ai-assisted-operations-intelligence.md`](architecture/ai-assisted-operations-intelligence.md) — future operator-assist roadmap for AI-grounded search and summarization over job history and logs
 - [`architecture/TEMPLATE.md`](architecture/TEMPLATE.md) — template for future design notes
 
 ### ADRs
@@ -42,6 +46,9 @@ For every significant enhancement, add or update:
 - [`config/source/relational-source.md`](config/source/relational-source.md) — relational source fields and current phase-1 limitations
 - [`config/target/relational-target.md`](config/target/relational-target.md) — relational target fields and current SQL Server phase-1 limitations
 - [`config/processor/default-processor.md`](config/processor/default-processor.md) — default processor mapping contract
+
+### Product tracking
+- [`product/product-backlog.md`](product/product-backlog.md) — step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target
 
 ### Scenario examples
 - `src/main/resources/config-scenarios/csv-to-sqlserver/` — preserved example for CSV source to SQL Server target without changing the default resource YAMLs
@@ -89,9 +96,23 @@ Create or update docs when a change:
 - validation and error handling flow
 - restartability and idempotency rules
 
+## Future-state topics now preserved
+
+- operational observability baseline and job history design
+- scenario/job-run logging strategy for operators and future evidence retrieval
+- AI-assisted operator diagnostics grounded in retained evidence
+
 The relational database support topic is now started in [`architecture/relational-db-support.md`](architecture/relational-db-support.md).
 
 The product-direction baseline is now captured in [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md).
 
+The transformation maturity direction that supports enterprise-grade ETL evolution is now captured in [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md).
+
+The execution-facing backlog that translates that direction into concrete steps is now captured in [`product/product-backlog.md`](product/product-backlog.md), including a lightweight board-style view for active priorities, status, and milestone alignment.
+
 The main architectural watchpoints are captured in [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md).
+
+The future observability and logging baseline is now captured in [`architecture/job-history-and-operational-observability.md`](architecture/job-history-and-operational-observability.md). The first runtime slice is now implemented with scenario/job-run MDC fields and daily scenario Logback files in the form `logs/<yyyy-MM-dd>/<scenario>.log`.
+
+The future AI-assisted operations direction is now captured in [`architecture/ai-assisted-operations-intelligence.md`](architecture/ai-assisted-operations-intelligence.md).
 

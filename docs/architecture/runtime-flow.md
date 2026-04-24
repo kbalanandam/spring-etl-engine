@@ -51,7 +51,8 @@ sequenceDiagram
     participant WriterF as DynamicWriterFactory
 
     App->>Loader: resolve selected business scenario
-    Loader->>Loader: read etl.config.job if present
+    Loader->>Loader: read etl.config.job
+    Loader->>Loader: fail fast if missing unless demo fallback is enabled
     Loader->>Loader: resolve source/target/processor paths
     App->>Batch: build etlJob
     Runner->>Batch: run job
@@ -69,8 +70,9 @@ sequenceDiagram
 `ConfigLoader` resolves configuration in this order:
 
 1. if `etl.config.job` is set, treat it as the selected business-scenario/job config and use its explicit `sourceConfigPath`, `targetConfigPath`, and `processorConfigPath`
-2. otherwise use `etl.config.source`, `etl.config.target`, and `etl.config.processor`
-3. in legacy direct-path mode only, fall back to bundled classpath YAML when configured external files are missing
+2. if `etl.config.job` is missing and `etl.config.allow-demo-fallback=false`, fail startup immediately
+3. if `etl.config.allow-demo-fallback=true`, use `etl.config.source`, `etl.config.target`, and `etl.config.processor` for local/demo runs
+4. in demo fallback mode only, continue into bundled classpath YAML when the configured direct files are missing
 
 `ConfigLoader` does not auto-discover scenario folders. Exactly one config set is selected for a run.
 

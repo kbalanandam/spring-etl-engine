@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="LOG_BASE_DIR" source="etl.logging.base-dir" defaultValue="logs"/>
+
+    <property name="LOG_PATTERN"
+              value="%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %-5level [%thread] [scenario:%X{scenario:-startup}] [run:%X{runCorrelationId:-n/a}] [job:%X{jobExecutionId:-n/a}] [step:%X{stepName:-n/a}] %logger{36} - %msg%n"/>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+        </encoder>
+    </appender>
+
+    <appender name="SCENARIO_DAILY_FILE" class="ch.qos.logback.classic.sift.SiftingAppender">
+        <discriminator class="ch.qos.logback.classic.sift.MDCBasedDiscriminator">
+            <key>scenarioLogKey</key>
+            <defaultValue>startup/startup</defaultValue>
+        </discriminator>
+        <sift>
+            <appender name="FILE-${scenarioLogKey}" class="ch.qos.logback.core.FileAppender">
+                <file>${LOG_BASE_DIR}/${scenarioLogKey}.log</file>
+                <append>true</append>
+                <encoder>
+                    <pattern>${LOG_PATTERN}</pattern>
+                </encoder>
+            </appender>
+        </sift>
+    </appender>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="SCENARIO_DAILY_FILE"/>
+    </root>
+</configuration>
+
+

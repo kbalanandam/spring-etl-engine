@@ -104,6 +104,7 @@ Scenario configs are intended to be selected through runtime property overrides 
 Typical properties are:
 
 - `etl.config.job`
+- `etl.config.allow-demo-fallback`
 - `etl.config.source`
 - `etl.config.target`
 - `etl.config.processor`
@@ -111,7 +112,8 @@ Typical properties are:
 Recommended precedence:
 
 1. use `etl.config.job` as the primary business-scenario selector for one run
-2. use `etl.config.source`, `etl.config.target`, and `etl.config.processor` directly for legacy/manual runs
+2. require `etl.config.job` by default for normal runtime execution
+3. use `etl.config.source`, `etl.config.target`, and `etl.config.processor` only when demo fallback is explicitly enabled for local/manual runs
 
 Example job config:
 
@@ -127,6 +129,8 @@ Relative paths in `job-config.yaml` are resolved from the job-config file's fold
 The engine should not auto-discover all scenario folders and execute them. One run should explicitly select one scenario/config set through `etl.config.job`.
 
 `JobConfig.name` is currently descriptive metadata for the selected scenario. It is not yet used as an independent runtime lookup key.
+
+If `etl.config.job` is not set, startup should fail unless `etl.config.allow-demo-fallback=true` is enabled. Demo fallback mode may then use the direct config path properties and, if those direct files are missing, continue into bundled classpath YAML intended for local/demo usage.
 
 ## Documentation rule
 

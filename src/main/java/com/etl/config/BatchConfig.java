@@ -28,6 +28,7 @@ import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.job.listener.JobCompletionNotificationListener;
+import com.etl.job.listener.StepLoggingContextListener;
 import com.etl.processor.DynamicProcessorFactory;
 import com.etl.reader.DynamicReaderFactory;
 import com.etl.writer.DynamicWriterFactory;
@@ -54,6 +55,7 @@ public class BatchConfig {
     private final JobRepository jobRepository;
     private final PlatformTransactionManager transactionManager;
     private final JobCompletionNotificationListener listener;
+    private final StepLoggingContextListener stepLoggingContextListener;
     private final ProcessorConfig processorConfig;
 
     /**
@@ -80,7 +82,8 @@ public class BatchConfig {
                        DynamicWriterFactory writerFactory, JobRepository jobRepository,
                        PlatformTransactionManager transactionManager,
                        JobCompletionNotificationListener listener, DynamicProcessorFactory processorFactory,
-                       ProcessorConfig processorConfig, TargetWrapper targetWrapper) {
+                       ProcessorConfig processorConfig, TargetWrapper targetWrapper,
+                       StepLoggingContextListener stepLoggingContextListener) {
         this.sourceWrapper = sourceWrapper;
         this.readerFactory = readerFactory;
         this.targetWrapper = targetWrapper;
@@ -89,6 +92,7 @@ public class BatchConfig {
         this.jobRepository = jobRepository;
         this.transactionManager = transactionManager;
         this.listener = listener;
+        this.stepLoggingContextListener = stepLoggingContextListener;
         this.processorConfig = processorConfig;
 
         logger.info("EtlJobConfiguration initialized.");
@@ -173,6 +177,7 @@ public class BatchConfig {
             if (useChunk) {
                 step = stepBuilder
                         .chunk(chunkThreshold, transactionManager)
+                        .listener(stepLoggingContextListener)
                         .reader(reader)
                         .processor(processor)
                         .writer(writer)
@@ -180,6 +185,7 @@ public class BatchConfig {
                 logger.info("Created CHUNK Step: {} ({} → {}), recordCount={}, threshold={}", stepName, s.getSourceName(), t.getTargetName(), recordCount, chunkThreshold);
             } else {
                 step = stepBuilder
+                        .listener(stepLoggingContextListener)
                         .tasklet((contribution, chunkContext) -> {
                             Object item;
                             List<Object> buffer = new ArrayList<>();

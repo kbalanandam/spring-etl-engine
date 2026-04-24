@@ -6,15 +6,17 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ScenarioConfigReferenceTest {
 
-    private static final Path SCENARIO_ROOT = Path.of("src", "main", "resources", "config-scenarios");
+    private static final Path SCENARIO_ROOT = scenarioRootPath();
 
     @Test
     void allTrackedScenarioFoldersContainResolvableJobReferencedFiles() throws IOException {
@@ -43,6 +45,18 @@ class ScenarioConfigReferenceTest {
                     () -> "Missing target config for scenario: " + scenarioName);
             assertTrue(Files.isRegularFile(scenarioDirectory.resolve(jobConfig.getProcessorConfigPath())),
                     () -> "Missing processor config for scenario: " + scenarioName);
+        }
+    }
+
+    private static Path scenarioRootPath() {
+        String resourceName = "config-scenarios";
+        try {
+            return Path.of(Objects.requireNonNull(
+                    ScenarioConfigReferenceTest.class.getClassLoader().getResource(resourceName),
+                    () -> "Missing test resource: " + resourceName
+            ).toURI());
+        } catch (URISyntaxException e) {
+            throw new IllegalStateException("Failed to resolve test resource: " + resourceName, e);
         }
     }
 }

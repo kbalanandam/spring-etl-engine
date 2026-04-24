@@ -19,12 +19,16 @@ The engine also needs to avoid auto-discovering every scenario folder and execut
 
 The product will use `etl.config.job` as the primary selector for one ETL run.
 
+Runtime selection is strict by default. If `etl.config.job` is not set, startup should fail unless demo fallback is explicitly enabled for local/demo use.
+
 That selector points to one `job-config.yaml`, and that file explicitly defines the selected scenario's:
 - `sourceConfigPath`
 - `targetConfigPath`
 - `processorConfigPath`
 
 Relative paths in `job-config.yaml` are resolved from the `job-config.yaml` folder.
+
+Legacy direct source/target/processor path loading remains available only when `etl.config.allow-demo-fallback=true` is enabled. That fallback path is intended for demos and local runs, not as the enterprise default.
 
 `JobConfig.name` is currently descriptive metadata for the selected scenario. It is not yet a separate runtime lookup mechanism.
 
@@ -34,11 +38,13 @@ Relative paths in `job-config.yaml` are resolved from the `job-config.yaml` fold
 - one ETL run maps to one explicit business scenario/config bundle
 - scenario folders can preserve real business flows without mutating baseline resource YAML files
 - runtime behavior stays predictable and debuggable
+- startup no longer silently degrades into demo/default YAML in normal execution
 - future orchestration metadata can be added to `job-config.yaml` without changing the public entry point
 
 ### Negative
 - the selector currently uses a file path instead of a simpler scenario-name property
 - documentation must make it clear that `etl.config.job` is the product-facing scenario selector
+- local/demo fallback now requires an explicit opt-in property
 - contributors must avoid reintroducing scenario auto-discovery as hidden behavior
 
 ## Alternatives considered
@@ -52,7 +58,7 @@ This is more user-friendly, but it adds another abstraction layer before the pro
 This was rejected because it makes one application run ambiguous and harder to control operationally.
 
 ### 3. Direct source/target/processor path properties only
-This remains supported for legacy/manual runs, but it is not the preferred product-level entry point for preserved business scenarios.
+This remains supported only through explicit demo fallback for legacy/manual runs, but it is not the preferred product-level entry point for preserved business scenarios.
 
 ## Implications for future work
 

@@ -23,6 +23,7 @@ public class LoggingAspect {
      * EXCEPT getter and setter methods (getX(), setX(), isX()).
      */
     @Pointcut("execution(public * com.etl..*(..)) && " +
+            "!execution(* com.etl.config.RunConfigurationMetadata.*(..)) && " +
             "!execution(* get*()) && " +
             "!execution(* is*()) && " +
             "!execution(* set*(..))")
