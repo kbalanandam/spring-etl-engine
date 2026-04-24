@@ -7,6 +7,7 @@ A lightweight, configurable, and modular ETL (Extract–Transform–Load) framew
 - **Reusable Utilities**: Centralized `*Utils` for type conversion, reflection, validation.
 - **Custom Exceptions**: Domain‑specific exceptions to identify issues clearly.
 - **AOP Logging**: Automatic method-level logging for ETL flow visibility.
+- **Scenario/job-run logging**: MDC-backed logs now carry scenario, run, job, and step context, with one runtime file per ETL run.
 - **Builder Pattern**: Clean and safe object construction.
 - **Profile-based Execution**: Separate dev, test, prod behaviour.
 - **Multi‑Source Input**: CSV, XML, and phase-1 relational sources.
@@ -74,51 +75,26 @@ Prerequisites:
 
 Choose one of the following ways to run the project:
 
-1. **Use your external ETL config** if you already have files under `C:/ETLDemo/config`.
+1. **Use the repo-provided config** under `src/main/resources/` or point to your own external config files.
 2. **Use one explicit job config** if you want a single file to choose the source/target/processor YAMLs for the run.
 3. **Use the bundled fallback config** if you want to try the project immediately from the repository.
 
-If you want the fastest first run, go directly to **Classpath fallback mode** below.
+If you want the fastest first run without preparing an external scenario bundle, go directly to **Demo fallback mode** below and enable the explicit fallback flag.
 
 ## Run Modes
 
-The application supports three run modes:
+The application supports two runtime policies:
 
-1. **External config mode** - uses YAML files from `C:/ETLDemo/config`
-2. **Explicit job-config mode** - uses one selected business-scenario/job config file that points to one source/target/processor config set
-3. **Classpath fallback mode** - uses bundled YAML files from `src/main/resources` when the external files are missing
+1. **Explicit job-config mode** - the default and enterprise-grade mode; one selected business-scenario/job config file points to one source/target/processor config set
+2. **Demo fallback mode** - optional local/demo mode; enabled only when `etl.config.allow-demo-fallback=true`
 
-`application.properties` currently defaults to the external config locations. When `etl.config.job` is set, that selected job config takes precedence and selects the exact source/target/processor config files to load for one ETL run. When `etl.config.job` is not set, `ConfigLoader` uses the direct path properties and automatically falls back to the bundled classpath files if those external YAML files are not found.
-
-### External config mode
-
-This is the default mode when these files exist:
-
-- `C:/ETLDemo/config/source-config.yaml`
-- `C:/ETLDemo/config/target-config.yaml`
-- `C:/ETLDemo/config/processor-config.yaml`
-
-Current external sample paths:
-
-- input: `C:/ETLDemo/data/input/Customers.csv`
-- input: `C:/ETLDemo/data/input/Department.csv`
-- output: `C:/ETLDemo/data/output/`
-
-Run with:
-
-```powershell
-Set-Location 'C:\spring-etl-engine'
-mvn --no-transfer-progress -DskipTests spring-boot:run
-```
-
-Expected output files:
-
-- `C:/ETLDemo/data/output/customers.xml`
-- `C:/ETLDemo/data/output/departments.xml`
+`application.properties` is strict by default. If `etl.config.job` is not set, startup fails with a configuration error unless demo fallback is explicitly enabled. When `etl.config.job` is set, that selected job config takes precedence and selects the exact source/target/processor config files to load for one ETL run. An explicitly provided `etl.config.job` must be valid and never silently falls back.
 
 ### Explicit job-config mode
 
 Use this mode when you want one file to declare exactly which business scenario or config trio a job should run.
+
+This is the default startup contract.
 
 Example `job-config.yaml`:
 
@@ -142,11 +118,52 @@ This is the recommended product direction for preserved business scenarios such 
 Run with:
 
 ```powershell
-Set-Location 'C:\spring-etl-engine'
-mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=C:/spring-etl-engine/src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml" spring-boot:run
+Set-Location '<repo-root>'
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml" spring-boot:run
 ```
 
 In this mode, the app does **not** auto-discover other scenarios or sibling config sets. It only loads the three files referenced by the job config.
+
+If `etl.config.job` is missing, unreadable, malformed, or references missing files, startup fails fast.
+
+## Logging Layout
+
+The runtime now emits correlation-friendly logs with these MDC fields when available:
+
+- `scenario`
+- `runCorrelationId`
+- `jobExecutionId`
+- `stepName`
+
+`src/main/resources/logback-spring.xml` writes:
+
+1. a normal console stream with MDC context visible in each line
+2. a daily scenario file under `etl.logging.base-dir`
+
+Current file layout:
+
+- startup logs before a run is selected: `logs/startup/startup.log`
+- explicit job-config runs: `logs/<yyyy-MM-dd>/<scenario>.log`
+- demo fallback runs: `logs/<yyyy-MM-dd>/demo-fallback.log`
+
+Example:
+
+```text
+logs/
+  2026-04-23/
+    csv-to-sqlserver.log
+    demo-fallback.log
+  startup/
+    startup.log
+```
+
+You can override the base directory with:
+
+```properties
+etl.logging.base-dir=target/test-logs
+```
+
+The scenario name is resolved from `JobConfig.name` when `etl.config.job` is used. If that field is blank, the runtime falls back to the selected `job-config.yaml` folder name. Each log line still keeps the `runCorrelationId`, so multiple same-day runs for one scenario remain distinguishable inside the shared daily file.
 
 For relational large-volume scenarios, the current phase-1 tuning knobs are:
 
@@ -154,9 +171,35 @@ For relational large-volume scenarios, the current phase-1 tuning knobs are:
 - `fetchSize` as the JDBC streaming hint for relational reads
 - `batchSize` as the recommended write grouping value to align with chunk-based relational loads
 
-### Classpath fallback mode
+### Demo fallback mode
 
-If the external YAML files are missing, the app falls back to the bundled resources:
+Enable this mode only for local/demo runs. It is not intended for production execution.
+
+When `etl.config.allow-demo-fallback=true` and `etl.config.job` is not set, the runtime uses these direct config paths first:
+
+- `src/main/resources/source-config.yaml`
+- `src/main/resources/target-config.yaml`
+- `src/main/resources/processor-config.yaml`
+
+Current bundled demo sample paths:
+
+- input: `src/main/resources/demo-input/Customers.csv`
+- input: `src/main/resources/demo-input/Department.csv`
+- output: `target/`
+
+Run with:
+
+```powershell
+Set-Location '<repo-root>'
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.allow-demo-fallback=true" spring-boot:run
+```
+
+Expected output files:
+
+- `target/customers.xml`
+- `target/departments.xml`
+
+If the direct YAML files are missing, demo fallback continues into the bundled resources:
 
 - `src/main/resources/source-config.yaml`
 - `src/main/resources/target-config.yaml`
@@ -171,11 +214,11 @@ Bundled fallback output location:
 
 - `target/`
 
-You can force fallback mode by overriding the config paths to missing files:
+You can force bundled fallback inside demo mode by overriding the direct config paths to missing files:
 
 ```powershell
-Set-Location 'C:\spring-etl-engine'
-mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.source=Z:/missing/source-config.yaml -Detl.config.target=Z:/missing/target-config.yaml -Detl.config.processor=Z:/missing/processor-config.yaml" spring-boot:run
+Set-Location '<repo-root>'
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.allow-demo-fallback=true -Detl.config.source=Z:/missing/source-config.yaml -Detl.config.target=Z:/missing/target-config.yaml -Detl.config.processor=Z:/missing/processor-config.yaml" spring-boot:run
 ```
 
 Expected fallback output files:
@@ -187,8 +230,9 @@ Expected fallback output files:
 1. Define your source configuration in `source-config.yaml`.
 2. Define your target configuration in `target-config.yaml`.
 3. Define field mappings in `processor-config.yaml`.
-4. Run the application in external-config mode or fallback mode.
-5. Review the generated output files in the configured target directory.
+4. Prefer running the application with an explicit `etl.config.job` scenario selection.
+5. Use `etl.config.allow-demo-fallback=true` only for local/demo fallback runs.
+6. Review the generated output files in the configured target directory.
 
 ## Example Mapping
 ```yaml
