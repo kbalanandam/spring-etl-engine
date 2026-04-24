@@ -20,15 +20,15 @@ This folder preserves one concrete scenario config set without changing the base
 Preferred run style: point the app at this scenario's `job-config.yaml` so one file explicitly selects the source, target, and processor config set.
 
 ```powershell
-Set-Location 'C:\spring-etl-engine'
-mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=C:/spring-etl-engine/src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml" spring-boot:run
+Set-Location '<repo-root>'
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml" spring-boot:run
 ```
 
 Legacy direct-path override mode still works if needed:
 
 ```powershell
-Set-Location 'C:\spring-etl-engine'
-mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.source=C:/spring-etl-engine/src/main/resources/config-scenarios/csv-to-sqlserver/source-config.yaml -Detl.config.target=C:/spring-etl-engine/src/main/resources/config-scenarios/csv-to-sqlserver/target-config.yaml -Detl.config.processor=C:/spring-etl-engine/src/main/resources/config-scenarios/csv-to-sqlserver/processor-config.yaml" spring-boot:run
+Set-Location '<repo-root>'
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.source=src/main/resources/config-scenarios/csv-to-sqlserver/source-config.yaml -Detl.config.target=src/main/resources/config-scenarios/csv-to-sqlserver/target-config.yaml -Detl.config.processor=src/main/resources/config-scenarios/csv-to-sqlserver/processor-config.yaml" spring-boot:run
 ```
 
 ## Intended target table

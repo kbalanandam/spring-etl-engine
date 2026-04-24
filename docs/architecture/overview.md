@@ -23,26 +23,28 @@ flowchart TD
     B --> C{etl.config.job set?}
     C -- Yes --> D[selected job-config.yaml]
     D --> E[source/target/processor config trio]
-    C -- No --> F[direct source/target/processor paths]
+    C -- No --> F{demo fallback enabled?}
+    F -- No --> S[startup failure]
+    F -- Yes --> H[direct source/target/processor paths]
 
     E --> G[BatchConfig]
-    F --> G
+    H --> G
 
-    G --> H[GeneratedModelClassResolver]
-    G --> I[DynamicReaderFactory]
-    G --> J[DynamicProcessorFactory]
-    G --> K[DynamicWriterFactory]
+    G --> I[GeneratedModelClassResolver]
+    G --> J[DynamicReaderFactory]
+    G --> K[DynamicProcessorFactory]
+    G --> L[DynamicWriterFactory]
 
-    I --> L[Reader implementation]
-    J --> M[Processor implementation]
-    K --> N[Writer implementation]
+    J --> M[Reader implementation]
+    K --> N[Processor implementation]
+    L --> O[Writer implementation]
 
-    L --> O[Spring Batch Step]
-    M --> O
-    N --> O
+    M --> P[Spring Batch Step]
+    N --> P
+    O --> P
 
-    O --> P[ETL Job]
-    P --> Q[Output files / targets]
+    P --> Q[ETL Job]
+    Q --> R[Output files / targets]
 ```
 
 ## Main runtime components
@@ -56,7 +58,7 @@ Spring Boot starts the app, builds the context, and launches the ETL job through
 ### Config loading
 - `src/main/java/com/etl/config/ConfigLoader.java`
 
-`ConfigLoader` selects one effective config set for the run. The preferred product-facing mode is `etl.config.job`, where one selected `job-config.yaml` points to the exact source, target, and processor YAML to load. If `etl.config.job` is not set, the loader uses the direct config-path properties and may fall back to bundled classpath resources.
+`ConfigLoader` selects one effective config set for the run. The product-facing mode is `etl.config.job`, where one selected `job-config.yaml` points to the exact source, target, and processor YAML to load. Startup is strict by default: if `etl.config.job` is not set, the loader fails fast unless `etl.config.allow-demo-fallback=true` explicitly enables local/demo fallback through the direct config-path properties and bundled classpath resources.
 
 ### Batch orchestration
 - `src/main/java/com/etl/config/BatchConfig.java`
@@ -79,6 +81,7 @@ This is the central contract between configuration, generated model classes, pro
 
 - clear separation between config loading and runtime execution
 - explicit business-scenario selection without scenario auto-discovery
+- strict startup behavior with no implicit production fallback
 - pluggable reader/processor/writer model
 - dynamic support for multiple source and target formats
 - adaptive execution model for smaller vs larger workloads
@@ -88,6 +91,7 @@ This is the central contract between configuration, generated model classes, pro
 
 - `BatchConfig` currently pairs sources and targets by index
 - `etl.config.job` currently resolves a selected scenario by file path, not by a short scenario-name registry
+- demo fallback remains available only as an explicitly enabled local/demo path
 - orchestration is step-based but still centered on `source -> processor -> target`
 - stored procedures and richer multi-job flows will require a higher-level step operation model
 - generated models currently remain an important runtime dependency and contract surface

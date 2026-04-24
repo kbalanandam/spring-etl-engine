@@ -40,7 +40,7 @@ Today, the product is primarily focused on:
 
 - adding source and target types
 - making each connector path operational
-- ensuring transformations are reliable and configurable
+- ensuring transformations are reliable, configurable, and able to mature beyond simple field mapping
 - keeping the architecture extensible while avoiding unnecessary complexity
 
 The broader product vision is larger than ETL alone. Over time, the product may evolve into a controlled integration abstraction layer between enterprise systems and external third parties.
@@ -78,6 +78,7 @@ The current phase should optimize for:
 - RDBMS source and target support
 - Kafka as target
 - validation improvements
+- stronger transformation capability beyond direct field mapping, introduced in measured steps
 - execution-mode controls where justified
 - stable reader/processor/writer extension patterns
 - stronger tests and documentation
@@ -100,6 +101,7 @@ That future direction includes capabilities such as:
 
 - protocol and transport abstraction
 - canonicalization between external and internal formats
+- richer transformation behavior including rule-based, enrichment-oriented, and governed transformation flows
 - secure connector isolation
 - controlled exposure of enterprise systems
 - routing and orchestration across multiple external parties
@@ -125,7 +127,9 @@ Focus on making the core product reliable and extensible.
 - CSV, XML, relational support
 - Kafka as target
 - improved validation and execution configuration
+- stronger structural transformation, explicit mapping behavior, and transformation-safe orchestration
 - better observability of batch flows
+- scenario/job-run oriented logging and diagnostic evidence
 
 ## Phase 2: Integration maturity
 
@@ -141,6 +145,7 @@ Expand beyond connector completeness into stronger integration capability.
 - API/SFTP connectors
 - micro-batch Kafka source
 - richer database write semantics
+- expressions, conditional transformations, validation/reject handling, and lookup/enrichment patterns
 - routing and transformation enhancements
 
 ## Phase 3: Enterprise mediation platform
@@ -152,12 +157,14 @@ Move from ETL-first execution toward broader enterprise integration mediation.
 - stronger governance, audit, and replay controls
 - partner-specific isolation and routing
 - possibly both batch and streaming execution modes
+- operator-ready observability that supports retained evidence and later AI assistance
 
 ### Typical features in this phase
 - continuous streaming runtime
 - partner/channel policies
 - dead-letter and replay support
 - security administration and credential governance
+- governed transformation definitions, reusable transformation capability, and stronger lineage visibility
 - broader northbound/southbound integration design
 - AI-assisted search and summarization for job history, run diagnostics, and operational logs
 
@@ -271,6 +278,7 @@ This roadmap should be read together with:
 - `docs/architecture/runtime-flow.md`
 - `docs/architecture/extension-points.md`
 - `docs/architecture/relational-db-support.md`
+- `docs/architecture/transformation-capability-roadmap.md`
 
 ## Future Extensions
 
@@ -284,4 +292,6 @@ Likely future notes that should build from this roadmap include:
 - orchestration and retry/replay model
 - job history and operational observability architecture
 - AI-assisted log search and diagnostics for operators
+- scenario and job-run logging strategy
+- transformation capability maturity across mapping, rules, enrichment, and governed enterprise behavior
 

@@ -1,0 +1,523 @@
+# Product Backlog
+
+## Purpose
+
+This document preserves the product goal for `spring-etl-engine` from the starting point to the current state, and from the current state toward an enterprise-grade ETL product.
+
+It is intentionally different from the architecture roadmap:
+
+- `docs/architecture/etl-product-evolution-roadmap.md` explains **direction and phases**
+- this backlog explains **what to do next, why it matters, and how to know when it is done**
+
+Use this file to keep the team aligned when implementation pressure, feature requests, or uncertainty create drift.
+
+This file now serves two purposes at the same time:
+
+- **narrative backlog** — preserve product intent, capability gaps, and milestone outcomes
+- **execution board** — track what should start next, what is in progress now, and what is blocked
+
+---
+
+## Product Goal
+
+Build a config-driven ETL product that can reliably:
+
+1. read data from supported sources
+2. transform it through explicit mappings and validation rules
+3. write it to supported targets
+4. be operated, diagnosed, and extended safely
+5. evolve into an enterprise-grade ETL and integration foundation
+
+---
+
+## Current Product Snapshot
+
+### What already exists
+
+The product already has a meaningful engineering foundation:
+
+- Spring Batch-based ETL runtime
+- config-driven source / target / processor model
+- explicit `job-config.yaml` scenario selection
+- dynamic reader / processor / writer factories
+- generated model contract approach
+- CSV, XML, and relational support foundations
+- scenario-aware logging with run correlation metadata
+- daily scenario log layout
+- architecture docs and ADR discipline
+- automated tests across config loading, listeners, app context, and flow slices
+- improved path portability for tests and default demo runtime behavior
+
+### Current maturity assessment
+
+| Area | Status |
+|---|---|
+| Config-driven design | Strong |
+| Scenario selection | Strong |
+| Connector foundation | Good |
+| Logging / traceability | Good |
+| Test discipline | Good |
+| Runtime portability | Improving |
+| Fault tolerance | Emerging |
+| Restartability / idempotency | Emerging |
+| Security / secret handling | Emerging |
+| Audit / reconciliation | Gap |
+| Operational metrics / dashboards | Gap |
+| Enterprise governance | Gap |
+
+### What the product is today
+
+Today the product is best described as:
+
+> a serious ETL engine foundation that is beyond prototype stage, but not yet an enterprise-grade ETL product.
+
+That is a healthy stage.
+
+---
+
+## Product Principles
+
+When choosing backlog priorities, prefer work that improves one or more of these:
+
+- reliability
+- explicitness
+- operator visibility
+- portability
+- extensibility
+- testability
+- security readiness
+
+Avoid work that adds broad platform complexity before the ETL foundation is stable.
+
+---
+
+## Backlog Structure
+
+This backlog is organized in three layers:
+
+1. **Completed / established foundation**
+2. **Near-term backlog** — needed to become a reliable ETL product
+3. **Enterprise backlog** — needed to become an enterprise-grade product
+
+It also includes a lightweight execution board so the team can work from the same document day to day.
+
+---
+
+## How to Use This Document
+
+Use this file in two modes:
+
+### 1. Product mode
+Use the narrative sections to answer:
+
+- what are we building?
+- what stage are we in?
+- what does enterprise-grade mean for this product?
+- what capabilities matter most next?
+
+### 2. Execution mode
+Use the execution board to answer:
+
+- what are we actively doing now?
+- what is next?
+- what is blocked?
+- which milestone does this work belong to?
+
+---
+
+## Execution Board Conventions
+
+### Priority legend
+
+- **P0** — critical now; should be completed before lower-priority work expands
+- **P1** — important next; should follow once P0 items are stable
+- **P2** — useful later; valuable but not urgent for the current milestone
+
+### Status legend
+
+- **Ready** — approved to start when capacity is available
+- **In Progress** — actively being worked
+- **Blocked** — cannot move until a dependency or decision is resolved
+- **Done** — completed to the expected operational level
+- **Deferred** — intentionally postponed to a later milestone
+
+---
+
+## Current Execution Board
+
+This table is the day-to-day execution view for the current product stage.
+
+| ID | Item | Epic | Priority | Status | Milestone | Dependency | Notes |
+|---|---|---|---|---|---|---|---|
+| A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Ready | M1 | none | Core runtime clarity item; reduces orchestration ambiguity |
+| A2 | Validate scenario completeness before job start | Epic A | P0 | Ready | M1 | A1 | Pairs with better config validation and safer startup behavior |
+| T1 | Add expression-based derived field capability design and first implementation slice | Epic T | P1 | Ready | M1 | A1 | First real transformation-maturity step beyond direct field mapping |
+| T2 | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T1 | Best introduced after expression contract is stable |
+| T3 | Add validation and reject/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2 | Important for traditional ETL-style transformation credibility |
+| T4 | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T1 | Bridges toward more classic ETL transformation patterns |
+| B1 | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
+| B2 | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
+| C1 | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Ready | M1 | none | First slice of audit and reconciliation support |
+| C2 | Capture source count, written count, and rejected count | Epic C | P1 | Ready | M1 | C1 | Makes operator run evidence more useful |
+| D1 | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
+| E1 | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
+| E2 | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Ready | M1 | E1 | Important next portability step |
+| F1 | Define restart semantics per execution mode | Epic F | P1 | Deferred | M2 | A1, C1 | Needs clearer orchestration and run evidence first |
+| G1 | Support secret injection via environment or secure config source | Epic G | P1 | Deferred | M3 | C1 | Important for enterprise readiness, but not first delivery blocker |
+
+### Current working focus
+
+The intended near-term focus order is:
+
+1. `A1` — explicit orchestration model
+2. `A2` — scenario completeness validation
+3. `T1` — expression-based transformation capability
+4. `C1` and `C2` — run summary and counts
+5. `E2` — packaged-run guidance
+
+Avoid starting new `P1` or `P2` items while `P0` items remain open unless the higher-priority item is genuinely blocked.
+
+---
+
+## Layer 1 — Completed / Established Foundation
+
+These are not “finished forever,” but they represent meaningful product progress already made.
+
+### Foundation backlog already achieved
+
+- [x] Config-driven ETL flow with explicit source, target, and processor YAMLs
+- [x] Scenario/job-config-driven business run selection
+- [x] Dynamic reader / processor / writer extension model
+- [x] Spring Batch job / step runtime baseline
+- [x] Generated model resolution and metadata-driven runtime behavior
+- [x] Daily scenario-aware log file strategy with run correlation IDs
+- [x] Initial relational ETL architecture path
+- [x] Architecture docs and ADR workflow in-repo
+- [x] Automated test coverage for key configuration and runtime slices
+- [x] Improved path portability across tests and demo defaults
+
+---
+
+## Layer 2 — Near-Term Backlog
+
+These items move the product from “strong ETL foundation” to “reliable product for real operational use.”
+
+## Epic A — Runtime correctness and orchestration clarity
+
+### Goal
+Make each run explicit, predictable, and less fragile.
+
+### Backlog
+- [ ] Replace positional source-target pairing with explicit step pairing or step definitions
+- [ ] Validate scenario completeness before job start
+- [ ] Add stronger config validation error messages for operators
+- [ ] Make step definitions more business-meaningful and less index-driven
+- [ ] Document supported orchestration patterns and limitations
+
+### Done criteria
+- no ambiguous source-target pairing remains
+- config errors fail fast with operator-friendly messages
+- step orchestration is documented and test-covered
+
+---
+
+## Epic B — Fault tolerance and data quality behavior
+
+### Goal
+Handle bad data and transient failures in a controlled way.
+
+### Backlog
+- [ ] Introduce configurable skip policy support
+- [ ] Introduce configurable retry policy support where appropriate
+- [ ] Add validation/rejection handling strategy
+- [ ] Add bad-record reporting or quarantine output option
+- [ ] Define fail-fast vs tolerate-and-report rules per scenario type
+
+### Done criteria
+- operators can tell how invalid rows are handled
+- failure mode is explicit and testable
+- at least one scenario demonstrates controlled rejection behavior
+
+---
+
+## Epic T — Transformation capability maturity
+
+### Goal
+Grow the product from structural field mapping into richer transformation behavior comparable to traditional ETL expectations, but in phased and controlled steps.
+
+### Backlog
+- [ ] Add expression-based derived field support
+- [ ] Add conditional transformation rule support
+- [ ] Add validation-aware transformation behavior
+- [ ] Add reject/quarantine handling for invalid records
+- [ ] Define lookup/enrichment processor baseline
+- [ ] Document transformation maturity levels and non-goals
+
+### Done criteria
+- transformation support goes beyond direct `from` → `to` mapping
+- derived fields and conditions are explicit and testable
+- validation/reject behavior is operator-visible
+- transformation evolution is documented as part of product direction
+
+---
+
+## Epic C — Run summary, audit, and reconciliation
+
+### Goal
+Make each ETL run auditable beyond raw logs.
+
+### Backlog
+- [ ] Emit a run summary with start/end time, scenario, status, and duration
+- [ ] Capture source count, written count, and rejected count
+- [ ] Define a reconciliation model for input vs output records
+- [ ] Persist or export run summary metadata
+- [ ] Document operational evidence expectations
+
+### Done criteria
+- every run has a machine-readable summary
+- operators can answer “what happened?” without reading the full log
+- reconciliation expectations are documented
+
+---
+
+## Epic D — Observability and operator usability
+
+### Goal
+Make operations support practical for production-like usage.
+
+### Backlog
+- [ ] Add structured operational event output or summary logs
+- [ ] Add stable error taxonomy / error categories
+- [ ] Add job history retention design and first implementation slice
+- [ ] Add operator-friendly log search guidance and examples
+- [ ] Add health/readiness guidance for runtime operation
+
+### Done criteria
+- operational investigation does not depend only on stack traces
+- job history and log evidence can be correlated by run ID and scenario
+- common failure classes are documented and searchable
+
+---
+
+## Epic E — Portability and packaging
+
+### Goal
+Make local, CI, and deployment usage more consistent across environments.
+
+### Backlog
+- [ ] Finalize cross-platform defaults and path handling rules
+- [ ] Add packaged-run guidance for jar execution with scenario configs
+- [ ] Separate repo-demo mode from external-runtime mode more cleanly
+- [ ] Document expected directory conventions for local and deployed runs
+- [ ] Add smoke checks for packaged runtime paths where practical
+
+### Done criteria
+- running from IDE, Maven, and packaged jar has clear documented expectations
+- demo mode does not depend on Windows-only assumptions
+- scenario execution instructions are portable
+
+---
+
+## Layer 3 — Enterprise Backlog
+
+These items move the product from “reliable ETL engine” to “enterprise-grade ETL product.”
+
+## Epic F — Restartability and idempotent re-run model
+
+### Goal
+Ensure production-safe reruns and recovery.
+
+### Backlog
+- [ ] Define restart semantics per execution mode
+- [ ] Define idempotent load patterns by target type
+- [ ] Support safe rerun strategies for failed or partial jobs
+- [ ] Document duplicate-handling strategy
+- [ ] Test restart and rerun behavior explicitly
+
+### Done criteria
+- rerun behavior is predictable and documented
+- target duplication risk is controlled
+- restartability is not left to operator guesswork
+
+---
+
+## Epic G — Security and secret handling
+
+### Goal
+Make runtime configuration safe for enterprise environments.
+
+### Backlog
+- [ ] Remove any expectation of secrets in committed YAML
+- [ ] Support secret injection via environment or secure config source
+- [ ] Review logs for secret leakage risk
+- [ ] Add redaction rules for sensitive values
+- [ ] Document secure deployment expectations
+
+### Done criteria
+- credentials are never expected in version-controlled config
+- logs are safe by default for operational sharing
+- secure runtime configuration is documented
+
+---
+
+## Epic H — Governance and compliance readiness
+
+### Goal
+Support enterprise audit, control, and change visibility.
+
+### Backlog
+- [ ] Add config version traceability per run
+- [ ] Define lineage expectations from source to target
+- [ ] Add change audit for important scenario and connector behavior
+- [ ] Define retention rules for logs and run history
+- [ ] Document governance boundaries and responsibilities
+
+### Done criteria
+- runs can be tied back to config state and business scenario
+- retained evidence supports audit review
+- governance expectations are explicit
+
+---
+
+## Epic I — Scale and performance maturity
+
+### Goal
+Make large-volume flows predictable and tunable.
+
+### Backlog
+- [ ] Benchmark chunk vs tasklet decision behavior under realistic volumes
+- [ ] Review memory usage of tasklet buffering paths
+- [ ] Add performance guidance by connector type
+- [ ] Expand relational tuning model (`fetchSize`, `batchSize`, count strategies)
+- [ ] Define scale test scenarios and thresholds
+
+### Done criteria
+- large-volume behavior is measured, not assumed
+- memory and throughput risks are documented
+- connector tuning guidance exists for operators and implementers
+
+---
+
+## Epic J — Operator product experience
+
+### Goal
+Make the product usable by operators, not just developers.
+
+### Backlog
+- [ ] Add operator-facing runbook documentation
+- [ ] Add scenario onboarding checklist
+- [ ] Add failure investigation checklist
+- [ ] Add example deployment configurations
+- [ ] Add release-readiness checklist per milestone
+
+### Done criteria
+- a new operator can run and diagnose a scenario without deep code knowledge
+- operations guidance exists inside the repo
+
+---
+
+## Milestone View
+
+## Milestone M1 — Reliable ETL Core
+
+Focus:
+- orchestration clarity
+- fault tolerance basics
+- run summaries
+- portability cleanup
+
+Exit signal:
+- product is credible for repeated controlled ETL runs across supported file scenarios
+
+## Milestone M2 — Operable Product
+
+Focus:
+- structured run history
+- reconciliation
+- stronger diagnostics
+- restart/rerun semantics
+
+Exit signal:
+- operations support can answer what failed, why, and what to do next
+
+## Milestone M3 — Enterprise Readiness Baseline
+
+Focus:
+- secret handling
+- governance
+- idempotency
+- scale validation
+- operational controls
+
+Exit signal:
+- product can be presented as enterprise-grade ETL foundation with known limits, not just a development framework
+
+---
+
+## Current Top Priorities
+
+If the team has to choose only a few next steps, prioritize these in order:
+
+1. `A1` / `A2` — explicit orchestration model instead of positional pairing, plus scenario completeness validation
+2. `T1` / `T2` — expression and conditional transformation capability
+3. `B1` / `B2` — fault tolerance and validation/rejection model
+4. `C1` / `C2` — run summary and reconciliation output
+5. `F1` — restartability / idempotent rerun rules
+6. `G1` — secure configuration and secret handling model
+
+---
+
+## What “Enterprise Grade” Means Here
+
+For this product, “enterprise grade” should mean:
+
+- runs are explicit and reproducible
+- failures are diagnosable and recoverable
+- transformation capability extends beyond direct field mapping into rules, validation, and enrichment where justified
+- operational evidence is retained and searchable
+- secrets are handled safely
+- large-volume behavior is understood
+- config is governable
+- operators can support the system without reading source code first
+
+It should **not** mean adding every possible connector or building a full middleware platform immediately.
+
+---
+
+## Maintenance Rules
+
+Update this backlog when:
+
+- a major capability is completed
+- priorities change
+- a new risk changes the order of work
+- the product phase changes materially
+
+Keep the backlog honest:
+
+- move items to done only when they are genuinely operational
+- prefer fewer clear backlog items over a huge wish list
+- link major backlog progress to architecture docs, ADRs, and changelog updates
+
+### Execution board working rules
+
+- keep `In Progress` items intentionally limited
+- update status in the same PR where the underlying work changes materially
+- when an item becomes `Blocked`, add the blocking reason in the notes column
+- when an item becomes `Done`, ensure tests/docs/changelog reflect that completion level
+- if priorities change, update both the execution board and `Current Top Priorities`
+
+---
+
+## Recommended Usage Pattern
+
+For each meaningful feature or milestone change:
+
+1. update this backlog
+2. update the relevant architecture note if design changed
+3. update the ADR if a decision changed
+4. update tests and changelog with the same PR
+
+This keeps the long-term goal visible while still allowing step-by-step delivery.
+
+

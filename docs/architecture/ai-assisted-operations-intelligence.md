@@ -39,6 +39,7 @@ In that future state, operators may need help answering questions such as:
 These are good future capabilities, but they should only be introduced after the product already has:
 
 - structured job and step history
+- scenario and job-run oriented operational logging
 - correlation-friendly logs and retained evidence
 - searchable operational events
 - redaction and access controls
@@ -50,7 +51,7 @@ These are good future capabilities, but they should only be introduced after the
 flowchart TD
     A[Operator asks a diagnostic question] --> B[Apply access control and scope filters]
     B --> C[Retrieve structured run history and event evidence]
-    C --> D[Retrieve matching logs and diagnostics]
+    C --> D[Retrieve matching scenario and job-run evidence]
     D --> E[Optional semantic retrieval over indexed evidence]
     E --> F[Generate grounded summary for operator]
     F --> G[Show citations to run ids, steps, and evidence]
@@ -77,6 +78,7 @@ This future capability should obey these boundaries:
 - responses should cite the relevant run, step, or event context wherever possible
 - access control and redaction should apply before retrieval or summarization
 - sensitive values should not be exposed just because logs were searchable
+- build and release logs should not be mixed casually into runtime diagnostic evidence
 
 ## Key Components / Classes
 
@@ -95,6 +97,7 @@ This capability would later depend on architecture anchored around:
 - AI should be layered on top of structured observability evidence rather than raw ungoverned logs alone.
 - Hybrid retrieval is preferable to AI-only search when the capability is introduced.
 - The operator remains the decision-maker; AI does not become an autonomous ETL controller.
+- Scenario and job-run evidence should be a stronger retrieval anchor than one generic application log.
 
 ## Tradeoffs
 
@@ -125,6 +128,7 @@ This note should influence present design choices indirectly by encouraging:
 - clearer error categories
 - stronger observability retention and redaction discipline
 - operator-friendly diagnostics before AI is introduced
+- scenario and job-run logging boundaries strong enough to support future evidence retrieval
 
 It should not pressure the current runtime to absorb AI-specific code or infrastructure prematurely.
 

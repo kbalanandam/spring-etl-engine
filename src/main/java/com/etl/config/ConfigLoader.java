@@ -27,17 +27,22 @@ public class ConfigLoader {
 
 	private static final Logger logger = LoggerFactory.getLogger(ConfigLoader.class);
 
-	@Value("${etl.config.source:C:/ETLDemo/config/source-config.yaml}")
+	@Value("${etl.config.source:src/main/resources/source-config.yaml}")
 	private String sourceConfigPath;
 
-	@Value("${etl.config.target:C:/ETLDemo/config/target-config.yaml}")
+	@Value("${etl.config.target:src/main/resources/target-config.yaml}")
 	private String targetConfigPath;
 
-	@Value("${etl.config.processor:C:/ETLDemo/config/processor-config.yaml}")
+	@Value("${etl.config.processor:src/main/resources/processor-config.yaml}")
 	private String processorConfigPath;
 
 	@Value("${etl.config.job:}")
 	private String jobConfigPath;
+
+	@Value("${etl.config.allow-demo-fallback:false}")
+	private boolean allowDemoFallback;
+
+	private volatile ResolvedRuntimeConfig cachedRuntimeConfig;
 
     /**
      * ConfigLoader is a Spring configuration class that loads YAML configuration
@@ -48,12 +53,13 @@ public class ConfigLoader {
     @Bean
     SourceWrapper sourceWrapper() {
 		try {
-			ResolvedConfigPaths paths = resolveEffectiveConfigPaths();
-			if (paths.strictJobSelection()) {
-				return loadRequiredExternalYamlConfig(paths.sourceConfigPath(), SourceWrapper.class);
+			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
+			if (runtimeConfig.requireExternalConfigs()) {
+				return loadRequiredExternalYamlConfig(runtimeConfig.sourceConfigPath(), SourceWrapper.class);
 			}
-			return loadYamlConfig(paths.sourceConfigPath(), "source-config.yaml", SourceWrapper.class);
-
+			return loadYamlConfig(runtimeConfig.sourceConfigPath(), "source-config.yaml", SourceWrapper.class);
+		} catch (ConfigException e) {
+			throw e;
 		} catch (Exception e) {
 			throw new ConfigException("Failed to load source config YAML", e);
 		}
@@ -62,11 +68,13 @@ public class ConfigLoader {
 	@Bean
 	TargetWrapper targetWrapper() {
 		try {
-			ResolvedConfigPaths paths = resolveEffectiveConfigPaths();
-			if (paths.strictJobSelection()) {
-				return loadRequiredExternalYamlConfig(paths.targetConfigPath(), TargetWrapper.class);
+			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
+			if (runtimeConfig.requireExternalConfigs()) {
+				return loadRequiredExternalYamlConfig(runtimeConfig.targetConfigPath(), TargetWrapper.class);
 			}
-			return loadYamlConfig(paths.targetConfigPath(), "target-config.yaml", TargetWrapper.class);
+			return loadYamlConfig(runtimeConfig.targetConfigPath(), "target-config.yaml", TargetWrapper.class);
+		} catch (ConfigException e) {
+			throw e;
 		} catch (Exception e) {
 
 			throw new ConfigException("Failed to load target config YAML", e);
@@ -77,10 +85,10 @@ public class ConfigLoader {
 	public ProcessorConfig processorConfig() {
 		try {
 			ObjectMapper mapper = buildYamlMapper();
-			ResolvedConfigPaths paths = resolveEffectiveConfigPaths();
-			ProcessorConfig config = paths.strictJobSelection()
-					? loadRequiredExternalYamlConfig(paths.processorConfigPath(), ProcessorConfig.class, mapper)
-					: loadYamlConfig(paths.processorConfigPath(), "processor-config.yaml", ProcessorConfig.class, mapper);
+			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
+			ProcessorConfig config = runtimeConfig.requireExternalConfigs()
+					? loadRequiredExternalYamlConfig(runtimeConfig.processorConfigPath(), ProcessorConfig.class, mapper)
+					: loadYamlConfig(runtimeConfig.processorConfigPath(), "processor-config.yaml", ProcessorConfig.class, mapper);
 
 			// --- Validation step ---
 
@@ -116,8 +124,26 @@ public class ConfigLoader {
 			}
 			logger.info("Processor configuration loaded and validated successfully from YAML");
 			return config;
+		} catch (ConfigException e) {
+			throw e;
 		} catch (Exception e) {
 			throw new ConfigException("Failed to load or validate processor config YAML", e);
+		}
+	}
+
+	@Bean
+	RunConfigurationMetadata runConfigurationMetadata() {
+		try {
+			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
+			return new RunConfigurationMetadata(
+					runtimeConfig.scenarioName(),
+					runtimeConfig.jobConfigPath(),
+					runtimeConfig.demoFallbackMode()
+			);
+		} catch (ConfigException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new ConfigException("Failed to resolve runtime configuration metadata", e);
 		}
 	}
 
@@ -170,32 +196,85 @@ public class ConfigLoader {
 		return mapper.readValue(externalFile, targetType);
 	}
 
-	private ResolvedConfigPaths resolveEffectiveConfigPaths() throws IOException {
+	private ResolvedRuntimeConfig resolveRuntimeConfig() throws IOException {
+		ResolvedRuntimeConfig existing = cachedRuntimeConfig;
+		if (existing != null) {
+			return existing;
+		}
+
+		synchronized (this) {
+			if (cachedRuntimeConfig == null) {
+				cachedRuntimeConfig = buildRuntimeConfig();
+			}
+			return cachedRuntimeConfig;
+		}
+	}
+
+	private ResolvedRuntimeConfig buildRuntimeConfig() throws IOException {
 		if (jobConfigPath == null || jobConfigPath.isBlank()) {
-			return new ResolvedConfigPaths(sourceConfigPath, targetConfigPath, processorConfigPath, false);
+			if (!allowDemoFallback) {
+				logger.error("Missing required runtime property 'etl.config.job'. Demo fallback is disabled, so startup cannot continue.");
+				throw new ConfigException(
+						"Missing required runtime property 'etl.config.job'. " +
+						"Set it to a job-config.yaml path, or enable demo fallback with 'etl.config.allow-demo-fallback=true' for local/demo runs."
+				);
+			}
+
+			logger.warn("No 'etl.config.job' was provided. Demo fallback is enabled, so the runtime will use direct config paths and may fall back to bundled classpath YAML resources. This mode is intended for local/demo use only.");
+			return new ResolvedRuntimeConfig(
+					sourceConfigPath,
+					targetConfigPath,
+					processorConfigPath,
+					false,
+					"demo-fallback",
+					"",
+					true
+			);
 		}
 
 		ObjectMapper mapper = buildYamlMapper();
 		File jobConfigFile = new File(jobConfigPath);
 		if (!jobConfigFile.exists() || !jobConfigFile.isFile()) {
-			throw new IOException("Configured job config YAML not found at " + jobConfigPath);
+			logger.error("Configured job config YAML not found at {}. Explicit job selection never falls back automatically.", jobConfigPath);
+			throw new ConfigException("Configured job config YAML not found at " + jobConfigPath);
 		}
 
 		logger.info("Loading JobConfig from external YAML file: {}", jobConfigPath);
 		JobConfig jobConfig = mapper.readValue(jobConfigFile, JobConfig.class);
 		Path jobConfigDirectory = jobConfigFile.getAbsoluteFile().getParentFile().toPath();
+		String scenarioName = deriveScenarioName(jobConfig, jobConfigDirectory);
 
-		return new ResolvedConfigPaths(
+		return new ResolvedRuntimeConfig(
 				resolveReferencedPath(jobConfigDirectory, jobConfig.getSourceConfigPath(), "sourceConfigPath"),
 				resolveReferencedPath(jobConfigDirectory, jobConfig.getTargetConfigPath(), "targetConfigPath"),
 				resolveReferencedPath(jobConfigDirectory, jobConfig.getProcessorConfigPath(), "processorConfigPath"),
-				true
+				true,
+				scenarioName,
+				jobConfigFile.getAbsolutePath(),
+				false
 		);
+	}
+
+	private String deriveScenarioName(JobConfig jobConfig, Path jobConfigDirectory) {
+		String configuredName = jobConfig.getName();
+		if (configuredName != null && !configuredName.isBlank()) {
+			return configuredName.trim();
+		}
+
+		Path directoryName = jobConfigDirectory.getFileName();
+		if (directoryName != null) {
+			String folderName = directoryName.toString().trim();
+			if (!folderName.isBlank()) {
+				return folderName;
+			}
+		}
+
+		return "selected-job";
 	}
 
 	private String resolveReferencedPath(Path jobConfigDirectory, String configuredPath, String propertyName) {
 		if (configuredPath == null || configuredPath.isBlank()) {
-			throw new IllegalStateException("JobConfig missing required property '" + propertyName + "'");
+			throw new ConfigException("JobConfig missing required property '" + propertyName + "'");
 		}
 
 		Path path = Path.of(configuredPath);
@@ -204,11 +283,14 @@ public class ConfigLoader {
 				: jobConfigDirectory.resolve(path).normalize().toString();
 	}
 
-	private record ResolvedConfigPaths(
+	private record ResolvedRuntimeConfig(
 			String sourceConfigPath,
 			String targetConfigPath,
 			String processorConfigPath,
-			boolean strictJobSelection
+			boolean requireExternalConfigs,
+			String scenarioName,
+			String jobConfigPath,
+			boolean demoFallbackMode
 	) {
 	}
 

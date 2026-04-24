@@ -1,10 +1,12 @@
 package com.etl.job.listener;
 
+import com.etl.logging.RunLoggingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobExecutionListener;
+import org.springframework.batch.core.JobParameters;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
@@ -24,23 +26,39 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 
 	@Override
 	public void beforeJob(JobExecution jobExecution) {
+		JobParameters jobParameters = jobExecution.getJobParameters();
+		RunLoggingContext.put(RunLoggingContext.SCENARIO, jobParameters.getString("scenario", "unknown-scenario"));
+		RunLoggingContext.put(RunLoggingContext.SCENARIO_LOG_KEY, jobParameters.getString("scenarioLogKey", ""));
+		RunLoggingContext.put(RunLoggingContext.RUN_CORRELATION_ID, jobParameters.getString("runCorrelationId", ""));
+		RunLoggingContext.put(RunLoggingContext.RUN_MODE, jobParameters.getString("runMode", ""));
+		RunLoggingContext.put(RunLoggingContext.JOB_CONFIG_PATH, jobParameters.getString("jobConfigPath", ""));
+		RunLoggingContext.put(RunLoggingContext.JOB_NAME, jobExecution.getJobInstance().getJobName());
+		RunLoggingContext.put(RunLoggingContext.JOB_EXECUTION_ID, String.valueOf(jobExecution.getId()));
 
         logger.info("Job started: {} at {}", jobExecution.getJobInstance().getJobName(), jobExecution.getStartTime());
 	}
 
 	@Override
 	public void afterJob(JobExecution jobExecution) {
+		try {
+			LocalDateTime startTime = jobExecution.getStartTime();
+			LocalDateTime endTime = jobExecution.getEndTime();
+			Long durationSeconds = startTime != null && endTime != null
+					? Duration.between(startTime, endTime).getSeconds()
+					: null;
 
-		LocalDateTime startTime = jobExecution.getStartTime();
-		LocalDateTime endTime = jobExecution.getEndTime();
-		if (jobExecution.getStatus() == BatchStatus.COMPLETED) {
-			assert startTime != null;
-			logger.info("!!! JOB FINISHED! The job {} has completed successfully.Time taken: {} Seconds.", jobExecution.getJobInstance().getJobName(), Duration.between(startTime, endTime).getSeconds());
-		} else if (jobExecution.getStatus() == BatchStatus.FAILED) {
-			logger.error("!!! JOB FAILED! The job {} has failed.", jobExecution.getJobInstance().getJobName());
-			jobExecution.getAllFailureExceptions().forEach(Throwable::printStackTrace);
-		} else {
-			logger.info("!!! JOB STATUS: {}", jobExecution.getStatus());
+			if (jobExecution.getStatus() == BatchStatus.COMPLETED) {
+				logger.info("Job completed successfully in {} seconds.", durationSeconds == null ? "unknown" : durationSeconds);
+			} else if (jobExecution.getStatus() == BatchStatus.FAILED) {
+				logger.error("Job failed after {} seconds.", durationSeconds == null ? "unknown" : durationSeconds);
+				jobExecution.getAllFailureExceptions().forEach(
+						failure -> logger.error("Job failure detail: {}", failure.getMessage(), failure)
+				);
+			} else {
+				logger.info("Job finished with status {} after {} seconds.", jobExecution.getStatus(), durationSeconds == null ? "unknown" : durationSeconds);
+			}
+		} finally {
+			RunLoggingContext.clearJobScope();
 		}
 
 	}
