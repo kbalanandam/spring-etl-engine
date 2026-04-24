@@ -4,6 +4,8 @@
 
 This document preserves the product goal for `spring-etl-engine` from the starting point to the current state, and from the current state toward an enterprise-grade ETL product.
 
+It is the single product roadmap and execution backlog for the product at this stage. Capabilities such as scheduling/orchestration should be tracked here as dedicated epics, not maintained in separate standalone roadmaps unless they later become truly independent platform products.
+
 It is intentionally different from the architecture roadmap:
 
 - `docs/architecture/etl-product-evolution-roadmap.md` explains **direction and phases**
@@ -163,6 +165,9 @@ This table is the day-to-day execution view for the current product stage.
 | E1 | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
 | E2 | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Ready | M1 | E1 | Important next portability step |
 | F1 | Define restart semantics per execution mode | Epic F | P1 | Deferred | M2 | A1, C1 | Needs clearer orchestration and run evidence first |
+| S1 | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Deferred | M2 | A1, C1 | Keep scheduler work inside the main product roadmap; establish scope before implementation |
+| S2 | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Deferred | M2 | S1 | First practical scheduler slice after run-state and audit direction are clearer |
+| S3 | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
 | G1 | Support secret injection via environment or secure config source | Epic G | P1 | Deferred | M3 | C1 | Important for enterprise readiness, but not first delivery blocker |
 
 ### Current working focus
@@ -174,6 +179,8 @@ The intended near-term focus order is:
 3. `T1` — expression-based transformation capability
 4. `C1` and `C2` — run summary and counts
 5. `E2` — packaged-run guidance
+
+Scheduler/orchestration remains part of this same roadmap as **Epic S**. It should become active only after the product has clearer run-state, audit, and restartability foundations.
 
 Avoid starting new `P1` or `P2` items while `P0` items remain open unless the higher-priority item is genuinely blocked.
 
@@ -318,6 +325,28 @@ Make local, CI, and deployment usage more consistent across environments.
 
 ---
 
+## Epic S — Scheduling and orchestration capability
+
+### Goal
+Add controlled job-trigger capability as part of the ETL product itself, while keeping scheduler evolution inside the main roadmap instead of creating a separate scheduler roadmap or pseudo-product too early.
+
+### Backlog
+- [ ] Define schedule model and trigger contract for scenario-based execution
+- [ ] Add time-based schedule definitions with timezone awareness where needed
+- [ ] Add pause/resume and disable controls per schedule
+- [ ] Define overlap policy for already-running jobs (skip, defer, reject, or queue)
+- [ ] Define missed-run handling policy after downtime or blackout periods
+- [ ] Add basic trigger audit trail and schedule-to-run traceability
+- [ ] Document the boundary between scheduling, orchestration, retry, and restartability
+
+### Done criteria
+- schedules are explicit, testable, and tied to scenario/job execution contracts
+- operators can tell why a scheduled run started, skipped, or was blocked
+- pause/resume and overlap behavior are documented and observable
+- scheduler work remains aligned to the main ETL product roadmap rather than drifting into a separate platform track prematurely
+
+---
+
 ## Layer 3 — Enterprise Backlog
 
 These items move the product from “reliable ETL engine” to “enterprise-grade ETL product.”
@@ -436,6 +465,7 @@ Focus:
 - reconciliation
 - stronger diagnostics
 - restart/rerun semantics
+- first scheduler/orchestration controls built on top of explicit run-state and audit foundations
 
 Exit signal:
 - operations support can answer what failed, why, and what to do next
@@ -448,6 +478,7 @@ Focus:
 - idempotency
 - scale validation
 - operational controls
+- advanced schedule control, missed-run policy, and trigger evidence
 
 Exit signal:
 - product can be presented as enterprise-grade ETL foundation with known limits, not just a development framework
@@ -462,8 +493,8 @@ If the team has to choose only a few next steps, prioritize these in order:
 2. `T1` / `T2` — expression and conditional transformation capability
 3. `B1` / `B2` — fault tolerance and validation/rejection model
 4. `C1` / `C2` — run summary and reconciliation output
-5. `F1` — restartability / idempotent rerun rules
-6. `G1` — secure configuration and secret handling model
+5. `F1` / `S1` / `S2` — restartability plus scheduler trigger model and first operator controls
+6. `G1` / `S3` — secure configuration and enterprise-grade trigger evidence / run-control maturity
 
 ---
 

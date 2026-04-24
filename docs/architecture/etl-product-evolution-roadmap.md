@@ -147,6 +147,7 @@ Expand beyond connector completeness into stronger integration capability.
 - richer database write semantics
 - expressions, conditional transformations, validation/reject handling, and lookup/enrichment patterns
 - routing and transformation enhancements
+- first in-product scheduling/orchestration controls built on explicit run-state, audit, and operator visibility
 
 ## Phase 3: Enterprise mediation platform
 
@@ -167,6 +168,7 @@ Move from ETL-first execution toward broader enterprise integration mediation.
 - governed transformation definitions, reusable transformation capability, and stronger lineage visibility
 - broader northbound/southbound integration design
 - AI-assisted search and summarization for job history, run diagnostics, and operational logs
+- enterprise-grade scheduling/orchestration controls such as missed-run handling, schedule auditability, and stronger operator-driven trigger policies
 
 ### Prerequisites before AI-assisted operations intelligence
 - structured job and step history with stable correlation identifiers
@@ -194,6 +196,7 @@ Future phases may add new runtime families or orchestration layers, but they sho
 - New features should strengthen the connector/runtime foundation first.
 - Future enterprise mediation capabilities are in scope for the product direction, but should be introduced deliberately in later phases.
 - Current design decisions should remain future-safe without prematurely forcing middleware-scale abstractions.
+- Scheduler/orchestration capability remains part of the main product roadmap at this stage; it should evolve as a focused capability track inside the ETL product rather than through a separate standalone roadmap.
 
 ## Tradeoffs
 

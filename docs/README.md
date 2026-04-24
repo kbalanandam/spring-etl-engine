@@ -48,7 +48,7 @@ For every significant enhancement, add or update:
 - [`config/processor/default-processor.md`](config/processor/default-processor.md) — default processor mapping contract
 
 ### Product tracking
-- [`product/product-backlog.md`](product/product-backlog.md) — step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target
+- [`product/product-backlog.md`](product/product-backlog.md) — step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including scheduler/orchestration work inside the same single product roadmap
 
 ### Scenario examples
 - `src/main/resources/config-scenarios/csv-to-sqlserver/` — preserved example for CSV source to SQL Server target without changing the default resource YAMLs
