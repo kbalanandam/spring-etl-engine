@@ -2,6 +2,8 @@ package com.etl.config.relational;
 
 public class RelationalConnectionConfig {
 
+    private static final String PLACEHOLDER_TOKEN_PATTERN = ".*<[^>]+>.*";
+
     private String vendor;
     private String jdbcUrl;
     private String host;
@@ -103,6 +105,12 @@ public class RelationalConnectionConfig {
             throw new IllegalArgumentException("Relational connection username must be provided.");
         }
 
+        rejectPlaceholder("jdbcUrl", jdbcUrl);
+        rejectPlaceholder("host", host);
+        rejectPlaceholder("database", database);
+        rejectPlaceholder("username", username);
+        rejectPlaceholder("password", password);
+
         if (jdbcUrl != null && !jdbcUrl.isBlank()) {
             return;
         }
@@ -114,6 +122,15 @@ public class RelationalConnectionConfig {
             if (database == null || database.isBlank()) {
                 throw new IllegalArgumentException("Relational connection database must be provided when jdbcUrl is not configured.");
             }
+        }
+    }
+
+    private void rejectPlaceholder(String propertyName, String value) {
+        if (value != null && value.matches(PLACEHOLDER_TOKEN_PATTERN)) {
+            throw new IllegalArgumentException(
+                    "Relational connection " + propertyName + " still contains a placeholder value '" + value + "'. " +
+                    "Replace template tokens like <...> with real environment-specific connection settings before runtime."
+            );
         }
     }
 }

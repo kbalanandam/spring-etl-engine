@@ -1,5 +1,7 @@
 package com.etl.config.job;
 
+import java.util.List;
+
 /**
  * Explicit job-level config selection.
  *
@@ -12,6 +14,7 @@ public class JobConfig {
 	private String sourceConfigPath;
 	private String targetConfigPath;
 	private String processorConfigPath;
+	private List<JobStepConfig> steps;
 
 	public String getName() {
 		return name;
@@ -43,5 +46,44 @@ public class JobConfig {
 
 	public void setProcessorConfigPath(String processorConfigPath) {
 		this.processorConfigPath = processorConfigPath;
+	}
+
+	public List<JobStepConfig> getSteps() {
+		return steps;
+	}
+
+	public void setSteps(List<JobStepConfig> steps) {
+		this.steps = steps;
+	}
+
+	public static class JobStepConfig {
+
+		private String name;
+		private String source;
+		private String target;
+
+		public String getName() {
+			return name;
+		}
+
+		public void setName(String name) {
+			this.name = name;
+		}
+
+		public String getSource() {
+			return source;
+		}
+
+		public void setSource(String source) {
+			this.source = source;
+		}
+
+		public String getTarget() {
+			return target;
+		}
+
+		public void setTarget(String target) {
+			this.target = target;
+		}
 	}
 }

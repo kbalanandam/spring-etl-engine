@@ -5,14 +5,30 @@ The format is based on **Keep a Changelog**
 and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
+
+- No post-1.3.0 changes recorded yet.
+
+---
+
+## [1.3.0] - 2026-04-25
 ### Added
-- Planned improvement: better PR/CI unit-test result visibility through retained test artifacts and readable report outputs.
+- Added machine-readable ETL lifecycle logging for explicit planning and execution evidence, including `RUN_EVENT`, `RUN_SUMMARY`, `STEP_PLAN`, `STEP_READY`, and `STEP_EVENT` messages.
+- Added a local verification workflow with smoke-check scripts and generated markdown reports under `target/`, including retained timestamped report snapshots for recent runs.
+- Added orchestration-focused regression coverage for explicit step order, missing processor mappings, scenario config references, and relational placeholder validation.
+- Added categorized verification reporting for change-focused verification, regression-suite verification, runtime/smoke verification, and release-readiness interpretation.
+- Added a shared in-memory verification evidence model in the report generator as the phase-1 foundation for future multi-format reporting.
+- Added backlog and ADR artifacts to track enterprise verification reporting as a first-class product capability.
 
 ### Changed
-- N/A
+- Explicit `etl.config.job` runs now require a non-empty `steps` list in `job-config.yaml`, and runtime orchestration resolves source/target execution by configured names instead of positional pairing.
+- Preserved scenario bundles such as `customer-load`, `department-load`, `cust-dept-load`, `csv-to-sqlserver`, and `relational-to-relational` now declare their ETL execution order through explicit `steps` definitions.
+- Startup validation now checks selected relational source/target configs before job execution and rejects placeholder connection values such as `<SQLSERVER_HOST>` with clearer operator-facing configuration errors.
+- README guidance now documents the explicit `steps` contract, machine-readable execution logs, and the repeatable verification-report workflow for local change validation.
+- The verification report generator now separates evidence collection from Markdown rendering so future HTML and machine-readable outputs can build on the same evidence contract.
+- Product backlog and documentation artifacts now reflect the completed 1.3.0 work more accurately, including explicit-step orchestration, fail-fast relational validation, and verification-reporting progress.
 
 ### Fixed
-- N/A
+- Prevented preserved SQL Server scenarios with placeholder connection values from progressing into late JDBC/runtime failures by failing fast during configuration resolution.
 
 ---
 

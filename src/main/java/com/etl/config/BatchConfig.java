@@ -1,11 +1,14 @@
 package com.etl.config;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.etl.common.util.DynamicBatchUtils;
 import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.ResolvedModelMetadata;
+import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +60,7 @@ public class BatchConfig {
     private final JobCompletionNotificationListener listener;
     private final StepLoggingContextListener stepLoggingContextListener;
     private final ProcessorConfig processorConfig;
+    private final RunConfigurationMetadata runConfigurationMetadata;
 
     /**
      * The threshold for switching between chunk and tasklet processing.
@@ -83,7 +87,8 @@ public class BatchConfig {
                        PlatformTransactionManager transactionManager,
                        JobCompletionNotificationListener listener, DynamicProcessorFactory processorFactory,
                        ProcessorConfig processorConfig, TargetWrapper targetWrapper,
-                       StepLoggingContextListener stepLoggingContextListener) {
+                       StepLoggingContextListener stepLoggingContextListener,
+                       RunConfigurationMetadata runConfigurationMetadata) {
         this.sourceWrapper = sourceWrapper;
         this.readerFactory = readerFactory;
         this.targetWrapper = targetWrapper;
@@ -94,6 +99,7 @@ public class BatchConfig {
         this.listener = listener;
         this.stepLoggingContextListener = stepLoggingContextListener;
         this.processorConfig = processorConfig;
+        this.runConfigurationMetadata = runConfigurationMetadata;
 
         logger.info("EtlJobConfiguration initialized.");
     }
@@ -130,10 +136,11 @@ public class BatchConfig {
      * @return the list of configured steps
      * @throws Exception if step creation fails
      */
-    private List<Step> buildSteps() throws Exception {
+    List<Step> buildSteps() throws Exception {
         List<Step> steps = new ArrayList<>();
         List<? extends SourceConfig> sources = sourceWrapper.getSources();
         List<TargetConfig> targets = targetWrapper.getTargets();
+        List<JobConfig.JobStepConfig> configuredSteps = runConfigurationMetadata.steps();
 
         if (sources == null || sources.isEmpty()) {
             throw new IllegalStateException("No source configurations found.");
@@ -141,14 +148,23 @@ public class BatchConfig {
         if (targets == null || targets.isEmpty()) {
             throw new IllegalStateException("No target configurations found.");
         }
+        if (configuredSteps == null || configuredSteps.isEmpty()) {
+            throw new IllegalStateException("No explicit job steps were resolved for scenario '" + runConfigurationMetadata.scenarioName() + "'.");
+        }
 
-        int count = Math.min(sources.size(), targets.size());
+        logger.info("Building ETL job for scenario '{}' with {} explicit steps.", runConfigurationMetadata.scenarioName(), configuredSteps.size());
 
-        for (int i = 0; i < count; i++) {
-            SourceConfig s = sources.get(i);
-            TargetConfig t = targets.get(i);
+        Map<String, SourceConfig> sourceByName = mapSourcesByName(sources);
+        Map<String, TargetConfig> targetByName = mapTargetsByName(targets);
 
-            String stepName = "etlStep_" + i + "_" + s.getSourceName();
+        for (int i = 0; i < configuredSteps.size(); i++) {
+            JobConfig.JobStepConfig configuredStep = configuredSteps.get(i);
+            SourceConfig s = requireSource(configuredStep, sourceByName);
+            TargetConfig t = requireTarget(configuredStep, targetByName);
+            requireProcessorMapping(configuredStep);
+
+            String stepName = configuredStep.getName();
+            logger.info("STEP_PLAN event=step_plan stepName={} source={} target={} stepOrder={}", stepName, configuredStep.getSource(), configuredStep.getTarget(), i);
 
             boolean useChunk;
             int recordCount;
@@ -182,7 +198,7 @@ public class BatchConfig {
                         .processor(processor)
                         .writer(writer)
                         .build();
-                logger.info("Created CHUNK Step: {} ({} → {}), recordCount={}, threshold={}", stepName, s.getSourceName(), t.getTargetName(), recordCount, chunkThreshold);
+                logger.info("STEP_READY event=step_ready stepName={} source={} target={} mode=chunk recordCount={} threshold={}", stepName, s.getSourceName(), t.getTargetName(), recordCount, chunkThreshold);
             } else {
                 step = stepBuilder
                         .listener(stepLoggingContextListener)
@@ -206,13 +222,10 @@ public class BatchConfig {
                                 if (!buffer.isEmpty()) {
                                     if (metadata.isWrapperRequired()) {
                                         Object wrapper = GeneratedModelClassResolver.createWrapper(metadata, buffer);
-                                        logger.info("[DEBUG] Writing wrapper: {}.{} with {} records",
+                                        logger.debug("Writing XML wrapper {}.{} with {} records",
                                                 metadata.getTargetWriteClassName(),
                                                 metadata.getWrapperFieldName(),
                                                 buffer.size());
-                                        for (Object rec : buffer) {
-                                            logger.info("[DEBUG] Record type: {}", rec.getClass().getName());
-                                        }
                                         writer.write(new Chunk<>(List.of(wrapper)));
                                     } else {
                                         writer.write(new Chunk<>(buffer));
@@ -229,11 +242,63 @@ public class BatchConfig {
                             return RepeatStatus.FINISHED;
                         }, transactionManager)
                         .build();
-                logger.info("Created TASKLET Step: {} ({} → {}), recordCount={}, threshold={}", stepName, s.getSourceName(), t.getTargetName(), recordCount, chunkThreshold);
+                logger.info("STEP_READY event=step_ready stepName={} source={} target={} mode=tasklet recordCount={} threshold={}", stepName, s.getSourceName(), t.getTargetName(), recordCount, chunkThreshold);
             }
             steps.add(step);
         }
 
         return steps;
+    }
+
+    private Map<String, SourceConfig> mapSourcesByName(List<? extends SourceConfig> sources) {
+        Map<String, SourceConfig> sourceByName = new LinkedHashMap<>();
+        for (SourceConfig source : sources) {
+            if (source.getSourceName() == null || source.getSourceName().isBlank()) {
+                throw new IllegalStateException("Source configuration contains a blank sourceName.");
+            }
+            if (sourceByName.putIfAbsent(source.getSourceName(), source) != null) {
+                throw new IllegalStateException("Duplicate sourceName found in source configuration: " + source.getSourceName());
+            }
+        }
+        return sourceByName;
+    }
+
+    private Map<String, TargetConfig> mapTargetsByName(List<TargetConfig> targets) {
+        Map<String, TargetConfig> targetByName = new LinkedHashMap<>();
+        for (TargetConfig target : targets) {
+            if (target.getTargetName() == null || target.getTargetName().isBlank()) {
+                throw new IllegalStateException("Target configuration contains a blank targetName.");
+            }
+            if (targetByName.putIfAbsent(target.getTargetName(), target) != null) {
+                throw new IllegalStateException("Duplicate targetName found in target configuration: " + target.getTargetName());
+            }
+        }
+        return targetByName;
+    }
+
+    private SourceConfig requireSource(JobConfig.JobStepConfig configuredStep, Map<String, SourceConfig> sourceByName) {
+        SourceConfig sourceConfig = sourceByName.get(configuredStep.getSource());
+        if (sourceConfig == null) {
+            throw new IllegalStateException("Step '" + configuredStep.getName() + "' references unknown source '" + configuredStep.getSource() + "'.");
+        }
+        return sourceConfig;
+    }
+
+    private TargetConfig requireTarget(JobConfig.JobStepConfig configuredStep, Map<String, TargetConfig> targetByName) {
+        TargetConfig targetConfig = targetByName.get(configuredStep.getTarget());
+        if (targetConfig == null) {
+            throw new IllegalStateException("Step '" + configuredStep.getName() + "' references unknown target '" + configuredStep.getTarget() + "'.");
+        }
+        return targetConfig;
+    }
+
+    private void requireProcessorMapping(JobConfig.JobStepConfig configuredStep) {
+        boolean mappingExists = processorConfig.getMappings() != null && processorConfig.getMappings().stream()
+                .anyMatch(mapping -> configuredStep.getSource().equals(mapping.getSource())
+                        && configuredStep.getTarget().equals(mapping.getTarget()));
+        if (!mappingExists) {
+            throw new IllegalStateException("Step '" + configuredStep.getName() + "' does not have a matching processor mapping for source '"
+                    + configuredStep.getSource() + "' and target '" + configuredStep.getTarget() + "'.");
+        }
     }
 }

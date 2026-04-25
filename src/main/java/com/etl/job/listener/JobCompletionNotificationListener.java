@@ -3,6 +3,7 @@ package com.etl.job.listener;
 import com.etl.logging.RunLoggingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobExecutionListener;
@@ -35,7 +36,13 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 		RunLoggingContext.put(RunLoggingContext.JOB_NAME, jobExecution.getJobInstance().getJobName());
 		RunLoggingContext.put(RunLoggingContext.JOB_EXECUTION_ID, String.valueOf(jobExecution.getId()));
 
-        logger.info("Job started: {} at {}", jobExecution.getJobInstance().getJobName(), jobExecution.getStartTime());
+		logger.info("RUN_EVENT event=job_started scenario={} jobName={} jobExecutionId={} startTime={} runMode={} jobConfigPath={}",
+				jobParameters.getString("scenario", "unknown-scenario"),
+				jobExecution.getJobInstance().getJobName(),
+				jobExecution.getId(),
+				jobExecution.getStartTime(),
+				jobParameters.getString("runMode", ""),
+				jobParameters.getString("jobConfigPath", ""));
 	}
 
 	@Override
@@ -46,6 +53,15 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 			Long durationSeconds = startTime != null && endTime != null
 					? Duration.between(startTime, endTime).getSeconds()
 					: null;
+			logger.info("RUN_SUMMARY event=run_summary scenario={} jobName={} jobExecutionId={} status={} startTime={} endTime={} durationSeconds={} failureCount={}",
+					mdcValueOrDefault(RunLoggingContext.SCENARIO, "unknown-scenario"),
+					jobExecution.getJobInstance().getJobName(),
+					jobExecution.getId(),
+					jobExecution.getStatus(),
+					startTime,
+					endTime,
+					durationSeconds == null ? "unknown" : durationSeconds,
+					jobExecution.getAllFailureExceptions().size());
 
 			if (jobExecution.getStatus() == BatchStatus.COMPLETED) {
 				logger.info("Job completed successfully in {} seconds.", durationSeconds == null ? "unknown" : durationSeconds);
@@ -61,5 +77,10 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 			RunLoggingContext.clearJobScope();
 		}
 
+	}
+
+	private String mdcValueOrDefault(String key, String defaultValue) {
+		String value = MDC.get(key);
+		return value == null || value.isBlank() ? defaultValue : value;
 	}
 }

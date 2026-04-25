@@ -12,6 +12,18 @@ This note keeps the roadmap grounded in a practical rule:
 - then make that observability searchable and operator-friendly
 - only later build AI-assisted retrieval and summarization on top of it
 
+## Current implemented slice
+
+The current codebase already implements a meaningful first observability slice:
+
+- scenario/job-run MDC fields in operational logging
+- daily scenario log files in the form `logs/<yyyy-MM-dd>/<scenario>.log`
+- machine-readable lifecycle events such as `RUN_EVENT`, `RUN_SUMMARY`, `STEP_PLAN`, `STEP_READY`, and `STEP_EVENT`
+- step-finished evidence with `readCount`, `writeCount`, `filterCount`, `skipCount`, and `rollbackCount`
+- local verification-report generation that keeps build/release validation logs distinct from runtime scenario logs
+
+This document still describes future observability direction, but it should now be read as **current baseline plus future evolution**, not as a purely hypothetical design note.
+
 ## Scope
 
 This document covers:
@@ -178,7 +190,7 @@ They should remain separate from scenario/job-run diagnostics because they serve
 
 ## Scenario and job-run logging model
 
-The future default logging strategy should be scenario-first and job-run-aware.
+The target default logging strategy is scenario-first and job-run-aware, and the first implementation slice is already moving in that direction.
 
 ### Logging identity fields
 Each operational log record or event should eventually be attributable through fields such as:
@@ -300,6 +312,8 @@ Current and likely future anchors for this topic include:
 - Spring Batch job and step metadata tables
 - future operational history repository and dashboard API
 - future logging configuration and sink strategy
+- `scripts/verify-recent-changes.ps1`
+- `scripts/generate-verification-report.ps1`
 
 ## Decisions
 
@@ -307,6 +321,7 @@ Current and likely future anchors for this topic include:
 - Persistent job and step history should exist before advanced operator tooling is introduced.
 - Runtime logging should be scenario and job-run oriented rather than treated as one shared undifferentiated application stream.
 - Structured events should gradually complement plain-text logs.
+- The current runtime already emits an initial machine-readable event vocabulary, and future work should extend that contract rather than replace it with ad hoc formats.
 - Correlation identifiers should become stable enough to connect logs, metrics, and run history.
 - Build and release logs should remain separate from runtime operational evidence.
 - This baseline should stay technology-neutral enough to support later dashboard and search choices.
