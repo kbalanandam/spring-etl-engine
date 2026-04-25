@@ -1,3 +1,6 @@
+# DEPRECATED: this legacy validation-config.yaml is not part of the active ETL runtime path.
+# Use source config validation via the selected source-config.yaml and record validation via
+# processor-config.yaml field rules handled by the active processor validation flow instead.
 csv:
   files:
     customers:

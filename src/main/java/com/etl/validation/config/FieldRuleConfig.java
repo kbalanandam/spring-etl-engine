@@ -1,5 +1,10 @@
 package com.etl.validation.config;
 
+/**
+ * @deprecated Legacy rule metadata for validation-config.yaml. Active field rules are now
+ * defined in {@code com.etl.config.processor.ProcessorConfig.FieldRule}.
+ */
+@Deprecated(since = "1.4.0")
 public class FieldRuleConfig {
     private String field;
     private String rule;

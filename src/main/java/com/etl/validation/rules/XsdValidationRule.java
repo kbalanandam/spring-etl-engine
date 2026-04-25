@@ -9,6 +9,11 @@ import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import javax.xml.validation.Validator;
 
+/**
+ * @deprecated Legacy standalone XML file rule. Future XML/XSD validation should be modeled
+ * as active source-level validation rather than through this deprecated package.
+ */
+@Deprecated(since = "1.4.0")
 public class XsdValidationRule implements ValidationRule<File> {
     private final String xsdPath;
 

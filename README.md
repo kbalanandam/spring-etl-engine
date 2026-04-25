@@ -41,7 +41,7 @@ Start here:
  │    ├── processor/       # Dynamic processors
  │    ├── reader/          # Source readers
  │    ├── runner/          # Application/job startup runner
- │    ├── validation/      # Validation rules and validators
+ │    ├── validation/      # Deprecated legacy validation framework (kept temporarily for cleanup/migration)
  │    ├── writer/          # Target writers
  │    └── ETLEngineApplication.java
  ├── src/main/resources
@@ -50,7 +50,7 @@ Start here:
  │    ├── source-config.yaml
  │    ├── target-config.yaml
  │    ├── processor-config.yaml
- │    ├── validation-config.yaml
+ │    ├── validation-config.yaml  # Deprecated legacy validation resource
  │    └── demo-input/      # Bundled fallback sample CSV files
  ├── src/test
  │    ├── java/            # Unit and integration tests
@@ -241,6 +241,15 @@ Expected fallback output files:
 4. Prefer running the application with an explicit `etl.config.job` scenario selection.
 5. Use `etl.config.allow-demo-fallback=true` only for local/demo fallback runs.
 6. Review the generated output files in the configured target directory.
+
+## Validation path note
+
+The supported validation path is now:
+
+- source/config validation through the active config model under `src/main/java/com/etl/config/`
+- record validation through `processor-config.yaml` field rules and `src/main/java/com/etl/processor/validation/ValidationRuleEvaluator.java`
+
+The legacy `src/main/java/com/etl/validation/` package and `src/main/resources/validation-config.yaml` are deprecated and are not part of the active ETL runtime path.
 
 ## Verification after code changes
 

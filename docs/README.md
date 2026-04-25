@@ -29,6 +29,7 @@ For every significant enhancement, add or update:
 - [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase, future enterprise integration direction, and the high-level guide for what belongs now vs later
 - [`architecture/file-ingestion-hardening.md`](architecture/file-ingestion-hardening.md) — first-slice file-ingestion hardening status plus remaining design direction for validation rules, rejected-record output, and processed-file archiving
 - [`architecture/file-ingestion-hardening-checklist.md`](architecture/file-ingestion-hardening-checklist.md) — execution checklist and remaining follow-on considerations around the first file-ingestion hardening slice
+- [`architecture/validation-extension-architecture.md`](architecture/validation-extension-architecture.md) — future extension architecture for source-level validation and processor-rule validation without reviving the deprecated legacy validation framework
 - [`architecture/relational-db-support.md`](architecture/relational-db-support.md) — current relational support baseline, phase-1 implementation status, and future hardening direction
 - [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md) — phased transformation maturity roadmap and the high-level guide for what transformation behavior belongs now vs later
 - [`architecture/job-history-and-operational-observability.md`](architecture/job-history-and-operational-observability.md) — current observability baseline plus future direction for retained run history, structured operational events, and diagnostics
@@ -41,6 +42,7 @@ For every significant enhancement, add or update:
 - [`adr/0003-adaptive-step-selection-and-generated-model-contract.md`](adr/0003-adaptive-step-selection-and-generated-model-contract.md)
 - [`adr/0004-use-explicit-job-config-for-business-scenario-selection.md`](adr/0004-use-explicit-job-config-for-business-scenario-selection.md)
 - [`adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md`](adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
+- [`adr/0006-separate-source-validation-and-processor-rule-spis.md`](adr/0006-separate-source-validation-and-processor-rule-spis.md)
 - [`adr/TEMPLATE.md`](adr/TEMPLATE.md) — template for future ADRs
 
 ### Configuration references

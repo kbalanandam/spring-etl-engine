@@ -10,6 +10,8 @@ The goal is to keep the baseline resource YAML files stable while providing:
 - scenario-specific example config sets
 - a place to record current support level and phase-1 limitations
 
+Legacy `validation-config.yaml`-style validation under `src/main/java/com/etl/validation/` is deprecated and is not part of the active runtime contract. The supported validation path is the active source/processor config model documented in this section.
+
 ## How to use these docs
 
 Use these docs in two ways:

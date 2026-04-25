@@ -14,6 +14,11 @@ The engine is designed around three runtime extension points:
 
 These are selected dynamically based on config.
 
+Validation is now best understood as two additional future extension seams:
+
+- source-level validation extensions for source artifact / source contract checks
+- processor-rule validation extensions for record acceptance / rejection checks
+
 ## Current code anchors
 
 - Reader selection: `src/main/java/com/etl/reader/DynamicReaderFactory.java`
@@ -100,7 +105,7 @@ flowchart LR
 
 - relational reader/writer support
 - stored procedure tasklet / reader / writer support
-- validation step orchestration
+- source-validation SPI and processor-rule SPI described in [`validation-extension-architecture.md`](validation-extension-architecture.md)
 - multi-job flow configuration
 - dialect abstraction for platform-specific SQL behavior
 

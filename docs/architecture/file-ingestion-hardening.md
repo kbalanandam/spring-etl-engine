@@ -13,6 +13,8 @@ Use it to answer four questions when extending this area further:
 
 The first CSV-focused slice described here is now part of the shipped config contract. Broader expansion beyond that slice remains forward-looking architecture guidance.
 
+For the longer-term extension model that separates future source-validation and processor-rule SPIs, see [`validation-extension-architecture.md`](validation-extension-architecture.md).
+
 ## Why this note exists
 
 The current runtime already has:

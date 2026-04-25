@@ -6,6 +6,8 @@ The default processor defines field-to-field mappings between a configured sourc
 
 It is backed by the existing config-driven processor path and currently powers the normal ETL mapping flow.
 
+This is also the supported runtime path for record-level validation. The older standalone `com.etl.validation.*` package and `validation-config.yaml` resource are deprecated and are not part of the active ETL runtime contract.
+
 ## Java contract
 
 Backed by:

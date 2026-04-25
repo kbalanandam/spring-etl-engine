@@ -17,6 +17,9 @@ and this project adheres to **Semantic Versioning**.
 ### Changed
 - The file-ingestion hardening work is now implemented as a first CSV-focused slice instead of design-only planning, while broader expression, conditional, and richer quarantine behavior remains future work.
 
+### Deprecated
+- Deprecated the legacy `com.etl.validation.*` package and `src/main/resources/validation-config.yaml` resource because they are not part of the active ETL runtime path. The supported validation path now runs through active source config validation and `processor-config.yaml` field rules.
+
 ---
 
 ## [1.3.0] - 2026-04-25
