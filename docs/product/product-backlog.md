@@ -458,10 +458,12 @@ Make the product usable by operators, not just developers.
 - [ ] Add failure investigation checklist
 - [ ] Add example deployment configurations
 - [ ] Add release-readiness checklist per milestone
+- [ ] Add internal technical reference and developer learning material once runtime flow, validation behavior, and operator guidance are more stable
 
 ### Done criteria
 - a new operator can run and diagnose a scenario without deep code knowledge
 - operations guidance exists inside the repo
+- internal maintainers and new developers can learn the current production behavior from versioned in-repo reference material once the runtime contract is stable enough to document deeply
 
 ---
 
