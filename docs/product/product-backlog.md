@@ -41,14 +41,18 @@ The product already has a meaningful engineering foundation:
 - Spring Batch-based ETL runtime
 - config-driven source / target / processor model
 - explicit `job-config.yaml` scenario selection
+- explicit `steps`-driven orchestration for business-scenario runs
 - dynamic reader / processor / writer factories
 - generated model contract approach
 - CSV, XML, and relational support foundations
 - scenario-aware logging with run correlation metadata
+- machine-readable run and step lifecycle events for operator evidence
 - daily scenario log layout
 - architecture docs and ADR discipline
 - automated tests across config loading, listeners, app context, and flow slices
 - improved path portability for tests and default demo runtime behavior
+- fail-fast relational placeholder validation for selected scenario configs
+- repeatable verification reporting with categorized Markdown evidence output
 
 ### Current maturity assessment
 
@@ -151,16 +155,16 @@ This table is the day-to-day execution view for the current product stage.
 
 | ID | Item | Epic | Priority | Status | Milestone | Dependency | Notes |
 |---|---|---|---|---|---|---|---|
-| A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Ready | M1 | none | Core runtime clarity item; reduces orchestration ambiguity |
-| A2 | Validate scenario completeness before job start | Epic A | P0 | Ready | M1 | A1 | Pairs with better config validation and safer startup behavior |
+| A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
+| A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
 | T1 | Add expression-based derived field capability design and first implementation slice | Epic T | P1 | Ready | M1 | A1 | First real transformation-maturity step beyond direct field mapping |
 | T2 | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T1 | Best introduced after expression contract is stable |
 | T3 | Add validation and reject/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2 | Important for traditional ETL-style transformation credibility |
 | T4 | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T1 | Bridges toward more classic ETL transformation patterns |
 | B1 | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | B2 | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
-| C1 | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Ready | M1 | none | First slice of audit and reconciliation support |
-| C2 | Capture source count, written count, and rejected count | Epic C | P1 | Ready | M1 | C1 | Makes operator run evidence more useful |
+| C1 | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Done | M1 | none | `RUN_EVENT` / `RUN_SUMMARY` and step lifecycle evidence are now emitted for selected runs |
+| C2 | Capture source count, written count, and rejected count | Epic C | P1 | In Progress | M1 | C1 | Step-finished evidence now includes read/write/filter/skip counts; run-level reconciliation rollup remains to be completed |
 | D1 | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
 | E1 | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
 | E2 | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Ready | M1 | E1 | Important next portability step |
@@ -169,16 +173,20 @@ This table is the day-to-day execution view for the current product stage.
 | S2 | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Deferred | M2 | S1 | First practical scheduler slice after run-state and audit direction are clearer |
 | S3 | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
 | G1 | Support secret injection via environment or secure config source | Epic G | P1 | Deferred | M3 | C1 | Important for enterprise readiness, but not first delivery blocker |
+| V1 | Define enterprise verification evidence model and report categories | Epic V | P1 | Done | M3 | C1, C2 | Shared in-memory evidence model and phase-1 report categories are now defined in the report generator and ADRs |
+| V2 | Generate Markdown verification reports from the shared evidence model | Epic V | P1 | Done | M3 | V1 | Categorized Markdown verification reporting now renders from the shared evidence model |
+| V3 | Generate HTML verification reports with drill-down enterprise views | Epic V | P1 | Deferred | M3 | V1, V2 | Add richer navigation, drill-down, and audience-friendly release evidence presentation |
+| V4 | Define verification-report retention, provenance, and release gating rules | Epic V | P2 | Deferred | M3 | V1, V2 | Make verification evidence auditable and suitable for milestone/release decisions |
 
 ### Current working focus
 
 The intended near-term focus order is:
 
-1. `A1` — explicit orchestration model
-2. `A2` — scenario completeness validation
-3. `T1` — expression-based transformation capability
-4. `C1` and `C2` — run summary and counts
-5. `E2` — packaged-run guidance
+1. `T1` — expression-based transformation capability
+2. `B1` and `B2` — controlled skip/retry behavior
+3. `C2` and `D1` — richer counts, reconciliation, and stable error taxonomy
+4. `E2` — packaged-run guidance
+5. `V3` and `V4` — enterprise HTML reporting plus retention / release-gating rules
 
 Scheduler/orchestration remains part of this same roadmap as **Epic S**. It should become active only after the product has clearer run-state, audit, and restartability foundations.
 
@@ -194,14 +202,18 @@ These are not “finished forever,” but they represent meaningful product prog
 
 - [x] Config-driven ETL flow with explicit source, target, and processor YAMLs
 - [x] Scenario/job-config-driven business run selection
+- [x] Explicit `steps`-driven orchestration for selected business scenarios
 - [x] Dynamic reader / processor / writer extension model
 - [x] Spring Batch job / step runtime baseline
 - [x] Generated model resolution and metadata-driven runtime behavior
 - [x] Daily scenario-aware log file strategy with run correlation IDs
+- [x] Machine-readable lifecycle logging for run planning, run summary, and step events
 - [x] Initial relational ETL architecture path
+- [x] Fail-fast validation for placeholder relational connection values in selected scenarios
 - [x] Architecture docs and ADR workflow in-repo
 - [x] Automated test coverage for key configuration and runtime slices
 - [x] Improved path portability across tests and demo defaults
+- [x] Local verification reporting with smoke checks, categorized Markdown output, and retained report history
 
 ---
 
@@ -215,8 +227,8 @@ These items move the product from “strong ETL foundation” to “reliable pro
 Make each run explicit, predictable, and less fragile.
 
 ### Backlog
-- [ ] Replace positional source-target pairing with explicit step pairing or step definitions
-- [ ] Validate scenario completeness before job start
+- [x] Replace positional source-target pairing with explicit step pairing or step definitions
+- [x] Validate scenario completeness before job start
 - [ ] Add stronger config validation error messages for operators
 - [ ] Make step definitions more business-meaningful and less index-driven
 - [ ] Document supported orchestration patterns and limitations
@@ -274,7 +286,7 @@ Grow the product from structural field mapping into richer transformation behavi
 Make each ETL run auditable beyond raw logs.
 
 ### Backlog
-- [ ] Emit a run summary with start/end time, scenario, status, and duration
+- [x] Emit a run summary with start/end time, scenario, status, and duration
 - [ ] Capture source count, written count, and rejected count
 - [ ] Define a reconciliation model for input vs output records
 - [ ] Persist or export run summary metadata
@@ -312,7 +324,7 @@ Make operations support practical for production-like usage.
 Make local, CI, and deployment usage more consistent across environments.
 
 ### Backlog
-- [ ] Finalize cross-platform defaults and path handling rules
+- [x] Finalize cross-platform defaults and path handling rules
 - [ ] Add packaged-run guidance for jar execution with scenario configs
 - [ ] Separate repo-demo mode from external-runtime mode more cleanly
 - [ ] Document expected directory conventions for local and deployed runs
@@ -445,6 +457,29 @@ Make the product usable by operators, not just developers.
 
 ---
 
+## Epic V — Verification reporting and release evidence
+
+### Goal
+Turn local test output and scenario evidence into a structured verification-reporting capability that supports enterprise-grade change validation, regression visibility, and release-readiness decisions.
+
+### Backlog
+- [x] Define a shared verification evidence model that separates evidence capture from report rendering
+- [x] Classify verification output into explicit categories such as change-focused testing, regression suite, runtime/smoke verification, configuration validity, and release readiness
+- [x] Generate a canonical Markdown verification report for repository review, history retention, and pull-request evidence
+- [ ] Generate an HTML verification report from the same evidence model for drill-down, navigation, and enterprise-friendly sharing
+- [ ] Add provenance fields such as branch, commit/config identity, scenario selection, environment metadata, and generated artifact references
+- [ ] Define verification report retention, versioning, and release-gating expectations
+- [ ] Document which report sections are required before a milestone or release can be considered ready
+
+### Done criteria
+- verification evidence is organized by category instead of being one undifferentiated test dump
+- one shared evidence model drives both Markdown and HTML outputs
+- release stakeholders can distinguish change-focused proof from broader regression proof
+- verification reports retain enough provenance to support audit and release review
+- report generation and retention rules are documented as a product capability, not only as a local script detail
+
+---
+
 ## Milestone View
 
 ## Milestone M1 — Reliable ETL Core
@@ -454,6 +489,10 @@ Focus:
 - fault tolerance basics
 - run summaries
 - portability cleanup
+
+Current state:
+- substantially achieved by the 1.3.0 release through explicit `steps` orchestration, strict startup validation, machine-readable lifecycle logging, relational placeholder fail-fast validation, and local verification reporting
+- remaining M1-adjacent work is now mostly hardening work such as packaged-run guidance, richer count/reconciliation evidence, and fault-tolerance behavior
 
 Exit signal:
 - product is credible for repeated controlled ETL runs across supported file scenarios
@@ -477,8 +516,13 @@ Focus:
 - governance
 - idempotency
 - scale validation
+- enterprise verification reporting and release evidence
 - operational controls
 - advanced schedule control, missed-run policy, and trigger evidence
+
+Current state:
+- verification reporting direction is now established through `Epic V`, ADR-0005, categorized Markdown reporting, and a shared verification evidence model
+- HTML drill-down reporting, provenance hardening, retention rules, and release gating remain future M3 work
 
 Exit signal:
 - product can be presented as enterprise-grade ETL foundation with known limits, not just a development framework
@@ -489,12 +533,12 @@ Exit signal:
 
 If the team has to choose only a few next steps, prioritize these in order:
 
-1. `A1` / `A2` — explicit orchestration model instead of positional pairing, plus scenario completeness validation
-2. `T1` / `T2` — expression and conditional transformation capability
-3. `B1` / `B2` — fault tolerance and validation/rejection model
-4. `C1` / `C2` — run summary and reconciliation output
+1. `T1` / `T2` — expression and conditional transformation capability
+2. `B1` / `B2` — fault tolerance and validation/rejection model
+3. `C2` / `D1` — richer count evidence, reconciliation output, and stable error taxonomy
+4. `E2` — packaged-run guidance for jar execution with scenario bundles
 5. `F1` / `S1` / `S2` — restartability plus scheduler trigger model and first operator controls
-6. `G1` / `S3` — secure configuration and enterprise-grade trigger evidence / run-control maturity
+6. `V3` / `V4` / `G1` — enterprise HTML verification reporting, release-gating rules, and secure configuration maturity
 
 ---
 

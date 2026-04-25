@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Date;
 
 /**
@@ -62,9 +63,17 @@ public class EtlJobRunner implements CommandLineRunner {
 		RunLoggingContext.put(RunLoggingContext.JOB_CONFIG_PATH, defaultString(runConfigurationMetadata.jobConfigPath()));
 
         try {
-	            logger.info("Starting ETL job for scenario '{}' in {} mode.", runConfigurationMetadata.scenarioName(), runMode);
+	            logger.info("RUN_EVENT event=run_requested scenario={} runMode={} jobConfigPath={} plannedStepCount={} plannedSteps={}",
+	                    runConfigurationMetadata.scenarioName(),
+	                    runMode,
+	                    defaultString(runConfigurationMetadata.jobConfigPath()),
+	                    runConfigurationMetadata.steps().size(),
+	                    formatPlannedSteps(runConfigurationMetadata.steps()));
             jobLauncher.run(etlJob, jobParameters);
-	            logger.info("ETL job finished for scenario '{}'.", runConfigurationMetadata.scenarioName());
+	            logger.info("RUN_EVENT event=run_finished scenario={} runMode={} plannedStepCount={}",
+	                    runConfigurationMetadata.scenarioName(),
+	                    runMode,
+	                    runConfigurationMetadata.steps().size());
         } catch (Exception e) {
             throw new JobExecutionException("ETL Job failed for date: " + jobParameters.getDate("runDate"), e);
 		} finally {
@@ -82,5 +91,12 @@ public class EtlJobRunner implements CommandLineRunner {
 
 	private String defaultString(String value) {
 		return value == null ? "" : value;
+	}
+
+	private String formatPlannedSteps(List<com.etl.config.job.JobConfig.JobStepConfig> steps) {
+		return steps.stream()
+				.map(step -> step.getName() + ":" + step.getSource() + "->" + step.getTarget())
+				.reduce((left, right) -> left + "," + right)
+				.orElse("none");
 	}
 }

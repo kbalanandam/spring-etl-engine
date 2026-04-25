@@ -122,9 +122,13 @@ name: csv-to-sqlserver
 sourceConfigPath: source-config.yaml
 targetConfigPath: target-config.yaml
 processorConfigPath: processor-config.yaml
+steps:
+  - name: customers-to-sql-step
+    source: Customers
+    target: CustomersSql
 ```
 
-Relative paths in `job-config.yaml` are resolved from the job-config file's folder.
+Relative paths in `job-config.yaml` are resolved from the job-config file's folder, and explicit job-config runs now require a non-empty `steps` list.
 
 The engine should not auto-discover all scenario folders and execute them. One run should explicitly select one scenario/config set through `etl.config.job`.
 
@@ -132,11 +136,11 @@ The engine should not auto-discover all scenario folders and execute them. One r
 
 If `etl.config.job` is not set, startup should fail unless `etl.config.allow-demo-fallback=true` is enabled. Demo fallback mode may then use the direct config path properties and, if those direct files are missing, continue into bundled classpath YAML intended for local/demo usage.
 
+For selected relational source or target configs, startup now also validates that committed template values such as `<SQLSERVER_HOST>` have been replaced with real environment-specific settings before runtime. This prevents preserved example scenarios from failing late during JDBC connection setup.
+
 ## Documentation rule
 
 Whenever a new source, target, or processor type is added or its field contract changes:
 
 - update the relevant config reference doc
 - add or update at least one scenario config folder if the change introduces a new combination worth preserving
-
-

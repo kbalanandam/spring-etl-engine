@@ -25,8 +25,11 @@ That selector points to one `job-config.yaml`, and that file explicitly defines 
 - `sourceConfigPath`
 - `targetConfigPath`
 - `processorConfigPath`
+- `steps`
 
 Relative paths in `job-config.yaml` are resolved from the `job-config.yaml` folder.
+
+The `steps` list is now the explicit orchestration contract for business-scenario runs. Each step names the source and target to execute, and the runtime no longer derives orchestration by positional source-target pairing when `etl.config.job` is used.
 
 Legacy direct source/target/processor path loading remains available only when `etl.config.allow-demo-fallback=true` is enabled. That fallback path is intended for demos and local runs, not as the enterprise default.
 
@@ -39,13 +42,15 @@ Legacy direct source/target/processor path loading remains available only when `
 - scenario folders can preserve real business flows without mutating baseline resource YAML files
 - runtime behavior stays predictable and debuggable
 - startup no longer silently degrades into demo/default YAML in normal execution
-- future orchestration metadata can be added to `job-config.yaml` without changing the public entry point
+- orchestration order is explicit, reviewable, and independent of source/target list position
+- future orchestration metadata can keep extending `job-config.yaml` without changing the public entry point
 
 ### Negative
 - the selector currently uses a file path instead of a simpler scenario-name property
 - documentation must make it clear that `etl.config.job` is the product-facing scenario selector
 - local/demo fallback now requires an explicit opt-in property
 - contributors must avoid reintroducing scenario auto-discovery as hidden behavior
+- scenario authors must maintain a valid non-empty `steps` list for each explicit job config
 
 ## Alternatives considered
 
@@ -65,4 +70,6 @@ This remains supported only through explicit demo fallback for legacy/manual run
 Future product evolution should keep `etl.config.job` as the orchestration entry point unless there is a strong reason to add a higher-level abstraction.
 
 If a scenario-name abstraction is introduced later, it should resolve internally to the same explicit `job-config.yaml` contract rather than bypassing it.
+
+If richer orchestration is introduced later, it should extend the explicit `steps` model rather than falling back to hidden positional behavior.
 

@@ -7,7 +7,7 @@ A lightweight, configurable, and modular ETL (Extract–Transform–Load) framew
 - **Reusable Utilities**: Centralized `*Utils` for type conversion, reflection, validation.
 - **Custom Exceptions**: Domain‑specific exceptions to identify issues clearly.
 - **AOP Logging**: Automatic method-level logging for ETL flow visibility.
-- **Scenario/job-run logging**: MDC-backed logs now carry scenario, run, job, and step context, with one runtime file per ETL run.
+- **Scenario/job-run logging**: MDC-backed logs carry scenario, run, job, and step context, with daily scenario log files and machine-readable run/step event messages for operations.
 - **Builder Pattern**: Clean and safe object construction.
 - **Profile-based Execution**: Separate dev, test, prod behaviour.
 - **Multi‑Source Input**: CSV, XML, and phase-1 relational sources.
@@ -24,7 +24,7 @@ Start here:
 - [`docs/architecture/overview.md`](docs/architecture/overview.md)
 - [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md)
 - [`docs/architecture/extension-points.md`](docs/architecture/extension-points.md)
-- [`docs/adr/`](docs/adr/)
+- [`docs/README.md#adrs`](docs/README.md#adrs)
 
 ## Repository Structure
 ```
@@ -103,9 +103,15 @@ name: csv-to-sqlserver
 sourceConfigPath: source-config.yaml
 targetConfigPath: target-config.yaml
 processorConfigPath: processor-config.yaml
+steps:
+  - name: customers-to-sql-step
+    source: Customers
+    target: CustomersSql
 ```
 
 The referenced paths may be absolute or relative. Relative paths are resolved from the `job-config.yaml` folder.
+
+`job-config.yaml` now also defines the explicit ETL execution order through `steps`. Positional source-target pairing is no longer a supported orchestration contract for explicit job-config runs.
 
 This is the recommended product direction for preserved business scenarios such as:
 
@@ -122,9 +128,11 @@ Set-Location '<repo-root>'
 mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml" spring-boot:run
 ```
 
-In this mode, the app does **not** auto-discover other scenarios or sibling config sets. It only loads the three files referenced by the job config.
+In this mode, the app does **not** auto-discover other scenarios or sibling config sets. It only loads the three files referenced by the job config and executes the explicit `steps` in the order declared.
 
-If `etl.config.job` is missing, unreadable, malformed, or references missing files, startup fails fast.
+If `etl.config.job` is missing, unreadable, malformed, omits `steps`, or references missing source/target/processor artifacts, startup fails fast.
+
+For relational scenarios selected through `etl.config.job`, startup also validates the chosen source/target connection settings early. Placeholder values such as `<SQLSERVER_HOST>` are rejected before batch execution begins so operators see a scenario-aware configuration error instead of a late JDBC connection failure.
 
 ## Logging Layout
 
@@ -233,6 +241,60 @@ Expected fallback output files:
 4. Prefer running the application with an explicit `etl.config.job` scenario selection.
 5. Use `etl.config.allow-demo-fallback=true` only for local/demo fallback runs.
 6. Review the generated output files in the configured target directory.
+
+## Verification after code changes
+
+For a repeatable local verification workflow after code changes, run:
+
+```powershell
+Set-Location 'C:\spring-etl-engine'
+powershell.exe -ExecutionPolicy Bypass -File '.\scripts\generate-verification-report.ps1'
+```
+
+This produces:
+
+- `target/verification-report.md`
+- `target/verification-report-<yyyyMMdd-HHmmss>.md`
+
+The stable `target/verification-report.md` file is always the latest result.
+The timestamped report keeps a historical snapshot for that specific verification run.
+By default, the report generator keeps only a small recent set of timestamped reports to avoid unbounded growth under `target/`.
+
+The report combines:
+
+- a top-line `STATUS: READY` or `STATUS: NOT READY` banner
+- an `At a glance` section with overall readiness, smoke status, pass rate, and the slowest suite/testcase
+- quick navigation links to major report sections
+- explicit phase-1 verification categories for:
+  - change-focused verification
+  - regression suite verification
+  - runtime and smoke verification
+  - release readiness
+- a shared verification evidence model inside the report generator so future Markdown/HTML renderers can use the same collected evidence
+- current Git branch and changed-file summary
+- compact Git status counts before the full changed-file list
+- full `mvn test` summary
+- suite-by-suite results from `target/surefire-reports/`
+- slowest-suite and slowest-testcase highlights for quick performance/regression scanning
+- testcase-by-testcase results grouped under each suite, including per-test duration and status
+- a focused non-passing test section for failures, errors, or skipped cases when present
+- a short PASS/FAIL interpretation section near the top
+- smoke verification status using:
+  - successful `customer-load`
+  - expected fail-fast `csv-to-sqlserver` placeholder validation
+
+Helpful generated artifacts:
+
+- `target/verification-mvn-test.log`
+- `target/verification-smoke.log`
+- `target/verify-customer-load.log`
+- `target/verify-csv-to-sqlserver.log`
+- `target/customers.xml`
+
+Optional parameters:
+
+- `-SkipSmoke` — generate the report from automated tests only
+- `-KeepLatestCount <N>` — control how many timestamped report snapshots are retained in `target/`
 
 ## Example Mapping
 ```yaml

@@ -36,6 +36,18 @@ class RelationalConnectionConfigTest {
     }
 
     @Test
+    void validateRejectsPlaceholderJdbcTemplateValues() {
+        RelationalConnectionConfig connection = sqlServerConnection();
+        connection.setJdbcUrl("jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, connection::validate);
+        assertEquals(
+                "Relational connection jdbcUrl still contains a placeholder value 'jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true'. Replace template tokens like <...> with real environment-specific connection settings before runtime.",
+                ex.getMessage()
+        );
+    }
+
+    @Test
     void resolveJdbcUrlBuildsSqlServerUrlFromHostAndDatabase() {
         RelationalConnectionConfig connection = sqlServerConnection();
         connection.setJdbcUrl(null);

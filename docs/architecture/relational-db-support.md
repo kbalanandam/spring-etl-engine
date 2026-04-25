@@ -21,6 +21,7 @@ The current phase-1 implementation now includes:
 - H2-backed automated tests for relational reader and writer paths
 - preserved scenario bundles for `csv-to-sqlserver` and `relational-to-relational`
 - H2-backed higher-volume relational source -> relational target validation
+- startup-time validation that rejects placeholder relational connection values in selected source/target configs before JDBC runtime
 
 Current support remains intentionally narrow:
 
@@ -57,7 +58,7 @@ The current product is a config-driven ETL engine with these characteristics:
 - source and target behavior are defined by YAML
 - source and target config types are polymorphic (`csv`, `xml`, future `relational`)
 - readers, processors, and writers are selected through dynamic factories
-- `BatchConfig` currently builds steps from paired source and target configurations
+- `BatchConfig` currently builds steps from explicit source-target references declared in `job-config.yaml`
 - model generation and runtime class resolution are centralized contracts
 
 This works well for file-based ETL, but RDBMS support introduces new concerns:
@@ -265,20 +266,20 @@ sequenceDiagram
 The enum already contains `RELATIONAL`, which is the correct long-term direction.
 
 ### `SourceConfig`
-`SourceConfig` will need a new polymorphic subtype:
+`SourceConfig` now includes the polymorphic subtype:
 
 - `RelationalSourceConfig` with discriminator `relational`
 
 ### `TargetConfig`
-`TargetConfig` will need a new polymorphic subtype:
+`TargetConfig` now includes the polymorphic subtype:
 
 - `RelationalTargetConfig` with discriminator `relational`
 
 ### Reader factory
-`DynamicReaderFactory` should route relational sources to a dedicated relational reader implementation rather than adding JDBC conditionals into unrelated readers.
+`DynamicReaderFactory` now routes relational sources to a dedicated relational reader implementation rather than adding JDBC conditionals into unrelated readers.
 
 ### Writer factory
-`DynamicWriterFactory` should route relational targets to a dedicated relational writer implementation.
+`DynamicWriterFactory` now routes relational targets to a dedicated relational writer implementation.
 
 ### Processor layer
 No fundamental processor redesign is required for basic relational support. Processors should continue to transform source model objects into target model objects.
@@ -443,30 +444,32 @@ That hardening now includes:
 - sanitized committed scenario YAMLs that use placeholders instead of live connection secrets
 - automated validation of a 20k-row relational source -> relational target flow using H2
 
-### Phase 1 implementation start
+### Phase 1 implementation path used
 
-The first delivered implementation slice should start with **cross-connector validation** rather than relational-to-relational flow immediately.
+The first delivered implementation slice followed **cross-connector validation** before broader relational-to-relational hardening.
 
-Recommended delivery order:
+Applied delivery order:
 
 1. existing file source (for example CSV) -> relational target
 2. relational source -> existing file target
 3. relational source -> relational target
 
-This keeps the first change isolated to the relational writer path, proves that the current source/processor pipeline can target a database cleanly, and reduces debugging ambiguity.
+This kept the first change isolated to the relational writer path, proved that the current source/processor pipeline could target a database cleanly, and reduced debugging ambiguity.
 
-For the first live vendor implementation, start with:
+For the first live vendor-oriented implementation, the baseline was:
 
 - `format: relational`
 - `vendor: sqlserver`
 - `writeMode: insert`
 
-The phase-1 relational target implementation should therefore:
+The implemented phase-1 relational target path therefore:
 
 - keep SQL Server as the first production-oriented vendor
 - keep the relational target writer insert-only
 - use H2-based automated tests for CI validation where practical
 - externalize credentials rather than committing live connection secrets into repository YAML
+
+Preserved SQL Server scenario bundles now go one step further: committed placeholder values such as `<SQLSERVER_HOST>` are rejected during selected-scenario config resolution so operators see a clear configuration error before batch execution starts.
 
 ## Phase 2
 Add richer target semantics:
@@ -509,7 +512,7 @@ When relational implementation work begins or evolves, validate that changes sti
 - Are tests covering count strategy, streaming behavior, and write semantics?
 - If the design diverges, has the architecture note or a new ADR been updated to explain why?
 
-## Open questions before implementation
+## Open questions for further hardening
 
 - Should connections be defined inline per source/target or support reusable named connection references?
 - Should phase 1 include only reads, only writes, or both together?

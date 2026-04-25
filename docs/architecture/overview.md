@@ -63,7 +63,7 @@ Spring Boot starts the app, builds the context, and launches the ETL job through
 ### Batch orchestration
 - `src/main/java/com/etl/config/BatchConfig.java`
 
-`BatchConfig` constructs the job from the selected config set and dynamically builds steps by pairing sources and targets. It also chooses chunk or tasklet execution depending on the record count threshold.
+`BatchConfig` constructs the job from the selected config set and dynamically builds steps from the explicit `steps` declared in `job-config.yaml`. Each configured step resolves its named source and target, validates that a processor mapping exists, and then chooses chunk or tasklet execution depending on the record count threshold.
 
 ### Dynamic extension points
 - `src/main/java/com/etl/reader/DynamicReaderFactory.java`
@@ -82,19 +82,21 @@ This is the central contract between configuration, generated model classes, pro
 - clear separation between config loading and runtime execution
 - explicit business-scenario selection without scenario auto-discovery
 - strict startup behavior with no implicit production fallback
+- fail-fast validation for placeholder relational connection settings in selected scenarios
 - pluggable reader/processor/writer model
 - dynamic support for multiple source and target formats
 - adaptive execution model for smaller vs larger workloads
+- repeatable local verification reporting with categorized Markdown evidence output
 - good base for future relational, API, or procedure-based extensions
 
 ## Current architectural constraints
 
-- `BatchConfig` currently pairs sources and targets by index
 - `etl.config.job` currently resolves a selected scenario by file path, not by a short scenario-name registry
 - demo fallback remains available only as an explicitly enabled local/demo path
 - orchestration is step-based but still centered on `source -> processor -> target`
 - stored procedures and richer multi-job flows will require a higher-level step operation model
 - generated models currently remain an important runtime dependency and contract surface
+- run summaries are machine-readable, but full persistent job history, release gating, and HTML verification views remain future work
 
 ## Near-term evolution points
 

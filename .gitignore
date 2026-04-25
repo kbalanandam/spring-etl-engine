@@ -31,3 +31,9 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Local temporary verification / runtime artifacts ###
+tmp-test-config/
+tmp-sqlserver-connect.txt
+logs/
+

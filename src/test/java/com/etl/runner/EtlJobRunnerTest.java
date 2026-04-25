@@ -13,6 +13,7 @@ import org.springframework.batch.core.launch.JobLauncher;
 import java.net.URISyntaxException;
 import java.time.LocalDate;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -43,7 +44,8 @@ class EtlJobRunnerTest {
         RunConfigurationMetadata metadata = new RunConfigurationMetadata(
                 "Customer Load",
                 CUSTOMER_LOAD_JOB_CONFIG,
-                false
+                false,
+                List.of(step("customers-step", "Customers", "Customers"))
         );
 
         EtlJobRunner runner = new EtlJobRunner(jobLauncher, etlJob, metadata);
@@ -58,6 +60,14 @@ class EtlJobRunnerTest {
         assertNull(MDC.get(RunLoggingContext.SCENARIO));
         assertNull(MDC.get(RunLoggingContext.SCENARIO_LOG_KEY));
         assertNull(MDC.get(RunLoggingContext.RUN_CORRELATION_ID));
+    }
+
+    private static com.etl.config.job.JobConfig.JobStepConfig step(String name, String source, String target) {
+        com.etl.config.job.JobConfig.JobStepConfig step = new com.etl.config.job.JobConfig.JobStepConfig();
+        step.setName(name);
+        step.setSource(source);
+        step.setTarget(target);
+        return step;
     }
 
     private static String customerLoadJobConfigPath() {
