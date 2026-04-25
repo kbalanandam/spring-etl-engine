@@ -523,6 +523,197 @@ class ConfigLoaderJobConfigTest {
 
     assertThrows(ConfigException.class, loader::sourceWrapper);
   }
+
+  @Test
+  void failsFastWhenRejectHandlingIsEnabledWithoutOutputPath() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+        sources:
+          - format: csv
+            sourceName: Events
+            packageName: com.etl.model.source
+            filePath: input/events.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: String
+        """);
+    Files.writeString(targetConfig, """
+        targets:
+          - format: csv
+            targetName: EventsCsv
+            packageName: com.etl.model.target
+            filePath: output/events.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: String
+        """);
+    Files.writeString(processorConfig, """
+        type: default
+        rejectHandling:
+          enabled: true
+        mappings:
+          - source: Events
+            target: EventsCsv
+            fields:
+              - from: id
+                to: id
+        """);
+    Files.writeString(jobConfig, """
+        name: reject-missing-path
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: events-step
+            source: Events
+            target: EventsCsv
+        """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(messageChain(exception).contains("rejectHandling"));
+  }
+
+  @Test
+  void failsFastWhenTimeFormatRuleIsMissingPattern() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+        sources:
+          - format: csv
+            sourceName: Events
+            packageName: com.etl.model.source
+            filePath: input/events.csv
+            delimiter: ","
+            fields:
+              - name: eventTime
+                type: String
+        """);
+    Files.writeString(targetConfig, """
+        targets:
+          - format: csv
+            targetName: EventsCsv
+            packageName: com.etl.model.target
+            filePath: output/events.csv
+            delimiter: ","
+            fields:
+              - name: eventTime
+                type: String
+        """);
+    Files.writeString(processorConfig, """
+        type: default
+        mappings:
+          - source: Events
+            target: EventsCsv
+            fields:
+              - from: eventTime
+                to: eventTime
+                rules:
+                  - type: timeFormat
+        """);
+    Files.writeString(jobConfig, """
+        name: time-format-missing-pattern
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: events-step
+            source: Events
+            target: EventsCsv
+        """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(messageChain(exception).contains("timeFormat"));
+    assertTrue(messageChain(exception).contains("pattern"));
+  }
+
+  @Test
+  void failsFastWhenCsvArchiveIsEnabledWithoutSuccessPath() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+        sources:
+          - format: csv
+            sourceName: Events
+            packageName: com.etl.model.source
+            filePath: input/events.csv
+            delimiter: ","
+            archive:
+              enabled: true
+            fields:
+              - name: id
+                type: String
+        """);
+    Files.writeString(targetConfig, """
+        targets:
+          - format: csv
+            targetName: EventsCsv
+            packageName: com.etl.model.target
+            filePath: output/events.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: String
+        """);
+    Files.writeString(processorConfig, """
+        type: default
+        mappings:
+          - source: Events
+            target: EventsCsv
+            fields:
+              - from: id
+                to: id
+        """);
+    Files.writeString(jobConfig, """
+        name: archive-missing-success-path
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: events-step
+            source: Events
+            target: EventsCsv
+        """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    assertTrue(exception.getMessage().contains("archive"));
+    assertTrue(exception.getMessage().contains("successPath"));
+  }
+
+  private String messageChain(Throwable throwable) {
+    StringBuilder builder = new StringBuilder();
+    Throwable current = throwable;
+    while (current != null) {
+      if (current.getMessage() != null) {
+        builder.append(current.getMessage()).append(" | ");
+      }
+      current = current.getCause();
+    }
+    return builder.toString();
+  }
 }
 
 

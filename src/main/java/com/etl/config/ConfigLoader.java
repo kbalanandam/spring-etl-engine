@@ -3,6 +3,7 @@ package com.etl.config;
 import com.etl.config.exception.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.config.source.CsvSourceConfig;
 import com.etl.config.source.RelationalSourceConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
@@ -128,8 +129,10 @@ public class ConfigLoader {
 					if (fm.getTo() == null || fm.getTo().isEmpty()) {
 						throw new IllegalStateException("FieldMapping missing 'to' in entity " + em.getSource());
 					}
+					validateFieldRules(em, fm);
 				}
 			}
+			validateRejectHandling(config);
 			logger.info("Processor configuration loaded and validated successfully from YAML");
 			return config;
 		} catch (ConfigException e) {
@@ -361,6 +364,9 @@ public class ConfigLoader {
 		}
 
 		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
+			if (sourceConfig instanceof CsvSourceConfig csvSourceConfig) {
+				validateCsvArchiveConfig(csvSourceConfig, scenarioName, sourceConfigPath);
+			}
 			if (sourceConfig instanceof RelationalSourceConfig relationalSourceConfig) {
 				try {
 					relationalSourceConfig.validate();
@@ -473,6 +479,56 @@ public class ConfigLoader {
 
 	private String defaultName(String configuredName) {
 		return configuredName == null || configuredName.isBlank() ? "unnamed" : configuredName.trim();
+	}
+
+	private void validateRejectHandling(ProcessorConfig config) {
+		ProcessorConfig.RejectHandling rejectHandling = config.getRejectHandling();
+		if (rejectHandling == null || !rejectHandling.isEnabled()) {
+			return;
+		}
+
+		if (rejectHandling.getOutputPath() == null || rejectHandling.getOutputPath().isBlank()) {
+			throw new IllegalStateException("ProcessorConfig.rejectHandling.enabled=true requires a non-blank 'outputPath'.");
+		}
+	}
+
+	private void validateFieldRules(ProcessorConfig.EntityMapping entityMapping, ProcessorConfig.FieldMapping fieldMapping) {
+		if (fieldMapping.getRules() == null || fieldMapping.getRules().isEmpty()) {
+			return;
+		}
+
+		for (int i = 0; i < fieldMapping.getRules().size(); i++) {
+			ProcessorConfig.FieldRule rule = fieldMapping.getRules().get(i);
+			if (rule == null || rule.getType() == null || rule.getType().isBlank()) {
+				throw new IllegalStateException("FieldMapping rule missing 'type' for entity " + entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom() + "'.");
+			}
+
+			switch (rule.getType().trim()) {
+				case "notNull" -> {
+				}
+				case "timeFormat" -> {
+					if (rule.getPattern() == null || rule.getPattern().isBlank()) {
+						throw new IllegalStateException("FieldMapping rule 'timeFormat' requires a non-blank 'pattern' for entity "
+								+ entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom() + "'.");
+					}
+				}
+				default -> throw new IllegalStateException("Unsupported field rule type '" + rule.getType().trim() + "' for entity "
+						+ entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom() + "'.");
+			}
+		}
+	}
+
+	private void validateCsvArchiveConfig(CsvSourceConfig csvSourceConfig, String scenarioName, String sourceConfigPath) {
+		CsvSourceConfig.ArchiveConfig archive = csvSourceConfig.getArchive();
+		if (archive == null || !archive.isEnabled()) {
+			return;
+		}
+
+		if (archive.getSuccessPath() == null || archive.getSuccessPath().isBlank()) {
+			throw new ConfigException("Invalid CSV source archive configuration for scenario '" + scenarioName +
+					"' in " + sourceConfigPath + " (source='" + defaultName(csvSourceConfig.getSourceName()) +
+					"'): archive.enabled=true requires a non-blank successPath.");
+		}
 	}
 
 	private record ResolvedRuntimeConfig(

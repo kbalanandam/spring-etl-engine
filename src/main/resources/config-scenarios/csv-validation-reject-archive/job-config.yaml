@@ -1,0 +1,9 @@
+name: csv-validation-reject-archive
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: events-validation-step
+    source: Events
+    target: EventsCsv
+

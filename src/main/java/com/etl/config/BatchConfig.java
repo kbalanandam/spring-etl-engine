@@ -10,6 +10,8 @@ import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
+import com.etl.job.listener.FileIngestionHardeningStepListener;
+import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
@@ -61,6 +63,7 @@ public class BatchConfig {
     private final StepLoggingContextListener stepLoggingContextListener;
     private final ProcessorConfig processorConfig;
     private final RunConfigurationMetadata runConfigurationMetadata;
+	private final FileIngestionRuntimeSupport fileIngestionRuntimeSupport;
 
     /**
      * The threshold for switching between chunk and tasklet processing.
@@ -88,7 +91,8 @@ public class BatchConfig {
                        JobCompletionNotificationListener listener, DynamicProcessorFactory processorFactory,
                        ProcessorConfig processorConfig, TargetWrapper targetWrapper,
                        StepLoggingContextListener stepLoggingContextListener,
-                       RunConfigurationMetadata runConfigurationMetadata) {
+					   RunConfigurationMetadata runConfigurationMetadata,
+					   FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
         this.sourceWrapper = sourceWrapper;
         this.readerFactory = readerFactory;
         this.targetWrapper = targetWrapper;
@@ -100,6 +104,7 @@ public class BatchConfig {
         this.stepLoggingContextListener = stepLoggingContextListener;
         this.processorConfig = processorConfig;
         this.runConfigurationMetadata = runConfigurationMetadata;
+		this.fileIngestionRuntimeSupport = fileIngestionRuntimeSupport;
 
         logger.info("EtlJobConfiguration initialized.");
     }
@@ -161,7 +166,7 @@ public class BatchConfig {
             JobConfig.JobStepConfig configuredStep = configuredSteps.get(i);
             SourceConfig s = requireSource(configuredStep, sourceByName);
             TargetConfig t = requireTarget(configuredStep, targetByName);
-            requireProcessorMapping(configuredStep);
+			ProcessorConfig.EntityMapping mapping = requireProcessorMapping(configuredStep);
 
             String stepName = configuredStep.getName();
             logger.info("STEP_PLAN event=step_plan stepName={} source={} target={} stepOrder={}", stepName, configuredStep.getSource(), configuredStep.getTarget(), i);
@@ -187,6 +192,8 @@ public class BatchConfig {
                     : GeneratedModelClassResolver.resolveTargetWriteClass(metadata);
             ItemWriter<Object> writer = DynamicBatchUtils.getDynamicWriter(writerFactory, t, writerClass);
             ItemProcessor<Object, Object> processor = processorFactory.getProcessor(processorConfig, s, t, metadata);
+            FileIngestionHardeningStepListener fileIngestionHardeningStepListener =
+					new FileIngestionHardeningStepListener(s, processorConfig, mapping, fileIngestionRuntimeSupport);
 
             StepBuilder stepBuilder = new StepBuilder(stepName, jobRepository);
             Step step;
@@ -194,6 +201,7 @@ public class BatchConfig {
                 step = stepBuilder
                         .chunk(chunkThreshold, transactionManager)
                         .listener(stepLoggingContextListener)
+						.listener(fileIngestionHardeningStepListener)
                         .reader(reader)
                         .processor(processor)
                         .writer(writer)
@@ -202,9 +210,11 @@ public class BatchConfig {
             } else {
                 step = stepBuilder
                         .listener(stepLoggingContextListener)
+						.listener(fileIngestionHardeningStepListener)
                         .tasklet((contribution, chunkContext) -> {
                             Object item;
                             List<Object> buffer = new ArrayList<>();
+                            int acceptedCount = 0;
                             ExecutionContext executionContext = new ExecutionContext();
                             boolean isReaderStream = reader instanceof ItemStream;
                             boolean isWriterStream = writer instanceof ItemStream;
@@ -216,8 +226,14 @@ public class BatchConfig {
                             }
                             try {
                                 while ((item = reader.read()) != null) {
+									contribution.incrementReadCount();
                                     Object processed = processor.process(item);
+									if (processed == null) {
+										contribution.incrementFilterCount(1);
+										continue;
+									}
                                     buffer.add(processed);
+									acceptedCount++;
                                 }
                                 if (!buffer.isEmpty()) {
                                     if (metadata.isWrapperRequired()) {
@@ -230,6 +246,7 @@ public class BatchConfig {
                                     } else {
                                         writer.write(new Chunk<>(buffer));
                                     }
+									contribution.incrementWriteCount(acceptedCount);
                                 }
                             } finally {
                                 if (isReaderStream) {
@@ -292,13 +309,16 @@ public class BatchConfig {
         return targetConfig;
     }
 
-    private void requireProcessorMapping(JobConfig.JobStepConfig configuredStep) {
-        boolean mappingExists = processorConfig.getMappings() != null && processorConfig.getMappings().stream()
-                .anyMatch(mapping -> configuredStep.getSource().equals(mapping.getSource())
-                        && configuredStep.getTarget().equals(mapping.getTarget()));
-        if (!mappingExists) {
+      private ProcessorConfig.EntityMapping requireProcessorMapping(JobConfig.JobStepConfig configuredStep) {
+        ProcessorConfig.EntityMapping mapping = processorConfig.getMappings() == null ? null : processorConfig.getMappings().stream()
+            .filter(candidate -> configuredStep.getSource().equals(candidate.getSource())
+                && configuredStep.getTarget().equals(candidate.getTarget()))
+            .findFirst()
+            .orElse(null);
+        if (mapping == null) {
             throw new IllegalStateException("Step '" + configuredStep.getName() + "' does not have a matching processor mapping for source '"
                     + configuredStep.getSource() + "' and target '" + configuredStep.getTarget() + "'.");
         }
+        return mapping;
     }
 }

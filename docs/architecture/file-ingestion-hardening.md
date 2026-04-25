@@ -2,16 +2,16 @@
 
 ## Purpose
 
-This note defines the proposed next design slice for file-based ingestion hardening in `spring-etl-engine` before code changes are made.
+This note preserves the first implemented file-based ingestion hardening slice in `spring-etl-engine` and the remaining follow-on direction that is still deferred.
 
-Use it to answer four questions before implementation starts:
+Use it to answer four questions when extending this area further:
 
 1. where archive behavior should be configured
 2. where rejected-record behavior should be configured
 3. where field-level validation rules should be configured
 4. what the first supported file-ingestion slice should and should not do
 
-This is a forward-looking design note. It is not yet the current shipped config contract.
+The first CSV-focused slice described here is now part of the shipped config contract. Broader expansion beyond that slice remains forward-looking architecture guidance.
 
 ## Why this note exists
 
@@ -41,14 +41,14 @@ Today, the shipped config contract supports:
 - default processor field mapping through `processor-config.yaml`
 - target writing through the selected target config
 
-Today, the shipped config contract does **not** yet support:
+Today, the shipped config contract now supports a first CSV-focused slice for:
 
-- per-field validation rules in processor mappings
-- explicit rejected-record output configuration
-- processed-source-file archive configuration
-- accepted vs rejected record artifact semantics
+- per-field validation rules in processor mappings (`notNull`, `timeFormat`)
+- explicit rejected-record output configuration in processor config
+- processed-source-file archive configuration in CSV source config
+- accepted vs rejected record artifact semantics for the preserved CSV proof scenario
 
-Those gaps are intentional in the current `1.3.0` baseline and are the reason this note exists.
+The remaining gaps are now the broader follow-on work beyond that first slice.
 
 ## Design goals for the next slice
 

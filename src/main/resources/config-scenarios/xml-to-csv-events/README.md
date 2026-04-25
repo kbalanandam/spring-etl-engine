@@ -18,8 +18,8 @@ Business scenario for converting one realistic flat XML event feed into CSV outp
 ## Notes
 
 - The XML sample lives at `src/main/resources/demo-input/Events.xml`.
-- This scenario is a runnable baseline for the later file-ingestion hardening slice.
-- In the current shipped runtime, all records are mapped and written as-is; future validation/reject/archive behavior is still a separate planned slice.
+- This scenario remains a runnable baseline XML-to-CSV flow.
+- The first validation/reject/archive slice is now shipped for CSV-backed scenarios, but this preserved XML scenario does not enable those optional config fields and still maps/writes records as-is.
 
 ## Run example
 

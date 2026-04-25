@@ -63,7 +63,7 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 | Target | CSV | Supported | Existing runtime path |
 | Target | XML | Supported | Existing runtime path |
 | Target | Relational | Supported (phase 1) | Insert-only target path with current field name == column name assumption |
-| Processor | Default | Supported | Field-to-field mapping |
+| Processor | Default | Supported | Field-to-field mapping plus first-slice CSV validation/reject handling |
 
 ## Docs in this section
 
@@ -86,14 +86,16 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 
 | Scenario bundle | Primary flow | Notes |
 |---|---|---|
+| `src/main/resources/config-scenarios/csv-validation-reject-archive/` | CSV -> CSV | Preserved first shipped proof for CSV field validation rules, rejected-record output, and archive-on-success behavior |
 | `src/main/resources/config-scenarios/csv-to-sqlserver/` | CSV -> relational SQL Server target | Preserved placeholder values now fail fast at startup until replaced with real connection settings |
 | `src/main/resources/config-scenarios/relational-to-relational/` | relational source -> relational target | Preserves `countQuery`, `fetchSize`, and `batchSize` for larger-volume relational testing |
-| `src/main/resources/config-scenarios/xml-to-csv-events/` | XML -> CSV | Preserved realistic flat XML event feed used as a baseline XML-to-CSV scenario before the later validation/reject/archive hardening slice |
+| `src/main/resources/config-scenarios/xml-to-csv-events/` | XML -> CSV | Preserved realistic flat XML event feed used as a baseline XML-to-CSV scenario without the optional validation/reject/archive config enabled |
 | `src/main/resources/config-scenarios/customer-load/` | CSV -> XML | Single-step business scenario selected through `job-config.yaml` |
 | `src/main/resources/config-scenarios/department-load/` | CSV -> XML | Single-step business scenario selected through `job-config.yaml` |
 | `src/main/resources/config-scenarios/cust-dept-load/` | CSV -> XML + XML | Multi-step business scenario with explicit ordered `steps` |
 
 Those scenarios together demonstrate:
+- first shipped CSV field validation / reject / archive behavior
 - existing CSV source
 - default processor mapping
 - relational SQL Server target
@@ -162,5 +164,5 @@ Whenever a new source, target, or processor type is added or its field contract 
 - add or update at least one scenario config folder if the change introduces a new combination worth preserving
 - keep the preserved YAML example and the matching field reference synchronized so the docs remain executable-reference friendly
 
-For the currently proposed next file-ingestion slice, see [`../architecture/file-ingestion-hardening.md`](../architecture/file-ingestion-hardening.md). It captures the design-only proposal for archive behavior, rejected-record output, and field-rule placement before those fields are added to the shipped config contract.
+For the broader file-ingestion hardening direction beyond the current CSV slice, see [`../architecture/file-ingestion-hardening.md`](../architecture/file-ingestion-hardening.md). It now captures the shipped first slice plus the remaining deferred expansions.
 

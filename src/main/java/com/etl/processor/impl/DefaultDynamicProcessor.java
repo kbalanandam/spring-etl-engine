@@ -7,10 +7,14 @@ import com.etl.config.source.SourceConfig;
 import com.etl.config.processor.ProcessorConfig.EntityMapping;
 import com.etl.config.target.TargetConfig;
 import com.etl.mapping.DynamicMapping;
+import com.etl.mapping.ValidationAwareDynamicMapping;
 import com.etl.processor.DynamicProcessor;
+import com.etl.processor.validation.ValidationRuleEvaluator;
+import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 /**
@@ -72,6 +76,19 @@ import org.springframework.stereotype.Component;
 public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object> {
 
 	private static final Logger logger = LoggerFactory.getLogger(DefaultDynamicProcessor.class);
+	private final ValidationRuleEvaluator validationRuleEvaluator;
+	private final FileIngestionRuntimeSupport fileIngestionRuntimeSupport;
+
+	public DefaultDynamicProcessor() {
+		this(new ValidationRuleEvaluator(), new FileIngestionRuntimeSupport());
+	}
+
+	@Autowired
+	public DefaultDynamicProcessor(ValidationRuleEvaluator validationRuleEvaluator,
+	                             FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
+		this.validationRuleEvaluator = validationRuleEvaluator;
+		this.fileIngestionRuntimeSupport = fileIngestionRuntimeSupport;
+	}
 
 	/**
 	 * Returns the processor type identifier used in YAML:
@@ -133,6 +150,20 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 				targetConfig.getTargetName(),
 				mapping.getFields().size()
 		);
+		if (hasValidationRules(mapping)) {
+			return new ValidationAwareDynamicMapping<>(
+					mapping,
+					targetClass,
+					validationRuleEvaluator,
+					fileIngestionRuntimeSupport,
+					processorConfig.getRejectHandling() != null && processorConfig.getRejectHandling().isEnabled()
+			);
+		}
 		return new DynamicMapping<>(mapping, targetClass);
+	}
+
+	private boolean hasValidationRules(EntityMapping mapping) {
+		return mapping.getFields() != null && mapping.getFields().stream()
+				.anyMatch(fieldMapping -> fieldMapping.getRules() != null && !fieldMapping.getRules().isEmpty());
 	}
 }

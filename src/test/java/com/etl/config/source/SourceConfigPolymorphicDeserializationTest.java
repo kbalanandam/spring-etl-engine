@@ -48,5 +48,36 @@ class SourceConfigPolymorphicDeserializationTest {
         assertEquals(1000, relationalSource.getMaxRows());
         assertEquals("h2", relationalSource.getConnection().getVendor());
     }
+
+  @Test
+  void deserializesCsvSourceArchiveConfigFromYaml() throws Exception {
+    String yaml = """
+        sources:
+          - format: csv
+            sourceName: Events
+            packageName: com.etl.model.source
+            filePath: input/events.csv
+            delimiter: ","
+            archive:
+              enabled: true
+              successPath: target/archive/success/
+              namePattern: "{originalName}-{timestamp}"
+            fields:
+              - name: id
+                type: String
+              - name: eventTime
+                type: String
+        """;
+
+    ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+    mapper.findAndRegisterModules();
+
+    SourceWrapper wrapper = mapper.readValue(yaml, SourceWrapper.class);
+    CsvSourceConfig csvSource = assertInstanceOf(CsvSourceConfig.class, wrapper.getSources().get(0));
+
+    assertEquals("Events", csvSource.getSourceName());
+    assertEquals("target/archive/success/", csvSource.getArchive().getSuccessPath());
+    assertEquals("{originalName}-{timestamp}", csvSource.getArchive().getNamePattern());
+  }
 }
 

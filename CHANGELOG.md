@@ -7,12 +7,15 @@ and this project adheres to **Semantic Versioning**.
 ## [Unreleased]
 
 ### Added
-- Started the next file-ingestion hardening scope for rejected-record handling so future runs can separate accepted output from rejected records with operator-visible evidence.
-- Started the next file lifecycle scope for archiving processed source files after successful runs, with room for scenario-specific archive handling rules.
-- Added a preserved `xml-to-csv-events` scenario bundle plus a realistic flat XML sample so XML-to-CSV runs can be exercised through explicit `job-config.yaml` selection before the later validation/reject/archive hardening slice is implemented.
+- Added first-slice field-level validation support in the default processor for CSV-backed scenarios, starting with `notNull` and `timeFormat` rules on mapped fields.
+- Added first-slice rejected-record handling for validation-aware CSV runs, including reject CSV artifacts with `_rejectField`, `_rejectRule`, and `_rejectMessage` metadata.
+- Added archive-on-success support for CSV source configs through `archive.enabled`, `archive.successPath`, and `archive.namePattern`.
+- Added a preserved `csv-validation-reject-archive` scenario bundle plus a realistic CSV input sample to prove accepted output, rejected output, and archived-source-file behavior together.
+- Added step-finished evidence for `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath` in machine-readable step lifecycle logging.
+- Added a preserved `xml-to-csv-events` scenario bundle plus a realistic flat XML sample so XML-to-CSV runs can be exercised through explicit `job-config.yaml` selection as a baseline scenario.
 
 ### Changed
-- The next planned validation slice is now centered on configurable field rules such as `notNull` and time-format checks for file-based ingestion scenarios.
+- The file-ingestion hardening work is now implemented as a first CSV-focused slice instead of design-only planning, while broader expression, conditional, and richer quarantine behavior remains future work.
 
 ---
 

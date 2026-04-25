@@ -76,15 +76,17 @@ steps:
 - The selected processor config must contain a matching mapping for each source/target pair used by the selected steps.
 - A multi-step scenario can reuse one processor config file with multiple mappings; runtime picks the mapping by `source` and `target` names, not by list position.
 - Use `etl.config.job` as the normal production-style entry point. Direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides are intended for demo/fallback cases only.
-- Step-level ingestion lifecycle options such as archive-on-success are not part of the shipped `job-config.yaml` contract yet; those are still design-only discussions.
+- Archive-on-success remains part of the selected CSV source config, not `job-config.yaml`.
+- Rejected-record handling and field-level validation rules remain part of the selected processor config, not `job-config.yaml`.
 
-## Proposed next-slice design note
+## Related design note
 
-The proposed next file-ingestion hardening contract is documented in [`../architecture/file-ingestion-hardening.md`](../architecture/file-ingestion-hardening.md). That note discusses archive behavior, rejected-record output, and field-rule placement before implementation begins.
+The broader file-ingestion hardening direction beyond the current CSV slice is documented in [`../architecture/file-ingestion-hardening.md`](../architecture/file-ingestion-hardening.md).
 
 ## Preserved examples
 
 - `src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml`
+- `src/main/resources/config-scenarios/csv-validation-reject-archive/job-config.yaml`
 - `src/main/resources/config-scenarios/relational-to-relational/job-config.yaml`
 - `src/main/resources/config-scenarios/xml-to-csv-events/job-config.yaml`
 - `src/main/resources/config-scenarios/customer-load/job-config.yaml`

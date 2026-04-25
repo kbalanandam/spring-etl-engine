@@ -1,0 +1,5 @@
+id,eventTime,description
+EVT-1001,08:30:00,Morning startup completed
+,09:15:00,Missing required event code
+EVT-1003,25:99:00,Invalid time format example
+EVT-1004,17:45:10,Evening processing completed

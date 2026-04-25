@@ -1,0 +1,14 @@
+targets:
+  - format: csv
+    targetName: EventsCsv
+    packageName: com.etl.model.target
+    filePath: target/events-validation-output.csv
+    delimiter: ","
+    fields:
+      - name: id
+        type: String
+      - name: eventTime
+        type: String
+      - name: description
+        type: String
+

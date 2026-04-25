@@ -157,14 +157,14 @@ This table is the day-to-day execution view for the current product stage.
 |---|---|---|---|---|---|---|---|
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
-| T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Ready | M1 | A1 | Start with configurable `notNull` and time-format checks plus controlled rejected-record output |
+| T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped slice now supports CSV-backed `notNull` and time-format checks plus controlled rejected-record output |
 | T2 | Add expression-based derived field support | Epic T | P1 | Deferred | M2 | T1 | Restore the next explicit transformation step after the first validation/reject slice is stable |
 | T3 | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T2 | Best introduced after expression contract is stable |
 | T4 | Expand validation and reject/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Broaden beyond the first file-based validation slice into richer transformation behavior |
 | T5 | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Bridges toward more classic ETL transformation patterns |
 | B1 | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | B2 | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
-| B3 | Archive processed source files after successful file-based runs | Epic B | P1 | Ready | M1 | A1, T1 | First file lifecycle slice should archive originals only after successful processing |
+| B3 | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
 | C1 | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Done | M1 | none | `RUN_EVENT` / `RUN_SUMMARY` and step lifecycle evidence are now emitted for selected runs |
 | C2 | Capture source count, written count, and rejected count | Epic C | P1 | In Progress | M1 | C1 | Step-finished evidence now includes read/write/filter/skip counts; run-level reconciliation rollup remains to be completed |
 | D1 | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
@@ -184,11 +184,10 @@ This table is the day-to-day execution view for the current product stage.
 
 The intended near-term focus order is:
 
-1. `T1` and `B3` — field validation rules, rejected-record output, and processed-file archiving for file scenarios
-2. `T2` and `T3` — expression-based mapping and then conditional transformation rules
-3. `B1`, `B2`, `C2`, and `D1` — controlled skip/retry behavior plus richer counts, reconciliation, and stable error taxonomy
-4. `E2` — packaged-run guidance
-5. `V3` and `V4` — enterprise HTML reporting plus retention / release-gating rules
+1. `T2` and `T3` — expression-based mapping and then conditional transformation rules after the first CSV validation/reject/archive slice
+2. `B1`, `B2`, `C2`, and `D1` — controlled skip/retry behavior plus richer counts, reconciliation, and stable error taxonomy
+3. `E2` — packaged-run guidance
+4. `V3` and `V4` — enterprise HTML reporting plus retention / release-gating rules
 
 Scheduler/orchestration remains part of this same roadmap as **Epic S**. It should become active only after the product has clearer run-state, audit, and restartability foundations.
 
@@ -216,6 +215,7 @@ These are not “finished forever,” but they represent meaningful product prog
 - [x] Automated test coverage for key configuration and runtime slices
 - [x] Improved path portability across tests and demo defaults
 - [x] Local verification reporting with smoke checks, categorized Markdown output, and retained report history
+- [x] First CSV-based file-ingestion hardening slice with field validation rules, rejected-record output, processed-file archiving, and step-level reject/archive evidence
 
 ---
 
@@ -250,9 +250,9 @@ Handle bad data and transient failures in a controlled way.
 ### Backlog
 - [ ] Introduce configurable skip policy support
 - [ ] Introduce configurable retry policy support where appropriate
-- [ ] Add validation/rejection handling strategy for file-based ingestion
-- [ ] Add bad-record reporting or quarantine output option
-- [ ] Add processed-source-file archiving after successful runs
+- [x] Add validation/rejection handling strategy for file-based ingestion
+- [x] Add bad-record reporting or quarantine output option
+- [x] Add processed-source-file archiving after successful runs
 - [ ] Define fail-fast vs tolerate-and-report rules per scenario type
 
 ### Done criteria
@@ -270,11 +270,11 @@ Handle bad data and transient failures in a controlled way.
 Grow the product from structural field mapping into richer transformation behavior comparable to traditional ETL expectations, but in phased and controlled steps.
 
 ### Backlog
-- [ ] Add field-level validation rule support such as `notNull` and time-format checks
+- [x] Add field-level validation rule support such as `notNull` and time-format checks
 - [ ] Add expression-based derived field support
 - [ ] Add conditional transformation rule support
-- [ ] Add validation-aware transformation behavior
-- [ ] Add reject/quarantine handling for invalid records
+- [x] Add validation-aware transformation behavior
+- [x] Add reject/quarantine handling for invalid records
 - [ ] Define lookup/enrichment processor baseline
 - [ ] Document transformation maturity levels and non-goals
 
@@ -502,7 +502,8 @@ Focus:
 
 Current state:
 - substantially achieved by the 1.3.0 release through explicit `steps` orchestration, strict startup validation, machine-readable lifecycle logging, relational placeholder fail-fast validation, and local verification reporting
-- remaining M1-adjacent work is now mostly hardening work such as packaged-run guidance, richer count/reconciliation evidence, file-based validation/reject handling, processed-file archiving, and fault-tolerance behavior
+- the first M1 hardening follow-up is now also shipped for CSV-backed scenarios through field validation rules, rejected-record output, processed-file archiving, and step-level reject/archive evidence
+- remaining M1-adjacent work is now mostly packaged-run guidance, richer count/reconciliation evidence, and broader fault-tolerance behavior
 
 Exit signal:
 - product is credible for repeated controlled ETL runs across supported file scenarios
@@ -543,12 +544,11 @@ Exit signal:
 
 If the team has to choose only a few next steps, prioritize these in order:
 
-1. `T1` / `B3` — field validation rules, rejected-record output, and processed-file archiving
-2. `T2` / `T3` — expression-based mapping and conditional transformation capability
-3. `B1` / `B2` / `C2` / `D1` — fault tolerance, richer count evidence, reconciliation output, and stable error taxonomy
-4. `E2` — packaged-run guidance for jar execution with scenario bundles
-5. `F1` / `S1` / `S2` — restartability plus scheduler trigger model and first operator controls
-6. `V3` / `V4` / `G1` — enterprise HTML verification reporting, release-gating rules, and secure configuration maturity
+1. `T2` / `T3` — expression-based mapping and conditional transformation capability
+2. `B1` / `B2` / `C2` / `D1` — fault tolerance, richer count evidence, reconciliation output, and stable error taxonomy
+3. `E2` — packaged-run guidance for jar execution with scenario bundles
+4. `F1` / `S1` / `S2` — restartability plus scheduler trigger model and first operator controls
+5. `V3` / `V4` / `G1` — enterprise HTML verification reporting, release-gating rules, and secure configuration maturity
 
 ---
 
