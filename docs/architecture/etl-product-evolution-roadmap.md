@@ -4,6 +4,8 @@
 
 This document captures the intended product direction for `spring-etl-engine` so future design and implementation decisions can be evaluated in the right context.
 
+Use this note to answer three questions before starting or expanding a feature: what phase of product maturity are we in, does this feature belong in that phase, and are we introducing too much platform complexity too early. It is a direction-and-phases guide, not the execution backlog and not a connector-specific implementation spec.
+
 The product is currently in an ETL-first phase. The near-term goal is to make each supported source and target type operational, reliable, and consistent. The longer-term goal is to evolve the product toward a secure enterprise integration mediation platform.
 
 This note exists to prevent two common problems:
@@ -128,6 +130,7 @@ Focus on making the core product reliable and extensible.
 - Kafka as target
 - improved validation and execution configuration
 - stronger structural transformation, explicit mapping behavior, and transformation-safe orchestration
+- first file-ingestion hardening slices such as field-level validation rules, rejected-record handling, and processed-file archiving proven through preserved realistic file scenarios
 - better observability of batch flows
 - scenario/job-run oriented logging and diagnostic evidence
 
@@ -145,7 +148,7 @@ Expand beyond connector completeness into stronger integration capability.
 - API/SFTP connectors
 - micro-batch Kafka source
 - richer database write semantics
-- expressions, conditional transformations, validation/reject handling, and lookup/enrichment patterns
+- expression-based mapping, then conditional transformations, with broader validation/reject handling and lookup/enrichment patterns after the first file-based validation slice is stable
 - routing and transformation enhancements
 - first in-product scheduling/orchestration controls built on explicit run-state, audit, and operator visibility
 

@@ -26,9 +26,11 @@ For every significant enhancement, add or update:
 - [`architecture/runtime-flow.md`](architecture/runtime-flow.md) — end-to-end ETL runtime flow
 - [`architecture/extension-points.md`](architecture/extension-points.md) — where new formats, processors, and future capabilities plug in
 - [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md) — top architectural risks to watch during roadmap execution
-- [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase and future enterprise integration direction
+- [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase, future enterprise integration direction, and the high-level guide for what belongs now vs later
+- [`architecture/file-ingestion-hardening.md`](architecture/file-ingestion-hardening.md) — proposed next-slice design for file validation rules, rejected-record output, and processed-file archiving before code changes
+- [`architecture/file-ingestion-hardening-checklist.md`](architecture/file-ingestion-hardening-checklist.md) — execution-ready checklist for likely code touch points, tests, and the first preserved proof scenario for the file-ingestion hardening slice
 - [`architecture/relational-db-support.md`](architecture/relational-db-support.md) — current relational support baseline, phase-1 implementation status, and future hardening direction
-- [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md) — phased transformation maturity roadmap from structural mapping toward enterprise-grade ETL behavior
+- [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md) — phased transformation maturity roadmap and the high-level guide for what transformation behavior belongs now vs later
 - [`architecture/job-history-and-operational-observability.md`](architecture/job-history-and-operational-observability.md) — current observability baseline plus future direction for retained run history, structured operational events, and diagnostics
 - [`architecture/ai-assisted-operations-intelligence.md`](architecture/ai-assisted-operations-intelligence.md) — future operator-assist roadmap for AI-grounded search and summarization over job history and logs
 - [`architecture/TEMPLATE.md`](architecture/TEMPLATE.md) — template for future design notes
@@ -53,6 +55,7 @@ For every significant enhancement, add or update:
 
 ### Scenario examples
 - `src/main/resources/config-scenarios/csv-to-sqlserver/` — preserved example for CSV source to SQL Server target without changing the default resource YAMLs
+- `src/main/resources/config-scenarios/xml-to-csv-events/` — preserved example for a realistic flat XML source to CSV target baseline run
 - `src/main/resources/config-scenarios/customer-load/` — business scenario for customer-only ETL
 - `src/main/resources/config-scenarios/department-load/` — business scenario for department-only ETL
 - `src/main/resources/config-scenarios/cust-dept-load/` — business scenario for multi-step customer + department ETL
@@ -105,9 +108,11 @@ Create or update docs when a change:
 
 The relational database support topic is now started in [`architecture/relational-db-support.md`](architecture/relational-db-support.md).
 
-The product-direction baseline is now captured in [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md).
+The product-direction baseline is now captured in [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md). Use it to judge whether a proposed change fits the current ETL-first phase or should wait for a later platform phase.
 
-The transformation maturity direction that supports enterprise-grade ETL evolution is now captured in [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md).
+The proposed next file-ingestion hardening contract is now captured in [`architecture/file-ingestion-hardening.md`](architecture/file-ingestion-hardening.md) so archive behavior, rejected-record output, and field-rule placement are defined before implementation begins.
+
+The transformation maturity direction that supports enterprise-grade ETL evolution is now captured in [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md). Use it to judge whether a proposed mapping, validation, expression, or enrichment feature fits the current transformation slice or should wait for a later maturity level.
 
 The execution-facing backlog that translates that direction into concrete steps is now captured in [`product/product-backlog.md`](product/product-backlog.md), including a lightweight board-style view for active priorities, status, and milestone alignment.
 

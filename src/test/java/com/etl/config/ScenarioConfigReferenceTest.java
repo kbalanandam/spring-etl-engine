@@ -28,6 +28,7 @@ class ScenarioConfigReferenceTest {
         List<String> scenarioNames = List.of(
                 "csv-to-sqlserver",
                 "relational-to-relational",
+                "xml-to-csv-events",
                 "customer-load",
                 "department-load",
                 "cust-dept-load"

@@ -2,6 +2,8 @@
 
 This section documents the configuration contracts supported by `spring-etl-engine` today.
 
+It should be read together with the preserved scenario YAML bundles under `src/main/resources/config-scenarios/`. Those scenario files are the executable examples that should stay aligned with the field references in `docs/config/`.
+
 The goal is to keep the baseline resource YAML files stable while providing:
 
 - a field-by-field reference for each config type
@@ -44,8 +46,12 @@ This avoids rewriting the baseline YAML files every time a new connector combina
 
 Each scenario folder should be treated as a self-contained config bundle for one ETL run. The scenario folder is not executed automatically. One run should explicitly choose one scenario's `job-config.yaml`.
 
+These preserved scenario bundles are the closest thing to living reference YAMLs in the repository, so when a field contract changes the matching bundle and the matching `docs/config/*` page should be updated together.
+
 ### 3. Config reference docs
 These live under `docs/config/` and explain what each config type supports today.
+
+Forward-looking config proposals for not-yet-shipped behavior should stay in `docs/architecture/` design notes until the runtime contract is actually implemented.
 
 ## Current support matrix
 
@@ -71,22 +77,28 @@ These live under `docs/config/` and explain what each config type supports today
 ### Processor
 - [`processor/default-processor.md`](processor/default-processor.md)
 
+### Job selection
+- [`job-config.md`](job-config.md)
+
 ## Scenario examples
 
 ### Available now
-- `src/main/resources/config-scenarios/csv-to-sqlserver/`
-- `src/main/resources/config-scenarios/relational-to-relational/`
-- `src/main/resources/config-scenarios/customer-load/`
-- `src/main/resources/config-scenarios/department-load/`
-- `src/main/resources/config-scenarios/cust-dept-load/`
 
-Those scenarios demonstrate:
+| Scenario bundle | Primary flow | Notes |
+|---|---|---|
+| `src/main/resources/config-scenarios/csv-to-sqlserver/` | CSV -> relational SQL Server target | Preserved placeholder values now fail fast at startup until replaced with real connection settings |
+| `src/main/resources/config-scenarios/relational-to-relational/` | relational source -> relational target | Preserves `countQuery`, `fetchSize`, and `batchSize` for larger-volume relational testing |
+| `src/main/resources/config-scenarios/xml-to-csv-events/` | XML -> CSV | Preserved realistic flat XML event feed used as a baseline XML-to-CSV scenario before the later validation/reject/archive hardening slice |
+| `src/main/resources/config-scenarios/customer-load/` | CSV -> XML | Single-step business scenario selected through `job-config.yaml` |
+| `src/main/resources/config-scenarios/department-load/` | CSV -> XML | Single-step business scenario selected through `job-config.yaml` |
+| `src/main/resources/config-scenarios/cust-dept-load/` | CSV -> XML + XML | Multi-step business scenario with explicit ordered `steps` |
+
+Those scenarios together demonstrate:
 - existing CSV source
 - default processor mapping
 - relational SQL Server target
 - direct relational source to relational target flow
-
-The business scenarios demonstrate:
+- flat XML source to CSV target flow
 - explicit `job-config.yaml` driven selection
 - single-entity scenarios such as `customer-load` and `department-load`
 - a multi-entity scenario such as `cust-dept-load` where one selected config set drives multiple ETL steps in one run
@@ -130,6 +142,8 @@ steps:
 
 Relative paths in `job-config.yaml` are resolved from the job-config file's folder, and explicit job-config runs now require a non-empty `steps` list.
 
+For the full job-config field reference, including multi-step examples such as `cust-dept-load`, see [`job-config.md`](job-config.md).
+
 The engine should not auto-discover all scenario folders and execute them. One run should explicitly select one scenario/config set through `etl.config.job`.
 
 `JobConfig.name` is currently descriptive metadata for the selected scenario. It is not yet used as an independent runtime lookup key.
@@ -138,9 +152,15 @@ If `etl.config.job` is not set, startup should fail unless `etl.config.allow-dem
 
 For selected relational source or target configs, startup now also validates that committed template values such as `<SQLSERVER_HOST>` have been replaced with real environment-specific settings before runtime. This prevents preserved example scenarios from failing late during JDBC connection setup.
 
+This means the preserved SQL Server scenario bundles are safe to keep in the repository as templates, while still failing clearly if they are run without real environment-specific overrides.
+
 ## Documentation rule
 
 Whenever a new source, target, or processor type is added or its field contract changes:
 
 - update the relevant config reference doc
 - add or update at least one scenario config folder if the change introduces a new combination worth preserving
+- keep the preserved YAML example and the matching field reference synchronized so the docs remain executable-reference friendly
+
+For the currently proposed next file-ingestion slice, see [`../architecture/file-ingestion-hardening.md`](../architecture/file-ingestion-hardening.md). It captures the design-only proposal for archive behavior, rejected-record output, and field-rule placement before those fields are added to the shipped config contract.
+

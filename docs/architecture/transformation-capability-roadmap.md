@@ -4,6 +4,8 @@
 
 This document defines what “transformation” should mean in `spring-etl-engine` as the product evolves from a config-driven ETL foundation into an enterprise-grade ETL product.
 
+Use this note to answer three questions before expanding transformation behavior: what transformation means at the current product stage, which transformation features belong in the next slice, and which capabilities should wait until the runtime and operator model are stronger. It is a transformation-maturity guide, not the execution backlog and not a field-by-field processor config reference.
+
 It exists to prevent two common mistakes:
 
 - underestimating the current product because transformation is only associated with classic ETL suites
@@ -63,16 +65,22 @@ This is the current state.
 
 This is the next practical maturity target.
 
+The first implementation slice at this level should stay narrow: file-based validation rules, explicit rejected-record output, and operator-visible pass/fail behavior before broader expression-based mapping work expands.
+
+That first slice should be proven with at least one preserved realistic file scenario that shows accepted records, rejected records, and archived-original-file behavior together.
+
 ### Capabilities
 
-- derived fields through expressions
-- conditional mapping rules
-- normalization / standardization rules
 - validation with explicit pass/fail behavior
 - reject or quarantine handling for invalid records
+- expression-based mapping for derived fields
+- conditional mapping rules
+- normalization / standardization rules
 
 ### Example outcomes
 
+- `eventTime` must match `HH:mm:ss` or the record is routed to reject output
+- required-field failures such as missing customer identifiers are routed to controlled reject output
 - `fullName = firstName + ' ' + lastName`
 - `customerType = 'ENTERPRISE' when revenue > threshold`
 - invalid date or required-field failures routed to controlled reject output
@@ -80,6 +88,13 @@ This is the next practical maturity target.
 ### Product value
 
 This is the level where the product starts to feel more like a traditional ETL tool rather than only a dynamic mapper.
+
+The intended order inside this level is:
+
+1. file-based validation rules plus rejected-record handling
+2. processed-file archive behavior as adjacent ingestion hardening
+3. expression-based mapping for derived fields
+4. conditional transformation rules
 
 ---
 
@@ -167,10 +182,13 @@ Focus on:
 
 Focus on:
 
-- expressions
-- conditions
 - validation/reject handling
+- first configurable field rules such as `notNull` and time-format checks
+- expression-based mapping
+- conditions after the expression contract is stable
 - lookup/enrichment patterns
+
+Adjacent file-ingestion hardening such as archiving processed source files should evolve with this phase, but it should remain a file lifecycle capability rather than being treated as a separate transformation maturity level.
 
 ### Phase 3 alignment — enterprise mediation platform
 
@@ -199,17 +217,19 @@ When adding transformation features:
 
 The next meaningful transformation priorities are:
 
-1. explicit transformation orchestration instead of positional assumptions
-2. derived fields / expression support
-3. conditional transformation rules
-4. validation and reject handling model
-5. lookup/enrichment design baseline
+1. field-level validation rules for file scenarios such as `notNull` and time-format checks
+2. validation and reject handling model with controlled rejected-record output
+3. preserved realistic file-scenario proof for accepted, rejected, and archived-original-file behavior
+4. expression-based mapping / derived field support
+5. conditional transformation rules
+6. lookup/enrichment design baseline
 
 ---
 
 ## Related Notes
 
 - `docs/architecture/etl-product-evolution-roadmap.md`
+- `docs/architecture/file-ingestion-hardening.md`
 - `docs/architecture/runtime-flow.md`
 - `docs/config/processor/default-processor.md`
 - `docs/product/product-backlog.md`

@@ -56,6 +56,11 @@ sources:
 - No per-column source alias support yet
 - No schema inference; fields must be declared explicitly
 - No alternate header mapping rules yet
+- No archive/lifecycle handling fields in the shipped CSV source contract yet
+
+## Proposed next-slice design note
+
+The proposed design for processed-file archiving and the broader file-ingestion hardening slice is documented in [`../../architecture/file-ingestion-hardening.md`](../../architecture/file-ingestion-hardening.md). That note is forward-looking and is not yet part of the current shipped CSV config contract.
 
 ## Related docs
 

@@ -1,0 +1,8 @@
+name: xml-to-csv-events
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: events-xml-to-csv-step
+    source: Events
+    target: EventsCsv

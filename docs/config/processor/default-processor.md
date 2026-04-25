@@ -27,6 +27,8 @@ Backed by:
 
 ## Example
 
+This mirrors the preserved single-step processor config under `src/main/resources/config-scenarios/csv-to-sqlserver/processor-config.yaml`.
+
 ```yaml
 processor:
   type: default
@@ -46,15 +48,29 @@ processor:
 
 - Mapping lookup is based on source/target names, not only on format type.
 - This allows the same source format to be mapped differently to different targets.
+- When a selected `job-config.yaml` defines explicit `steps`, runtime chooses the mapping for each step by `steps[].source` and `steps[].target`, not by source/target list position.
+- One processor config file can therefore contain multiple mappings for a multi-step scenario such as `cust-dept-load`.
 - Property names must match the generated or resolved model classes used in the step.
 - For the current relational target path, `to` values should also align with the target table column names.
+
+## Preserved examples
+
+- `src/main/resources/config-scenarios/csv-to-sqlserver/processor-config.yaml`
+- `src/main/resources/config-scenarios/relational-to-relational/processor-config.yaml`
+- `src/main/resources/config-scenarios/cust-dept-load/processor-config.yaml`
 
 ## Current limitations
 
 - No expression language or transformation functions yet
 - No conditional mapping rules yet
+- No per-field validation rules in the shipped processor config yet
+- No rejected-record output contract in the shipped processor config yet
 - No nested field alias or database-column alias support yet
 - No per-target write behavior inside the processor config
+
+## Proposed next-slice design note
+
+The proposed design for field-level validation rules and rejected-record output is documented in [`../../architecture/file-ingestion-hardening.md`](../../architecture/file-ingestion-hardening.md). That note is forward-looking and does not change the current shipped processor config contract yet.
 
 ## Related docs
 

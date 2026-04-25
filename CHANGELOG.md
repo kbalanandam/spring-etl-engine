@@ -6,7 +6,13 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
-- No post-1.3.0 changes recorded yet.
+### Added
+- Started the next file-ingestion hardening scope for rejected-record handling so future runs can separate accepted output from rejected records with operator-visible evidence.
+- Started the next file lifecycle scope for archiving processed source files after successful runs, with room for scenario-specific archive handling rules.
+- Added a preserved `xml-to-csv-events` scenario bundle plus a realistic flat XML sample so XML-to-CSV runs can be exercised through explicit `job-config.yaml` selection before the later validation/reject/archive hardening slice is implemented.
+
+### Changed
+- The next planned validation slice is now centered on configurable field rules such as `notNull` and time-format checks for file-based ingestion scenarios.
 
 ---
 

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Events>
+    <Event>
+        <eventCode>EVT-1001</eventCode>
+        <eventTime>08:30:00</eventTime>
+        <description>Morning startup completed</description>
+        <sourceSystem>OPS</sourceSystem>
+    </Event>
+
+    <Event>
+        <eventTime>09:15:00</eventTime>
+        <description>Missing required event code</description>
+        <sourceSystem>OPS</sourceSystem>
+    </Event>
+
+    <Event>
+        <eventCode>EVT-1003</eventCode>
+        <eventTime>25:99:00</eventTime>
+        <description>Invalid time format example</description>
+        <sourceSystem>OPS</sourceSystem>
+    </Event>
+
+    <Event>
+        <eventCode>EVT-1004</eventCode>
+        <eventTime>17:45:10</eventTime>
+        <description>Evening processing completed</description>
+        <sourceSystem>BATCH</sourceSystem>
+    </Event>
+</Events>
+
