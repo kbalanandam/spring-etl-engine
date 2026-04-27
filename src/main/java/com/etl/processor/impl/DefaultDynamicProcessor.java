@@ -9,6 +9,10 @@ import com.etl.config.target.TargetConfig;
 import com.etl.mapping.DynamicMapping;
 import com.etl.mapping.ValidationAwareDynamicMapping;
 import com.etl.processor.DynamicProcessor;
+import com.etl.processor.validation.DuplicateProcessorValidationRule;
+import com.etl.processor.validation.NotNullProcessorValidationRule;
+import com.etl.processor.validation.ProcessorValidationRule;
+import com.etl.processor.validation.TimeFormatProcessorValidationRule;
 import com.etl.processor.validation.ValidationRuleEvaluator;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.slf4j.Logger;
@@ -16,6 +20,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
 
 /**
  * <p>
@@ -80,7 +86,11 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 	private final FileIngestionRuntimeSupport fileIngestionRuntimeSupport;
 
 	public DefaultDynamicProcessor() {
-		this(new ValidationRuleEvaluator(), new FileIngestionRuntimeSupport());
+		this(new FileIngestionRuntimeSupport());
+	}
+
+	private DefaultDynamicProcessor(FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
+		this(new ValidationRuleEvaluator(defaultRules(fileIngestionRuntimeSupport)), fileIngestionRuntimeSupport);
 	}
 
 	@Autowired
@@ -165,5 +175,13 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 	private boolean hasValidationRules(EntityMapping mapping) {
 		return mapping.getFields() != null && mapping.getFields().stream()
 				.anyMatch(fieldMapping -> fieldMapping.getRules() != null && !fieldMapping.getRules().isEmpty());
+	}
+
+	private static List<ProcessorValidationRule> defaultRules(FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
+		return List.of(
+				new NotNullProcessorValidationRule(),
+				new TimeFormatProcessorValidationRule(),
+				new DuplicateProcessorValidationRule(fileIngestionRuntimeSupport)
+		);
 	}
 }

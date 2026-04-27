@@ -46,11 +46,24 @@ Today, the shipped config contract supports:
 Today, the shipped config contract now supports a first CSV-focused slice for:
 
 - per-field validation rules in processor mappings (`notNull`, `timeFormat`)
+- duplicate handling for keep-first/reject-later semantics plus ordered winner selection across single-field and composite-key matching
 - explicit rejected-record output configuration in processor config
 - processed-source-file archive configuration in CSV source config
 - accepted vs rejected record artifact semantics for the preserved CSV proof scenario
 
 The remaining gaps are now the broader follow-on work beyond that first slice.
+
+For duplicate handling specifically, the shipped runtime currently uses:
+
+- optional duplicate checking only when a `duplicate` processor rule is configured for the mapping; when no such rule is present, runtime does not apply duplicate-based filtering for that mapping
+- keep-first duplicate handling when `duplicate` is configured with the mapped field alone or with `keyFields` but without `orderBy`
+- ordered winner selection when `duplicate` is configured with `orderBy`, so the best record per duplicate key is retained before final write
+- in-memory duplicate tracking for simpler and faster moderate-volume runs
+- embedded-DB staging for ordered duplicate winner selection when larger-volume runs would otherwise put too much pressure on heap memory
+
+The product direction should still preserve a future client-selectable tracking strategy so operators can explicitly choose the storage mode when needed.
+
+For ordered duplicate winner selection, the current shipped slice resolves the final winner per duplicate key before the write phase and therefore forces tasklet-style final buffering for that mapping.
 
 ## Design goals for the next slice
 
@@ -65,7 +78,7 @@ The first implementation slice should:
 The first implementation slice should prove one preserved realistic file scenario that shows:
 
 - accepted records written to the target
-- rejected records written to a reject artifact
+- rejected records written to reject output
 - original input file archived after successful processing
 
 ## Proposed config placement
@@ -147,22 +160,33 @@ processor:
           to: id
           rules:
             - type: notNull
+            - type: duplicate
+              keyFields:
+                - id
+              orderBy:
+                - field: eventTime
+                  direction: DESC
+                - field: sequenceNo
+                  direction: ASC
         - from: eventTime
           to: event_time
           rules:
             - type: notNull
             - type: timeFormat
               pattern: HH:mm:ss
+        - from: sequenceNo
+          to: sequenceNo
         - from: description
           to: description
 ```
 
 ### Proposed rule semantics
 
-For the first slice, support should stay narrow:
+For the current shipped slice, support stays narrow:
 
 - `notNull`
 - `timeFormat`
+- `duplicate` for single-field or composite-key matching with either keep-first/reject-later behavior or ordered winner selection
 
 Future slices may add:
 
@@ -171,8 +195,9 @@ Future slices may add:
 - regex
 - ranges
 - lookup/enrichment-driven validation
+- client-selectable duplicate tracking storage (`memory` vs future disk-backed mode)
 
-## Proposed reject artifact shape
+## Proposed reject output shape
 
 The first slice should prefer one simple reject output over a broad quarantine model.
 
@@ -199,9 +224,10 @@ For the first slice, one record should move through this decision path:
 1. reader reads record from file source
 2. processor applies field mapping
 3. processor evaluates configured field rules
-4. if rules pass, record is written to the selected target
-5. if rules fail, record is written to reject output with reason metadata
-6. when the step completes successfully, the original file is archived if archive is enabled
+4. if ordered duplicate winner selection is configured, the runtime first determines the winning record per duplicate key before final processing/writing
+5. if rules pass, record is written to the selected target
+6. if rules fail or an older duplicate is discarded, the record is written to reject output with reason metadata when rejected-record output is enabled
+7. when the step completes successfully, the original file is archived if archive is enabled
 
 ## Proposed operator evidence
 
@@ -213,7 +239,7 @@ At minimum, one successful run should be able to show:
 - records accepted
 - records rejected
 - records written
-- reject artifact path
+- reject output path
 - archive result and archive path
 
 ## First supported scope
@@ -238,6 +264,7 @@ The first slice should not yet try to solve:
 - replay/retry semantics for archived or rejected files
 - multi-destination reject routing
 - rule severity levels
+- explicit operator selection of duplicate storage strategy per mapping or scenario
 
 ## Relationship to other docs
 

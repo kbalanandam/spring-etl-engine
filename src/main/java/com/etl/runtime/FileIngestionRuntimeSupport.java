@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Component
@@ -35,12 +36,14 @@ public class FileIngestionRuntimeSupport {
 	private static final String DEFAULT_ARCHIVE_NAME_PATTERN = "{originalName}-{timestamp}";
 
 	private final Map<Long, RejectFileState> rejectStateByStepExecutionId = new ConcurrentHashMap<>();
+	private final Map<Long, Map<String, Set<String>>> duplicateValuesByStepExecutionId = new ConcurrentHashMap<>();
 
 	public void initializeStep(StepExecution stepExecution,
 	                         SourceConfig sourceConfig,
 	                         ProcessorConfig processorConfig,
 	                         ProcessorConfig.EntityMapping entityMapping) {
 		stepExecution.getExecutionContext().putInt(REJECTED_COUNT_KEY, 0);
+		duplicateValuesByStepExecutionId.put(stepExecution.getId(), new ConcurrentHashMap<>());
 		ProcessorConfig.RejectHandling rejectHandling = processorConfig.getRejectHandling();
 		if (!isRejectHandlingEnabled(rejectHandling)) {
 			return;
@@ -74,6 +77,7 @@ public class FileIngestionRuntimeSupport {
 
 	public ExitStatus completeStep(StepExecution stepExecution, SourceConfig sourceConfig) {
 		RejectFileState rejectFileState = rejectStateByStepExecutionId.remove(stepExecution.getId());
+		duplicateValuesByStepExecutionId.remove(stepExecution.getId());
 		if (rejectFileState != null) {
 			try {
 				rejectFileState.close();
@@ -91,6 +95,29 @@ public class FileIngestionRuntimeSupport {
 
 	public boolean isRejectHandlingEnabled(ProcessorConfig.RejectHandling rejectHandling) {
 		return rejectHandling != null && rejectHandling.isEnabled();
+	}
+
+	public boolean isDuplicateValue(String fieldName, Object value) {
+		return isDuplicateValues(fieldName, List.of(value));
+	}
+
+	public boolean isDuplicateValues(String keyName, List<?> values) {
+		StepExecution stepExecution = currentStepExecution();
+		if (stepExecution == null || keyName == null || keyName.isBlank()) {
+			return false;
+		}
+
+		String normalizedValue = normalizeDuplicateValues(values);
+		if (normalizedValue == null) {
+			return false;
+		}
+
+		Map<String, Set<String>> duplicateValuesByField = duplicateValuesByStepExecutionId.computeIfAbsent(
+				stepExecution.getId(),
+				ignored -> new ConcurrentHashMap<>()
+		);
+		Set<String> seenValues = duplicateValuesByField.computeIfAbsent(keyName, ignored -> ConcurrentHashMap.newKeySet());
+		return !seenValues.add(normalizedValue);
 	}
 
 	private void archiveSourceIfConfigured(StepExecution stepExecution, CsvSourceConfig csvSourceConfig) {
@@ -122,6 +149,35 @@ public class FileIngestionRuntimeSupport {
 	private StepExecution currentStepExecution() {
 		var stepContext = StepSynchronizationManager.getContext();
 		return stepContext == null ? null : stepContext.getStepExecution();
+	}
+
+	private String normalizeDuplicateValue(Object value) {
+		if (value == null) {
+			return null;
+		}
+		if (value instanceof String stringValue && stringValue.isBlank()) {
+			return null;
+		}
+		return value.toString();
+	}
+
+	private String normalizeDuplicateValues(List<?> values) {
+		if (values == null || values.isEmpty()) {
+			return null;
+		}
+
+		StringBuilder builder = new StringBuilder();
+		for (Object value : values) {
+			String normalizedPart = normalizeDuplicateValue(value);
+			if (normalizedPart == null) {
+				return null;
+			}
+			builder.append(normalizedPart.length())
+					.append(':')
+					.append(normalizedPart)
+					.append('|');
+		}
+		return builder.toString();
 	}
 
 	private Path resolveRejectPath(String configuredPath, String stepName, String sourceName) {

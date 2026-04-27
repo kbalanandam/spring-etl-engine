@@ -25,7 +25,7 @@
 param(
     [string]$RepoRoot = "C:\spring-etl-engine",
     [string]$ReportPath = "C:\spring-etl-engine\target\verification-report.md",
-    [int]$KeepLatestCount = 10,
+    [int]$KeepLatestCount = 5,
     [switch]$SkipSmoke
 )
 

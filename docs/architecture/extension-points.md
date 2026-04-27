@@ -14,7 +14,7 @@ The engine is designed around three runtime extension points:
 
 These are selected dynamically based on config.
 
-Validation is now best understood as two additional future extension seams:
+Validation is now implemented as two additional extension seams on the active runtime path:
 
 - source-level validation extensions for source artifact / source contract checks
 - processor-rule validation extensions for record acceptance / rejection checks
@@ -27,6 +27,10 @@ Validation is now best understood as two additional future extension seams:
 - Source polymorphism: `src/main/java/com/etl/config/source/SourceConfig.java`
 - Target polymorphism: `src/main/java/com/etl/config/target/TargetConfig.java`
 - Format enum: `src/main/java/com/etl/enums/ModelFormat.java`
+- Source validation SPI: `src/main/java/com/etl/config/source/validation/SourceValidator.java`
+- Source validation dispatch: `src/main/java/com/etl/config/source/validation/SourceValidationService.java`
+- Processor rule SPI: `src/main/java/com/etl/processor/validation/ProcessorValidationRule.java`
+- Processor rule dispatch: `src/main/java/com/etl/processor/validation/ValidationRuleEvaluator.java`
 
 ## How to add a new source/target format
 
@@ -105,7 +109,7 @@ flowchart LR
 
 - relational reader/writer support
 - stored procedure tasklet / reader / writer support
-- source-validation SPI and processor-rule SPI described in [`validation-extension-architecture.md`](validation-extension-architecture.md)
+- additional source validators and processor rules described in [`validation-extension-architecture.md`](validation-extension-architecture.md)
 - multi-job flow configuration
 - dialect abstraction for platform-specific SQL behavior
 

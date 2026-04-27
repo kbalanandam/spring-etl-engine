@@ -27,6 +27,8 @@ public class CsvSourceConfig extends SourceConfig {
 
 	private ArchiveConfig archive;
 
+    private ValidationConfig validation;
+
   public String getFilePath() {
     return filePath;
   }
@@ -50,6 +52,14 @@ public class CsvSourceConfig extends SourceConfig {
   public void setArchive(ArchiveConfig archive) {
     this.archive = archive;
   }
+
+	public ValidationConfig getValidation() {
+		return validation;
+	}
+
+	public void setValidation(ValidationConfig validation) {
+		this.validation = validation;
+	}
 
     // No-args constructor for YAML/object mapping
     public CsvSourceConfig() {
@@ -84,10 +94,23 @@ public class CsvSourceConfig extends SourceConfig {
             String delimiter,
             ArchiveConfig archive
     ) {
+    this(sourceName, packageName, fields, filePath, delimiter, archive, null);
+  }
+
+  public CsvSourceConfig(
+      String sourceName,
+      String packageName,
+      List<ColumnConfig> fields,
+      String filePath,
+      String delimiter,
+      ArchiveConfig archive,
+      ValidationConfig validation
+  ) {
         super(sourceName, packageName, fields);
         this.filePath = filePath;
         this.delimiter = delimiter;
 		this.archive = archive;
+    this.validation = validation;
     }
 
     /**
@@ -156,6 +179,28 @@ public class CsvSourceConfig extends SourceConfig {
 
     public void setNamePattern(String namePattern) {
       this.namePattern = namePattern;
+    }
+  }
+
+  public static class ValidationConfig {
+
+    private boolean allowEmpty = true;
+    private boolean requireHeaderMatch;
+
+    public boolean isAllowEmpty() {
+      return allowEmpty;
+    }
+
+    public void setAllowEmpty(boolean allowEmpty) {
+      this.allowEmpty = allowEmpty;
+    }
+
+    public boolean isRequireHeaderMatch() {
+      return requireHeaderMatch;
+    }
+
+    public void setRequireHeaderMatch(boolean requireHeaderMatch) {
+      this.requireHeaderMatch = requireHeaderMatch;
     }
   }
 }

@@ -72,7 +72,7 @@ That first slice should be proven with at least one preserved realistic file sce
 ### Capabilities
 
 - validation with explicit pass/fail behavior
-- reject or quarantine handling for invalid records
+- controlled rejected-record output for invalid records, with broader quarantine workflows deferred
 - expression-based mapping for derived fields
 - conditional mapping rules
 - normalization / standardization rules
@@ -91,7 +91,7 @@ This is the level where the product starts to feel more like a traditional ETL t
 
 The intended order inside this level is:
 
-1. file-based validation rules plus rejected-record handling
+1. file-based validation rules plus rejected-record output
 2. processed-file archive behavior as adjacent ingestion hardening
 3. expression-based mapping for derived fields
 4. conditional transformation rules
@@ -153,7 +153,7 @@ For `spring-etl-engine`, transformation should eventually include:
 - mapping and schema reshaping
 - type-aware normalization
 - derived and conditional fields
-- validation and reject handling
+- validation and rejected-record output
 - enrichment from reference data
 - auditable and diagnosable transformation outcomes
 
@@ -182,7 +182,7 @@ Focus on:
 
 Focus on:
 
-- validation/reject handling
+- validation and rejected-record output
 - first configurable field rules such as `notNull` and time-format checks
 - expression-based mapping
 - conditions after the expression contract is stable
@@ -209,7 +209,7 @@ When adding transformation features:
 - avoid bypassing the processor abstraction casually
 - do not introduce broad transformation languages without clear operational need
 - ensure failures are observable and testable
-- treat reject handling and run evidence as part of transformation maturity, not as afterthoughts
+- treat rejected-record output and run evidence as part of transformation maturity, not as afterthoughts
 
 ---
 
@@ -218,7 +218,7 @@ When adding transformation features:
 The next meaningful transformation priorities are:
 
 1. field-level validation rules for file scenarios such as `notNull` and time-format checks
-2. validation and reject handling model with controlled rejected-record output
+2. validation and rejected-record output model with controlled rejected-record output
 3. preserved realistic file-scenario proof for accepted, rejected, and archived-original-file behavior
 4. expression-based mapping / derived field support
 5. conditional transformation rules

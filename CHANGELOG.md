@@ -8,14 +8,22 @@ and this project adheres to **Semantic Versioning**.
 
 ### Added
 - Added first-slice field-level validation support in the default processor for CSV-backed scenarios, starting with `notNull` and `timeFormat` rules on mapped fields.
-- Added first-slice rejected-record handling for validation-aware CSV runs, including reject CSV artifacts with `_rejectField`, `_rejectRule`, and `_rejectMessage` metadata.
+- Added first-slice rejected-record output for validation-aware CSV runs, including reject CSV artifacts with `_rejectField`, `_rejectRule`, and `_rejectMessage` metadata.
 - Added archive-on-success support for CSV source configs through `archive.enabled`, `archive.successPath`, and `archive.namePattern`.
 - Added a preserved `csv-validation-reject-archive` scenario bundle plus a realistic CSV input sample to prove accepted output, rejected output, and archived-source-file behavior together.
 - Added step-finished evidence for `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath` in machine-readable step lifecycle logging.
 - Added a preserved `xml-to-csv-events` scenario bundle plus a realistic flat XML sample so XML-to-CSV runs can be exercised through explicit `job-config.yaml` selection as a baseline scenario.
+- Added a source-validation SPI on the active runtime path through `SourceValidationService` and `SourceValidator`, with the first built-in validators covering CSV archive config and relational source config validation.
+- Added an opt-in CSV file-level `validation` block supporting fail-fast file existence/readability checks plus `allowEmpty` and `requireHeaderMatch` policies on CSV sources.
+- Added a processor-rule SPI behind `ValidationRuleEvaluator` through `ProcessorValidationRule`, with built-in `notNull`, `timeFormat`, and first-slice `duplicate` rule handlers plus extension-oriented tests.
+- Added composite-key duplicate validation for the built-in `duplicate` processor rule through optional `keyFields` configuration, while keeping duplicate handling on the active processor-rule seam.
+- Added ordered duplicate winner selection for the built-in `duplicate` rule through structured `orderBy` entries with `field` and `direction`, so users can retain the best record per duplicate key while `keyFields`-only configurations still keep the first encountered record.
 
 ### Changed
 - The file-ingestion hardening work is now implemented as a first CSV-focused slice instead of design-only planning, while broader expression, conditional, and richer quarantine behavior remains future work.
+- The built-in `duplicate` rule now supports both single-field and composite-key matching with keep-first/reject-later semantics, using step-local in-memory tracking for the simple keep-first path and a shared ordered-duplicate abstraction for winner-selection flows.
+- When ordered duplicate winner selection is configured, step execution now resolves the winning record per key before final write, forcing tasklet-style final buffering for that mapping and choosing between in-memory or embedded-DB staging so lower-priority rows can be discarded safely.
+- Refreshed processor-config documentation to state explicitly that duplicate checking is optional, that no configured `duplicate` rule means no duplicate-based filtering for that mapping, and that `keyFields`-only duplicate rules remain keep-first unless `orderBy` winner selection is configured.
 
 ### Deprecated
 - Deprecated the legacy `com.etl.validation.*` package and `src/main/resources/validation-config.yaml` resource because they are not part of the active ETL runtime path. The supported validation path now runs through active source config validation and `processor-config.yaml` field rules.

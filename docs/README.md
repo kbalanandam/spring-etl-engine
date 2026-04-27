@@ -1,6 +1,10 @@
 # Architecture & Design Docs
 
-This folder is the architecture backbone for `spring-etl-engine`.
+<img src="assets/github-social-preview-tagline.svg" alt="OneFlow social preview" width="1100" />
+
+This folder is the architecture backbone for `spring-etl-engine`, presented as part of the **OneFlow** product-facing documentation experience.
+
+For GitHub-facing product language, **OneFlow** should be presented as a focused, config-driven runtime for repeatable file-based and integration-oriented flows, not as a traditional ETL suite in the style of Informatica or SSIS.
 
 As features grow, the goal is to keep architectural intent in the repository instead of in chat threads, memory, or slide decks.
 
@@ -29,6 +33,7 @@ For every significant enhancement, add or update:
 - [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase, future enterprise integration direction, and the high-level guide for what belongs now vs later
 - [`architecture/file-ingestion-hardening.md`](architecture/file-ingestion-hardening.md) — first-slice file-ingestion hardening status plus remaining design direction for validation rules, rejected-record output, and processed-file archiving
 - [`architecture/file-ingestion-hardening-checklist.md`](architecture/file-ingestion-hardening-checklist.md) — execution checklist and remaining follow-on considerations around the first file-ingestion hardening slice
+- [`architecture/sftp-transport-capability.md`](architecture/sftp-transport-capability.md) — near-term SFTP transport direction, deployment boundary, security-layer guidance, and first staged inbound scope
 - [`architecture/validation-extension-architecture.md`](architecture/validation-extension-architecture.md) — future extension architecture for source-level validation and processor-rule validation without reviving the deprecated legacy validation framework
 - [`architecture/relational-db-support.md`](architecture/relational-db-support.md) — current relational support baseline, phase-1 implementation status, and future hardening direction
 - [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md) — phased transformation maturity roadmap and the high-level guide for what transformation behavior belongs now vs later
@@ -54,6 +59,7 @@ For every significant enhancement, add or update:
 
 ### Product tracking
 - [`product/product-backlog.md`](product/product-backlog.md) — step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including scheduler/orchestration work inside the same single product roadmap
+- [`product/github-promotion.md`](product/github-promotion.md) — approved GitHub-facing About text, tagline, topic guidance, and positioning guardrails for OneFlow
 
 ### Scenario examples
 - `src/main/resources/config-scenarios/csv-validation-reject-archive/` — preserved example for the first shipped CSV validation, rejected-record output, and archive-on-success slice
@@ -115,9 +121,13 @@ The product-direction baseline is now captured in [`architecture/etl-product-evo
 
 The first shipped CSV file-ingestion hardening slice is now captured in [`architecture/file-ingestion-hardening.md`](architecture/file-ingestion-hardening.md), with broader future expansion still preserved there as architecture guidance.
 
+The near-term SFTP transport direction is now captured in [`architecture/sftp-transport-capability.md`](architecture/sftp-transport-capability.md). Use it to keep staged inbound/outbound file transport aligned with the ETL-first phase while preserving optional external-MFT and isolated-worker boundaries where clients require them.
+
 The transformation maturity direction that supports enterprise-grade ETL evolution is now captured in [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md). Use it to judge whether a proposed mapping, validation, expression, or enrichment feature fits the current transformation slice or should wait for a later maturity level.
 
 The execution-facing backlog that translates that direction into concrete steps is now captured in [`product/product-backlog.md`](product/product-backlog.md), including a lightweight board-style view for active priorities, status, and milestone alignment.
+
+GitHub-facing product wording is now centralized in [`product/github-promotion.md`](product/github-promotion.md) so About text, tagline, and topic guidance stay aligned with the current OneFlow scope.
 
 The main architectural watchpoints are captured in [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md).
 

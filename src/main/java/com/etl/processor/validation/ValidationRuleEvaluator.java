@@ -2,16 +2,36 @@ package com.etl.processor.validation;
 
 import com.etl.common.util.ReflectionUtils;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.runtime.FileIngestionRuntimeSupport;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Component
 public class ValidationRuleEvaluator {
+
+	private final Map<String, ProcessorValidationRule> rulesByType;
+
+	public ValidationRuleEvaluator() {
+		this(defaultRules());
+	}
+
+	@Autowired
+	public ValidationRuleEvaluator(List<ProcessorValidationRule> rules) {
+		Map<String, ProcessorValidationRule> indexedRules = new LinkedHashMap<>();
+		for (ProcessorValidationRule rule : rules == null ? List.<ProcessorValidationRule>of() : rules) {
+			String normalizedType = normalizeType(rule.getRuleType());
+			ProcessorValidationRule previous = indexedRules.putIfAbsent(normalizedType, rule);
+			if (previous != null) {
+				throw new IllegalStateException("Duplicate processor validation rule type registration: " + normalizedType);
+			}
+		}
+		this.rulesByType = Map.copyOf(indexedRules);
+	}
 
 	public List<ValidationIssue> evaluate(Object input, ProcessorConfig.EntityMapping mapping) {
 		List<ValidationIssue> issues = new ArrayList<>();
@@ -26,7 +46,7 @@ public class ValidationRuleEvaluator {
 
 			Object value = ReflectionUtils.getFieldValue(input, fieldMapping.getFrom());
 			for (ProcessorConfig.FieldRule rule : fieldMapping.getRules()) {
-				ValidationIssue issue = evaluateRule(fieldMapping.getFrom(), value, rule);
+				ValidationIssue issue = evaluateRule(input, fieldMapping.getFrom(), value, rule);
 				if (issue != null) {
 					issues.add(issue);
 				}
@@ -36,46 +56,47 @@ public class ValidationRuleEvaluator {
 		return issues;
 	}
 
-	private ValidationIssue evaluateRule(String fieldName, Object value, ProcessorConfig.FieldRule rule) {
+	public void validateConfiguration(ProcessorConfig.EntityMapping entityMapping,
+	                               ProcessorConfig.FieldMapping fieldMapping,
+	                               ProcessorConfig.FieldRule rule) {
+		if (rule == null || rule.getType() == null || rule.getType().isBlank()) {
+			throw new IllegalStateException("FieldMapping rule missing 'type' for entity "
+					+ entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom() + "'.");
+		}
+
+		resolveRule(rule.getType()).validateConfiguration(entityMapping, fieldMapping, rule);
+	}
+
+	private ValidationIssue evaluateRule(Object input, String fieldName, Object value, ProcessorConfig.FieldRule rule) {
 		if (rule == null || rule.getType() == null || rule.getType().isBlank()) {
 			return null;
 		}
 
-		String normalizedType = rule.getType().trim();
-		return switch (normalizedType) {
-			case "notNull" -> evaluateNotNull(fieldName, value);
-			case "timeFormat" -> evaluateTimeFormat(fieldName, value, rule.getPattern());
-			default -> throw new IllegalArgumentException("Unsupported validation rule type: " + normalizedType);
-		};
+		return resolveRule(rule.getType()).evaluate(input, fieldName, value, rule);
 	}
 
-	private ValidationIssue evaluateNotNull(String fieldName, Object value) {
-		if (value == null) {
-			return new ValidationIssue(fieldName, "notNull", fieldName + " must not be null");
+	private ProcessorValidationRule resolveRule(String ruleType) {
+		String normalizedType = normalizeType(ruleType);
+		ProcessorValidationRule rule = rulesByType.get(normalizedType);
+		if (rule == null) {
+			throw new IllegalArgumentException("Unsupported validation rule type: " + normalizedType);
 		}
-
-		if (value instanceof String stringValue && stringValue.isBlank()) {
-			return new ValidationIssue(fieldName, "notNull", fieldName + " must not be null");
-		}
-
-		return null;
+		return rule;
 	}
 
-	private ValidationIssue evaluateTimeFormat(String fieldName, Object value, String pattern) {
-		if (value == null) {
-			return null;
+	private String normalizeType(String ruleType) {
+		if (ruleType == null || ruleType.isBlank()) {
+			throw new IllegalArgumentException("Validation rule type must not be blank.");
 		}
+		return ruleType.trim();
+	}
 
-		String text = value.toString().trim();
-		if (text.isEmpty()) {
-			return null;
-		}
-
-		try {
-			LocalTime.parse(text, DateTimeFormatter.ofPattern(pattern));
-			return null;
-		} catch (DateTimeParseException e) {
-			return new ValidationIssue(fieldName, "timeFormat", fieldName + " must match " + pattern);
-		}
+	private static List<ProcessorValidationRule> defaultRules() {
+		FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+		return List.of(
+				new NotNullProcessorValidationRule(),
+				new TimeFormatProcessorValidationRule(),
+				new DuplicateProcessorValidationRule(runtimeSupport)
+		);
 	}
 }

@@ -40,7 +40,7 @@ class FileIngestionRuntimeSupportTest {
         CsvSourceConfig sourceConfig = new CsvSourceConfig(
                 "Events",
                 "com.etl.model.source",
-                List.of(column("id", "String"), column("eventTime", "String"), column("description", "String")),
+                List.of(column("id"), column("eventTime"), column("description")),
                 sourceFile.toString(),
                 ",",
                 archive
@@ -50,7 +50,7 @@ class FileIngestionRuntimeSupportTest {
         processorConfig.setType("default");
         ProcessorConfig.RejectHandling rejectHandling = new ProcessorConfig.RejectHandling();
         rejectHandling.setEnabled(true);
-        rejectHandling.setOutputPath(rejectDir.toString() + "\\");
+            rejectHandling.setOutputPath(rejectDir + "\\");
         rejectHandling.setIncludeReasonColumns(true);
         processorConfig.setRejectHandling(rejectHandling);
 
@@ -91,6 +91,66 @@ class FileIngestionRuntimeSupportTest {
         assertFalse(Files.exists(sourceFile));
     }
 
+      @Test
+      void resetsDuplicateTrackingForEachStepExecution() {
+        CsvSourceConfig sourceConfig = new CsvSourceConfig();
+        sourceConfig.setSourceName("Events");
+
+        ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+        mapping.setSource("Events");
+        mapping.setTarget("EventsCsv");
+        mapping.setFields(List.of(field("id", "id")));
+
+        FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+
+        StepExecution firstStepExecution = MetaDataInstanceFactory.createStepExecution();
+        runtimeSupport.initializeStep(firstStepExecution, sourceConfig, new ProcessorConfig(), mapping);
+        StepSynchronizationManager.register(firstStepExecution);
+        try {
+          assertFalse(runtimeSupport.isDuplicateValue("id", "EVT-1001"));
+          assertTrue(runtimeSupport.isDuplicateValue("id", "EVT-1001"));
+        } finally {
+          StepSynchronizationManager.close();
+          runtimeSupport.completeStep(firstStepExecution, sourceConfig);
+        }
+
+        StepExecution secondStepExecution = MetaDataInstanceFactory.createStepExecution();
+        runtimeSupport.initializeStep(secondStepExecution, sourceConfig, new ProcessorConfig(), mapping);
+        StepSynchronizationManager.register(secondStepExecution);
+        try {
+          assertFalse(runtimeSupport.isDuplicateValue("id", "EVT-1001"));
+        } finally {
+          StepSynchronizationManager.close();
+          runtimeSupport.completeStep(secondStepExecution, sourceConfig);
+        }
+      }
+
+        @Test
+        void supportsCompositeDuplicateTrackingAndIgnoresIncompleteKeys() {
+          CsvSourceConfig sourceConfig = new CsvSourceConfig();
+          sourceConfig.setSourceName("Events");
+
+          ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+          mapping.setSource("Events");
+          mapping.setTarget("EventsCsv");
+          mapping.setFields(List.of(field("id", "id"), field("eventTime", "eventTime")));
+
+          FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+          StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+          runtimeSupport.initializeStep(stepExecution, sourceConfig, new ProcessorConfig(), mapping);
+          StepSynchronizationManager.register(stepExecution);
+          try {
+            assertFalse(runtimeSupport.isDuplicateValues("id::id|eventTime", List.of("EVT-1001", "08:30:00")));
+            assertFalse(runtimeSupport.isDuplicateValues("id::id|eventTime", List.of("EVT-1001", "09:45:00")));
+            assertTrue(runtimeSupport.isDuplicateValues("id::id|eventTime", List.of("EVT-1001", "08:30:00")));
+            assertFalse(runtimeSupport.isDuplicateValues("id::id|eventTime", List.of("EVT-1002", "")));
+            assertFalse(runtimeSupport.isDuplicateValues("id::id|eventTime", List.of("EVT-1002", "")));
+          } finally {
+            StepSynchronizationManager.close();
+            runtimeSupport.completeStep(stepExecution, sourceConfig);
+          }
+        }
+
     private ProcessorConfig.FieldMapping field(String from, String to) {
         ProcessorConfig.FieldMapping field = new ProcessorConfig.FieldMapping();
         field.setFrom(from);
@@ -98,24 +158,15 @@ class FileIngestionRuntimeSupportTest {
         return field;
     }
 
-    private ColumnConfig column(String name, String type) {
+      private ColumnConfig column(String name) {
         ColumnConfig column = new ColumnConfig();
         column.setName(name);
-        column.setType(type);
+        column.setType("String");
         return column;
     }
 
-    private static final class EventRecord {
-        private final String id;
-        private final String eventTime;
-        private final String description;
-
-        private EventRecord(String id, String eventTime, String description) {
-            this.id = id;
-            this.eventTime = eventTime;
-            this.description = description;
-        }
-    }
+      private record EventRecord(String id, String eventTime, String description) {
+      }
 }
 
 

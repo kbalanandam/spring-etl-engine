@@ -131,6 +131,8 @@ public class ProcessorConfig {
 
 		private String type;
 		private String pattern;
+		private List<String> keyFields;
+		private List<OrderByField> orderBy;
 
 		public String getType() {
 			return type;
@@ -146,6 +148,44 @@ public class ProcessorConfig {
 
 		public void setPattern(String pattern) {
 			this.pattern = pattern;
+		}
+
+		public List<String> getKeyFields() {
+			return keyFields;
+		}
+
+		public void setKeyFields(List<String> keyFields) {
+			this.keyFields = keyFields;
+		}
+
+		public List<OrderByField> getOrderBy() {
+			return orderBy;
+		}
+
+		public void setOrderBy(List<OrderByField> orderBy) {
+			this.orderBy = orderBy;
+		}
+	}
+
+	public static class OrderByField {
+
+		private String field;
+		private String direction;
+
+		public String getField() {
+			return field;
+		}
+
+		public void setField(String field) {
+			this.field = field;
+		}
+
+		public String getDirection() {
+			return direction;
+		}
+
+		public void setDirection(String direction) {
+			this.direction = direction;
 		}
 	}
 }

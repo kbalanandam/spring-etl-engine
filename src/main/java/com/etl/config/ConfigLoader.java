@@ -3,18 +3,19 @@ package com.etl.config;
 import com.etl.config.exception.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
-import com.etl.config.source.CsvSourceConfig;
-import com.etl.config.source.RelationalSourceConfig;
-import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
+import com.etl.config.source.validation.SourceValidationContext;
+import com.etl.config.source.validation.SourceValidationService;
 import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
+import com.etl.processor.validation.ValidationRuleEvaluator;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.context.annotation.Bean;
@@ -52,6 +53,19 @@ public class ConfigLoader {
 	private boolean allowDemoFallback;
 
 	private volatile ResolvedRuntimeConfig cachedRuntimeConfig;
+	private final SourceValidationService sourceValidationService;
+	private final ValidationRuleEvaluator validationRuleEvaluator;
+
+	public ConfigLoader() {
+		this(new SourceValidationService(), new ValidationRuleEvaluator());
+	}
+
+	@Autowired
+	public ConfigLoader(SourceValidationService sourceValidationService,
+	                  ValidationRuleEvaluator validationRuleEvaluator) {
+		this.sourceValidationService = sourceValidationService;
+		this.validationRuleEvaluator = validationRuleEvaluator;
+	}
 
     /**
      * ConfigLoader is a Spring configuration class that loads YAML configuration
@@ -265,7 +279,10 @@ public class ConfigLoader {
 		SourceWrapper explicitSourceWrapper = loadRequiredExternalYamlConfig(resolvedSourceConfigPath, SourceWrapper.class);
 		TargetWrapper explicitTargetWrapper = loadRequiredExternalYamlConfig(resolvedTargetConfigPath, TargetWrapper.class);
 		ProcessorConfig explicitProcessorConfig = loadRequiredExternalYamlConfig(resolvedProcessorConfigPath, ProcessorConfig.class, mapper);
-		validateSelectedSourceConfigs(explicitSourceWrapper, scenarioName, resolvedSourceConfigPath);
+		sourceValidationService.validateSelectedSources(
+				explicitSourceWrapper,
+				new SourceValidationContext(scenarioName, resolvedSourceConfigPath)
+		);
 		validateSelectedTargetConfigs(explicitTargetWrapper, scenarioName, resolvedTargetConfigPath);
 		List<JobConfig.JobStepConfig> resolvedSteps = resolveExplicitSteps(jobConfig, explicitSourceWrapper, explicitTargetWrapper, explicitProcessorConfig);
 
@@ -356,31 +373,6 @@ public class ConfigLoader {
 		}
 
 		return List.copyOf(synthesizedSteps);
-	}
-
-	private void validateSelectedSourceConfigs(SourceWrapper sourceWrapper, String scenarioName, String sourceConfigPath) {
-		if (sourceWrapper == null || sourceWrapper.getSources() == null) {
-			return;
-		}
-
-		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
-			if (sourceConfig instanceof CsvSourceConfig csvSourceConfig) {
-				validateCsvArchiveConfig(csvSourceConfig, scenarioName, sourceConfigPath);
-			}
-			if (sourceConfig instanceof RelationalSourceConfig relationalSourceConfig) {
-				try {
-					relationalSourceConfig.validate();
-				} catch (IllegalArgumentException e) {
-					logger.error("Invalid relational source configuration for scenario '{}' in {} (source='{}'): {}",
-							scenarioName,
-							sourceConfigPath,
-							defaultName(sourceConfig.getSourceName()),
-							e.getMessage());
-					throw new ConfigException("Invalid relational source configuration for scenario '" + scenarioName +
-							"' in " + sourceConfigPath + " (source='" + defaultName(sourceConfig.getSourceName()) + "'): " + e.getMessage(), e);
-				}
-			}
-		}
 	}
 
 	private void validateSelectedTargetConfigs(TargetWrapper targetWrapper, String scenarioName, String targetConfigPath) {
@@ -499,35 +491,7 @@ public class ConfigLoader {
 
 		for (int i = 0; i < fieldMapping.getRules().size(); i++) {
 			ProcessorConfig.FieldRule rule = fieldMapping.getRules().get(i);
-			if (rule == null || rule.getType() == null || rule.getType().isBlank()) {
-				throw new IllegalStateException("FieldMapping rule missing 'type' for entity " + entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom() + "'.");
-			}
-
-			switch (rule.getType().trim()) {
-				case "notNull" -> {
-				}
-				case "timeFormat" -> {
-					if (rule.getPattern() == null || rule.getPattern().isBlank()) {
-						throw new IllegalStateException("FieldMapping rule 'timeFormat' requires a non-blank 'pattern' for entity "
-								+ entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom() + "'.");
-					}
-				}
-				default -> throw new IllegalStateException("Unsupported field rule type '" + rule.getType().trim() + "' for entity "
-						+ entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom() + "'.");
-			}
-		}
-	}
-
-	private void validateCsvArchiveConfig(CsvSourceConfig csvSourceConfig, String scenarioName, String sourceConfigPath) {
-		CsvSourceConfig.ArchiveConfig archive = csvSourceConfig.getArchive();
-		if (archive == null || !archive.isEnabled()) {
-			return;
-		}
-
-		if (archive.getSuccessPath() == null || archive.getSuccessPath().isBlank()) {
-			throw new ConfigException("Invalid CSV source archive configuration for scenario '" + scenarioName +
-					"' in " + sourceConfigPath + " (source='" + defaultName(csvSourceConfig.getSourceName()) +
-					"'): archive.enabled=true requires a non-blank successPath.");
+			validationRuleEvaluator.validateConfiguration(entityMapping, fieldMapping, rule);
 		}
 	}
 

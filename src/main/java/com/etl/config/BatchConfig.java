@@ -10,6 +10,11 @@ import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
+import com.etl.runtime.DuplicateDiscard;
+import com.etl.runtime.DuplicateResolution;
+import com.etl.runtime.DuplicateResolver;
+import com.etl.runtime.DuplicateResolverFactory;
+import com.etl.runtime.DuplicateRule;
 import com.etl.job.listener.FileIngestionHardeningStepListener;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.slf4j.Logger;
@@ -64,6 +69,7 @@ public class BatchConfig {
     private final ProcessorConfig processorConfig;
     private final RunConfigurationMetadata runConfigurationMetadata;
 	private final FileIngestionRuntimeSupport fileIngestionRuntimeSupport;
+	private final DuplicateResolverFactory duplicateResolverFactory;
 
     /**
      * The threshold for switching between chunk and tasklet processing.
@@ -92,7 +98,8 @@ public class BatchConfig {
                        ProcessorConfig processorConfig, TargetWrapper targetWrapper,
                        StepLoggingContextListener stepLoggingContextListener,
 					   RunConfigurationMetadata runConfigurationMetadata,
-					   FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
+             FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
+             DuplicateResolverFactory duplicateResolverFactory) {
         this.sourceWrapper = sourceWrapper;
         this.readerFactory = readerFactory;
         this.targetWrapper = targetWrapper;
@@ -105,6 +112,7 @@ public class BatchConfig {
         this.processorConfig = processorConfig;
         this.runConfigurationMetadata = runConfigurationMetadata;
 		this.fileIngestionRuntimeSupport = fileIngestionRuntimeSupport;
+    this.duplicateResolverFactory = duplicateResolverFactory;
 
         logger.info("EtlJobConfiguration initialized.");
     }
@@ -184,6 +192,13 @@ public class BatchConfig {
                 recordCount = chunkThreshold + 1;
             }
             useChunk = recordCount > chunkThreshold;
+            DuplicateRule duplicateRule = DuplicateRule.resolveConfiguration(mapping).orElse(null);
+            boolean useEmbeddedDbDuplicateResolver = duplicateRule != null && recordCount > chunkThreshold;
+            if (duplicateRule != null && useChunk) {
+                                logger.info("STEP_READY event=step_mode_override stepName={} source={} target={} duplicateStrategy=orderBy originalMode=chunk overriddenMode=tasklet reason=ordered-duplicate-winner-selection-requires-final-buffering",
+                        stepName, s.getSourceName(), t.getTargetName());
+                    useChunk = false;
+                  }
 
             ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(s, t);
             ItemReader<Object> reader = DynamicBatchUtils.getDynamicReader(readerFactory, s, metadata);
@@ -215,6 +230,10 @@ public class BatchConfig {
                             Object item;
                             List<Object> buffer = new ArrayList<>();
                             int acceptedCount = 0;
+                            boolean rejectHandlingEnabled = processorConfig.getRejectHandling() != null && processorConfig.getRejectHandling().isEnabled();
+                            DuplicateResolver duplicateResolver = duplicateRule == null
+                                    ? null
+                                    : duplicateResolverFactory.create(duplicateRule, useEmbeddedDbDuplicateResolver);
                             ExecutionContext executionContext = new ExecutionContext();
                             boolean isReaderStream = reader instanceof ItemStream;
                             boolean isWriterStream = writer instanceof ItemStream;
@@ -227,6 +246,10 @@ public class BatchConfig {
                             try {
                                 while ((item = reader.read()) != null) {
 									contribution.incrementReadCount();
+                                    if (duplicateResolver != null) {
+                                        duplicateResolver.accept(item);
+                                        continue;
+                                    }
                                     Object processed = processor.process(item);
 									if (processed == null) {
 										contribution.incrementFilterCount(1);
@@ -234,6 +257,30 @@ public class BatchConfig {
 									}
                                     buffer.add(processed);
 									acceptedCount++;
+                                }
+                                if (duplicateResolver != null) {
+                                    DuplicateResolution resolution = duplicateResolver.complete();
+                                    for (DuplicateDiscard discardedRecord : resolution.discardedRecords()) {
+                                        contribution.incrementFilterCount(1);
+                                        if (discardedRecord.invalidOrderingValue() && !rejectHandlingEnabled) {
+                                            throw new IllegalStateException(discardedRecord.issue().message());
+                                        }
+                                        if (rejectHandlingEnabled) {
+                                            boolean recorded = fileIngestionRuntimeSupport.recordRejected(discardedRecord.discardedRecord(), List.of(discardedRecord.issue()));
+                                            if (!recorded) {
+                                                throw new IllegalStateException("Ordered duplicate winner selection rejected a record but reject handling was not initialized for the current step.");
+                                            }
+                                        }
+                                    }
+                                    for (Object retainedRecord : resolution.retainedRecords()) {
+                                        Object processed = processor.process(retainedRecord);
+                                        if (processed == null) {
+                                            contribution.incrementFilterCount(1);
+                                            continue;
+                                        }
+                                        buffer.add(processed);
+                                        acceptedCount++;
+                                    }
                                 }
                                 if (!buffer.isEmpty()) {
                                     if (metadata.isWrapperRequired()) {
@@ -249,6 +296,9 @@ public class BatchConfig {
 									contribution.incrementWriteCount(acceptedCount);
                                 }
                             } finally {
+                                if (duplicateResolver != null) {
+                                    duplicateResolver.close();
+                                }
                                 if (isReaderStream) {
                                     ((ItemStream) reader).close();
                                 }

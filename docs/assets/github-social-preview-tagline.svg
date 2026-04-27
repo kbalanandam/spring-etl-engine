@@ -1,0 +1,31 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="160" y1="120" x2="1110" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1280" height="640" rx="32" fill="url(#bg)"/>
+
+  <circle cx="1100" cy="110" r="220" fill="#1D4ED8" fill-opacity="0.12"/>
+  <circle cx="170" cy="560" r="230" fill="#22C55E" fill-opacity="0.10"/>
+  <circle cx="1000" cy="530" r="150" fill="#38BDF8" fill-opacity="0.08"/>
+
+  <g>
+    <circle cx="228" cy="286" r="62" stroke="url(#accent)" stroke-width="16"/>
+    <path d="M262 252C289 261 311 285 320 314" stroke="url(#accent)" stroke-width="16" stroke-linecap="round"/>
+    <path d="M320 314H370" stroke="url(#accent)" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="386" cy="314" r="10" fill="#38BDF8"/>
+  </g>
+
+  <text x="430" y="300" fill="white" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="78" font-weight="800">OneFlow</text>
+  <text x="790" y="326" text-anchor="end" fill="#94A3B8" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="18" font-weight="600">simple and easy to adopt.</text>
+</svg>
+
+
+

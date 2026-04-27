@@ -65,7 +65,7 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 | Target | CSV | Supported | Existing runtime path |
 | Target | XML | Supported | Existing runtime path |
 | Target | Relational | Supported (phase 1) | Insert-only target path with current field name == column name assumption |
-| Processor | Default | Supported | Field-to-field mapping plus first-slice CSV validation/reject handling |
+| Processor | Default | Supported | Field-to-field mapping plus first-slice CSV validation and rejected-record output |
 
 ## Docs in this section
 

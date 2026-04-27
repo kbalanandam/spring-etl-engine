@@ -12,6 +12,7 @@ import com.etl.job.listener.JobCompletionNotificationListener;
 import com.etl.job.listener.StepLoggingContextListener;
 import com.etl.processor.DynamicProcessorFactory;
 import com.etl.reader.DynamicReaderFactory;
+import com.etl.runtime.DuplicateResolverFactory;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import com.etl.writer.DynamicWriterFactory;
 import org.junit.jupiter.api.Test;
@@ -77,7 +78,8 @@ class BatchConfigStepOrchestrationTest {
                                 step("customers-step", "Customers", "Customers")
                         )
                         ),
-                        new FileIngestionRuntimeSupport()
+                        new FileIngestionRuntimeSupport(),
+                        new DuplicateResolverFactory()
         );
 
         List<Step> steps = batchConfig.buildSteps();
@@ -112,7 +114,8 @@ class BatchConfigStepOrchestrationTest {
                         false,
                         List.of(step("customers-step", "Customers", "Customers"))
                         ),
-                        new FileIngestionRuntimeSupport()
+                        new FileIngestionRuntimeSupport(),
+                        new DuplicateResolverFactory()
         );
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, batchConfig::buildSteps);

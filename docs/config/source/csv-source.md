@@ -25,6 +25,9 @@ Backed by:
 | `archive.enabled` | yes, when `archive` is present | boolean | Enables processed-file archiving after successful step completion |
 | `archive.successPath` | yes, when `archive.enabled=true` | string | Directory where the original CSV file is moved after successful processing |
 | `archive.namePattern` | no | string | Output file naming pattern supporting `{originalName}` and `{timestamp}` |
+| `validation` | no | object | Optional CSV file-level validation rules executed by the CSV source validator |
+| `validation.allowEmpty` | no | boolean | When `false`, the CSV must contain at least one data row after the header; default is `true` |
+| `validation.requireHeaderMatch` | no | boolean | When `true`, the CSV header must exactly match the configured `fields` order and names |
 | `fields` | yes | list | Ordered list of CSV columns |
 | `fields[].name` | yes | string | Field/property name |
 | `fields[].type` | yes | string | Logical type used in generated model contract |
@@ -42,6 +45,9 @@ sources:
       enabled: true
       successPath: target/archive/success/
       namePattern: "{originalName}-{timestamp}"
+    validation:
+      allowEmpty: false
+      requireHeaderMatch: true
     fields:
       - name: id
         type: String
@@ -56,6 +62,7 @@ sources:
 - `sourceName` must match the `processor.mappings[].source` value used by the selected processor.
 - The order of `fields` should match the order of columns in the CSV file.
 - The current CSV reader skips the first line as a header row.
+- When `validation` is present, the CSV source validator checks the configured file path before execution and can fail fast for missing/unreadable files, header-only files, or header mismatches.
 - The current record count implementation counts file rows and subtracts one for the header.
 - Archive behavior currently applies only to CSV sources and only after successful step completion.
 - If archive is enabled, `archive.successPath` is required.

@@ -11,7 +11,7 @@ Use it to answer four questions before adding more validations:
 3. how deprecated legacy validation concepts should be mapped into the active architecture
 4. which responsibilities must stay separated so future validation growth does not create another parallel framework
 
-This is a forward-looking architecture note. It does not change the current shipped config contract by itself.
+This note now reflects the shipped first SPI slice that keeps validation extensibility on the active runtime path.
 
 ## Current baseline
 
@@ -22,8 +22,8 @@ Today the active runtime already has two validation-related paths:
 
 The current shipped first slice supports:
 
-- CSV-focused processor field rules (`notNull`, `timeFormat`)
-- rejected-record handling through `processor-config.yaml`
+- CSV-focused processor field rules (`notNull`, `timeFormat`, and `duplicate` with single-field, composite-key, or ordered winner-selection behavior)
+- rejected-record output through `processor-config.yaml`
 - archive-on-success through CSV source config
 
 The legacy standalone validation framework under `src/main/java/com/etl/validation/` and `src/main/resources/validation-config.yaml` is deprecated and is not part of the active runtime path.
@@ -75,6 +75,26 @@ Examples:
 - XML file conforms to XSD
 - relational source config/query/schema is valid
 
+### Performance-aware XML source validation policy
+
+Future XML validation should be layered by cost.
+
+For most XML runs, the default source-validation baseline should stay lightweight and focus on:
+
+- file exists / readable
+- XML is well-formed
+- configured `rootElement` is present and matches
+- configured `recordElement` is present and usable for record reading
+
+XSD validation should remain an optional strict-mode source check rather than a universal default. It is usually stream-capable and does not require a DOM-style full in-memory document load, but it is still a full-document schema-validation pass and can add noticeable CPU and elapsed-time cost on very large XML files.
+
+Recommended XML policy direction:
+
+- default baseline: lightweight structural XML checks only
+- strict contract mode: enable XSD validation explicitly when schema compliance is required
+- fail file/step for XML source or XSD failures
+- keep record/business-rule rejection decisions out of source validation
+
 ### Processor-level validation
 
 Processor-level validation answers:
@@ -85,9 +105,12 @@ Examples:
 
 - `notNull`
 - `timeFormat`
+- `duplicate` for single-field or composite-key matching, with keep-first behavior by default and ordered winner selection when `orderBy` is configured
 - future `regex`
 - future range / cross-field checks
 - future conditional business rules
+
+For XML specifically, record-level rules should continue only after the selected source passes source validation. That means future XML duplicate handling, `notNull`, `timeFormat`, and similar business rules should stay in the processor-rule seam, not inside XML/XSD source validation.
 
 ## Proposed source validation SPI
 
@@ -104,23 +127,25 @@ A source validation SPI should validate the selected source before or at the poi
 
 ### Proposed code anchors
 
-The future source validation SPI should stay close to the active source/runtime path:
+The shipped source validation SPI stays close to the active source/runtime path:
 
 - `src/main/java/com/etl/config/source/SourceConfig.java`
 - `src/main/java/com/etl/config/ConfigLoader.java`
+- `src/main/java/com/etl/config/source/validation/SourceValidationService.java`
+- `src/main/java/com/etl/config/source/validation/SourceValidator.java`
 - source-specific configs such as `CsvSourceConfig` and later `XmlSourceConfig`
 - reader startup paths
 
 ### Conceptual shape
 
 ```java
-interface SourceValidation {
+interface SourceValidator {
     boolean supports(SourceConfig sourceConfig);
-    void validate(SourceConfig sourceConfig) throws Exception;
+    void validate(SourceConfig sourceConfig, SourceValidationContext context);
 }
 ```
 
-This note does not prescribe exact class names yet, but the key point is that source validation should be selected by active source config/runtime concerns, not by deprecated `validation-config.yaml`.
+The current shipped slice uses `SourceValidationService` to dispatch to source-type validators such as `CsvSourceValidator` and `RelationalSourceValidator`. The key point remains that source validation is selected by active source config/runtime concerns, not by deprecated `validation-config.yaml`.
 
 ## Proposed processor rule SPI
 
@@ -132,26 +157,36 @@ A processor rule SPI should evaluate one configured record-level rule during map
 
 - evaluate one field or rule instance against a record
 - produce a validation issue / rejection reason
-- stay inside the active processor/reject handling flow
+- stay inside the active processor/rejected-record output flow
 - avoid source artifact checks such as header validation or XSD file loading
 
 ### Proposed code anchors
 
 - `src/main/java/com/etl/config/processor/ProcessorConfig.java`
 - `src/main/java/com/etl/processor/validation/ValidationRuleEvaluator.java`
+- `src/main/java/com/etl/processor/validation/ProcessorValidationRule.java`
 - `src/main/java/com/etl/mapping/ValidationAwareDynamicMapping.java`
 - `src/main/java/com/etl/runtime/FileIngestionRuntimeSupport.java`
 
 ### Conceptual shape
 
 ```java
-interface ProcessorRuleEvaluator {
+interface ProcessorValidationRule {
     String getRuleType();
-    ValidationIssue evaluate(Object input, ProcessorConfig.FieldMapping field, ProcessorConfig.FieldRule rule);
+    void validateConfiguration(EntityMapping mapping, FieldMapping field, FieldRule rule);
+    ValidationIssue evaluate(String fieldName, Object value, FieldRule rule);
 }
 ```
 
-The first shipped slice still uses a single `ValidationRuleEvaluator` class. This SPI is the intended future refactor point once more rule types are added.
+The shipped first slice keeps `ValidationRuleEvaluator` as the central dispatcher, but it now delegates to rule beans such as `NotNullProcessorValidationRule` and `TimeFormatProcessorValidationRule`. That makes future rule growth an additive SPI change instead of another parallel framework.
+
+For duplicate handling specifically, future growth should stay in this processor-rule seam and preserve a client-selectable storage strategy:
+
+- duplicate checking remains optional and only runs when a `duplicate` rule is configured for the mapping
+- current shipped baseline: in-memory, step-local duplicate tracking for keep-first duplicate elimination
+- current shipped large-file option for ordered winner selection: embedded-DB staging behind the same processor-rule contract
+
+That keeps duplicate policy in one extensible rule area while allowing different runtime storage implementations for different data volumes.
 
 ## Legacy mapping
 
@@ -176,9 +211,9 @@ This proposal does **not** mean:
 
 1. keep `com.etl.validation.*` deprecated
 2. continue active CSV file-ingestion hardening in the current source/processor paths
-3. add a narrow source-validation slice for CSV file-level validation
-4. add XML/XSD support through the future source validation SPI
-5. refactor processor validation into a rule SPI only when rule growth justifies it
+3. extend the shipped source-validation SPI beyond current CSV archive and relational config checks
+4. add XML/XSD support through the source validation SPI
+5. add more processor rule types through `ProcessorValidationRule` implementations as rule growth continues
 
 ## Runtime view
 

@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
+import org.springframework.batch.item.ExecutionContext;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,6 +23,10 @@ public class StepLoggingContextListener implements StepExecutionListener {
 
     @Override
     public ExitStatus afterStep(StepExecution stepExecution) {
+  ExecutionContext executionContext = stepExecution.getExecutionContext();
+  int rejectedCount = executionContext == null ? 0 : executionContext.getInt(FileIngestionRuntimeSupport.REJECTED_COUNT_KEY, 0);
+  String rejectOutputPath = executionContext == null ? "" : executionContext.getString(FileIngestionRuntimeSupport.REJECT_OUTPUT_PATH_KEY, "");
+  String archivedSourcePath = executionContext == null ? "" : executionContext.getString(FileIngestionRuntimeSupport.ARCHIVED_SOURCE_PATH_KEY, "");
 	logger.info("STEP_EVENT event=step_finished stepName={} stepExecutionId={} status={} readCount={} writeCount={} filterCount={} skipCount={} rollbackCount={} rejectedCount={} rejectOutputPath={} archivedSourcePath={}",
         stepExecution.getStepName(),
         stepExecution.getId(),
@@ -31,9 +36,9 @@ public class StepLoggingContextListener implements StepExecutionListener {
         stepExecution.getFilterCount(),
         stepExecution.getSkipCount(),
 		stepExecution.getRollbackCount(),
-		stepExecution.getExecutionContext().getInt(FileIngestionRuntimeSupport.REJECTED_COUNT_KEY, 0),
-		stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.REJECT_OUTPUT_PATH_KEY, ""),
-		stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.ARCHIVED_SOURCE_PATH_KEY, ""));
+		rejectedCount,
+		rejectOutputPath,
+		archivedSourcePath);
         RunLoggingContext.clearStepScope();
         return stepExecution.getExitStatus();
     }

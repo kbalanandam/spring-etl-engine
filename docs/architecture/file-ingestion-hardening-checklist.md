@@ -64,7 +64,7 @@ That makes it easier to review the first hardening behavior without mixing it in
 - `target-config.yaml`
 - `processor-config.yaml`
 - input sample file under a scenario-local or test-local path
-- expected output / reject artifact references for tests where practical
+- expected output / reject output references for tests where practical
 
 ### Suggested sample rows
 
@@ -99,7 +99,7 @@ Expected work:
 ### `src/main/java/com/etl/config/processor/ProcessorConfig.java`
 Expected work:
 
-- add processor-level reject handling config
+- add processor-level rejected-record output config
 - add per-field rule config under `FieldMapping`
 - keep current mapping-only scenarios valid without requiring new fields
 
@@ -161,7 +161,7 @@ Recommended new family rather than overloading existing classes too early:
 Expected work:
 
 - support or reuse CSV writing for reject output artifacts
-- keep accepted target writing distinct from reject artifact writing
+- keep accepted target writing distinct from reject output writing
 
 ### `src/main/java/com/etl/writer/DynamicWriterFactory.java`
 Expected work:
@@ -182,7 +182,7 @@ Add coverage for:
 Add coverage for:
 
 - new processor validation rule config binding
-- reject handling config validation
+- rejected-record output config validation
 - archive config validation for file-based sources
 - clear failure messages for malformed rule definitions
 
@@ -228,7 +228,7 @@ Add coverage for:
 
 Add coverage for:
 
-- reject artifact columns include reason metadata
+- reject output columns include reason metadata
 - accepted rows are not written to reject output
 - source file moves only after successful step completion
 - source file remains in place after technical failure
@@ -252,7 +252,7 @@ Expected assertions:
 1. config model additions in source and processor config classes
 2. config-loading validation in `ConfigLoader`
 3. validation-aware mapping / processor behavior
-4. reject artifact writing
+4. reject output writing
 5. archive-on-success lifecycle behavior
 6. step/run evidence expansion
 7. preserved scenario creation
