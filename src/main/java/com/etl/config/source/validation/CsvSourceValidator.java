@@ -12,6 +12,14 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
+/**
+ * Validates CSV-specific source configuration and file-level CSV contract rules.
+ *
+ * <p>This validator stays on the source-validation path rather than the processor rule path. It
+ * performs fail-fast checks for CSV archive configuration, file existence/readability, optional
+ * exact header matching against configured fields, and empty-file/data-row policies before batch
+ * reading begins.</p>
+ */
 @Component
 public class CsvSourceValidator implements SourceValidator {
 

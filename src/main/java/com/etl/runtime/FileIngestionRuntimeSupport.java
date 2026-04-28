@@ -25,6 +25,18 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * Provides step-scoped runtime support for file-ingestion hardening concerns.
+ *
+ * <p>This component manages reject-file output, keep-first duplicate key tracking, and
+ * success-only CSV source archiving for the active Spring Batch step. It also exposes execution
+ * context keys used by listeners and reporting code to publish reject counts, reject output paths,
+ * and archived source paths.</p>
+ *
+ * <p>Duplicate tracking in this class is the lightweight keep-first path used when a
+ * {@code duplicate} rule does not request ordered winner selection. Ordered duplicate winner
+ * selection uses separate duplicate resolver implementations.</p>
+ */
 @Component
 public class FileIngestionRuntimeSupport {
 

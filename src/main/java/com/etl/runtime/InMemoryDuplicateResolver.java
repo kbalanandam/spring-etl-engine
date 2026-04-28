@@ -9,6 +9,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Resolves ordered duplicate winner-selection entirely in JVM memory for one step execution.
+ *
+ * <p>This resolver is used only when a {@code duplicate} rule is configured with
+ * {@code orderBy} and the runtime chooses the in-memory strategy instead of the
+ * embedded-database strategy. It accumulates candidate records per duplicate key until the
+ * full input stream has been read, then selects one winning record per key according to the
+ * configured order selectors and original arrival order tie-breaks.</p>
+ *
+ * <p>Records with incomplete duplicate keys are passed through without duplicate comparison,
+ * while records with non-comparable order values are discarded with a duplicate validation
+ * issue.</p>
+ */
 public final class InMemoryDuplicateResolver implements DuplicateResolver {
 
 	private final DuplicateRule rule;

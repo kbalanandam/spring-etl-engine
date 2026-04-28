@@ -18,6 +18,19 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+/**
+ * Resolves ordered duplicate winner-selection by staging candidates in an embedded H2 database.
+ *
+ * <p>This resolver is used when a {@code duplicate} rule is configured with {@code orderBy}
+ * and the runtime decides not to keep all ordered duplicate candidates in JVM memory. Incoming
+ * records are classified as ranked candidates, pass-through records with incomplete keys, or
+ * invalid records with non-comparable order values. Winner selection is performed only after the
+ * full stream has been staged.</p>
+ *
+ * <p>The resolver stores payloads as JSON in a temporary database, resolves one winning record
+ * per duplicate key according to the configured order selectors and arrival-order tie-breaks,
+ * and then best-effort cleans up the temporary database files on close.</p>
+ */
 public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 
 	private static final String CLASSIFICATION_RANKED = "RANKED";

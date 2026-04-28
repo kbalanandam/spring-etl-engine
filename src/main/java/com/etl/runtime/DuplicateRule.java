@@ -6,6 +6,14 @@ import com.etl.processor.validation.DuplicateProcessorValidationRule;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Captures the runtime configuration needed for ordered duplicate winner selection.
+ *
+ * <p>This value is derived from one processor mapping that defines a {@code duplicate} rule with
+ * {@code orderBy}. It records the anchor field used for duplicate messages, the duplicate key
+ * fields, and the ordered winner-selection selectors that duplicate resolvers use during tasklet
+ * processing.</p>
+ */
 public record DuplicateRule(
 		String anchorField,
 		List<String> keyFields,

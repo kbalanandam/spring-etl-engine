@@ -8,6 +8,14 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 
+/**
+ * Dispatches active source configurations to the applicable source validators.
+ *
+ * <p>This service is the entry point for the source-validation SPI during runtime config loading.
+ * It iterates through configured sources, invokes validators that support each source type, and
+ * wraps validator {@link IllegalArgumentException} failures in scenario-aware {@link ConfigException}
+ * messages so operators see which source config failed and why.</p>
+ */
 @Component
 public class SourceValidationService {
 
