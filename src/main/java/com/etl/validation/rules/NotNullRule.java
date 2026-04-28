@@ -4,6 +4,11 @@ import org.springframework.batch.item.validator.ValidationException;
 
 import java.util.Map;
 
+/**
+ * @deprecated Legacy standalone rule implementation. Active not-null validation is handled
+ * by {@code com.etl.processor.validation.ValidationRuleEvaluator} from processor config.
+ */
+@Deprecated(since = "1.4.0")
 public class NotNullRule implements ValidationRule<Map<String, Object>> {
     private final String fieldName;
 

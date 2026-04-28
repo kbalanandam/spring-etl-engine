@@ -1,0 +1,17 @@
+sources:
+  - format: csv
+    sourceName: Events
+    packageName: com.etl.model.source
+    filePath: target/events-validation-input.csv
+    delimiter: ","
+    archive:
+      enabled: true
+      successPath: target/archive/success/
+      namePattern: "{originalName}-{timestamp}"
+    fields:
+      - name: id
+        type: String
+      - name: eventTime
+        type: String
+      - name: description
+        type: String

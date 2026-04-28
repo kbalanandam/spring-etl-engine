@@ -25,6 +25,10 @@ public class CsvSourceConfig extends SourceConfig {
     /** Delimiter used in the CSV file. */
     private String delimiter;
 
+	private ArchiveConfig archive;
+
+    private ValidationConfig validation;
+
   public String getFilePath() {
     return filePath;
   }
@@ -40,6 +44,22 @@ public class CsvSourceConfig extends SourceConfig {
   public void setDelimiter(String delimiter) {
     this.delimiter = delimiter;
   }
+
+  public ArchiveConfig getArchive() {
+    return archive;
+  }
+
+  public void setArchive(ArchiveConfig archive) {
+    this.archive = archive;
+  }
+
+	public ValidationConfig getValidation() {
+		return validation;
+	}
+
+	public void setValidation(ValidationConfig validation) {
+		this.validation = validation;
+	}
 
     // No-args constructor for YAML/object mapping
     public CsvSourceConfig() {
@@ -63,9 +83,34 @@ public class CsvSourceConfig extends SourceConfig {
             @JsonProperty("filePath") String filePath,
             @JsonProperty("delimiter") String delimiter
     ) {
+        this(sourceName, packageName, fields, filePath, delimiter, null);
+    }
+
+    public CsvSourceConfig(
+            String sourceName,
+            String packageName,
+            List<ColumnConfig> fields,
+            String filePath,
+            String delimiter,
+            ArchiveConfig archive
+    ) {
+    this(sourceName, packageName, fields, filePath, delimiter, archive, null);
+  }
+
+  public CsvSourceConfig(
+      String sourceName,
+      String packageName,
+      List<ColumnConfig> fields,
+      String filePath,
+      String delimiter,
+      ArchiveConfig archive,
+      ValidationConfig validation
+  ) {
         super(sourceName, packageName, fields);
         this.filePath = filePath;
         this.delimiter = delimiter;
+		this.archive = archive;
+    this.validation = validation;
     }
 
     /**
@@ -105,4 +150,57 @@ public class CsvSourceConfig extends SourceConfig {
         // Optionally subtract 1 if header is present
         return count > 0 ? count - 1 : 0;
     }
+
+  public static class ArchiveConfig {
+
+    private boolean enabled;
+    private String successPath;
+    private String namePattern;
+
+    public boolean isEnabled() {
+      return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+      this.enabled = enabled;
+    }
+
+    public String getSuccessPath() {
+      return successPath;
+    }
+
+    public void setSuccessPath(String successPath) {
+      this.successPath = successPath;
+    }
+
+    public String getNamePattern() {
+      return namePattern;
+    }
+
+    public void setNamePattern(String namePattern) {
+      this.namePattern = namePattern;
+    }
+  }
+
+  public static class ValidationConfig {
+
+    private boolean allowEmpty = true;
+    private boolean requireHeaderMatch;
+
+    public boolean isAllowEmpty() {
+      return allowEmpty;
+    }
+
+    public void setAllowEmpty(boolean allowEmpty) {
+      this.allowEmpty = allowEmpty;
+    }
+
+    public boolean isRequireHeaderMatch() {
+      return requireHeaderMatch;
+    }
+
+    public void setRequireHeaderMatch(boolean requireHeaderMatch) {
+      this.requireHeaderMatch = requireHeaderMatch;
+    }
+  }
 }

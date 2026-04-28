@@ -13,6 +13,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @deprecated This legacy factory is not wired into the active ETL runtime.
+ * Use source validation in {@code com.etl.config.ConfigLoader} and record validation
+ * in {@code com.etl.processor.validation.ValidationRuleEvaluator} instead.
+ */
+@Deprecated(since = "1.4.0")
 public class ValidatorFactory {
     public static Validator<Map<String, Object>> createCsvValidator(String fileName, CsvValidationConfig csvConfig) {
         List<FieldRuleConfig> ruleConfigs = csvConfig.getFiles().get(fileName);

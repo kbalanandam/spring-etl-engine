@@ -56,6 +56,8 @@ Backed by:
 
 ## Recommended example
 
+This shape mirrors the preserved SQL Server target bundles under `src/main/resources/config-scenarios/csv-to-sqlserver/target-config.yaml` and `src/main/resources/config-scenarios/relational-to-relational/target-config.yaml`.
+
 ```yaml
 targets:
   - format: relational
@@ -67,7 +69,7 @@ targets:
     batchSize: 100
     connection:
       vendor: sqlserver
-      jdbcUrl: jdbc:sqlserver://192.168.50.195:1433;databaseName=testdb;encrypt=true;trustServerCertificate=true
+      jdbcUrl: jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true
       schema: dbo
       username: <SQLSERVER_USERNAME>
       password: <SQLSERVER_PASSWORD>
@@ -122,6 +124,12 @@ Phase-1 relational target support is intentionally narrow.
 - Keep credentials out of committed real environment configs where possible; use placeholders in committed scenario YAMLs.
 - If both top-level `schema` and `connection.schema` are provided, target-level `schema` wins.
 - Treat `batchSize` as the relational write-grouping value to mirror in higher-volume chunk-oriented jobs.
+- Selected relational target configs are validated at startup, and placeholder tokens such as `<SQLSERVER_HOST>`, `<SQLSERVER_DATABASE>`, `<SQLSERVER_USERNAME>`, and `<SQLSERVER_PASSWORD>` are rejected before the job reaches JDBC runtime.
+
+## Preserved examples
+
+- `src/main/resources/config-scenarios/csv-to-sqlserver/target-config.yaml`
+- `src/main/resources/config-scenarios/relational-to-relational/target-config.yaml`
 
 ## Related docs
 

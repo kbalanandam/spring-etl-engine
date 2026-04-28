@@ -1,0 +1,22 @@
+type: default
+rejectHandling:
+  enabled: true
+  outputPath: target/rejects/
+  includeReasonColumns: true
+mappings:
+  - source: Events
+    target: EventsCsv
+    fields:
+      - from: id
+        to: id
+        rules:
+          - type: notNull
+      - from: eventTime
+        to: eventTime
+        rules:
+          - type: notNull
+          - type: timeFormat
+            pattern: HH:mm:ss
+      - from: description
+        to: description
+

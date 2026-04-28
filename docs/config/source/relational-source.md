@@ -62,6 +62,8 @@ Backed by:
 
 ### Table source
 
+This shape mirrors the preserved relational source bundle under `src/main/resources/config-scenarios/relational-to-relational/source-config.yaml`.
+
 ```yaml
 sources:
   - format: relational
@@ -72,7 +74,7 @@ sources:
     fetchSize: 500
     connection:
       vendor: sqlserver
-      jdbcUrl: jdbc:sqlserver://<host>:1433;databaseName=<db>;encrypt=true;trustServerCertificate=true
+      jdbcUrl: jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true
       username: <SQLSERVER_USERNAME>
       password: <SQLSERVER_PASSWORD>
       driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
@@ -97,7 +99,7 @@ sources:
     fetchSize: 500
     connection:
       vendor: sqlserver
-      jdbcUrl: jdbc:sqlserver://<host>:1433;databaseName=<db>;encrypt=true;trustServerCertificate=true
+      jdbcUrl: jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true
       username: <SQLSERVER_USERNAME>
       password: <SQLSERVER_PASSWORD>
       driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
@@ -147,6 +149,11 @@ sources:
 - Keep selected column names aligned with configured field names during phase 1.
 - If both top-level `schema` and `connection.schema` are provided, top-level `schema` wins.
 - For larger loads, tune `fetchSize` and keep the step chunk size aligned with the intended relational target write grouping.
+- Selected relational source configs are validated at startup, and placeholder tokens such as `<SQLSERVER_HOST>` or `<SQLSERVER_DATABASE>` are rejected before JDBC runtime.
+
+## Preserved examples
+
+- `src/main/resources/config-scenarios/relational-to-relational/source-config.yaml`
 
 ## Related docs
 

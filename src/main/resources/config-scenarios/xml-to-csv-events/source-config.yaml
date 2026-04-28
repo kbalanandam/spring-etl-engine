@@ -1,0 +1,17 @@
+sources:
+  - format: xml
+    sourceName: Events
+    packageName: com.etl.model.source
+    filePath: src/main/resources/demo-input/Events.xml
+    rootElement: Events
+    recordElement: Event
+    fields:
+      - name: eventCode
+        type: String
+      - name: eventTime
+        type: String
+      - name: description
+        type: String
+      - name: sourceSystem
+        type: String
+

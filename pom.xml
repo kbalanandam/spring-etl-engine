@@ -13,7 +13,7 @@
 	<artifactId>spring-etl-engine</artifactId>
 	<version>1.3.0</version>
 	<name>Spring ETL Engine</name>
-	<description>Config-driven Spring Batch ETL engine for CSV, XML, and relational data flows.</description>
+	<description>Focused config-driven runtime for repeatable file-based and integration-oriented flows.</description>
 	<url>https://github.com/kbalanandam/spring-etl-engine</url>
 	<licenses>
 		<license>

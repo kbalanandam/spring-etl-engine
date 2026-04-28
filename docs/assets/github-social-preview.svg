@@ -1,0 +1,58 @@
+<svg width="1280" height="640" viewBox="0 0 1280 640" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1280" y2="640" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="160" y1="120" x2="1110" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+    <filter id="shadow" x="0" y="0" width="1280" height="640" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#020617" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="640" rx="32" fill="url(#bg)"/>
+
+  <circle cx="1100" cy="110" r="220" fill="#1D4ED8" fill-opacity="0.12"/>
+  <circle cx="170" cy="560" r="230" fill="#22C55E" fill-opacity="0.10"/>
+  <circle cx="1000" cy="530" r="150" fill="#38BDF8" fill-opacity="0.08"/>
+
+  <g filter="url(#shadow)">
+    <rect x="86" y="76" width="1108" height="488" rx="28" fill="#0B1220" fill-opacity="0.72" stroke="#334155"/>
+  </g>
+
+  <rect x="120" y="112" width="170" height="40" rx="20" fill="#111827" stroke="#22C55E"/>
+  <text x="205" y="138" text-anchor="middle" fill="#DCFCE7" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="18" font-weight="700">spring-etl-engine</text>
+
+  <g>
+    <circle cx="228" cy="286" r="62" stroke="url(#accent)" stroke-width="16"/>
+    <path d="M262 252C289 261 311 285 320 314" stroke="url(#accent)" stroke-width="16" stroke-linecap="round"/>
+    <path d="M320 314H370" stroke="url(#accent)" stroke-width="16" stroke-linecap="round"/>
+    <circle cx="386" cy="314" r="10" fill="#38BDF8"/>
+  </g>
+
+  <text x="430" y="300" fill="white" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="78" font-weight="800">OneFlow</text>
+
+  <text x="430" y="382" fill="#CBD5E1" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="28" font-weight="500">
+    <tspan x="430" dy="0">One runtime for</tspan>
+    <tspan x="430" dy="40">repeatable business flows.</tspan>
+  </text>
+
+  <g>
+    <rect x="430" y="462" width="144" height="48" rx="24" fill="#111827" stroke="#475569"/>
+    <text x="502" y="492" text-anchor="middle" fill="#E2E8F0" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="20" font-weight="700">Simple</text>
+
+    <rect x="592" y="462" width="144" height="48" rx="24" fill="#111827" stroke="#475569"/>
+    <text x="664" y="492" text-anchor="middle" fill="#E2E8F0" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="20" font-weight="700">Clear</text>
+
+    <rect x="754" y="462" width="160" height="48" rx="24" fill="#111827" stroke="#475569"/>
+    <text x="834" y="492" text-anchor="middle" fill="#E2E8F0" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="20" font-weight="700">Steady</text>
+  </g>
+
+  <text x="430" y="562" fill="#64748B" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="18" font-weight="600">Simple and easy to adopt.</text>
+</svg>
+
+
+

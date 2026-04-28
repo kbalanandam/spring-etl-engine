@@ -4,7 +4,9 @@
 
 This document captures the intended product direction for `spring-etl-engine` so future design and implementation decisions can be evaluated in the right context.
 
-The product is currently in an ETL-first phase. The near-term goal is to make each supported source and target type operational, reliable, and consistent. The longer-term goal is to evolve the product toward a secure enterprise integration mediation platform.
+Use this note to answer three questions before starting or expanding a feature: what phase of product maturity are we in, does this feature belong in that phase, and are we introducing too much platform complexity too early. It is a direction-and-phases guide, not the execution backlog and not a connector-specific implementation spec.
+
+The product is currently in an ETL-first phase. The near-term goal is to make each supported source and target type operational, reliable, and consistent while becoming the default internal runtime for repeatable file-based integration scenarios. The longer-term goal is to evolve the product toward an enterprise integration foundation and, later, a secure enterprise integration mediation platform.
 
 This note exists to prevent two common problems:
 
@@ -24,7 +26,8 @@ This document covers:
 This document does not define implementation details for any one connector or protocol. Those should be captured in focused design notes such as:
 
 - `docs/architecture/relational-db-support.md`
-- future Kafka/API/SFTP notes
+- `docs/architecture/sftp-transport-capability.md`
+- future Kafka/API notes
 
 ## Context
 
@@ -40,10 +43,11 @@ Today, the product is primarily focused on:
 
 - adding source and target types
 - making each connector path operational
+- standardizing repeated file-ingestion and file-delivery concerns that are often reimplemented in one-off ETL code
 - ensuring transformations are reliable, configurable, and able to mature beyond simple field mapping
 - keeping the architecture extensible while avoiding unnecessary complexity
 
-The broader product vision is larger than ETL alone. Over time, the product may evolve into a controlled integration abstraction layer between enterprise systems and external third parties.
+The broader product vision is larger than ETL alone. Over time, the product may evolve from a config-driven ETL product into an enterprise integration foundation and then a controlled integration abstraction layer between enterprise systems and external third parties.
 
 ## Flow
 
@@ -78,6 +82,8 @@ The current phase should optimize for:
 - RDBMS source and target support
 - Kafka as target
 - validation improvements
+- reusable file-in/file-out handling patterns such as transfer, staging, duplicate policies, rejected-record output, and archive behavior
+- staged inbound/outbound file transport patterns such as SFTP pull to local staging and controlled outbound file handoff
 - stronger transformation capability beyond direct field mapping, introduced in measured steps
 - execution-mode controls where justified
 - stable reader/processor/writer extension patterns
@@ -122,12 +128,15 @@ Focus on making the core product reliable and extensible.
 - factories remain the primary extension point
 - tests and architecture docs grow with the product
 - batch execution remains the main runtime mode
+- the product becomes the default internal runtime for repeatable file-based integration scenarios before chasing broad connector breadth
 
 ### Typical features in this phase
 - CSV, XML, relational support
 - Kafka as target
 - improved validation and execution configuration
 - stronger structural transformation, explicit mapping behavior, and transformation-safe orchestration
+- first file-ingestion hardening slices such as field-level validation rules, rejected-record output, and processed-file archiving proven through preserved realistic file scenarios
+- repeatable handling of common file-flow concerns such as transfer, staging, duplicate behavior, reject output, operator-visible outcomes, and first inbound SFTP acquisition slices that land files into controlled local staging
 - better observability of batch flows
 - scenario/job-run oriented logging and diagnostic evidence
 
@@ -142,10 +151,10 @@ Expand beyond connector completeness into stronger integration capability.
 - security and audit capabilities become more explicit
 
 ### Typical features in this phase
-- API/SFTP connectors
+- API connectors and broader native SFTP capability beyond the first staged inbound slice
 - micro-batch Kafka source
 - richer database write semantics
-- expressions, conditional transformations, validation/reject handling, and lookup/enrichment patterns
+- expression-based mapping, then conditional transformations, with broader validation, rejected-record/quarantine behavior, and lookup/enrichment patterns after the first file-based validation slice is stable
 - routing and transformation enhancements
 - first in-product scheduling/orchestration controls built on explicit run-state, audit, and operator visibility
 
@@ -157,6 +166,7 @@ Move from ETL-first execution toward broader enterprise integration mediation.
 - secure boundary between core systems and third parties
 - stronger governance, audit, and replay controls
 - partner-specific isolation and routing
+- separate deployable partner-facing transport/security workers where operationally justified
 - possibly both batch and streaming execution modes
 - operator-ready observability that supports retained evidence and later AI assistance
 

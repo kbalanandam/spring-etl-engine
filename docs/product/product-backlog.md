@@ -30,6 +30,8 @@ Build a config-driven ETL product that can reliably:
 4. be operated, diagnosed, and extended safely
 5. evolve into an enterprise-grade ETL and integration foundation
 
+The near-term product mission is to become the default internal runtime for repeatable file-based integration scenarios by reducing repetitive custom ETL code and standardizing scenario orchestration, validation, duplicate handling, reject/archive behavior, and common transport-oriented file flow concerns.
+
 ---
 
 ## Current Product Snapshot
@@ -78,6 +80,8 @@ Today the product is best described as:
 > a serious ETL engine foundation that is beyond prototype stage, but not yet an enterprise-grade ETL product.
 
 That is a healthy stage.
+
+The most important product opportunity in this stage is not to match every traditional ETL feature immediately. It is to become the default internal runtime for repeatable file-driven business scenarios so teams stop rebuilding similar ingestion, validation, duplicate, reject, archive, and delivery logic in one-off code.
 
 ---
 
@@ -157,18 +161,25 @@ This table is the day-to-day execution view for the current product stage.
 |---|---|---|---|---|---|---|---|
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
-| T1 | Add expression-based derived field capability design and first implementation slice | Epic T | P1 | Ready | M1 | A1 | First real transformation-maturity step beyond direct field mapping |
-| T2 | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T1 | Best introduced after expression contract is stable |
-| T3 | Add validation and reject/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2 | Important for traditional ETL-style transformation credibility |
-| T4 | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T1 | Bridges toward more classic ETL transformation patterns |
+| T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped slice now supports CSV-backed `notNull` and time-format checks plus controlled rejected-record output |
+| T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Ready | M2 | T1 | Add optional ordered `transforms[]` chains in processor mappings, separate from validation rules, starting with value mapping for cases such as `1 -> Success`, `2 -> Fail`, default `Unknown`, and country-code normalization such as `USA -> US`; reserve source-transform YAML for later source-native adaptation cases |
+| T2 | Add expression-based derived field support | Epic T | P1 | Deferred | M2 | T1a | Restore the next explicit transformation step after the first validation/reject slice and first cleaner/normalization slice are stable |
+| T3 | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T2 | Best introduced after expression contract is stable |
+| T4 | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Broaden beyond the first file-based validation slice into richer transformation behavior, including broader quarantine workflows, a future client-selectable memory vs disk duplicate-tracking mode, and deferred XML-native/source-level duplicate identity when flat mapped fields are not sufficient |
+| T5 | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Bridges toward more classic ETL transformation patterns |
 | B1 | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | B2 | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
+| B3 | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
 | C1 | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Done | M1 | none | `RUN_EVENT` / `RUN_SUMMARY` and step lifecycle evidence are now emitted for selected runs |
 | C2 | Capture source count, written count, and rejected count | Epic C | P1 | In Progress | M1 | C1 | Step-finished evidence now includes read/write/filter/skip counts; run-level reconciliation rollup remains to be completed |
 | D1 | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
 | E1 | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
 | E2 | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Ready | M1 | E1 | Important next portability step |
 | F1 | Define restart semantics per execution mode | Epic F | P1 | Deferred | M2 | A1, C1 | Needs clearer orchestration and run evidence first |
+| X1 | Define SFTP transport contract and deployment boundary | Epic X | P1 | Ready | M2 | E1, C1, G1 | Capture staged inbound SFTP scope, optional native-vs-MFT operating modes, and on/off deployment boundaries before implementation |
+| X2 | Add first inbound SFTP staged pull capability | Epic X | P1 | Deferred | M2 | X1, B2, C2 | First operational slice should pull remote files to controlled local staging with operator-visible transfer evidence |
+| X3 | Add remote post-success file handling and failure categorization for SFTP | Epic X | P1 | Deferred | M2 | X2, D1 | Include rename/move/archive semantics only after first inbound pull is stable |
+| X4 | Define partner-facing transport security rules and optional isolated worker deployment | Epic X | P1 | Deferred | M3 | X1, G1 | Preserve the option for external MFT edge products or separate partner-facing transport workers where clients require stronger isolation |
 | S1 | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Deferred | M2 | A1, C1 | Keep scheduler work inside the main product roadmap; establish scope before implementation |
 | S2 | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Deferred | M2 | S1 | First practical scheduler slice after run-state and audit direction are clearer |
 | S3 | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
@@ -182,11 +193,67 @@ This table is the day-to-day execution view for the current product stage.
 
 The intended near-term focus order is:
 
-1. `T1` — expression-based transformation capability
-2. `B1` and `B2` — controlled skip/retry behavior
-3. `C2` and `D1` — richer counts, reconciliation, and stable error taxonomy
-4. `E2` — packaged-run guidance
-5. `V3` and `V4` — enterprise HTML reporting plus retention / release-gating rules
+1. `T1a` — processor-side transform SPI and first optional cleaner/normalization slice before broader expression work
+2. `T2` and `T3` — expression-based mapping and then conditional transformation rules after the first transform slice is stable
+3. duplicate-handling follow-on work under `T4` should preserve a client-selectable in-memory vs disk-backed tracking strategy for very large file scenarios while keeping the shipped duplicate rule shared across flat record-oriented sources
+4. `B1`, `B2`, `C2`, and `D1` — controlled skip/retry behavior plus richer counts, reconciliation, and stable error taxonomy
+5. `E2` — packaged-run guidance
+6. `X1` and then `X2` — SFTP transport contract first, then the first inbound staged pull slice for daily file-acquisition scenarios
+7. `V3` and `V4` — enterprise HTML reporting plus retention / release-gating rules
+
+### Duplicate-handling checkpoint for next session
+
+Resume from `T4` at the current duplicate-handling stage.
+
+Current shipped duplicate baseline:
+
+- built-in processor rule type: `duplicate`
+- activation: optional and only active for mappings that configure a `duplicate` rule
+- scope: shared processor-level duplicate handling for flat record-oriented sources through the built-in `duplicate` rule, including single-field or composite-key matching plus ordered winner selection through structured `orderBy`
+- runtime behavior: keep-first by default when the mapped field alone or `keyFields` are used without `orderBy`, or retain the best record per duplicate key using configured `orderBy` field/direction entries when winner selection is configured
+- storage mode today: keep-first duplicate elimination stays step-local/in-memory, while ordered duplicate winner selection runs behind a shared runtime abstraction that stages in memory or embedded DB based on runtime volume hints; explicit client-selectable storage mode remains future work
+- duplicate handling stays in the active processor-rule extension point, not source validation
+- current flat-record expectation: the shipped rule works through normal mapped fields after CSV, flat XML, relational, or similar source records are read into runtime objects
+- deferred exception scope: XML-native/source-level duplicate identity based on XPath, namespaces, nested collections, or other pre-flattening structure details remains future work
+
+Current code anchors:
+
+- `src/main/java/com/etl/processor/validation/DuplicateProcessorValidationRule.java`
+- `src/main/java/com/etl/runtime/InMemoryDuplicateResolver.java`
+- `src/main/java/com/etl/runtime/EmbeddedDbDuplicateResolver.java`
+- `src/main/java/com/etl/runtime/DuplicateResolverFactory.java`
+- `src/main/java/com/etl/runtime/FileIngestionRuntimeSupport.java`
+- `src/main/java/com/etl/processor/validation/ValidationRuleEvaluator.java`
+- `src/main/java/com/etl/mapping/ValidationAwareDynamicMapping.java`
+- `src/main/java/com/etl/config/BatchConfig.java`
+
+Current proof anchors:
+
+- `src/test/java/com/etl/processor/validation/ValidationRuleEvaluatorTest.java`
+- `src/test/java/com/etl/mapping/ValidationAwareDynamicMappingTest.java`
+- `src/test/java/com/etl/runtime/FileIngestionRuntimeSupportTest.java`
+- `src/test/java/com/etl/runtime/InMemoryDuplicateResolverTest.java`
+- `src/test/java/com/etl/runtime/EmbeddedDbDuplicateResolverTest.java`
+- `src/test/java/com/etl/config/ConfigLoaderJobConfigTest.java`
+
+Architecture anchors:
+
+- `docs/architecture/validation-extension-architecture.md`
+- `docs/architecture/file-ingestion-hardening.md`
+- `docs/config/processor/default-processor.md`
+
+Latest completed implementation step:
+
+- added composite-key duplicate validation while preserving the future client-selectable `memory` vs `disk` tracking direction
+- added generic ordered duplicate winner selection so the retained record per duplicate key can be chosen by configured field order before final write
+
+Still deferred after that:
+
+- actual disk-backed duplicate tracker implementation
+- explicit client-selectable duplicate storage mode (`memory` vs `disk`) config surface
+- XML-native/source-level duplicate identity when duplicate keys cannot be expressed cleanly through flat mapped fields
+- target-aware duplicate detection
+- restart/idempotency semantics for duplicate state
 
 Scheduler/orchestration remains part of this same roadmap as **Epic S**. It should become active only after the product has clearer run-state, audit, and restartability foundations.
 
@@ -214,6 +281,7 @@ These are not “finished forever,” but they represent meaningful product prog
 - [x] Automated test coverage for key configuration and runtime slices
 - [x] Improved path portability across tests and demo defaults
 - [x] Local verification reporting with smoke checks, categorized Markdown output, and retained report history
+- [x] First CSV-based file-ingestion hardening slice with field validation rules, rejected-record output, processed-file archiving, and step-level reject/archive evidence
 
 ---
 
@@ -248,14 +316,17 @@ Handle bad data and transient failures in a controlled way.
 ### Backlog
 - [ ] Introduce configurable skip policy support
 - [ ] Introduce configurable retry policy support where appropriate
-- [ ] Add validation/rejection handling strategy
-- [ ] Add bad-record reporting or quarantine output option
+- [x] Add validation and rejected-record output strategy for file-based ingestion
+- [x] Add bad-record reporting through controlled rejected-record output, with broader quarantine workflows deferred
+- [x] Add processed-source-file archiving after successful runs
 - [ ] Define fail-fast vs tolerate-and-report rules per scenario type
 
 ### Done criteria
 - operators can tell how invalid rows are handled
+- source-file lifecycle behavior is explicit for processed files
 - failure mode is explicit and testable
 - at least one scenario demonstrates controlled rejection behavior
+- at least one preserved realistic file scenario demonstrates accepted records, rejected records, and archived-original-file behavior together
 
 ---
 
@@ -265,17 +336,23 @@ Handle bad data and transient failures in a controlled way.
 Grow the product from structural field mapping into richer transformation behavior comparable to traditional ETL expectations, but in phased and controlled steps.
 
 ### Backlog
+- [x] Add field-level validation rule support such as `notNull` and time-format checks
+- [ ] Add processor-side field transforms as optional ordered `transforms[]` chains separate from validation rules
 - [ ] Add expression-based derived field support
 - [ ] Add conditional transformation rule support
-- [ ] Add validation-aware transformation behavior
-- [ ] Add reject/quarantine handling for invalid records
+- [x] Add validation-aware transformation behavior
+- [x] Add controlled rejected-record output for invalid records
 - [ ] Define lookup/enrichment processor baseline
 - [ ] Document transformation maturity levels and non-goals
+- [ ] Add guardrails so equivalent generic value rewriting is not configured ambiguously in both source and processor layers once source transforms exist
 
 ### Done criteria
 - transformation support goes beyond direct `from` → `to` mapping
+- first validation rules are explicit, configurable, and testable in preserved file scenarios
+- first cleaner/normalization transforms are explicit, optional by omission, ordered, and evaluated before validation rules
 - derived fields and conditions are explicit and testable
 - validation/reject behavior is operator-visible
+- at least one preserved realistic file scenario proves the first validation slice before broader expression work expands
 - transformation evolution is documented as part of product direction
 
 ---
@@ -334,6 +411,27 @@ Make local, CI, and deployment usage more consistent across environments.
 - running from IDE, Maven, and packaged jar has clear documented expectations
 - demo mode does not depend on Windows-only assumptions
 - scenario execution instructions are portable
+
+---
+
+## Epic X — Transport-oriented file acquisition and delivery
+
+### Goal
+Add a controlled near-term transport capability for repeated file pickup and delivery scenarios, starting with staged inbound SFTP behavior while keeping partner-facing transport and security concerns separable from the ETL core.
+
+### Backlog
+- [ ] Define the SFTP transport contract and deployment boundary
+- [ ] Support both external-MFT-managed mode and optional native product SFTP mode in the architecture direction
+- [ ] Add the first inbound SFTP staged pull slice to land files in a controlled local folder
+- [ ] Emit operator-visible transfer evidence with counts, failure categories, and correlation-friendly logs
+- [ ] Add remote post-success handling such as move/rename/archive only after the first pull slice is stable
+- [ ] Document when partner-facing transport should remain isolated behind MFT or a separate worker boundary
+
+### Done criteria
+- SFTP is documented as a transport/staging capability, not mixed into transformation logic
+- the first supported inbound transfer slice is narrow, explicit, and operationally observable
+- native product SFTP remains optional where external MFT products are client-mandated
+- deployment/on-off scope for partner-facing transport is documented clearly enough for production planning
 
 ---
 
@@ -450,10 +548,12 @@ Make the product usable by operators, not just developers.
 - [ ] Add failure investigation checklist
 - [ ] Add example deployment configurations
 - [ ] Add release-readiness checklist per milestone
+- [ ] Add internal technical reference and developer learning material once runtime flow, validation behavior, and operator guidance are more stable
 
 ### Done criteria
 - a new operator can run and diagnose a scenario without deep code knowledge
 - operations guidance exists inside the repo
+- internal maintainers and new developers can learn the current production behavior from versioned in-repo reference material once the runtime contract is stable enough to document deeply
 
 ---
 
@@ -492,7 +592,8 @@ Focus:
 
 Current state:
 - substantially achieved by the 1.3.0 release through explicit `steps` orchestration, strict startup validation, machine-readable lifecycle logging, relational placeholder fail-fast validation, and local verification reporting
-- remaining M1-adjacent work is now mostly hardening work such as packaged-run guidance, richer count/reconciliation evidence, and fault-tolerance behavior
+- the first M1 hardening follow-up is now also shipped for CSV-backed scenarios through field validation rules, rejected-record output, processed-file archiving, and step-level reject/archive evidence
+- remaining M1-adjacent work is now mostly packaged-run guidance, richer count/reconciliation evidence, and broader fault-tolerance behavior
 
 Exit signal:
 - product is credible for repeated controlled ETL runs across supported file scenarios
@@ -533,12 +634,13 @@ Exit signal:
 
 If the team has to choose only a few next steps, prioritize these in order:
 
-1. `T1` / `T2` — expression and conditional transformation capability
-2. `B1` / `B2` — fault tolerance and validation/rejection model
-3. `C2` / `D1` — richer count evidence, reconciliation output, and stable error taxonomy
+1. `T1a` — processor-side transform SPI with optional-by-omission ordered `transforms[]` chains and transform-then-reject behavior
+2. `T2` / `T3` — expression-based mapping and conditional transformation capability after the first transform slice is stable
+3. `B1` / `B2` / `C2` / `D1` — fault tolerance, richer count evidence, reconciliation output, and stable error taxonomy
 4. `E2` — packaged-run guidance for jar execution with scenario bundles
-5. `F1` / `S1` / `S2` — restartability plus scheduler trigger model and first operator controls
-6. `V3` / `V4` / `G1` — enterprise HTML verification reporting, release-gating rules, and secure configuration maturity
+5. `X1` / `X2` — SFTP transport contract first, then the first inbound staged pull slice for repeated daily file-acquisition scenarios
+6. `F1` / `S1` / `S2` — restartability plus scheduler trigger model and first operator controls
+7. `V3` / `V4` / `G1` — enterprise HTML verification reporting, release-gating rules, and secure configuration maturity
 
 ---
 

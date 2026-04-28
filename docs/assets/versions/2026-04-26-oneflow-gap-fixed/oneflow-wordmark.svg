@@ -1,0 +1,36 @@
+<svg width="1200" height="320" viewBox="0 0 1200 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="40" y1="40" x2="1160" y2="280" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="flow" x1="110" y1="86" x2="330" y2="234" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+    <linearGradient id="word" x1="380" y1="92" x2="560" y2="168" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="320" rx="40" fill="#020617"/>
+  <rect x="24" y="24" width="1152" height="272" rx="30" fill="url(#bg)" stroke="#334155" stroke-width="2"/>
+
+  <g>
+    <circle cx="170" cy="124" r="36" stroke="url(#word)" stroke-width="10"/>
+    <path d="M192 98C211 104 226 121 231 143" stroke="url(#word)" stroke-width="10" stroke-linecap="round"/>
+  </g>
+
+  <text x="202" y="154" fill="url(#word)" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="74" font-weight="800">ne</text>
+  <text x="312" y="154" fill="#F8FAFC" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="74" font-weight="800">Flow</text>
+  <path d="M202 124H548" stroke="url(#flow)" stroke-width="7" stroke-linecap="round" opacity="0.92"/>
+  <text x="136" y="206" fill="#CBD5E1" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="28" font-weight="500">One runtime for repeatable business flows.</text>
+  <text x="136" y="248" fill="#94A3B8" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="20" font-weight="600">Simple and easy to adopt.</text>
+</svg>
+
+
+
+
+
+

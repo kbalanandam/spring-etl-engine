@@ -1,18 +1,92 @@
+<img src="docs/assets/github-social-preview-tagline.svg" alt="OneFlow social preview" width="1100" />
+
 # Spring ETL Engine
 
-A lightweight, configurable, and modular ETL (Extract–Transform–Load) framework built using **Spring Boot**, designed for handling multiple source formats and multiple target destinations dynamically. The engine supports CSV/XML ingestion, dynamic field mappings, reflection-based transformations, type conversion utilities, profile‑based configuration, and structured logging.
+> One runtime for repeatable business flows.
 
-## Features
-- **Dynamic Mapping Framework**: Map any source structure to any target using configs.
-- **Reusable Utilities**: Centralized `*Utils` for type conversion, reflection, validation.
-- **Custom Exceptions**: Domain‑specific exceptions to identify issues clearly.
-- **AOP Logging**: Automatic method-level logging for ETL flow visibility.
-- **Scenario/job-run logging**: MDC-backed logs carry scenario, run, job, and step context, with daily scenario log files and machine-readable run/step event messages for operations.
-- **Builder Pattern**: Clean and safe object construction.
-- **Profile-based Execution**: Separate dev, test, prod behaviour.
-- **Multi‑Source Input**: CSV, XML, and phase-1 relational sources.
-- **Multi‑Target Output**: CSV, XML, and phase-1 relational targets.
-- **Scenario-driven execution**: one `job-config.yaml` can select a preserved business or connector scenario per run.
+`spring-etl-engine` is the stable technical identity for the repository and codebase, while **OneFlow** is the GitHub-facing product name for a focused, config-driven runtime that helps teams execute repeatable file-based and integration-oriented flows. It is not positioned as a traditional ETL suite in the style of Informatica or SSIS. The current runtime is built with **Spring Batch** and focuses on explicit step-based execution, validation-aware processing, rejected-record output, and extensible transformation flows.
+
+## Naming convention
+
+- `spring-etl-engine` remains the stable technical identity for the repository, codebase, package structure, and technical references.
+- `OneFlow` is the current brand-facing product name for user-facing messaging, visual assets, and GitHub presentation.
+- Future branding changes should update brand-facing copy first and avoid unnecessary renames of technical identifiers unless there is a strong operational reason.
+
+## Product vision
+
+The near-term goal is to become the default internal runtime for repeatable file-based integration scenarios so teams stop rewriting the same ETL concerns in custom code for every business scenario.
+
+In product terms, OneFlow gives teams one focused runtime for orchestrating, validating, and delivering those scenarios without rebuilding file-flow and ETL plumbing for each project.
+
+That means standardizing common concerns such as:
+
+- source and target file handling
+- reusable validation policies and optional duplicate-handling rules
+- explicit scenario orchestration through configuration
+- consistent reject, archive, and operational evidence behavior
+
+From that starting point, the product can continue maturing carefully over time without being marketed today as a broad traditional ETL suite. The current focus remains practical delivery, repeatability, and reduced repetitive engineering effort.
+
+## Highlights
+
+- **Explicit orchestration** — one selected `job-config.yaml` defines the source/target/processor set and the exact `steps` execution order for a run.
+- **Validation-aware processing** — the active runtime supports source validation, processor-side field rules, explicit rejected-record output, and archive-on-success for CSV file scenarios.
+- **Planned transform growth** — the next transform slice is documented as optional processor-side `transforms[]` chains for cleanup/normalization before validation rules, with source-transform YAML deferred to source-native cases.
+- **Format flexibility** — current runtime paths support CSV, XML, and phase-1 relational sources and targets.
+- **Config-driven extensibility** — dynamic readers, processors, writers, and validation SPIs keep new behavior on the active product path instead of hardcoded one-off flows.
+- **Operational visibility** — machine-readable run and step logging provides scenario-aware execution evidence for operators and verification workflows.
+
+## Supported flows
+
+- CSV → XML
+- CSV → relational target
+- XML → CSV
+- relational → relational
+- multi-step scenario execution through explicit `steps`
+
+## Why this exists
+
+Many enterprise file-based integration flows are still implemented as one-off code. That usually leads to repeated logic for file intake, validation, optional duplicate handling, reject output, archive behavior, and delivery steps such as SFTP push/pull.
+
+`spring-etl-engine` exists to standardize those repeated concerns in one configurable runtime so teams can spend less time rebuilding ETL plumbing and more time delivering business scenarios.
+
+## Who this is for
+
+This product is for teams that repeatedly build and maintain file-based integration jobs and want one consistent runtime for:
+
+- explicit scenario orchestration
+- reusable validation policies and optional duplicate rules
+- standard reject and archive behavior
+- repeatable file in / file out execution patterns
+- operator-visible runtime evidence
+
+## What OneFlow is not
+
+OneFlow is not currently positioned as:
+
+- a full traditional ETL suite like Informatica or SSIS
+- a broad self-service enterprise integration platform
+- a finished managed file transfer, OCR, or workflow product
+
+It is a focused runtime for repeatable, config-driven integration scenarios that teams would otherwise implement repeatedly in custom code.
+
+## What it standardizes
+
+The near-term product focus is to make these recurring concerns consistent across business scenarios:
+
+- source and target file handling
+- config-driven scenario execution through `job-config.yaml`
+- file/source validation and record-level rule evaluation
+- optional duplicate handling plus rejected-record output
+- processed-file archive behavior
+- machine-readable run and step evidence
+
+## Start here
+
+- **New to the project?** Start with [Quick Start](#quick-start).
+- **Running a real scenario?** Use [Explicit job-config mode](#explicit-job-config-mode).
+- **Exploring the architecture?** See [Architecture Docs](#architecture-docs).
+- **Looking for examples?** Check `src/main/resources/config-scenarios/`.
 
 ## Architecture Docs
 
@@ -24,6 +98,8 @@ Start here:
 - [`docs/architecture/overview.md`](docs/architecture/overview.md)
 - [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md)
 - [`docs/architecture/extension-points.md`](docs/architecture/extension-points.md)
+- [`docs/architecture/transformation-capability-roadmap.md`](docs/architecture/transformation-capability-roadmap.md)
+- [`docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
 - [`docs/README.md#adrs`](docs/README.md#adrs)
 
 ## Repository Structure
@@ -41,7 +117,7 @@ Start here:
  │    ├── processor/       # Dynamic processors
  │    ├── reader/          # Source readers
  │    ├── runner/          # Application/job startup runner
- │    ├── validation/      # Validation rules and validators
+ │    ├── validation/      # Deprecated legacy validation framework (kept temporarily for cleanup/migration)
  │    ├── writer/          # Target writers
  │    └── ETLEngineApplication.java
  ├── src/main/resources
@@ -50,7 +126,7 @@ Start here:
  │    ├── source-config.yaml
  │    ├── target-config.yaml
  │    ├── processor-config.yaml
- │    ├── validation-config.yaml
+ │    ├── validation-config.yaml  # Deprecated legacy validation resource
  │    └── demo-input/      # Bundled fallback sample CSV files
  ├── src/test
  │    ├── java/            # Unit and integration tests
@@ -241,6 +317,30 @@ Expected fallback output files:
 4. Prefer running the application with an explicit `etl.config.job` scenario selection.
 5. Use `etl.config.allow-demo-fallback=true` only for local/demo fallback runs.
 6. Review the generated output files in the configured target directory.
+
+## Validation path note
+
+The supported validation path is now:
+
+- source/config validation through the active config model under `src/main/java/com/etl/config/`, dispatched by `src/main/java/com/etl/config/source/validation/SourceValidationService.java`
+- record validation through `processor-config.yaml` field rules, dispatched by `src/main/java/com/etl/processor/validation/ValidationRuleEvaluator.java` and `src/main/java/com/etl/processor/validation/ProcessorValidationRule.java`
+
+The legacy `src/main/java/com/etl/validation/` package and `src/main/resources/validation-config.yaml` are deprecated and are not part of the active ETL runtime path.
+
+## Planned transform path note
+
+The next planned transform contract is processor-first:
+
+- generic cleanup/normalization such as value mapping, null fallback, trim, or case normalization should live in future processor-side field `transforms[]`
+- `transforms[]` is intended to stay optional by omission and ordered for zero/one/many transform steps
+- processor rules still decide accept/reject after transforms run, so transform-then-reject is valid
+- future source-transform YAML is reserved for source-native adaptation such as XPath-, namespace-, header-, token-, or other pre-flattening concerns
+
+See:
+
+- [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md)
+- [`docs/architecture/transformation-capability-roadmap.md`](docs/architecture/transformation-capability-roadmap.md)
+- [`docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
 
 ## Verification after code changes
 

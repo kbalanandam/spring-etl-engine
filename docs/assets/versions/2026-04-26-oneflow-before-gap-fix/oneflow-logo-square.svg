@@ -1,0 +1,29 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="56" y1="48" x2="456" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#1E293B"/>
+    </linearGradient>
+    <linearGradient id="flow" x1="128" y1="132" x2="370" y2="366" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#22C55E"/>
+      <stop offset="1" stop-color="#38BDF8"/>
+    </linearGradient>
+    <filter id="shadow" x="52" y="44" width="408" height="424" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#020617" flood-opacity="0.30"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="120" fill="#020617"/>
+  <g filter="url(#shadow)">
+    <rect x="56" y="48" width="400" height="416" rx="96" fill="url(#bg)" stroke="#334155" stroke-width="2"/>
+  </g>
+
+  <circle cx="236" cy="236" r="94" stroke="url(#flow)" stroke-width="24"/>
+  <path d="M286 184C327 198 360 233 374 278" stroke="url(#flow)" stroke-width="24" stroke-linecap="round"/>
+  <path d="M374 278H418" stroke="url(#flow)" stroke-width="24" stroke-linecap="round"/>
+  <circle cx="426" cy="278" r="16" fill="#38BDF8"/>
+
+  <text x="256" y="430" text-anchor="middle" fill="#E2E8F0" font-family="Segoe UI, Inter, Arial, sans-serif" font-size="34" font-weight="800">OneFlow</text>
+</svg>
+
+

@@ -3,17 +3,19 @@ package com.etl.config;
 import com.etl.config.exception.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
-import com.etl.config.source.RelationalSourceConfig;
-import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
+import com.etl.config.source.validation.SourceValidationContext;
+import com.etl.config.source.validation.SourceValidationService;
 import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
+import com.etl.processor.validation.ValidationRuleEvaluator;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.context.annotation.Bean;
@@ -51,6 +53,19 @@ public class ConfigLoader {
 	private boolean allowDemoFallback;
 
 	private volatile ResolvedRuntimeConfig cachedRuntimeConfig;
+	private final SourceValidationService sourceValidationService;
+	private final ValidationRuleEvaluator validationRuleEvaluator;
+
+	public ConfigLoader() {
+		this(new SourceValidationService(), new ValidationRuleEvaluator());
+	}
+
+	@Autowired
+	public ConfigLoader(SourceValidationService sourceValidationService,
+	                  ValidationRuleEvaluator validationRuleEvaluator) {
+		this.sourceValidationService = sourceValidationService;
+		this.validationRuleEvaluator = validationRuleEvaluator;
+	}
 
     /**
      * ConfigLoader is a Spring configuration class that loads YAML configuration
@@ -128,8 +143,10 @@ public class ConfigLoader {
 					if (fm.getTo() == null || fm.getTo().isEmpty()) {
 						throw new IllegalStateException("FieldMapping missing 'to' in entity " + em.getSource());
 					}
+					validateFieldRules(em, fm);
 				}
 			}
+			validateRejectHandling(config);
 			logger.info("Processor configuration loaded and validated successfully from YAML");
 			return config;
 		} catch (ConfigException e) {
@@ -262,7 +279,10 @@ public class ConfigLoader {
 		SourceWrapper explicitSourceWrapper = loadRequiredExternalYamlConfig(resolvedSourceConfigPath, SourceWrapper.class);
 		TargetWrapper explicitTargetWrapper = loadRequiredExternalYamlConfig(resolvedTargetConfigPath, TargetWrapper.class);
 		ProcessorConfig explicitProcessorConfig = loadRequiredExternalYamlConfig(resolvedProcessorConfigPath, ProcessorConfig.class, mapper);
-		validateSelectedSourceConfigs(explicitSourceWrapper, scenarioName, resolvedSourceConfigPath);
+		sourceValidationService.validateSelectedSources(
+				explicitSourceWrapper,
+				new SourceValidationContext(scenarioName, resolvedSourceConfigPath)
+		);
 		validateSelectedTargetConfigs(explicitTargetWrapper, scenarioName, resolvedTargetConfigPath);
 		List<JobConfig.JobStepConfig> resolvedSteps = resolveExplicitSteps(jobConfig, explicitSourceWrapper, explicitTargetWrapper, explicitProcessorConfig);
 
@@ -353,28 +373,6 @@ public class ConfigLoader {
 		}
 
 		return List.copyOf(synthesizedSteps);
-	}
-
-	private void validateSelectedSourceConfigs(SourceWrapper sourceWrapper, String scenarioName, String sourceConfigPath) {
-		if (sourceWrapper == null || sourceWrapper.getSources() == null) {
-			return;
-		}
-
-		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
-			if (sourceConfig instanceof RelationalSourceConfig relationalSourceConfig) {
-				try {
-					relationalSourceConfig.validate();
-				} catch (IllegalArgumentException e) {
-					logger.error("Invalid relational source configuration for scenario '{}' in {} (source='{}'): {}",
-							scenarioName,
-							sourceConfigPath,
-							defaultName(sourceConfig.getSourceName()),
-							e.getMessage());
-					throw new ConfigException("Invalid relational source configuration for scenario '" + scenarioName +
-							"' in " + sourceConfigPath + " (source='" + defaultName(sourceConfig.getSourceName()) + "'): " + e.getMessage(), e);
-				}
-			}
-		}
 	}
 
 	private void validateSelectedTargetConfigs(TargetWrapper targetWrapper, String scenarioName, String targetConfigPath) {
@@ -473,6 +471,28 @@ public class ConfigLoader {
 
 	private String defaultName(String configuredName) {
 		return configuredName == null || configuredName.isBlank() ? "unnamed" : configuredName.trim();
+	}
+
+	private void validateRejectHandling(ProcessorConfig config) {
+		ProcessorConfig.RejectHandling rejectHandling = config.getRejectHandling();
+		if (rejectHandling == null || !rejectHandling.isEnabled()) {
+			return;
+		}
+
+		if (rejectHandling.getOutputPath() == null || rejectHandling.getOutputPath().isBlank()) {
+			throw new IllegalStateException("ProcessorConfig.rejectHandling.enabled=true requires a non-blank 'outputPath'.");
+		}
+	}
+
+	private void validateFieldRules(ProcessorConfig.EntityMapping entityMapping, ProcessorConfig.FieldMapping fieldMapping) {
+		if (fieldMapping.getRules() == null || fieldMapping.getRules().isEmpty()) {
+			return;
+		}
+
+		for (int i = 0; i < fieldMapping.getRules().size(); i++) {
+			ProcessorConfig.FieldRule rule = fieldMapping.getRules().get(i);
+			validationRuleEvaluator.validateConfiguration(entityMapping, fieldMapping, rule);
+		}
 	}
 
 	private record ResolvedRuntimeConfig(

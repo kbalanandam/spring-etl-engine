@@ -4,6 +4,8 @@
 
 This document defines what “transformation” should mean in `spring-etl-engine` as the product evolves from a config-driven ETL foundation into an enterprise-grade ETL product.
 
+Use this note to answer three questions before expanding transformation behavior: what transformation means at the current product stage, which transformation features belong in the next slice, and which capabilities should wait until the runtime and operator model are stronger. It is a transformation-maturity guide, not the execution backlog and not a field-by-field processor config reference.
+
 It exists to prevent two common mistakes:
 
 - underestimating the current product because transformation is only associated with classic ETL suites
@@ -63,16 +65,27 @@ This is the current state.
 
 This is the next practical maturity target.
 
+The first implementation slices at this level should stay narrow: file-based validation rules, explicit rejected-record output, and operator-visible pass/fail behavior first, then discrete config-driven cleaning/normalization transforms on the active default-processor path before broader expression-based mapping work expands.
+
+That first slice should be proven with at least one preserved realistic file scenario that shows accepted records, rejected records, and archived-original-file behavior together.
+
 ### Capabilities
 
-- derived fields through expressions
+- validation with explicit pass/fail behavior
+- controlled rejected-record output for invalid records, with broader quarantine workflows deferred
+- processor-side config-driven field cleaning / normalization steps as the first transform slice
+- future source-native transform/adaptation only when required by source structure or pre-flattening semantics
+- value mapping for coded fields
+- expression-based mapping for derived fields
 - conditional mapping rules
 - normalization / standardization rules
-- validation with explicit pass/fail behavior
-- reject or quarantine handling for invalid records
 
 ### Example outcomes
 
+- `eventTime` must match `HH:mm:ss` or the record is routed to reject output
+- required-field failures such as missing customer identifiers are routed to controlled reject output
+- `status = 'Success' when statusCode='1', 'Fail' when statusCode='2', else 'Unknown'`
+- `countryCode: USA -> US, IND -> IN`
 - `fullName = firstName + ' ' + lastName`
 - `customerType = 'ENTERPRISE' when revenue > threshold`
 - invalid date or required-field failures routed to controlled reject output
@@ -80,6 +93,25 @@ This is the next practical maturity target.
 ### Product value
 
 This is the level where the product starts to feel more like a traditional ETL tool rather than only a dynamic mapper.
+
+The intended order inside this level is:
+
+1. file-based validation rules plus rejected-record output
+2. processed-file archive behavior as adjacent ingestion hardening
+3. discrete processor cleaner / normalization transforms such as value maps and standardization rules
+4. expression-based mapping for derived fields
+5. conditional transformation rules
+
+The intended runtime precedence for that transform slice should stay explicit:
+
+1. source validation
+2. optional source-native transforms when a real source-specific need exists
+3. reader emits a normal runtime record
+4. processor transforms
+5. processor rules
+6. write accepted output / rejected-record output
+
+That means transform-then-reject is valid by design. A value may be normalized first and then rejected if the transformed result is still not acceptable for the selected target/business contract.
 
 ---
 
@@ -138,7 +170,7 @@ For `spring-etl-engine`, transformation should eventually include:
 - mapping and schema reshaping
 - type-aware normalization
 - derived and conditional fields
-- validation and reject handling
+- validation and rejected-record output
 - enrichment from reference data
 - auditable and diagnosable transformation outcomes
 
@@ -167,10 +199,16 @@ Focus on:
 
 Focus on:
 
-- expressions
-- conditions
-- validation/reject handling
+- validation and rejected-record output
+- first configurable field rules such as `notNull` and time-format checks
+- first processor-side field-cleaning / normalization transforms for coded values
+- optional-by-omission `transforms[]` chains so customers can have zero, one, or many ordered cleaner steps per field
+- source-transform YAML only when source-native adaptation is required, not as a parallel default home for generic cleanup
+- expression-based mapping
+- conditions after the expression contract is stable
 - lookup/enrichment patterns
+
+Adjacent file-ingestion hardening such as archiving processed source files should evolve with this phase, but it should remain a file lifecycle capability rather than being treated as a separate transformation maturity level.
 
 ### Phase 3 alignment — enterprise mediation platform
 
@@ -191,7 +229,10 @@ When adding transformation features:
 - avoid bypassing the processor abstraction casually
 - do not introduce broad transformation languages without clear operational need
 - ensure failures are observable and testable
-- treat reject handling and run evidence as part of transformation maturity, not as afterthoughts
+- treat rejected-record output and run evidence as part of transformation maturity, not as afterthoughts
+- default generic business/value cleanup to processor transforms rather than source-specific YAML
+- reserve source transforms for source-native concerns such as XPath, namespaces, raw header/token cleanup, or other pre-flattening/source-shape adaptation
+- fail fast or at least warn when equivalent generic value rewriting is configured for the same field in both source and processor layers
 
 ---
 
@@ -199,18 +240,22 @@ When adding transformation features:
 
 The next meaningful transformation priorities are:
 
-1. explicit transformation orchestration instead of positional assumptions
-2. derived fields / expression support
-3. conditional transformation rules
-4. validation and reject handling model
-5. lookup/enrichment design baseline
+1. field-level validation rules for file scenarios such as `notNull` and time-format checks
+2. validation and rejected-record output model with controlled rejected-record output
+3. first field-transform / cleaner support for config-driven normalization such as value mapping and country/status code standardization
+4. preserved realistic file-scenario proof for accepted, rejected, cleaned, and archived-original-file behavior
+5. expression-based mapping / derived field support
+6. conditional transformation rules
+7. lookup/enrichment design baseline
 
 ---
 
 ## Related Notes
 
 - `docs/architecture/etl-product-evolution-roadmap.md`
+- `docs/architecture/file-ingestion-hardening.md`
 - `docs/architecture/runtime-flow.md`
+- `docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`
 - `docs/config/processor/default-processor.md`
 - `docs/product/product-backlog.md`
 

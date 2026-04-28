@@ -105,3 +105,23 @@ This flow shows where future enhancements should plug in:
 - stored procedures may fit as reader, writer, or tasklet-style step operations
 - multi-job orchestration will likely require a higher-level flow model than the current selected job-config plus explicit step list
 
+## Future insertion point: file-ingestion hardening
+
+The next planned file-ingestion slice should plug into the current runtime without replacing the explicit step model.
+
+```mermaid
+flowchart TD
+    A[Reader reads file record] --> B[Processor maps record]
+    B --> C[Evaluate field rules]
+    C --> D{Rules pass?}
+    D -- Yes --> E[Write accepted record to target]
+    D -- No --> F[Write rejected record to reject output]
+    E --> G[Step completes successfully]
+    F --> G
+    G --> H{Archive enabled for file source?}
+    H -- Yes --> I[Archive original file]
+    H -- No --> J[Leave original file in place]
+```
+
+That future behavior is proposed in [`file-ingestion-hardening.md`](file-ingestion-hardening.md). The current runtime does not yet implement this contract.
+

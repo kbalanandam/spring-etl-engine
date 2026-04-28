@@ -1,0 +1,14 @@
+type: default
+mappings:
+  - source: Events
+    target: EventsCsv
+    fields:
+      - from: eventCode
+        to: eventCode
+      - from: eventTime
+        to: eventTime
+      - from: description
+        to: description
+      - from: sourceSystem
+        to: sourceSystem
+
