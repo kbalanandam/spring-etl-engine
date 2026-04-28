@@ -6,6 +6,10 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+---
+
+## [1.4.0] - 2026-04-28
+
 ### Added
 - Added first-slice field-level validation support in the default processor for CSV-backed scenarios, starting with `notNull` and `timeFormat` rules on mapped fields.
 - Added first-slice rejected-record output for validation-aware CSV runs, including reject CSV artifacts with `_rejectField`, `_rejectRule`, and `_rejectMessage` metadata.
