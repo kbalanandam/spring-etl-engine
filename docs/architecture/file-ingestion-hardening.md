@@ -9,7 +9,7 @@ Use it to answer four questions when extending this area further:
 1. where archive behavior should be configured
 2. where rejected-record behavior should be configured
 3. where field-level validation rules should be configured
-4. what the first supported file-ingestion slice should and should not do
+4. where future cleaner / normalization behavior should be configured and what the first supported file-ingestion slice should and should not do
 
 The first CSV-focused slice described here is now part of the shipped config contract. Broader expansion beyond that slice remains forward-looking architecture guidance.
 
@@ -58,10 +58,13 @@ For duplicate handling specifically, the shipped runtime currently uses:
 - optional duplicate checking only when a `duplicate` processor rule is configured for the mapping; when no such rule is present, runtime does not apply duplicate-based filtering for that mapping
 - keep-first duplicate handling when `duplicate` is configured with the mapped field alone or with `keyFields` but without `orderBy`
 - ordered winner selection when `duplicate` is configured with `orderBy`, so the best record per duplicate key is retained before final write
+- a shared processor-level duplicate contract intended for CSV, flat XML, relational, and other future record-oriented sources once records are available as normal runtime objects
 - in-memory duplicate tracking for simpler and faster moderate-volume runs
 - embedded-DB staging for ordered duplicate winner selection when larger-volume runs would otherwise put too much pressure on heap memory
 
 The product direction should still preserve a future client-selectable tracking strategy so operators can explicitly choose the storage mode when needed.
+
+The main deferred exception to preserve is source-native duplicate identity that cannot be expressed cleanly through flat mapped fields. If a future XML scenario needs duplicate keys based on XPath, namespaces, nested collections, or other pre-flattening structure details, that should be treated as separate XML/source-level duplicate scope rather than stretching the current processor rule beyond its intended contract.
 
 For ordered duplicate winner selection, the current shipped slice resolves the final winner per duplicate key before the write phase and therefore forces tasklet-style final buffering for that mapping.
 
@@ -101,6 +104,14 @@ Validation rules are part of transformation acceptance behavior.
 They should live next to the source-to-target mapping they affect.
 
 For the first slice, that means validation rules should be attached to mapping fields inside `processor-config.yaml`.
+
+### 2a. Future generic cleaner / normalization transforms also belong in the processor config first
+
+Most upcoming cleanup behavior such as status decoding, null fallback, country-code normalization, trim, or case normalization should live beside the mapping in `processor-config.yaml`, not in source config.
+
+That keeps shared field/value rewriting on the active default-processor path once a normal runtime record exists.
+
+Future source-transform YAML should be added only for true source-native adaptation cases such as XPath-, namespace-, header-, token-, or other pre-flattening/source-shape concerns that cannot be expressed cleanly through processor-side field transforms.
 
 ### 3. Rejected-record output belongs in the processor config
 
@@ -174,6 +185,14 @@ processor:
             - type: notNull
             - type: timeFormat
               pattern: HH:mm:ss
+        - from: countryCode
+          to: countryCode
+          transforms:
+            - type: valueMap
+              mappings:
+                IND: IN
+                USA: US
+              defaultValue: UNKNOWN
         - from: sequenceNo
           to: sequenceNo
         - from: description
@@ -190,12 +209,22 @@ For the current shipped slice, support stays narrow:
 
 Future slices may add:
 
+- ordered optional `transforms[]` chains beside `rules`
+- a first processor-side `valueMap` cleaner for coded fields
 - expressions
 - conditional rules
 - regex
 - ranges
 - lookup/enrichment-driven validation
 - client-selectable duplicate tracking storage (`memory` vs future disk-backed mode)
+
+Planned transform semantics should stay explicit:
+
+- omit `transforms` entirely when no cleanup behavior is needed
+- allow zero, one, or many ordered transform steps per field
+- evaluate processor rules after transforms, not before them
+- allow transform-then-reject behavior when a normalized value such as `UNKNOWN` must still be rejected by a business/target rule
+- fail fast or at least warn once source transforms exist and equivalent generic value rewriting is configured for the same field in both source and processor layers
 
 ## Proposed reject output shape
 
@@ -222,12 +251,13 @@ id,event_time,description,_rejectField,_rejectRule,_rejectMessage
 For the first slice, one record should move through this decision path:
 
 1. reader reads record from file source
-2. processor applies field mapping
-3. processor evaluates configured field rules
-4. if ordered duplicate winner selection is configured, the runtime first determines the winning record per duplicate key before final processing/writing
-5. if rules pass, record is written to the selected target
-6. if rules fail or an older duplicate is discarded, the record is written to reject output with reason metadata when rejected-record output is enabled
-7. when the step completes successfully, the original file is archived if archive is enabled
+2. any future source-native adaptation runs only when the selected source type requires it
+3. processor applies field mapping and any configured field transforms
+4. processor evaluates configured field rules on the transformed value
+5. if ordered duplicate winner selection is configured, the runtime first determines the winning record per duplicate key before final processing/writing
+6. if rules pass, record is written to the selected target
+7. if rules fail or an older duplicate is discarded, the record is written to reject output with reason metadata when rejected-record output is enabled
+8. when the step completes successfully, the original file is archived if archive is enabled
 
 ## Proposed operator evidence
 
@@ -258,6 +288,7 @@ The first slice should not yet try to solve:
 
 - relational-source archiving
 - complex XML nested validation rules
+- a broad source-transform YAML model for generic cleanup behavior
 - expression-based mapping itself
 - conditional transformation rules
 - quarantine workflow orchestration

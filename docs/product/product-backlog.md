@@ -162,9 +162,10 @@ This table is the day-to-day execution view for the current product stage.
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
 | T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped slice now supports CSV-backed `notNull` and time-format checks plus controlled rejected-record output |
-| T2 | Add expression-based derived field support | Epic T | P1 | Deferred | M2 | T1 | Restore the next explicit transformation step after the first validation/reject slice is stable |
+| T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Ready | M2 | T1 | Add optional ordered `transforms[]` chains in processor mappings, separate from validation rules, starting with value mapping for cases such as `1 -> Success`, `2 -> Fail`, default `Unknown`, and country-code normalization such as `USA -> US`; reserve source-transform YAML for later source-native adaptation cases |
+| T2 | Add expression-based derived field support | Epic T | P1 | Deferred | M2 | T1a | Restore the next explicit transformation step after the first validation/reject slice and first cleaner/normalization slice are stable |
 | T3 | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T2 | Best introduced after expression contract is stable |
-| T4 | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Broaden beyond the first file-based validation slice into richer transformation behavior, including composite-key duplicate handling, broader quarantine workflows, and a future client-selectable memory vs disk duplicate-tracking mode |
+| T4 | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Broaden beyond the first file-based validation slice into richer transformation behavior, including broader quarantine workflows, a future client-selectable memory vs disk duplicate-tracking mode, and deferred XML-native/source-level duplicate identity when flat mapped fields are not sufficient |
 | T5 | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Bridges toward more classic ETL transformation patterns |
 | B1 | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | B2 | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
@@ -192,25 +193,28 @@ This table is the day-to-day execution view for the current product stage.
 
 The intended near-term focus order is:
 
-1. `T2` and `T3` — expression-based mapping and then conditional transformation rules after the first CSV validation/reject/archive slice
-2. duplicate-validation follow-on work under `T4` should preserve a client-selectable in-memory vs disk-backed tracking strategy for very large file scenarios
-3. `B1`, `B2`, `C2`, and `D1` — controlled skip/retry behavior plus richer counts, reconciliation, and stable error taxonomy
-4. `E2` — packaged-run guidance
-5. `X1` and then `X2` — SFTP transport contract first, then the first inbound staged pull slice for daily file-acquisition scenarios
-6. `V3` and `V4` — enterprise HTML reporting plus retention / release-gating rules
+1. `T1a` — processor-side transform SPI and first optional cleaner/normalization slice before broader expression work
+2. `T2` and `T3` — expression-based mapping and then conditional transformation rules after the first transform slice is stable
+3. duplicate-handling follow-on work under `T4` should preserve a client-selectable in-memory vs disk-backed tracking strategy for very large file scenarios while keeping the shipped duplicate rule shared across flat record-oriented sources
+4. `B1`, `B2`, `C2`, and `D1` — controlled skip/retry behavior plus richer counts, reconciliation, and stable error taxonomy
+5. `E2` — packaged-run guidance
+6. `X1` and then `X2` — SFTP transport contract first, then the first inbound staged pull slice for daily file-acquisition scenarios
+7. `V3` and `V4` — enterprise HTML reporting plus retention / release-gating rules
 
-### Duplicate-validation checkpoint for next session
+### Duplicate-handling checkpoint for next session
 
-Resume from `T4` at the current duplicate-validation stage.
+Resume from `T4` at the current duplicate-handling stage.
 
 Current shipped duplicate baseline:
 
 - built-in processor rule type: `duplicate`
 - activation: optional and only active for mappings that configure a `duplicate` rule
-- scope: single-field or composite-key duplicate matching through the built-in `duplicate` rule, plus ordered winner selection through structured `orderBy`
+- scope: shared processor-level duplicate handling for flat record-oriented sources through the built-in `duplicate` rule, including single-field or composite-key matching plus ordered winner selection through structured `orderBy`
 - runtime behavior: keep-first by default when the mapped field alone or `keyFields` are used without `orderBy`, or retain the best record per duplicate key using configured `orderBy` field/direction entries when winner selection is configured
 - storage mode today: keep-first duplicate elimination stays step-local/in-memory, while ordered duplicate winner selection runs behind a shared runtime abstraction that stages in memory or embedded DB based on runtime volume hints; explicit client-selectable storage mode remains future work
-- duplicate handling stays in the active processor-rule seam, not source validation
+- duplicate handling stays in the active processor-rule extension point, not source validation
+- current flat-record expectation: the shipped rule works through normal mapped fields after CSV, flat XML, relational, or similar source records are read into runtime objects
+- deferred exception scope: XML-native/source-level duplicate identity based on XPath, namespaces, nested collections, or other pre-flattening structure details remains future work
 
 Current code anchors:
 
@@ -247,6 +251,7 @@ Still deferred after that:
 
 - actual disk-backed duplicate tracker implementation
 - explicit client-selectable duplicate storage mode (`memory` vs `disk`) config surface
+- XML-native/source-level duplicate identity when duplicate keys cannot be expressed cleanly through flat mapped fields
 - target-aware duplicate detection
 - restart/idempotency semantics for duplicate state
 
@@ -332,16 +337,19 @@ Grow the product from structural field mapping into richer transformation behavi
 
 ### Backlog
 - [x] Add field-level validation rule support such as `notNull` and time-format checks
+- [ ] Add processor-side field transforms as optional ordered `transforms[]` chains separate from validation rules
 - [ ] Add expression-based derived field support
 - [ ] Add conditional transformation rule support
 - [x] Add validation-aware transformation behavior
 - [x] Add controlled rejected-record output for invalid records
 - [ ] Define lookup/enrichment processor baseline
 - [ ] Document transformation maturity levels and non-goals
+- [ ] Add guardrails so equivalent generic value rewriting is not configured ambiguously in both source and processor layers once source transforms exist
 
 ### Done criteria
 - transformation support goes beyond direct `from` → `to` mapping
 - first validation rules are explicit, configurable, and testable in preserved file scenarios
+- first cleaner/normalization transforms are explicit, optional by omission, ordered, and evaluated before validation rules
 - derived fields and conditions are explicit and testable
 - validation/reject behavior is operator-visible
 - at least one preserved realistic file scenario proves the first validation slice before broader expression work expands
@@ -626,12 +634,13 @@ Exit signal:
 
 If the team has to choose only a few next steps, prioritize these in order:
 
-1. `T2` / `T3` — expression-based mapping and conditional transformation capability
-2. `B1` / `B2` / `C2` / `D1` — fault tolerance, richer count evidence, reconciliation output, and stable error taxonomy
-3. `E2` — packaged-run guidance for jar execution with scenario bundles
-4. `X1` / `X2` — SFTP transport contract first, then the first inbound staged pull slice for repeated daily file-acquisition scenarios
-5. `F1` / `S1` / `S2` — restartability plus scheduler trigger model and first operator controls
-6. `V3` / `V4` / `G1` — enterprise HTML verification reporting, release-gating rules, and secure configuration maturity
+1. `T1a` — processor-side transform SPI with optional-by-omission ordered `transforms[]` chains and transform-then-reject behavior
+2. `T2` / `T3` — expression-based mapping and conditional transformation capability after the first transform slice is stable
+3. `B1` / `B2` / `C2` / `D1` — fault tolerance, richer count evidence, reconciliation output, and stable error taxonomy
+4. `E2` — packaged-run guidance for jar execution with scenario bundles
+5. `X1` / `X2` — SFTP transport contract first, then the first inbound staged pull slice for repeated daily file-acquisition scenarios
+6. `F1` / `S1` / `S2` — restartability plus scheduler trigger model and first operator controls
+7. `V3` / `V4` / `G1` — enterprise HTML verification reporting, release-gating rules, and secure configuration maturity
 
 ---
 

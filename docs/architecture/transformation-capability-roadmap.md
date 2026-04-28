@@ -65,7 +65,7 @@ This is the current state.
 
 This is the next practical maturity target.
 
-The first implementation slice at this level should stay narrow: file-based validation rules, explicit rejected-record output, and operator-visible pass/fail behavior before broader expression-based mapping work expands.
+The first implementation slices at this level should stay narrow: file-based validation rules, explicit rejected-record output, and operator-visible pass/fail behavior first, then discrete config-driven cleaning/normalization transforms on the active default-processor path before broader expression-based mapping work expands.
 
 That first slice should be proven with at least one preserved realistic file scenario that shows accepted records, rejected records, and archived-original-file behavior together.
 
@@ -73,6 +73,9 @@ That first slice should be proven with at least one preserved realistic file sce
 
 - validation with explicit pass/fail behavior
 - controlled rejected-record output for invalid records, with broader quarantine workflows deferred
+- processor-side config-driven field cleaning / normalization steps as the first transform slice
+- future source-native transform/adaptation only when required by source structure or pre-flattening semantics
+- value mapping for coded fields
 - expression-based mapping for derived fields
 - conditional mapping rules
 - normalization / standardization rules
@@ -81,6 +84,8 @@ That first slice should be proven with at least one preserved realistic file sce
 
 - `eventTime` must match `HH:mm:ss` or the record is routed to reject output
 - required-field failures such as missing customer identifiers are routed to controlled reject output
+- `status = 'Success' when statusCode='1', 'Fail' when statusCode='2', else 'Unknown'`
+- `countryCode: USA -> US, IND -> IN`
 - `fullName = firstName + ' ' + lastName`
 - `customerType = 'ENTERPRISE' when revenue > threshold`
 - invalid date or required-field failures routed to controlled reject output
@@ -93,8 +98,20 @@ The intended order inside this level is:
 
 1. file-based validation rules plus rejected-record output
 2. processed-file archive behavior as adjacent ingestion hardening
-3. expression-based mapping for derived fields
-4. conditional transformation rules
+3. discrete processor cleaner / normalization transforms such as value maps and standardization rules
+4. expression-based mapping for derived fields
+5. conditional transformation rules
+
+The intended runtime precedence for that transform slice should stay explicit:
+
+1. source validation
+2. optional source-native transforms when a real source-specific need exists
+3. reader emits a normal runtime record
+4. processor transforms
+5. processor rules
+6. write accepted output / rejected-record output
+
+That means transform-then-reject is valid by design. A value may be normalized first and then rejected if the transformed result is still not acceptable for the selected target/business contract.
 
 ---
 
@@ -184,6 +201,9 @@ Focus on:
 
 - validation and rejected-record output
 - first configurable field rules such as `notNull` and time-format checks
+- first processor-side field-cleaning / normalization transforms for coded values
+- optional-by-omission `transforms[]` chains so customers can have zero, one, or many ordered cleaner steps per field
+- source-transform YAML only when source-native adaptation is required, not as a parallel default home for generic cleanup
 - expression-based mapping
 - conditions after the expression contract is stable
 - lookup/enrichment patterns
@@ -210,6 +230,9 @@ When adding transformation features:
 - do not introduce broad transformation languages without clear operational need
 - ensure failures are observable and testable
 - treat rejected-record output and run evidence as part of transformation maturity, not as afterthoughts
+- default generic business/value cleanup to processor transforms rather than source-specific YAML
+- reserve source transforms for source-native concerns such as XPath, namespaces, raw header/token cleanup, or other pre-flattening/source-shape adaptation
+- fail fast or at least warn when equivalent generic value rewriting is configured for the same field in both source and processor layers
 
 ---
 
@@ -219,10 +242,11 @@ The next meaningful transformation priorities are:
 
 1. field-level validation rules for file scenarios such as `notNull` and time-format checks
 2. validation and rejected-record output model with controlled rejected-record output
-3. preserved realistic file-scenario proof for accepted, rejected, and archived-original-file behavior
-4. expression-based mapping / derived field support
-5. conditional transformation rules
-6. lookup/enrichment design baseline
+3. first field-transform / cleaner support for config-driven normalization such as value mapping and country/status code standardization
+4. preserved realistic file-scenario proof for accepted, rejected, cleaned, and archived-original-file behavior
+5. expression-based mapping / derived field support
+6. conditional transformation rules
+7. lookup/enrichment design baseline
 
 ---
 
@@ -231,6 +255,7 @@ The next meaningful transformation priorities are:
 - `docs/architecture/etl-product-evolution-roadmap.md`
 - `docs/architecture/file-ingestion-hardening.md`
 - `docs/architecture/runtime-flow.md`
+- `docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`
 - `docs/config/processor/default-processor.md`
 - `docs/product/product-backlog.md`
 

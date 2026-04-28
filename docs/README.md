@@ -53,7 +53,10 @@ For every significant enhancement, add or update:
 ### Configuration references
 - [`config/README.md`](config/README.md) — config documentation strategy, support matrix, and scenario usage
 - [`config/source/csv-source.md`](config/source/csv-source.md) — CSV source fields supported today
+- [`config/source/xml-source.md`](config/source/xml-source.md) — XML source fields supported today
 - [`config/source/relational-source.md`](config/source/relational-source.md) — relational source fields and current phase-1 limitations
+- [`config/target/csv-target.md`](config/target/csv-target.md) — CSV target fields and current runtime limitations
+- [`config/target/xml-target.md`](config/target/xml-target.md) — XML target fields and current runtime behavior
 - [`config/target/relational-target.md`](config/target/relational-target.md) — relational target fields and current SQL Server phase-1 limitations
 - [`config/processor/default-processor.md`](config/processor/default-processor.md) — default processor mapping contract
 

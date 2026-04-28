@@ -31,6 +31,7 @@ From that starting point, the product can continue maturing carefully over time 
 
 - **Explicit orchestration** — one selected `job-config.yaml` defines the source/target/processor set and the exact `steps` execution order for a run.
 - **Validation-aware processing** — the active runtime supports source validation, processor-side field rules, explicit rejected-record output, and archive-on-success for CSV file scenarios.
+- **Planned transform growth** — the next transform slice is documented as optional processor-side `transforms[]` chains for cleanup/normalization before validation rules, with source-transform YAML deferred to source-native cases.
 - **Format flexibility** — current runtime paths support CSV, XML, and phase-1 relational sources and targets.
 - **Config-driven extensibility** — dynamic readers, processors, writers, and validation SPIs keep new behavior on the active product path instead of hardcoded one-off flows.
 - **Operational visibility** — machine-readable run and step logging provides scenario-aware execution evidence for operators and verification workflows.
@@ -97,6 +98,8 @@ Start here:
 - [`docs/architecture/overview.md`](docs/architecture/overview.md)
 - [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md)
 - [`docs/architecture/extension-points.md`](docs/architecture/extension-points.md)
+- [`docs/architecture/transformation-capability-roadmap.md`](docs/architecture/transformation-capability-roadmap.md)
+- [`docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
 - [`docs/README.md#adrs`](docs/README.md#adrs)
 
 ## Repository Structure
@@ -323,6 +326,21 @@ The supported validation path is now:
 - record validation through `processor-config.yaml` field rules, dispatched by `src/main/java/com/etl/processor/validation/ValidationRuleEvaluator.java` and `src/main/java/com/etl/processor/validation/ProcessorValidationRule.java`
 
 The legacy `src/main/java/com/etl/validation/` package and `src/main/resources/validation-config.yaml` are deprecated and are not part of the active ETL runtime path.
+
+## Planned transform path note
+
+The next planned transform contract is processor-first:
+
+- generic cleanup/normalization such as value mapping, null fallback, trim, or case normalization should live in future processor-side field `transforms[]`
+- `transforms[]` is intended to stay optional by omission and ordered for zero/one/many transform steps
+- processor rules still decide accept/reject after transforms run, so transform-then-reject is valid
+- future source-transform YAML is reserved for source-native adaptation such as XPath-, namespace-, header-, token-, or other pre-flattening concerns
+
+See:
+
+- [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md)
+- [`docs/architecture/transformation-capability-roadmap.md`](docs/architecture/transformation-capability-roadmap.md)
+- [`docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
 
 ## Verification after code changes
 

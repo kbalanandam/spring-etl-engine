@@ -71,9 +71,12 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 
 ### Source
 - [`source/csv-source.md`](source/csv-source.md)
+- [`source/xml-source.md`](source/xml-source.md)
 - [`source/relational-source.md`](source/relational-source.md)
 
 ### Target
+- [`target/csv-target.md`](target/csv-target.md)
+- [`target/xml-target.md`](target/xml-target.md)
 - [`target/relational-target.md`](target/relational-target.md)
 
 ### Processor
@@ -99,7 +102,10 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 Those scenarios together demonstrate:
 - first shipped CSV field validation / reject / archive behavior
 - existing CSV source
+- existing XML source
 - default processor mapping
+- CSV target output
+- XML target output
 - relational SQL Server target
 - direct relational source to relational target flow
 - flat XML source to CSV target flow

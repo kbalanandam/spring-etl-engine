@@ -77,7 +77,7 @@ steps:
 - A multi-step scenario can reuse one processor config file with multiple mappings; runtime picks the mapping by `source` and `target` names, not by list position.
 - Use `etl.config.job` as the normal production-style entry point. Direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides are intended for demo/fallback cases only.
 - Archive-on-success remains part of the selected CSV source config, not `job-config.yaml`.
-- Rejected-record handling and field-level validation rules remain part of the selected processor config, not `job-config.yaml`.
+- Rejected-record output and field-level validation rules remain part of the selected processor config, not `job-config.yaml`.
 
 ## Related design note
 

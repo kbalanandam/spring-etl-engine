@@ -37,6 +37,7 @@ Future validation needs will expand in two different directions:
    - empty file policy
    - header/shape checks
    - XML/XSD validation
+   - future XML source-native duplicate identity checks when duplicate keys depend on XPath/namespaces or other pre-mapping XML structure
    - relational source contract checks
 
 2. **processor-level validation**
@@ -45,18 +46,23 @@ Future validation needs will expand in two different directions:
    - future range and cross-field rules
    - future conditional and enrichment-aware validation
 
-Those are different extension seams.
+Those are different extension points.
 
 They should not be forced back into one generic standalone validation framework.
 
 ## Architecture decision summary
 
-The product should expose two extension areas:
+The product should expose two validation extension areas:
 
 - a **source validation SPI** for validating source artifacts and source contracts before or at read start
 - a **processor rule SPI** for validating individual records during mapping/acceptance decisions
 
 The product should **not** revive `validation-config.yaml` or the deprecated `com.etl.validation.*` package as the primary extensibility model.
+
+Alongside those validation extension points, the product also needs a separate transform/cleaning direction:
+
+- processor transforms for field cleanup / normalization before processor rules
+- future source transforms only for source-native adaptation cases that cannot be expressed cleanly after record flattening
 
 ## Validation boundary
 
@@ -110,7 +116,33 @@ Examples:
 - future range / cross-field checks
 - future conditional business rules
 
-For XML specifically, record-level rules should continue only after the selected source passes source validation. That means future XML duplicate handling, `notNull`, `timeFormat`, and similar business rules should stay in the processor-rule seam, not inside XML/XSD source validation.
+For XML specifically, record-level rules should continue only after the selected source passes source validation. That means future XML duplicate handling, `notNull`, `timeFormat`, and similar business rules should stay in the processor-rule extension point, not inside XML/XSD source validation.
+
+The main exception to preserve for future scope is XML-native duplicate identity that cannot be expressed cleanly through flat mapped fields. If a future XML scenario needs duplicate keys based on XPath selectors, namespace-aware paths, nested collections, or other source-structure details before record flattening, that would justify a separate XML source-level duplicate model. Until that threshold is reached, duplicate handling should remain in the shared processor-rule extension point.
+
+## Transform boundary and precedence
+
+Validation should continue to answer only whether a source or record is acceptable.
+
+Transformation should answer how values are rewritten before validation and write.
+
+Recommended precedence:
+
+1. source validation answers whether the selected source can be read safely
+2. future source transforms may adapt source-native structure when needed
+3. the reader emits a normal runtime record
+4. processor transforms normalize field values
+5. processor rules accept or reject the transformed record
+
+This means transform-then-reject is expected behavior. A value may be normalized to `UNKNOWN` first and then rejected by a processor rule if `UNKNOWN` is not allowed for the target/business contract.
+
+Default ownership should stay narrow and predictable:
+
+- source transforms are reserved for source-native concerns such as XPath-, namespace-, header-, token-, or pre-flattening adaptation
+- processor transforms are the default home for shared field cleanup such as code mapping, null fallback, trim, case normalization, and other business/value rewrites
+- processor rules remain the accept/reject extension point
+
+If equivalent generic value rewriting is configured for the same field in both source and processor layers, config validation should fail fast or at least emit a strong warning because ownership is ambiguous. A layered flow is valid only when the concerns are different, for example XML-native extraction in the source layer followed by processor normalization and then processor rejection.
 
 ## Proposed source validation SPI
 
@@ -180,11 +212,12 @@ interface ProcessorValidationRule {
 
 The shipped first slice keeps `ValidationRuleEvaluator` as the central dispatcher, but it now delegates to rule beans such as `NotNullProcessorValidationRule` and `TimeFormatProcessorValidationRule`. That makes future rule growth an additive SPI change instead of another parallel framework.
 
-For duplicate handling specifically, future growth should stay in this processor-rule seam and preserve a client-selectable storage strategy:
+For duplicate handling specifically, future growth should stay in this processor-rule extension point and preserve a client-selectable storage strategy:
 
 - duplicate checking remains optional and only runs when a `duplicate` rule is configured for the mapping
 - current shipped baseline: in-memory, step-local duplicate tracking for keep-first duplicate elimination
 - current shipped large-file option for ordered winner selection: embedded-DB staging behind the same processor-rule contract
+- current format expectation: duplicate keys are expressed through normal mapped fields, not source-native selectors such as XPath
 
 That keeps duplicate policy in one extensible rule area while allowing different runtime storage implementations for different data volumes.
 
@@ -212,8 +245,10 @@ This proposal does **not** mean:
 1. keep `com.etl.validation.*` deprecated
 2. continue active CSV file-ingestion hardening in the current source/processor paths
 3. extend the shipped source-validation SPI beyond current CSV archive and relational config checks
-4. add XML/XSD support through the source validation SPI
-5. add more processor rule types through `ProcessorValidationRule` implementations as rule growth continues
+4. add the first processor-side field transform contract on the active default-processor path
+5. add XML/XSD support through the source validation SPI
+6. add source-transform YAML only if real source-native adaptation cases justify it
+7. add more processor rule types through `ProcessorValidationRule` implementations as rule growth continues
 
 ## Runtime view
 
@@ -222,20 +257,23 @@ flowchart TD
     A[Selected source config] --> B[Source validation SPI]
     B --> C{Source valid?}
     C -- No --> D[Fail step/file with operator-visible source error]
-    C -- Yes --> E[Reader reads record]
-    E --> F[Processor maps record]
-    F --> G[Processor rule SPI]
-    G --> H{Rules pass?}
-    H -- Yes --> I[Write accepted record]
-    H -- No --> J[Write rejected record]
+    C -- Yes --> E[Optional source transforms]
+    E --> F[Reader reads/emits runtime record]
+    F --> G[Processor transforms]
+    G --> H[Processor rule SPI]
+    H --> I{Rules pass?}
+    I -- Yes --> J[Write accepted record]
+    I -- No --> K[Write rejected record]
 ```
 
 ## Extension rule
 
 Future contributors should follow this rule:
 
-- if the validation is about the **source artifact or source contract**, extend the source validation seam
-- if the validation is about **record acceptance/rejection**, extend the processor rule seam
+- if the validation is about the **source artifact or source contract**, extend the source validation extension point
+- if the behavior is about **source-native adaptation before normal record shape exists**, extend a source transform extension point only when a real source-specific reason exists
+- if the behavior is about **field cleanup / normalization on a normal runtime record**, extend the processor transform extension point
+- if the validation is about **record acceptance/rejection**, extend the processor rule extension point
 - do not add new functionality to the deprecated `com.etl.validation.*` package
 
 ## Related docs
