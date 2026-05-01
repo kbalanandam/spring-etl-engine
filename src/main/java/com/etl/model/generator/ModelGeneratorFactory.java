@@ -2,6 +2,7 @@ package com.etl.model.generator;
 
 import com.etl.config.ModelConfig;
 import com.etl.config.ModelPathConfig;
+import com.etl.config.RunConfigurationMetadata;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.source.XmlSourceConfig;
@@ -34,7 +35,15 @@ import java.util.concurrent.ConcurrentHashMap;
  * to store different ModelGenerator implementations keyed by their type. This
  * factory is a Spring component and will be initialized and managed by the
  * Spring container. It's active only when the "dev" profile is enabled.
+ *
+ * <p><strong>Transition status:</strong> LEGACY.</p>
+ *
+ * <p>This class represents the current startup-triggered runtime generation,
+ * compilation, and dynamic loading path. The next architecture direction is
+ * build-time model generation, so this class should be treated as migration
+ * reference only and should not receive new feature work.</p>
  */
+@Deprecated
 @Profile("dev")
 @Component
 public class ModelGeneratorFactory {
@@ -46,6 +55,7 @@ public class ModelGeneratorFactory {
 	private final Map<String, GenerationStatus> generationStatus = new ConcurrentHashMap<>();
 	private boolean alreadyGenerated = false;
 	private final ModelPathConfig modelPathConfig;
+	private final RunConfigurationMetadata runConfigurationMetadata;
 
 	/**
 	 * Enum to track the status of each model generation.
@@ -67,11 +77,13 @@ public class ModelGeneratorFactory {
 	public ModelGeneratorFactory(SourceWrapper sourceWrapper,
 								 TargetWrapper targetWrapper,
 								 List<ModelGenerator<?>> modelGenerators,
-								 ModelPathConfig modelPathConfig) {
+								 ModelPathConfig modelPathConfig,
+								 RunConfigurationMetadata runConfigurationMetadata) {
 		this.sourceWrapper = sourceWrapper;
 		this.targetWrapper = targetWrapper;
 		this.generators = new HashMap<>();
 		this.modelPathConfig = modelPathConfig;
+		this.runConfigurationMetadata = runConfigurationMetadata;
 
 		// Safely register generators with trimmed keys
 		Optional.ofNullable(modelGenerators).ifPresent(generatorsList ->
@@ -99,7 +111,20 @@ public class ModelGeneratorFactory {
 
 	@PostConstruct
 	void initializeGeneratedModels() {
+		if (shouldSkipLegacyRuntimeGeneration()) {
+			logger.info("Skipping legacy runtime model generation for explicit job-config run '{}'. Build-time generated classes are expected to be present already.",
+					runConfigurationMetadata.scenarioName());
+			alreadyGenerated = true;
+			return;
+		}
 		generateModels();
+	}
+
+	private boolean shouldSkipLegacyRuntimeGeneration() {
+		return runConfigurationMetadata != null
+				&& !runConfigurationMetadata.demoFallbackMode()
+				&& runConfigurationMetadata.jobConfigPath() != null
+				&& !runConfigurationMetadata.jobConfigPath().isBlank();
 	}
 
 	/**
@@ -292,8 +317,7 @@ public class ModelGeneratorFactory {
 	}
 
 	private String resolveCompileOutputDir() {
-		File sourceClassDir = new File(modelPathConfig.getSourceClassDir()).getAbsoluteFile();
-		File current = sourceClassDir;
+		File current = new File(modelPathConfig.getSourceClassDir()).getAbsoluteFile();
 		while (current != null) {
 			if ("classes".equalsIgnoreCase(current.getName())) {
 				return current.getPath();
@@ -301,31 +325,6 @@ public class ModelGeneratorFactory {
 			current = current.getParentFile();
 		}
 		return "target/classes";
-	}
-
-	private void collectJavaFiles(File dir, List<File> javaFiles) {
-		File[] files = dir.listFiles();
-		if (files == null) return;
-		for (File file : files) {
-			if (file.isDirectory()) {
-				collectJavaFiles(file, javaFiles);
-			} else if (file.getName().endsWith(".java")) {
-				javaFiles.add(file);
-			}
-		}
-	}
-
-	private void collectClassFiles(File dir, List<File> classFiles) {
-		if (dir == null || !dir.exists()) return;
-		File[] files = dir.listFiles();
-		if (files == null) return;
-		for (File file : files) {
-			if (file.isDirectory()) {
-				collectClassFiles(file, classFiles);
-			} else if (file.getName().endsWith(".class")) {
-				classFiles.add(file);
-			}
-		}
 	}
 
 	/**
@@ -388,7 +387,7 @@ public class ModelGeneratorFactory {
 		if (!(config instanceof ModelConfig modelConfig)) {
 			String errorMsg = String.format("Invalid config type for %s. Expected ModelConfig, got %s",
 					label, config != null ? config.getClass().getName() : "null");
-			handleFailure(errorMsg, buildStatusKey(label, "unknown-config"));
+			handleFailure(errorMsg, buildUnknownStatusKey(label));
 			return false;
 		}
 		String name = modelConfig.getModelName();
@@ -407,7 +406,7 @@ public class ModelGeneratorFactory {
 				return false;
 			}
 			ModelFormat modelFormat = ModelFormat.fromString(format);
-            String formatKey = modelFormat.getFormat().trim().toLowerCase();
+			String formatKey = modelFormat.getFormat().trim().toLowerCase();
 			ModelGenerator<?> generator = generators.get(formatKey);
 			if (generator == null) {
 				String available = String.join(", ", generators.keySet());
@@ -480,10 +479,9 @@ public class ModelGeneratorFactory {
 		return modelType.name() + ":" + safeName;
 	}
 
-	private String buildStatusKey(String label, String modelName) {
+	private String buildUnknownStatusKey(String label) {
 		String safeLabel = label == null || label.isBlank() ? "UNKNOWN" : label.trim().toUpperCase(Locale.ROOT);
-		String safeName = modelName == null || modelName.isBlank() ? "unnamed-model" : modelName.trim();
-		return safeLabel + ":" + safeName;
+		return safeLabel + ":unknown-config";
 	}
 
 	/**

@@ -5,6 +5,7 @@ import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.source.XmlSourceConfig;
+import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.config.target.XmlTargetConfig;
@@ -34,19 +35,22 @@ public class XmlJobScopedGenerationService {
     private final ObjectMapper yamlMapper;
     private final XmlModelDefinitionLoader definitionLoader;
     private final XmlStructureClassGenerator classGenerator;
+    private final FlatTargetModelClassGenerator flatTargetModelClassGenerator;
     private final XmlConfigToModelDefinitionMapper configMapper;
 
     public XmlJobScopedGenerationService() {
-        this(buildYamlMapper(), new XmlModelDefinitionLoader(), new XmlStructureClassGenerator(), new XmlConfigToModelDefinitionMapper());
+        this(buildYamlMapper(), new XmlModelDefinitionLoader(), new XmlStructureClassGenerator(), new FlatTargetModelClassGenerator(), new XmlConfigToModelDefinitionMapper());
     }
 
     XmlJobScopedGenerationService(ObjectMapper yamlMapper,
                                   XmlModelDefinitionLoader definitionLoader,
                                   XmlStructureClassGenerator classGenerator,
+                                  FlatTargetModelClassGenerator flatTargetModelClassGenerator,
                                   XmlConfigToModelDefinitionMapper configMapper) {
         this.yamlMapper = yamlMapper;
         this.definitionLoader = definitionLoader;
         this.classGenerator = classGenerator;
+        this.flatTargetModelClassGenerator = flatTargetModelClassGenerator;
         this.configMapper = configMapper;
     }
 
@@ -99,8 +103,7 @@ public class XmlJobScopedGenerationService {
 
         List<XmlModelGenerationResult> targetResults = selectedTargetNames.stream()
                 .map(targetsByName::get)
-                .filter(XmlTargetConfig.class::isInstance)
-                .map(XmlTargetConfig.class::cast)
+                .filter(this::supportsBuildTimeTargetGeneration)
                 .map(config -> generateTargetModel(config, targetConfigPath.getParent(), targetOutputRoot))
                 .toList();
 
@@ -116,13 +119,27 @@ public class XmlJobScopedGenerationService {
         }
     }
 
-    private XmlModelGenerationResult generateTargetModel(XmlTargetConfig config, Path targetConfigDirectory, Path outputRoot) {
+    private XmlModelGenerationResult generateTargetModel(TargetConfig config, Path targetConfigDirectory, Path outputRoot) {
+        if (config instanceof CsvTargetConfig csvTargetConfig) {
+            return flatTargetModelClassGenerator.generate(
+                    csvTargetConfig.getPackageName(),
+                    csvTargetConfig.getTargetName(),
+                    csvTargetConfig.getFields(),
+                    outputRoot
+            );
+        }
+
+        XmlTargetConfig xmlTargetConfig = (XmlTargetConfig) config;
         try {
-            XmlModelDefinition definition = resolveTargetDefinition(config, targetConfigDirectory);
+            XmlModelDefinition definition = resolveTargetDefinition(xmlTargetConfig, targetConfigDirectory);
             return classGenerator.generate(definition, outputRoot);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to generate XML target model for target '" + config.getTargetName() + "'.", e);
+            throw new IllegalStateException("Failed to generate XML target model for target '" + xmlTargetConfig.getTargetName() + "'.", e);
         }
+    }
+
+    private boolean supportsBuildTimeTargetGeneration(TargetConfig config) {
+        return config instanceof XmlTargetConfig || config instanceof CsvTargetConfig;
     }
 
     private XmlModelDefinition resolveSourceDefinition(XmlSourceConfig config, Path configDirectory) throws IOException {
