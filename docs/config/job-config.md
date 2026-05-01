@@ -68,6 +68,8 @@ steps:
 - Relative `sourceConfigPath`, `targetConfigPath`, and `processorConfigPath` values are resolved from the `job-config.yaml` file's folder.
 - The runtime does not scan scenario folders automatically; one run explicitly chooses one `job-config.yaml`.
 - `name` is currently descriptive metadata for the selected bundle rather than a separate lookup key.
+- During explicit startup, the selected source and target configs are validated first, then the selected processor config is validated before generated-model class checks run.
+- Processor-config validation failures in explicit runs are surfaced with the selected scenario name and processor-config path so operators can identify the broken scenario bundle quickly.
 
 ## Validation / usage notes
 
@@ -75,6 +77,7 @@ steps:
 - Every `steps[].target` value must match a configured `targetName` in the selected target config file.
 - The selected processor config must contain a matching mapping for each source/target pair used by the selected steps.
 - A multi-step scenario can reuse one processor config file with multiple mappings; runtime picks the mapping by `source` and `target` names, not by list position.
+- If the selected processor config is malformed, explicit startup now fails before generated-model class validation so processor issues are not masked by unrelated missing generated classes.
 - Use `etl.config.job` as the normal production-style entry point. Direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides are intended for demo/fallback cases only.
 - Archive-on-success remains part of the selected CSV source config, not `job-config.yaml`.
 - Rejected-record output and field-level validation rules remain part of the selected processor config, not `job-config.yaml`.

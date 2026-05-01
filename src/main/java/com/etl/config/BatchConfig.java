@@ -50,6 +50,13 @@ import com.etl.writer.DynamicWriterFactory;
  * chooses between chunk-oriented or tasklet-based processing depending on the source record count
  * and a configurable threshold. This optimizes performance for both small and large files.
  * </p>
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>This class remains important while migrating away from the current 1.4.x runtime
+ * assembly, but it should not quietly become the final center of the next-generation
+ * architecture. Use it to support migration and compatibility while new generator-first
+ * runtime paths are proven.</p>
  */
 @Configuration
 @EnableBatchProcessing

@@ -35,12 +35,13 @@ Backed by:
 | `mappings[].fields[].to` | yes | string | Target property name |
 | `mappings[].fields[].transforms` | no, future | list | Planned optional field-level transform/cleaner chain. Omit the block when no cleanup/normalization is needed |
 | `mappings[].fields[].rules` | no | list | Optional field-level validation rules. If no `duplicate` rule is configured, runtime does not perform duplicate detection for that mapping |
+| `mappings[].fields[].rules[].onFailure` | no | string | Optional validation outcome override: `failStep` or `rejectRecord` |
 | `mappings[].fields[].transforms[].type` | yes, when a future transform is present | string | Planned first transform type is `valueMap`; future narrow built-ins may include generic cleaners such as trim/case handling/null fallback |
 | `mappings[].fields[].rules[].type` | yes, when a rule is present | string | Shipped rule types are `notNull`, `timeFormat`, and first-slice `duplicate` |
 | `mappings[].fields[].rules[].pattern` | yes for `timeFormat` | string | Required time pattern such as `HH:mm:ss` |
 | `mappings[].fields[].rules[].keyFields` | no, for `duplicate` | list of strings | Optional duplicate-key field list. When omitted, duplicate detection uses the mapped field itself as the duplicate key |
 | `mappings[].fields[].rules[].orderBy` | no, for `duplicate` | list | Optional winner-selection order. When omitted, duplicate handling stays in keep-first mode and the first encountered record is retained for a duplicate key |
-| `mappings[].fields[].rules[].orderBy[].field` | yes, when `orderBy` is present | string | Field used to rank duplicate candidates |
+| `mappings[].fields[].rules[].orderBy[].field` | yes, when `orderBy` is present | string | Field used to rank duplicate candidates; each configured field should appear only once per `orderBy` list |
 | `mappings[].fields[].rules[].orderBy[].direction` | yes, when `orderBy` is present | string | Winner-selection direction: `ASC` or `DESC` |
 
 ## Example
@@ -61,7 +62,9 @@ mappings:
         to: id
         rules:
           - type: notNull
+            onFailure: failStep
           - type: duplicate
+            onFailure: rejectRecord
             keyFields:
               - id
             orderBy:
@@ -93,12 +96,16 @@ mappings:
 - The intended future processor order for configurable field cleanup is: read raw value → apply configured transforms/cleaners → evaluate validation rules on the transformed value → write the target field.
 - Transform-then-reject is valid and expected. For example, a future `valueMap` transform may normalize `IND -> IN`, `USA -> US`, and all other codes to `UNKNOWN`, after which a processor rule may reject `UNKNOWN` if that value is not allowed.
 - The shipped validation rule types are `notNull`, `timeFormat`, and `duplicate`.
+- `mappings[].fields[].rules[].onFailure` is optional. If omitted, runtime keeps the existing behavior: reject the record when reject handling is enabled, otherwise fail the step.
+- Use `onFailure: failStep` for business-critical required fields where the scenario should stop immediately and surface a clear exception in the logs.
+- Use `onFailure: rejectRecord` when the rule should send bad records to reject output instead of failing the step. This requires `rejectHandling.enabled=true`.
 - The shipped `duplicate` rule is configured in the processor layer, so the same duplicate contract can be reused for CSV, flat XML, relational, and other future record-oriented sources once they are read into normal runtime records.
 - Duplicate checking is optional. If no `duplicate` rule is configured for a mapping, runtime does not perform duplicate detection or duplicate-based rejection for that mapping.
 - The `duplicate` rule supports keep-first matching by default when only `keyFields` are configured.
 - If a `duplicate` rule is configured without `keyFields`, the mapped field itself becomes the duplicate key.
 - If a `duplicate` rule is configured with `keyFields` but without `orderBy`, the first encountered record for that duplicate key is retained and later matching records are treated as duplicates.
 - If `orderBy` is present, the retained record per duplicate key is selected using the configured ordered fields such as `eventTime DESC` followed by `sequenceNo ASC`.
+- Repeating the same `orderBy[].field` more than once in one `duplicate` rule is invalid and is rejected during processor-config validation.
 - When `orderBy` is not present, duplicate handling does not do “best record wins” selection; it stays in simple keep-first mode.
 - The current shipped `duplicate` rule uses step-local in-memory tracking for keep-first duplicate elimination.
 - When `orderBy` is present, runtime resolves winners through a shared ordered-duplicate abstraction and currently chooses between in-memory and embedded-DB staging based on runtime volume hints before the final write phase.

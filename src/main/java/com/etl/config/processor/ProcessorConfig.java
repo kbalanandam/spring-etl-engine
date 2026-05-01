@@ -130,6 +130,7 @@ public class ProcessorConfig {
 	public static class FieldRule {
 
 		private String type;
+		private String onFailure;
 		private String pattern;
 		private List<String> keyFields;
 		private List<OrderByField> orderBy;
@@ -140,6 +141,14 @@ public class ProcessorConfig {
 
 		public void setType(String type) {
 			this.type = type;
+		}
+
+		public String getOnFailure() {
+			return onFailure;
+		}
+
+		public void setOnFailure(String onFailure) {
+			this.onFailure = onFailure;
 		}
 
 		public String getPattern() {

@@ -7,6 +7,13 @@ import java.util.List;
  *
  * <p>A job config chooses exactly one source config, one target config,
  * and one processor config for a run. It does not perform scenario discovery.</p>
+ *
+ * <p><strong>Transition status:</strong> REUSE.</p>
+ *
+ * <p>This remains an approved contract for explicit job selection in the next
+ * architecture direction. Prefer reusing and evolving this contract instead of
+ * introducing a second competing run-selection model without a documented design
+ * decision.</p>
  */
 public class JobConfig {
 

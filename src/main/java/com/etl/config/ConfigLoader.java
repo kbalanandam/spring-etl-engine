@@ -3,7 +3,9 @@ package com.etl.config;
 import com.etl.config.exception.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
+import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.config.source.validation.SourceValidationContext;
 import com.etl.config.source.validation.SourceValidationService;
 import com.etl.config.target.RelationalTargetConfig;
@@ -32,6 +34,16 @@ import java.util.Set;
 
 import static java.nio.file.Files.readString;
 
+/**
+ * Loads the active source, target, processor, and job-level runtime configuration.
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>This class is still central to the current 1.4.x runtime, but the next
+ * architecture is expected to change generation lifecycle and runtime assembly.
+ * Keep this class stable enough to support migration, but do not expand it into the
+ * final design center for new architecture work.</p>
+ */
 @Configuration
 public class ConfigLoader {
 
@@ -112,42 +124,7 @@ public class ConfigLoader {
 			ProcessorConfig config = runtimeConfig.requireExternalConfigs()
 					? loadRequiredExternalYamlConfig(runtimeConfig.processorConfigPath(), ProcessorConfig.class, mapper)
 					: loadYamlConfig(runtimeConfig.processorConfigPath(), "processor-config.yaml", ProcessorConfig.class, mapper);
-
-			// --- Validation step ---
-
-			if (config.getMappings() == null || config.getMappings().isEmpty()) {
-				throw new IllegalStateException("No entity mappings found in processor YAML");
-			}
-
-			for (ProcessorConfig.EntityMapping em : config.getMappings()) {
-				for (int i = 0; i < config.getMappings().size(); i++) {
-					ProcessorConfig.EntityMapping m = config.getMappings().get(i);
-                    logger.debug("Mapping {}: source={}, target={}", i, m.getSource(), m.getTarget());
-				}
-                logger.debug("Validating EntityMapping size: {}", config.getMappings().size());
-				if (em.getSource() == null || em.getSource().isEmpty()) {
-					throw new IllegalStateException("EntityMapping missing 'source' property: " + em);
-				}
-				if (em.getTarget() == null || em.getTarget().isEmpty()) {
-					throw new IllegalStateException("EntityMapping missing 'target' property: " + em);
-				}
-				if (em.getFields() == null || em.getFields().isEmpty()) {
-					throw new IllegalStateException("EntityMapping for source=" + em.getSource() + " and target=" + em.getTarget() + " has no field mappings");
-				}
-
-				// Optional: validate individual field mappings
-				for (ProcessorConfig.FieldMapping fm : em.getFields()) {
-					if (fm.getFrom() == null || fm.getFrom().isEmpty()) {
-						throw new IllegalStateException("FieldMapping missing 'from' in entity " + em.getSource());
-					}
-					if (fm.getTo() == null || fm.getTo().isEmpty()) {
-						throw new IllegalStateException("FieldMapping missing 'to' in entity " + em.getSource());
-					}
-					validateFieldRules(em, fm);
-				}
-			}
-			validateRejectHandling(config);
-			logger.info("Processor configuration loaded and validated successfully from YAML");
+			validateProcessorConfig(config, runtimeConfig.scenarioName(), runtimeConfig.processorConfigPath());
 			return config;
 		} catch (ConfigException e) {
 			throw e;
@@ -250,6 +227,7 @@ public class ConfigLoader {
 			SourceWrapper demoSourceWrapper = loadYamlConfig(sourceConfigPath, "source-config.yaml", SourceWrapper.class);
 			TargetWrapper demoTargetWrapper = loadYamlConfig(targetConfigPath, "target-config.yaml", TargetWrapper.class);
 			ProcessorConfig demoProcessorConfig = loadYamlConfig(processorConfigPath, "processor-config.yaml", ProcessorConfig.class, buildYamlMapper());
+			validateProcessorConfig(demoProcessorConfig, "demo-fallback", processorConfigPath);
 			return new ResolvedRuntimeConfig(
 					sourceConfigPath,
 					targetConfigPath,
@@ -284,7 +262,9 @@ public class ConfigLoader {
 				new SourceValidationContext(scenarioName, resolvedSourceConfigPath)
 		);
 		validateSelectedTargetConfigs(explicitTargetWrapper, scenarioName, resolvedTargetConfigPath);
+		validateProcessorConfig(explicitProcessorConfig, scenarioName, resolvedProcessorConfigPath);
 		List<JobConfig.JobStepConfig> resolvedSteps = resolveExplicitSteps(jobConfig, explicitSourceWrapper, explicitTargetWrapper, explicitProcessorConfig);
+		validateSelectedGeneratedModelClasses(explicitSourceWrapper, explicitTargetWrapper, resolvedSteps);
 
 		return new ResolvedRuntimeConfig(
 				resolvedSourceConfigPath,
@@ -373,6 +353,39 @@ public class ConfigLoader {
 		}
 
 		return List.copyOf(synthesizedSteps);
+	}
+
+	private void validateSelectedGeneratedModelClasses(SourceWrapper sourceWrapper,
+	                                                TargetWrapper targetWrapper,
+	                                                List<JobConfig.JobStepConfig> resolvedSteps) {
+		if (resolvedSteps == null || resolvedSteps.isEmpty()) {
+			return;
+		}
+
+		java.util.Map<String, SourceConfig> sourcesByName = new java.util.LinkedHashMap<>();
+		if (sourceWrapper.getSources() != null) {
+			for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
+				sourcesByName.put(sourceConfig.getSourceName(), sourceConfig);
+			}
+		}
+
+		java.util.Map<String, TargetConfig> targetsByName = new java.util.LinkedHashMap<>();
+		if (targetWrapper.getTargets() != null) {
+			for (TargetConfig targetConfig : targetWrapper.getTargets()) {
+				targetsByName.put(targetConfig.getTargetName(), targetConfig);
+			}
+		}
+
+		for (JobConfig.JobStepConfig step : resolvedSteps) {
+			SourceConfig sourceConfig = sourcesByName.get(step.getSource());
+			TargetConfig targetConfig = targetsByName.get(step.getTarget());
+			if (sourceConfig != null) {
+				GeneratedModelClassResolver.requireSourceModelClassesAvailable(sourceConfig);
+			}
+			if (targetConfig != null) {
+				GeneratedModelClassResolver.requireTargetModelClassesAvailable(targetConfig);
+			}
+		}
 	}
 
 	private void validateSelectedTargetConfigs(TargetWrapper targetWrapper, String scenarioName, String targetConfigPath) {
@@ -473,6 +486,50 @@ public class ConfigLoader {
 		return configuredName == null || configuredName.isBlank() ? "unnamed" : configuredName.trim();
 	}
 
+	private void validateProcessorConfig(ProcessorConfig config, String scenarioName, String resolvedProcessorConfigPath) {
+		try {
+			if (config.getMappings() == null || config.getMappings().isEmpty()) {
+				throw new IllegalStateException("No entity mappings found in processor YAML");
+			}
+
+			for (int i = 0; i < config.getMappings().size(); i++) {
+				ProcessorConfig.EntityMapping entityMapping = config.getMappings().get(i);
+				logger.debug("Mapping {}: source={}, target={}", i, entityMapping.getSource(), entityMapping.getTarget());
+			}
+			logger.debug("Validating EntityMapping size: {}", config.getMappings().size());
+
+			for (ProcessorConfig.EntityMapping entityMapping : config.getMappings()) {
+				if (entityMapping.getSource() == null || entityMapping.getSource().isEmpty()) {
+					throw new IllegalStateException("EntityMapping missing 'source' property: " + entityMapping);
+				}
+				if (entityMapping.getTarget() == null || entityMapping.getTarget().isEmpty()) {
+					throw new IllegalStateException("EntityMapping missing 'target' property: " + entityMapping);
+				}
+				if (entityMapping.getFields() == null || entityMapping.getFields().isEmpty()) {
+					throw new IllegalStateException("EntityMapping for source=" + entityMapping.getSource() + " and target=" + entityMapping.getTarget() + " has no field mappings");
+				}
+
+				for (ProcessorConfig.FieldMapping fieldMapping : entityMapping.getFields()) {
+					if (fieldMapping.getFrom() == null || fieldMapping.getFrom().isEmpty()) {
+						throw new IllegalStateException("FieldMapping missing 'from' in entity " + entityMapping.getSource());
+					}
+					if (fieldMapping.getTo() == null || fieldMapping.getTo().isEmpty()) {
+						throw new IllegalStateException("FieldMapping missing 'to' in entity " + entityMapping.getSource());
+					}
+					validateFieldRules(config, entityMapping, fieldMapping);
+				}
+			}
+
+			validateRejectHandling(config);
+			logger.info("Processor configuration loaded and validated successfully from YAML");
+		} catch (ConfigException e) {
+			throw e;
+		} catch (IllegalArgumentException | IllegalStateException e) {
+			throw new ConfigException("Invalid processor configuration for scenario '"
+					+ defaultName(scenarioName) + "' in " + resolvedProcessorConfigPath + ": " + e.getMessage(), e);
+		}
+	}
+
 	private void validateRejectHandling(ProcessorConfig config) {
 		ProcessorConfig.RejectHandling rejectHandling = config.getRejectHandling();
 		if (rejectHandling == null || !rejectHandling.isEnabled()) {
@@ -484,14 +541,40 @@ public class ConfigLoader {
 		}
 	}
 
-	private void validateFieldRules(ProcessorConfig.EntityMapping entityMapping, ProcessorConfig.FieldMapping fieldMapping) {
+	private void validateFieldRules(ProcessorConfig config,
+	                             ProcessorConfig.EntityMapping entityMapping,
+	                             ProcessorConfig.FieldMapping fieldMapping) {
 		if (fieldMapping.getRules() == null || fieldMapping.getRules().isEmpty()) {
 			return;
 		}
 
 		for (int i = 0; i < fieldMapping.getRules().size(); i++) {
 			ProcessorConfig.FieldRule rule = fieldMapping.getRules().get(i);
+			validateRuleFailureAction(config, entityMapping, fieldMapping, rule);
 			validationRuleEvaluator.validateConfiguration(entityMapping, fieldMapping, rule);
+		}
+	}
+
+	private void validateRuleFailureAction(ProcessorConfig config,
+	                                    ProcessorConfig.EntityMapping entityMapping,
+	                                    ProcessorConfig.FieldMapping fieldMapping,
+	                                    ProcessorConfig.FieldRule rule) {
+		if (rule == null || rule.getOnFailure() == null || rule.getOnFailure().isBlank()) {
+			return;
+		}
+
+		String normalizedAction = rule.getOnFailure().trim();
+		if (!"failStep".equalsIgnoreCase(normalizedAction) && !"rejectRecord".equalsIgnoreCase(normalizedAction)) {
+			throw new IllegalStateException("FieldMapping rule '" + rule.getType() + "' for entity "
+					+ entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom()
+					+ "' uses unsupported onFailure='" + normalizedAction + "'. Supported values are failStep or rejectRecord.");
+		}
+
+		if ("rejectRecord".equalsIgnoreCase(normalizedAction)
+				&& (config.getRejectHandling() == null || !config.getRejectHandling().isEnabled())) {
+			throw new IllegalStateException("FieldMapping rule '" + rule.getType() + "' for entity "
+					+ entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom()
+					+ "' uses onFailure=rejectRecord but rejectHandling.enabled is not true.");
 		}
 	}
 

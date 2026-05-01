@@ -159,9 +159,90 @@
 	<build>
 		<plugins>
 			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<configuration>
+					<excludes>
+						<exclude>com/etl/model/source/com/etl/generated/**/*.java</exclude>
+						<exclude>com/etl/model/target/com/etl/generated/**/*.java</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 			</plugin>
 		</plugins>
 	</build>
+	<profiles>
+		<profile>
+			<id>xml-generation</id>
+			<properties>
+				<etl.xml.generation.outputRoot>${project.build.directory}/generated-sources/etl</etl.xml.generation.outputRoot>
+			</properties>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>build-helper-maven-plugin</artifactId>
+						<version>3.6.0</version>
+						<executions>
+							<execution>
+								<id>add-job-scoped-generated-sources</id>
+								<phase>generate-sources</phase>
+								<goals>
+									<goal>add-source</goal>
+								</goals>
+								<configuration>
+									<sources>
+										<source>${etl.xml.generation.outputRoot}/source</source>
+										<source>${etl.xml.generation.outputRoot}/target</source>
+									</sources>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>exec-maven-plugin</artifactId>
+						<version>3.5.0</version>
+						<executions>
+							<execution>
+								<id>generate-job-scoped-xml-models</id>
+								<phase>process-classes</phase>
+								<goals>
+									<goal>java</goal>
+								</goals>
+								<configuration>
+									<mainClass>com.etl.generation.xml.build.XmlJobGenerationMain</mainClass>
+									<arguments>
+										<argument>${etl.xml.generation.jobConfig}</argument>
+										<argument>${etl.xml.generation.outputRoot}</argument>
+									</arguments>
+									<classpathScope>compile</classpathScope>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>org.apache.maven.plugins</groupId>
+						<artifactId>maven-compiler-plugin</artifactId>
+						<version>3.14.0</version>
+						<executions>
+							<execution>
+								<id>compile-job-scoped-generated-sources</id>
+								<phase>process-classes</phase>
+								<goals>
+									<goal>compile</goal>
+								</goals>
+								<configuration>
+									<useIncrementalCompilation>false</useIncrementalCompilation>
+								</configuration>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 </project>

@@ -28,6 +28,9 @@ Backed by:
 | `validation` | no | object | Optional CSV file-level validation rules executed by the CSV source validator |
 | `validation.allowEmpty` | no | boolean | When `false`, the CSV must contain at least one data row after the header; default is `true` |
 | `validation.requireHeaderMatch` | no | boolean | When `true`, the CSV header must exactly match the configured `fields` order and names |
+| `validation.fileNamePattern` | no | string | Optional regex the source file name must match |
+| `validation.onFailure` | no | string | Optional file-level failure behavior: `failStep` or `rejectFile` |
+| `validation.rejectPath` | yes, when `validation.onFailure=rejectFile` | string | Directory where an invalid source file is moved before the run fails |
 | `fields` | yes | list | Ordered list of CSV columns |
 | `fields[].name` | yes | string | Field/property name |
 | `fields[].type` | yes | string | Logical type used in generated model contract |
@@ -48,6 +51,9 @@ sources:
     validation:
       allowEmpty: false
       requireHeaderMatch: true
+      fileNamePattern: '^events-\d{8}\.csv$'
+      onFailure: rejectFile
+      rejectPath: target/rejected-files/
     fields:
       - name: id
         type: String
@@ -63,6 +69,8 @@ sources:
 - The order of `fields` should match the order of columns in the CSV file.
 - The current CSV reader skips the first line as a header row.
 - When `validation` is present, the CSV source validator checks the configured file path before execution and can fail fast for missing/unreadable files, header-only files, or header mismatches.
+- `validation.fileNamePattern` checks only the file name portion, not the full path.
+- If `validation.onFailure=rejectFile`, a CSV file that fails file-level validation is moved to `validation.rejectPath` and the run still surfaces a validation error with the rejected-file location in the message/logs.
 - The current record count implementation counts file rows and subtracts one for the header.
 - Archive behavior currently applies only to CSV sources and only after successful step completion.
 - If archive is enabled, `archive.successPath` is required.
