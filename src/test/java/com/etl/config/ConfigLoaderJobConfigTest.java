@@ -590,6 +590,141 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void failsFastOnScenarioAwareProcessorConfigErrorBeforeGeneratedTargetValidation() throws IOException {
+    Path sourceFile = tempDir.resolve("customers.csv");
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceFile, "id,name\n1,John Doe\n");
+
+    Files.writeString(sourceConfig, """
+        sources:
+          - format: csv
+            sourceName: Customers
+            packageName: com.etl.model.source
+            filePath: %s
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+              - name: name
+                type: String
+        """.formatted(yamlPath(sourceFile)));
+    Files.writeString(targetConfig, """
+        targets:
+          - format: csv
+            targetName: MissingTarget
+            packageName: com.etl.generated.missing.target
+            filePath: output/missing-target.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+              - name: name
+                type: String
+        """);
+    Files.writeString(processorConfig, """
+        type: default
+        rejectHandling:
+          enabled: true
+        mappings:
+          - source: Customers
+            target: MissingTarget
+            fields:
+              - from: id
+                to: id
+              - from: name
+                to: name
+        """);
+    Files.writeString(jobConfig, """
+        name: processor-validation-before-generated-models
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: customers-step
+            source: Customers
+            target: MissingTarget
+        """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    assertTrue(messageChain(exception).contains("Invalid processor configuration for scenario 'processor-validation-before-generated-models'"));
+    assertTrue(messageChain(exception).contains(processorConfig.toString()));
+    assertTrue(messageChain(exception).contains("rejectHandling"));
+    assertFalse(messageChain(exception).contains("Target model class not found"));
+  }
+
+  @Test
+  void failsFastWhenRuleRequestsRejectRecordWithoutRejectHandling() throws IOException {
+    Path sourceFile = tempDir.resolve("customers.csv");
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceFile, "id\n1\n");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: csv
+          sourceName: Customers
+          packageName: com.etl.model.source
+          filePath: %s
+          delimiter: ","
+          fields:
+            - name: id
+              type: String
+      """.formatted(yamlPath(sourceFile)));
+    Files.writeString(targetConfig, """
+      targets:
+        - format: csv
+          targetName: Customers
+          packageName: com.etl.model.target
+          filePath: output/customers.csv
+          delimiter: ","
+          fields:
+            - name: id
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: Customers
+          target: Customers
+          fields:
+            - from: id
+              to: id
+              rules:
+                - type: notNull
+                  onFailure: rejectRecord
+      """);
+    Files.writeString(jobConfig, """
+      name: reject-rule-without-reject-handling
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: customers-step
+          source: Customers
+          target: Customers
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(messageChain(exception).contains("onFailure=rejectRecord"));
+    assertTrue(messageChain(exception).contains("rejectHandling.enabled"));
+  }
+
+  @Test
   void failsFastWhenTimeFormatRuleIsMissingPattern() throws IOException {
     Path sourceConfig = tempDir.resolve("source-config.yaml");
     Path targetConfig = tempDir.resolve("target-config.yaml");
@@ -662,7 +797,7 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Events
-          packageName: com.etl.model.source
+          packageName: com.etl.model.source.xml
           filePath: %s
           delimiter: ","
           validation:
@@ -731,7 +866,7 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Events
-          packageName: com.etl.model.source
+          packageName: com.etl.model.source.xml
           filePath: input/events.csv
           delimiter: ","
           fields:
@@ -799,7 +934,7 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Events
-          packageName: com.etl.model.source
+          packageName: com.etl.model.source.xml
           filePath: input/events.csv
           delimiter: ","
           fields:
@@ -1175,7 +1310,7 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: xml
           sourceName: CustomersXml
-          packageName: com.etl.model.source
+          packageName: com.etl.model.source.xml
           filePath: %s
           rootElement: Customers
           recordElement: Customer
@@ -1250,7 +1385,7 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: xml
           sourceName: CustomersXml
-          packageName: com.etl.model.source
+          packageName: com.etl.model.source.xml
           filePath: %s
           rootElement: Customers
           recordElement: Customer
@@ -1304,6 +1439,234 @@ class ConfigLoaderJobConfigTest {
 
     assertEquals("xml-source-validation-success", metadata.scenarioName());
     assertEquals("CustomersXml", sourceWrapper.getSources().get(0).getSourceName());
+  }
+
+  @Test
+  void failsFastWhenSelectedXmlGeneratedSourcePackageIsMissing() throws IOException {
+    Path sourceFile = tempDir.resolve("customers.xml");
+    Files.writeString(sourceFile, """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Customers>
+          <Customer>
+            <id>1</id>
+            <name>John Doe</name>
+          </Customer>
+        </Customers>
+        """);
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: xml
+          sourceName: CustomersXml
+          packageName: com.etl.generated.missing.source
+          filePath: %s
+          rootElement: Customers
+          recordElement: Customer
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """.formatted(yamlPath(sourceFile)));
+    Files.writeString(targetConfig, """
+      targets:
+        - format: xml
+          targetName: CustomersXmlTarget
+          packageName: com.etl.model.target
+          filePath: output/customers.xml
+          rootElement: Customers
+          recordElement: Customer
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: CustomersXml
+          target: CustomersXmlTarget
+          fields:
+            - from: id
+              to: id
+            - from: name
+              to: name
+      """);
+    Files.writeString(jobConfig, """
+      name: xml-generated-source-package-missing
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: customers-step
+          source: CustomersXml
+          target: CustomersXmlTarget
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    assertTrue(messageChain(exception).contains("XML source root class not found"));
+    assertTrue(messageChain(exception).contains("com.etl.generated.missing.source.Customers"));
+  }
+
+  @Test
+  void failsFastWhenSelectedNestedXmlGeneratedRecordClassIsMissing() throws IOException {
+    Path sourceFile = tempDir.resolve("customers.xml");
+    Files.writeString(sourceFile, """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Customers>
+          <Customer>
+            <id>1</id>
+            <name>John Doe</name>
+          </Customer>
+        </Customers>
+        """);
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: xml
+          sourceName: CustomersXml
+          packageName: com.etl.generated.missing.nested.source
+          filePath: %s
+          rootElement: Customers
+          recordElement: Customer
+          flatteningStrategy: NestedXml
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """.formatted(yamlPath(sourceFile)));
+    Files.writeString(targetConfig, """
+      targets:
+        - format: csv
+          targetName: CustomersCsv
+          packageName: com.etl.model.target
+          filePath: output/customers.csv
+          delimiter: ","
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: CustomersXml
+          target: CustomersCsv
+          fields:
+            - from: id
+              to: id
+            - from: name
+              to: name
+      """);
+    Files.writeString(jobConfig, """
+      name: nested-xml-generated-record-missing
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: customers-step
+          source: CustomersXml
+          target: CustomersCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    assertTrue(messageChain(exception).contains("XML source record class not found"));
+    assertTrue(messageChain(exception).contains("com.etl.generated.missing.nested.source.Customer"));
+    assertFalse(messageChain(exception).contains("XML source root class not found"));
+  }
+
+  @Test
+  void loadsReferencedConfigsWhenSelectedXmlGeneratedPackagesAreAvailable() throws IOException {
+    Path sourceFile = tempDir.resolve("customers.xml");
+    Files.writeString(sourceFile, """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Customers>
+          <Customer>
+            <id>1</id>
+            <name>John Doe</name>
+          </Customer>
+        </Customers>
+        """);
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: xml
+          sourceName: CustomersXml
+          packageName: com.etl.model.source.xml
+          filePath: %s
+          rootElement: Customers
+          recordElement: Customer
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """.formatted(yamlPath(sourceFile)));
+    Files.writeString(targetConfig, """
+      targets:
+        - format: xml
+          targetName: CustomersXmlTarget
+          packageName: com.etl.model.target
+          filePath: output/customers.xml
+          rootElement: Customers
+          recordElement: Customer
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: CustomersXml
+          target: CustomersXmlTarget
+          fields:
+            - from: id
+              to: id
+            - from: name
+              to: name
+      """);
+    Files.writeString(jobConfig, """
+      name: xml-generated-packages-present
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: customers-step
+          source: CustomersXml
+          target: CustomersXmlTarget
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+    assertEquals("xml-generated-packages-present", metadata.scenarioName());
   }
 
   @Test

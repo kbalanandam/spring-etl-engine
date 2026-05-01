@@ -37,10 +37,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class XmlNestedSourceToCsvTargetFlowTest {
 
@@ -48,7 +48,7 @@ class XmlNestedSourceToCsvTargetFlowTest {
     Path tempDir;
 
     @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    @SuppressWarnings("unchecked")
     void runsNestedXmlSourceThroughSharedProcessorIntoCsvTarget() throws Exception {
         Path scenarioDir = prepareScenarioBundle();
         Path generatedSourceRoot = tempDir.resolve("generated-flow-sources");
@@ -65,7 +65,7 @@ class XmlNestedSourceToCsvTargetFlowTest {
         XmlJobScopedGenerationResult generationResult = new XmlJobScopedGenerationService()
                 .generate(scenarioDir.resolve("job-config.yaml"), generatedSourceRoot);
         assertEquals(1, generationResult.sourceResults().size());
-        assertEquals(0, generationResult.targetResults().size());
+        assertEquals(1, generationResult.targetResults().size());
 
         compile(generationResult.allGeneratedFiles(), Path.of("target", "test-classes"));
 
@@ -79,7 +79,7 @@ class XmlNestedSourceToCsvTargetFlowTest {
         DynamicWriterFactory writerFactory = new DynamicWriterFactory(List.of(new CsvDynamicWriter()));
 
         ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(sourceConfig, targetConfig);
-        ItemReader<Object> reader = (ItemReader<Object>) readerFactory.createReader(sourceConfig, (Class<Object>) sourceRecordClass);
+        ItemReader<Object> reader = readerFactory.createReader(sourceConfig, (Class<Object>) sourceRecordClass);
         ItemProcessor<Object, Object> processor = processorFactory.getProcessor(processorConfig, sourceConfig, targetConfig, metadata);
         ItemWriter<Object> writer = writerFactory.createWriter(targetConfig, targetRecordClass);
 
@@ -93,12 +93,15 @@ class XmlNestedSourceToCsvTargetFlowTest {
         }
 
         assertEquals(1, processedItems.size());
-        Object processedRecord = processedItems.get(0);
-        assertEquals("0056", processedRecord.getClass().getMethod("getHomeAgencyId").invoke(processedRecord));
-        assertEquals("1300", processedRecord.getClass().getMethod("getTagAgencyId").invoke(processedRecord));
-        assertEquals("US", processedRecord.getClass().getMethod("getPlateCountry").invoke(processedRecord));
-        assertEquals("KS", processedRecord.getClass().getMethod("getPlateState").invoke(processedRecord));
-        assertEquals("4773316", processedRecord.getClass().getMethod("getAccountNumber").invoke(processedRecord));
+
+        Object firstProcessedRecord = processedItems.get(0);
+        assertEquals("0056", firstProcessedRecord.getClass().getMethod("getHomeAgencyId").invoke(firstProcessedRecord));
+        assertEquals("1300", firstProcessedRecord.getClass().getMethod("getTagAgencyId").invoke(firstProcessedRecord));
+        assertEquals("0003518358", firstProcessedRecord.getClass().getMethod("getTagSerialNumber").invoke(firstProcessedRecord));
+        assertEquals("7064AFP", firstProcessedRecord.getClass().getMethod("getPlateNumber").invoke(firstProcessedRecord));
+        assertEquals("US", firstProcessedRecord.getClass().getMethod("getPlateCountry").invoke(firstProcessedRecord));
+        assertEquals("KS", firstProcessedRecord.getClass().getMethod("getPlateState").invoke(firstProcessedRecord));
+        assertEquals("4773316", firstProcessedRecord.getClass().getMethod("getAccountNumber").invoke(firstProcessedRecord));
 
         FlatFileItemWriter<Object> csvWriter = (FlatFileItemWriter<Object>) writer;
         csvWriter.open(new ExecutionContext());
@@ -108,14 +111,20 @@ class XmlNestedSourceToCsvTargetFlowTest {
             csvWriter.close();
         }
 
-        String csv = Files.readString(Path.of(targetConfig.getFilePath())).trim();
-        assertEquals("0056,1300,US,KS,4773316", csv);
+        List<String> csvLines = Files.readAllLines(Path.of(targetConfig.getFilePath())).stream()
+                .filter(line -> !line.isBlank())
+                .toList();
+        assertEquals(List.of(
+                "0056,1300,0003518358,7064AFP,US,KS,4773316"
+        ), csvLines);
     }
 
     private Path prepareScenarioBundle() throws Exception {
         Path sourceScenarioDir = Path.of("src", "main", "resources", "config-scenarios", "xml-nested-to-csv-tag-validation");
+        Path sharedSampleDir = Path.of("src", "main", "resources", "config-scenarios", "xml-nested-tag-validation", "input");
         Path scenarioDir = tempDir.resolve("xml-nested-to-csv-tag-validation");
         copyDirectory(sourceScenarioDir, scenarioDir);
+        Files.copy(sharedSampleDir.resolve("nested-sample.xml"), scenarioDir.resolve("input/nested-sample.xml"));
 
         Path inputFile = scenarioDir.resolve("input/nested-sample.xml").toAbsolutePath().normalize();
         Path outputFile = scenarioDir.resolve("target/tag-validation-export.csv").toAbsolutePath().normalize();
@@ -124,12 +133,12 @@ class XmlNestedSourceToCsvTargetFlowTest {
         Files.writeString(
                 scenarioDir.resolve("source-config.yaml"),
                 Files.readString(scenarioDir.resolve("source-config.yaml"))
-                        .replace("filePath: input/nested-sample.xml", "filePath: " + toYamlPath(inputFile))
+                        .replaceFirst("(?m)^\\s*filePath:.*$", "    filePath: " + Matcher.quoteReplacement(toYamlPath(inputFile)))
         );
         Files.writeString(
                 scenarioDir.resolve("target-config.yaml"),
                 Files.readString(scenarioDir.resolve("target-config.yaml"))
-                        .replace("filePath: target/tag-validation-export.csv", "filePath: " + toYamlPath(outputFile))
+                        .replaceFirst("(?m)^\\s*filePath:.*$", "    filePath: " + Matcher.quoteReplacement(toYamlPath(outputFile)))
         );
 
         return scenarioDir;
@@ -179,4 +188,7 @@ class XmlNestedSourceToCsvTargetFlowTest {
         return path.toAbsolutePath().normalize().toString().replace("\\", "/");
     }
 }
+
+
+
 

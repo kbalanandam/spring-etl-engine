@@ -178,9 +178,18 @@ class XmlJobScopedGenerationServiceTest {
 
         assertEquals("events-job", result.jobName());
         assertEquals(1, result.sourceResults().size());
-        assertEquals(0, result.targetResults().size());
+        assertEquals(1, result.targetResults().size());
         assertTrue(Files.exists(outputRoot.resolve("source/com/etl/generated/job/events/source/Event.java")));
         assertTrue(Files.exists(outputRoot.resolve("source/com/etl/generated/job/events/source/Events.java")));
+        assertTrue(Files.exists(outputRoot.resolve("target/com/etl/generated/job/events/target/EventsCsv.java")));
+
+        Path classesDir = tempDir.resolve("generated-flat-compiled");
+        compile(result.allGeneratedFiles(), classesDir);
+        try (URLClassLoader classLoader = new URLClassLoader(new URL[]{classesDir.toUri().toURL()}, getClass().getClassLoader())) {
+            assertNotNull(classLoader.loadClass("com.etl.generated.job.events.source.Event"));
+            assertNotNull(classLoader.loadClass("com.etl.generated.job.events.source.Events"));
+            assertNotNull(classLoader.loadClass("com.etl.generated.job.events.target.EventsCsv"));
+        }
     }
 
     private void compile(List<Path> javaFiles, Path classRoot) throws Exception {

@@ -1,7 +1,11 @@
 package com.etl.config;
 
 import com.etl.config.job.JobConfig;
+import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
+import com.etl.config.source.XmlSourceConfig;
+import com.etl.config.target.TargetConfig;
+import com.etl.config.target.XmlTargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -30,6 +34,8 @@ class ScenarioConfigReferenceTest {
                 "csv-to-sqlserver",
                 "relational-to-relational",
                 "xml-to-csv-events",
+                "xml-nested-to-csv-tag-validation",
+                "xml-nested-tag-validation",
                 "customer-load",
                 "department-load",
                 "cust-dept-load"
@@ -49,8 +55,25 @@ class ScenarioConfigReferenceTest {
 
                   SourceWrapper sourceWrapper = mapper.readValue(scenarioDirectory.resolve(jobConfig.getSourceConfigPath()).toFile(), SourceWrapper.class);
                   TargetWrapper targetWrapper = mapper.readValue(scenarioDirectory.resolve(jobConfig.getTargetConfigPath()).toFile(), TargetWrapper.class);
-                  Set<String> sourceNames = sourceWrapper.getSources().stream().map(source -> source.getSourceName()).collect(Collectors.toSet());
-                  Set<String> targetNames = targetWrapper.getTargets().stream().map(target -> target.getTargetName()).collect(Collectors.toSet());
+                  Set<String> sourceNames = sourceWrapper.getSources().stream().map(SourceConfig::getSourceName).collect(Collectors.toSet());
+                  Set<String> targetNames = targetWrapper.getTargets().stream().map(TargetConfig::getTargetName).collect(Collectors.toSet());
+
+                  sourceWrapper.getSources().stream()
+                          .filter(XmlSourceConfig.class::isInstance)
+                          .map(XmlSourceConfig.class::cast)
+                          .filter(source -> source.getModelDefinitionPath() != null && !source.getModelDefinitionPath().isBlank())
+                          .forEach(source -> assertTrue(
+                                  Files.isRegularFile(scenarioDirectory.resolve(source.getModelDefinitionPath())),
+                                  () -> "Missing XML source model definition '" + source.getModelDefinitionPath() + "' for scenario: " + scenarioName
+                          ));
+                  targetWrapper.getTargets().stream()
+                          .filter(XmlTargetConfig.class::isInstance)
+                          .map(XmlTargetConfig.class::cast)
+                          .filter(target -> target.getModelDefinitionPath() != null && !target.getModelDefinitionPath().isBlank())
+                          .forEach(target -> assertTrue(
+                                  Files.isRegularFile(scenarioDirectory.resolve(target.getModelDefinitionPath())),
+                                  () -> "Missing XML target model definition '" + target.getModelDefinitionPath() + "' for scenario: " + scenarioName
+                          ));
 
             assertTrue(Files.isRegularFile(scenarioDirectory.resolve(jobConfig.getSourceConfigPath())),
                     () -> "Missing source config for scenario: " + scenarioName);
@@ -68,6 +91,10 @@ class ScenarioConfigReferenceTest {
     }
 
     private static Path scenarioRootPath() {
+        Path mainResourceRoot = Path.of("src", "main", "resources", "config-scenarios").toAbsolutePath().normalize();
+        if (Files.isDirectory(mainResourceRoot)) {
+            return mainResourceRoot;
+        }
         String resourceName = "config-scenarios";
         try {
             return Path.of(Objects.requireNonNull(

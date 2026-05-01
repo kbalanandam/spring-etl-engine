@@ -97,6 +97,9 @@ class SourceConfigPolymorphicDeserializationTest {
             filePath: input/customers.xml
             rootElement: Customers
             recordElement: Customer
+            flatteningStrategy: NestedXml
+            jobSpecificStrategyBean: customerXmlSourceStrategy
+            modelDefinitionPath: definitions/customer-source-model.yaml
             fields:
               - name: id
                 type: int
@@ -114,6 +117,9 @@ class SourceConfigPolymorphicDeserializationTest {
     assertEquals("input/customers.xml", xmlSource.getFilePath());
     assertEquals("Customers", xmlSource.getRootElement());
     assertEquals("Customer", xmlSource.getRecordElement());
+    assertEquals("NestedXml", xmlSource.getFlatteningStrategy());
+    assertEquals("customerXmlSourceStrategy", xmlSource.getJobSpecificStrategyBean());
+    assertEquals("definitions/customer-source-model.yaml", xmlSource.getModelDefinitionPath());
   }
 }
 

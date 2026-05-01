@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -115,6 +116,19 @@ class GeneratedModelClassResolverTest {
         assertEquals("com.etl.model.target.Customers", metadata.getTargetWriteClassName());
         assertFalse(metadata.isWrapperRequired());
         assertNull(metadata.getWrapperFieldName());
+    }
+
+    @Test
+    void validatesGeneratedClassPresenceForNonXmlTargets() {
+        CsvTargetConfig config = new CsvTargetConfig(
+                "Customer",
+                "com.etl.model.target",
+                List.of(column("id", "int")),
+                "target/customer.csv",
+                ","
+        );
+
+        assertDoesNotThrow(() -> GeneratedModelClassResolver.requireTargetModelClassesAvailable(config));
     }
 
     private static ColumnConfig column(String name, String type) {

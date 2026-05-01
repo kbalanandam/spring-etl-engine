@@ -1,5 +1,6 @@
 package com.etl.source.xml.strategy;
 
+import com.etl.common.util.ReflectionUtils;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.generation.xml.XmlModelDefinitionLoader;
 import com.etl.generation.xml.XmlModelGenerationResult;
@@ -8,8 +9,12 @@ import com.etl.source.xml.runtime.XmlFlatteningResult;
 import com.etl.source.xml.runtime.XmlSourceRuntimeContext;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Unmarshaller;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlElement;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.batch.item.ItemReader;
 import org.springframework.context.support.StaticApplicationContext;
 
 import javax.tools.JavaCompiler;
@@ -20,15 +25,14 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class XmlSourceStrategySpikeTest {
 
@@ -96,6 +100,55 @@ class XmlSourceStrategySpikeTest {
     }
 
     @Test
+    void nestedStrategyExtractsAllNestedRecordInstancesBelowWrapperNodes() {
+        XmlSourceConfig config = xmlConfig(
+                "ignored.package",
+                Path.of("ignored.xml"),
+                "TagValidationList",
+                "TVLTagDetails",
+                XmlFlatteningStrategyNames.NESTED_XML
+        );
+
+        TVLTagDetailsRecord firstRecord = new TVLTagDetailsRecord(
+                "0056",
+                "1300",
+                new TVLPlateDetailsRecord("US", "KS"),
+                new TVLAccountDetailsRecord("4773316")
+        );
+        TVLTagDetailsRecord secondRecord = new TVLTagDetailsRecord(
+                "0041",
+                "1112",
+                new TVLPlateDetailsRecord("US", "TX"),
+                new TVLAccountDetailsRecord("2025753547")
+        );
+        TagValidationListWrapper wrapper = new TagValidationListWrapper(
+                List.of(new TVLDetailWrapper(List.of(firstRecord, secondRecord)))
+        );
+
+        Map<String, String> fieldMappings = new LinkedHashMap<>();
+        fieldMappings.put("homeAgencyId", "HomeAgencyID");
+        fieldMappings.put("tagAgencyId", "TagAgencyID");
+        fieldMappings.put("plateState", "TVLPlateDetails.PlateState");
+        fieldMappings.put("accountNumber", "TVLAccountDetails.AccountNumber");
+
+        NestedXmlSourceStrategy strategy = new NestedXmlSourceStrategy();
+        XmlFlatteningResult result = strategy.flatten(
+                context(config, TagValidationListWrapper.class, TVLTagDetailsRecord.class, fieldMappings),
+                wrapper
+        );
+
+        assertEquals(2, result.getRecordCount());
+        assertEquals("0056", result.getRows().get(0).get("homeAgencyId"));
+        assertEquals("1300", result.getRows().get(0).get("tagAgencyId"));
+        assertEquals("KS", result.getRows().get(0).get("plateState"));
+        assertEquals("4773316", result.getRows().get(0).get("accountNumber"));
+        assertEquals("0041", result.getRows().get(1).get("homeAgencyId"));
+        assertEquals("1112", result.getRows().get(1).get("tagAgencyId"));
+        assertEquals("TX", result.getRows().get(1).get("plateState"));
+        assertEquals("2025753547", result.getRows().get(1).get("accountNumber"));
+    }
+
+    @Test
     void selectorResolvesRegisteredAndJobSpecificStrategies() {
         DirectXmlSourceStrategy directStrategy = new DirectXmlSourceStrategy();
         NestedXmlSourceStrategy nestedStrategy = new NestedXmlSourceStrategy();
@@ -127,6 +180,37 @@ class XmlSourceStrategySpikeTest {
         XmlFlatteningResult customResult = customStrategy.flatten(jobSpecificContext, new Object());
         assertEquals("invoice-reconciliation", customResult.getRows().get(0).get("job"));
         assertEquals("invoiceXmlSource", customResult.getRows().get(0).get("source"));
+    }
+
+    @Test
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    void xmlDynamicReaderUsesNestedStrategyToEmitFlattenedRows() throws Exception {
+        ScenarioArtifacts artifacts = generateAndLoad("nested-source-model.yaml");
+
+        XmlSourceConfig config = xmlConfig(
+                artifacts.result().packageName(),
+                scenarioPath("nested-sample.xml"),
+                artifacts.result().rootClassName(),
+                artifacts.result().recordClassName(),
+                XmlFlatteningStrategyNames.NESTED_XML
+        );
+
+        XmlSourceStrategySelector selector = new XmlSourceStrategySelector(
+                new XmlSourceStrategyRegistry(List.of(new DirectXmlSourceStrategy(), new NestedXmlSourceStrategy())),
+                new JobSpecificXmlStrategyResolver(new StaticApplicationContext())
+        );
+
+        com.etl.reader.impl.XmlDynamicReader<Object> reader = new com.etl.reader.impl.XmlDynamicReader<>(selector);
+        ItemReader<Map<String, Object>> flatteningReader = (ItemReader<Map<String, Object>>) (ItemReader)
+                reader.getReader(config, (Class<Object>) artifacts.recordClass());
+
+        Map<String, Object> row = flatteningReader.read();
+        assertNotNull(row);
+        assertEquals("0056", row.get("HomeAgencyID"));
+        assertEquals("US", row.get("TVLPlateDetails.PlateCountry"));
+        assertEquals("4773316", row.get("TVLAccountDetails.AccountNumber"));
+        assertEquals("US", ReflectionUtils.getFieldValue(row, "TVLPlateDetails.PlateCountry"));
+        assertNull(flatteningReader.read());
     }
 
     private XmlSourceRuntimeContext context(XmlSourceConfig config,
@@ -203,7 +287,7 @@ class XmlSourceStrategySpikeTest {
                     javaFiles.stream().map(Path::toFile).toList()
             );
             Boolean success = compiler.getTask(null, fileManager, null, options, null, compilationUnits).call();
-            assertTrue(Boolean.TRUE.equals(success), "Generated XML strategy test sources must compile successfully.");
+            assertEquals(Boolean.TRUE, success, "Generated XML strategy test sources must compile successfully.");
         }
     }
 
@@ -234,5 +318,86 @@ class XmlSourceStrategySpikeTest {
             )));
         }
     }
+
+    @XmlAccessorType(XmlAccessType.FIELD)
+    private static final class TagValidationListWrapper {
+
+        @XmlElement(name = "TVLDetail")
+        private List<TVLDetailWrapper> details;
+
+        private TagValidationListWrapper(List<TVLDetailWrapper> details) {
+            this.details = details;
+        }
+    }
+
+    @XmlAccessorType(XmlAccessType.FIELD)
+    private static final class TVLDetailWrapper {
+
+        @XmlElement(name = "TVLTagDetails")
+        private List<TVLTagDetailsRecord> tagDetails;
+
+        private TVLDetailWrapper(List<TVLTagDetailsRecord> tagDetails) {
+            this.tagDetails = tagDetails;
+        }
+    }
+
+    @XmlAccessorType(XmlAccessType.FIELD)
+    private static final class TVLTagDetailsRecord {
+
+        @XmlElement(name = "HomeAgencyID")
+        private String homeAgencyID;
+
+        @XmlElement(name = "TagAgencyID")
+        private String tagAgencyID;
+
+        @XmlElement(name = "TVLPlateDetails")
+        private TVLPlateDetailsRecord plateDetails;
+
+        @XmlElement(name = "TVLAccountDetails")
+        private TVLAccountDetailsRecord accountDetails;
+
+        private TVLTagDetailsRecord(String homeAgencyID,
+                                    String tagAgencyID,
+                                    TVLPlateDetailsRecord plateDetails,
+                                    TVLAccountDetailsRecord accountDetails) {
+            this.homeAgencyID = homeAgencyID;
+            this.tagAgencyID = tagAgencyID;
+            this.plateDetails = plateDetails;
+            this.accountDetails = accountDetails;
+        }
+    }
+
+    @XmlAccessorType(XmlAccessType.FIELD)
+    private static final class TVLPlateDetailsRecord {
+
+        @XmlElement(name = "PlateCountry")
+        private String plateCountry;
+
+        @XmlElement(name = "PlateState")
+        private String plateState;
+
+        private TVLPlateDetailsRecord(String plateCountry, String plateState) {
+            this.plateCountry = plateCountry;
+            this.plateState = plateState;
+        }
+    }
+
+    @XmlAccessorType(XmlAccessType.FIELD)
+    private static final class TVLAccountDetailsRecord {
+
+        @XmlElement(name = "AccountNumber")
+        private String accountNumber;
+
+        private TVLAccountDetailsRecord(String accountNumber) {
+            this.accountNumber = accountNumber;
+        }
+    }
 }
+
+
+
+
+
+
+
 

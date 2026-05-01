@@ -17,6 +17,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SourceValidationServiceTest {
@@ -104,6 +106,90 @@ class SourceValidationServiceTest {
 
 		assertTrue(exception.getMessage().contains("header"));
 		assertTrue(exception.getMessage().contains("expected=[id, eventTime]"));
+	}
+
+	@Test
+	void rejectsCsvFileWhenHeaderValidationFailsAndOnFailureIsRejectFile() throws IOException {
+		Path csvFile = tempDir.resolve("events-bad-header.csv");
+		Files.writeString(csvFile, "event_id,event_time\nEVT-1,08:30:00\n");
+		Path rejectDir = tempDir.resolve("rejects");
+
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setRequireHeaderMatch(true);
+		validation.setAllowEmpty(false);
+		validation.setOnFailure("rejectFile");
+		validation.setRejectPath(rejectDir.toString());
+
+		CsvSourceConfig sourceConfig = csvSource(csvFile);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("header"));
+		assertTrue(exception.getMessage().contains("moved to reject path"));
+		assertFalse(Files.exists(csvFile));
+		try (var rejectedFiles = Files.list(rejectDir)) {
+			Path rejected = rejectedFiles.findFirst().orElse(null);
+			assertNotNull(rejected);
+			assertTrue(rejected.getFileName().toString().endsWith("events-bad-header.csv"));
+		}
+	}
+
+	@Test
+	void rejectsXmlFileWhenFileNamePatternFailsAndOnFailureIsRejectFile() throws IOException {
+		Path xmlFile = tempDir.resolve("bad-name.xml");
+		Files.writeString(xmlFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<Customers>
+				  <Customer><id>1</id></Customer>
+				</Customers>
+				""");
+		Path rejectDir = tempDir.resolve("xml-rejects");
+
+		XmlSourceConfig.ValidationConfig validation = new XmlSourceConfig.ValidationConfig();
+		validation.setFileNamePattern("^customers-\\d+\\.xml$");
+		validation.setOnFailure("rejectFile");
+		validation.setRejectPath(rejectDir.toString());
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("fileNamePattern"));
+		assertTrue(exception.getMessage().contains("moved to reject path"));
+		assertFalse(Files.exists(xmlFile));
+		try (var rejectedFiles = Files.list(rejectDir)) {
+			Path rejected = rejectedFiles.findFirst().orElse(null);
+			assertNotNull(rejected);
+			assertTrue(rejected.getFileName().toString().endsWith("bad-name.xml"));
+		}
+	}
+
+	@Test
+	void failsFastWhenCsvRejectFileValidationOmitsRejectPath() {
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setFileNamePattern("^events-.*\\.csv$");
+		validation.setOnFailure("rejectFile");
+
+		CsvSourceConfig sourceConfig = csvSource(tempDir.resolve("events.csv"));
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("rejectPath"));
 	}
 
 	@Test

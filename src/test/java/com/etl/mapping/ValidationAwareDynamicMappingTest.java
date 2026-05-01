@@ -20,6 +20,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ValidationAwareDynamicMappingTest {
@@ -104,6 +105,46 @@ class ValidationAwareDynamicMappingTest {
         assertTrue(rejectLines.get(1).contains("duplicate"));
         assertEquals(1, stepExecution.getExecutionContext().getInt(FileIngestionRuntimeSupport.REJECTED_COUNT_KEY));
     }
+
+  @Test
+  void failsFastWhenConfiguredImportantFieldIsMissing() {
+    ProcessorConfig.FieldRule notNull = new ProcessorConfig.FieldRule();
+    notNull.setType("notNull");
+    notNull.setOnFailure("failStep");
+
+    ProcessorConfig.FieldMapping id = new ProcessorConfig.FieldMapping();
+    id.setFrom("id");
+    id.setTo("id");
+    id.setRules(List.of(notNull));
+
+    ProcessorConfig.FieldMapping description = new ProcessorConfig.FieldMapping();
+    description.setFrom("description");
+    description.setTo("description");
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Events");
+    mapping.setTarget("EventsCsv");
+    mapping.setFields(List.of(id, description));
+
+    ValidationRuleEvaluator evaluator = new ValidationRuleEvaluator(List.of(
+        new com.etl.processor.validation.NotNullProcessorValidationRule()
+    ));
+    ValidationAwareDynamicMapping<EventRecord, TargetRecord> processor = new ValidationAwareDynamicMapping<>(
+        mapping,
+        TargetRecord.class,
+        evaluator,
+        new FileIngestionRuntimeSupport(),
+        true
+    );
+
+    IllegalStateException exception = assertThrows(
+        IllegalStateException.class,
+        () -> processor.process(new EventRecord(" ", "missing id"))
+    );
+    assertTrue(exception.getMessage().contains("Processor validation failed"));
+    assertTrue(exception.getMessage().contains("id[notNull]"));
+    assertTrue(exception.getMessage().contains("Events -> EventsCsv"));
+  }
 
       @Test
       void rejectsLaterDuplicateCompositeKeysAndKeepsDifferentKeyCombinations() throws Exception {

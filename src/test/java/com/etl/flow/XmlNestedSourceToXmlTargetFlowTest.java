@@ -50,7 +50,7 @@ class XmlNestedSourceToXmlTargetFlowTest {
     @Test
     @SuppressWarnings({"unchecked", "rawtypes"})
     void runsNestedXmlSourceThroughSharedProcessorIntoXmlTarget() throws Exception {
-        Path scenarioDir = createScenario();
+        Path scenarioDir = prepareScenarioBundle();
         Path generatedSourceRoot = tempDir.resolve("generated-flow-sources");
 
         ObjectMapper mapper = yamlMapper();
@@ -79,7 +79,7 @@ class XmlNestedSourceToXmlTargetFlowTest {
         DynamicWriterFactory writerFactory = new DynamicWriterFactory(List.of(new XmlDynamicWriter()));
 
         ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(sourceConfig, targetConfig);
-        ItemReader<Object> reader = (ItemReader<Object>) (ItemReader) readerFactory.createReader(sourceConfig, (Class<Object>) sourceRecordClass);
+        ItemReader<Object> reader = (ItemReader<Object>) readerFactory.createReader(sourceConfig, (Class<Object>) sourceRecordClass);
         ItemProcessor<Object, Object> processor = processorFactory.getProcessor(processorConfig, sourceConfig, targetConfig, metadata);
         ItemWriter<Object> writer = writerFactory.createWriter(targetConfig, targetRecordClass);
 
@@ -118,79 +118,42 @@ class XmlNestedSourceToXmlTargetFlowTest {
         assertTrue(xml.contains("<accountNumber>4773316</accountNumber>"));
     }
 
-    private Path createScenario() throws Exception {
-        Path scenarioDir = tempDir.resolve("nested-xml-flow-proof");
-        Files.createDirectories(scenarioDir.resolve("definitions"));
+    private Path prepareScenarioBundle() throws Exception {
+        Path sourceScenarioDir = Path.of("src", "main", "resources", "config-scenarios", "xml-nested-tag-validation");
+        Path scenarioDir = tempDir.resolve("xml-nested-tag-validation");
+        copyDirectory(sourceScenarioDir, scenarioDir);
 
-        Files.writeString(scenarioDir.resolve("job-config.yaml"), """
-                name: nested-xml-flow-proof
-                sourceConfigPath: source-config.yaml
-                targetConfigPath: target-config.yaml
-                processorConfigPath: processor-config.yaml
-                steps:
-                  - name: nested-xml-to-xml-step
-                    source: TagValidationSource
-                    target: TagValidationExport
-                """);
+        Path inputFile = scenarioDir.resolve("input/nested-sample.xml").toAbsolutePath().normalize();
+        Path outputFile = scenarioDir.resolve("target/tag-validation-export.xml").toAbsolutePath().normalize();
+        Files.createDirectories(outputFile.getParent());
 
-        Files.writeString(scenarioDir.resolve("source-config.yaml"), """
-                sources:
-                  - format: xml
-                    sourceName: TagValidationSource
-                    packageName: com.etl.generated.job.flowproof.source
-                    filePath: %s
-                    rootElement: TagValidationList
-                    recordElement: TVLTagDetails
-                    flatteningStrategy: NestedXml
-                    modelDefinitionPath: definitions/nested-source-model.yaml
-                    fields:
-                      - name: HomeAgencyID
-                        type: String
-                """.formatted(toYamlPath(Path.of("src", "main", "resources", "config-scenarios", "xml-model-spike", "nested-sample.xml"))));
+        Files.writeString(
+                scenarioDir.resolve("source-config.yaml"),
+                Files.readString(scenarioDir.resolve("source-config.yaml"))
+                        .replace("filePath: input/nested-sample.xml", "filePath: " + toYamlPath(inputFile))
+        );
+        Files.writeString(
+                scenarioDir.resolve("target-config.yaml"),
+                Files.readString(scenarioDir.resolve("target-config.yaml"))
+                        .replace("filePath: target/tag-validation-export.xml", "filePath: " + toYamlPath(outputFile))
+        );
 
-        Files.writeString(scenarioDir.resolve("target-config.yaml"), """
-                targets:
-                  - format: xml
-                    targetName: TagValidationExport
-                    packageName: com.etl.generated.job.flowproof.target
-                    filePath: %s
-                    rootElement: TagValidationExports
-                    recordElement: TagValidationExport
-                    fields:
-                      - name: homeAgencyId
-                        type: String
-                      - name: tagAgencyId
-                        type: String
-                      - name: plateCountry
-                        type: String
-                      - name: plateState
-                        type: String
-                      - name: accountNumber
-                        type: String
-                """.formatted(toYamlPath(tempDir.resolve("tag-validation-export.xml"))));
-
-        Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
-                type: default
-                mappings:
-                  - source: TagValidationSource
-                    target: TagValidationExport
-                    fields:
-                      - from: HomeAgencyID
-                        to: homeAgencyId
-                      - from: TagAgencyID
-                        to: tagAgencyId
-                      - from: TVLPlateDetails.PlateCountry
-                        to: plateCountry
-                      - from: TVLPlateDetails.PlateState
-                        to: plateState
-                      - from: TVLAccountDetails.AccountNumber
-                        to: accountNumber
-                """);
-
-        Files.writeString(scenarioDir.resolve("definitions/nested-source-model.yaml"), Files.readString(
-                Path.of("src", "main", "resources", "config-scenarios", "xml-model-spike", "nested-source-model.yaml")
-        ));
         return scenarioDir;
+    }
+
+    private void copyDirectory(Path source, Path target) throws Exception {
+        try (var stream = Files.walk(source)) {
+            for (Path path : stream.toList()) {
+                Path relative = source.relativize(path);
+                Path destination = target.resolve(relative.toString());
+                if (Files.isDirectory(path)) {
+                    Files.createDirectories(destination);
+                } else {
+                    Files.createDirectories(destination.getParent());
+                    Files.copy(path, destination);
+                }
+            }
+        }
     }
 
     private ObjectMapper yamlMapper() {
@@ -222,4 +185,6 @@ class XmlNestedSourceToXmlTargetFlowTest {
         return path.toAbsolutePath().normalize().toString().replace("\\", "/");
     }
 }
+
+
 

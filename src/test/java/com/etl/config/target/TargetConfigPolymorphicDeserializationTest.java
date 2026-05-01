@@ -10,6 +10,37 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 class TargetConfigPolymorphicDeserializationTest {
 
     @Test
+    void deserializesXmlTargetConfigFromYaml() throws Exception {
+        String yaml = """
+                targets:
+                  - format: xml
+                    targetName: CustomersXml
+                    packageName: com.etl.model.target
+                    filePath: output/customers.xml
+                    rootElement: Customers
+                    recordElement: Customer
+                    modelDefinitionPath: definitions/customer-target-model.yaml
+                    fields:
+                      - name: id
+                        type: int
+                      - name: name
+                        type: String
+                """;
+
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        mapper.findAndRegisterModules();
+
+        TargetWrapper wrapper = mapper.readValue(yaml, TargetWrapper.class);
+        XmlTargetConfig xmlTarget = assertInstanceOf(XmlTargetConfig.class, wrapper.getTargets().get(0));
+
+        assertEquals("CustomersXml", xmlTarget.getTargetName());
+        assertEquals("output/customers.xml", xmlTarget.getFilePath());
+        assertEquals("Customers", xmlTarget.getRootElement());
+        assertEquals("Customer", xmlTarget.getRecordElement());
+        assertEquals("definitions/customer-target-model.yaml", xmlTarget.getModelDefinitionPath());
+    }
+
+    @Test
     void deserializesRelationalTargetConfigFromYaml() throws Exception {
         String yaml = """
                 targets:

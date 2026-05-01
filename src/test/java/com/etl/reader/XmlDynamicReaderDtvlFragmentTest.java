@@ -1,9 +1,10 @@
 package com.etl.reader;
 
 import com.etl.config.source.XmlSourceConfig;
-import com.etl.generated.job.xmlnestedtocsvtagvalidation.source.TVLTagDetails;
 import com.etl.reader.impl.XmlDynamicReader;
+import com.etl.testsupport.GeneratedScenarioModelSupport;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.batch.item.ItemReader;
 
 import java.nio.file.Path;
@@ -15,29 +16,41 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class XmlDynamicReaderDtvlFragmentTest {
 
+    @TempDir
+    Path tempDir;
+
     @Test
     @SuppressWarnings("unchecked")
     void flattensRealDtvlFragmentRecordsIntoFullMaps() throws Exception {
-        XmlSourceConfig config = new XmlSourceConfig();
-        config.setSourceName("TagValidationSource");
-        config.setPackageName("com.etl.generated.job.xmlnestedtocsvtagvalidation.source");
-        config.setFilePath(Path.of("input", "9002_9002_20260427070109.DTVL").toString());
-        config.setRootElement("TagValidationList");
-        config.setRecordElement("TVLTagDetails");
-        config.setFlatteningStrategy("NestedXml");
+        try (GeneratedScenarioModelSupport.CompiledGeneratedModels compiledModels = GeneratedScenarioModelSupport.compileJobScopedModels(
+                Path.of("src", "main", "resources", "config-scenarios", "xml-nested-to-csv-tag-validation", "job-config.yaml"),
+                tempDir
+        )) {
+            Class<?> recordClass = compiledModels.loadClass("com.etl.generated.job.xmlnestedtocsvtagvalidation.source.TVLTagDetails");
 
-        ItemReader<Object> reader = new XmlDynamicReader<>().getReader(config, (Class<Object>) TVLTagDetails.class);
-        Object first = reader.read();
+            XmlSourceConfig config = new XmlSourceConfig();
+            config.setSourceName("TagValidationSource");
+            config.setPackageName("com.etl.generated.job.xmlnestedtocsvtagvalidation.source");
+            config.setFilePath(Path.of("src", "main", "resources", "config-scenarios", "xml-nested-tag-validation", "input", "nested-sample.xml").toString());
+            config.setRootElement("TagValidationList");
+            config.setRecordElement("TVLTagDetails");
+            config.setFlatteningStrategy("NestedXml");
 
-        assertInstanceOf(Map.class, first);
-        Map<String, Object> firstRow = (Map<String, Object>) first;
-        assertEquals("0056", firstRow.get("HomeAgencyID"));
-        assertEquals("1300", firstRow.get("TagAgencyID"));
-        assertEquals("0003518358", firstRow.get("TagSerialNumber"));
-        assertEquals("US", firstRow.get("TVLPlateDetails.PlateCountry"));
-        assertEquals("KS", firstRow.get("TVLPlateDetails.PlateState"));
-        assertEquals("7064AFP", firstRow.get("TVLPlateDetails.PlateNumber"));
-        assertEquals("4773316", firstRow.get("TVLAccountDetails.AccountNumber"));
-        assertNotNull(firstRow.get("TVLAccountDetails.FleetIndicator"));
+            ItemReader<Object> reader = new XmlDynamicReader<>().getReader(config, (Class<Object>) recordClass);
+            Object first = reader.read();
+
+            assertInstanceOf(Map.class, first);
+            Map<String, Object> firstRow = (Map<String, Object>) first;
+            assertEquals("0056", firstRow.get("HomeAgencyID"));
+            assertEquals("1300", firstRow.get("TagAgencyID"));
+            assertEquals("0003518358", firstRow.get("TagSerialNumber"));
+            assertEquals("US", firstRow.get("TVLPlateDetails.PlateCountry"));
+            assertEquals("KS", firstRow.get("TVLPlateDetails.PlateState"));
+            assertEquals("7064AFP", firstRow.get("TVLPlateDetails.PlateNumber"));
+            assertEquals("4773316", firstRow.get("TVLAccountDetails.AccountNumber"));
+            assertNotNull(firstRow.get("TVLAccountDetails.FleetIndicator"));
+        }
     }
 }
+
+
