@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Validates CSV-specific source configuration and file-level CSV contract rules.
@@ -52,6 +53,8 @@ public class CsvSourceValidator implements SourceValidator {
 			return;
 		}
 
+		validateValidationConfig(validation);
+
 		if (csvSourceConfig.getFilePath() == null || csvSourceConfig.getFilePath().isBlank()) {
 			throw new IllegalArgumentException("validation requires a non-blank filePath.");
 		}
@@ -70,7 +73,27 @@ public class CsvSourceValidator implements SourceValidator {
 			throw new IllegalArgumentException("CSV file must be readable for validation: " + filePath);
 		}
 
+		validateFileName(filePath, validation);
+
 		validateFileContents(csvSourceConfig, validation, filePath);
+	}
+
+	private void validateValidationConfig(CsvSourceConfig.ValidationConfig validation) {
+		compileIfConfigured(validation.getFileNamePattern());
+		validateFailureAction(validation.getOnFailure(), validation.getRejectPath());
+	}
+
+	private void validateFileName(Path filePath, CsvSourceConfig.ValidationConfig validation) {
+		String fileNamePattern = validation.getFileNamePattern();
+		if (fileNamePattern == null || fileNamePattern.isBlank()) {
+			return;
+		}
+
+		String fileName = filePath.getFileName() == null ? filePath.toString() : filePath.getFileName().toString();
+		if (!Pattern.compile(fileNamePattern.trim()).matcher(fileName).matches()) {
+			throw new IllegalArgumentException("CSV file name does not match validation.fileNamePattern. expectedPattern="
+					+ fileNamePattern.trim() + " actual=" + fileName);
+		}
 	}
 
 	private void validateFileContents(CsvSourceConfig csvSourceConfig,
@@ -129,6 +152,31 @@ public class CsvSourceValidator implements SourceValidator {
 			return "";
 		}
 		return value.replace("\uFEFF", "").trim();
+	}
+
+	private void compileIfConfigured(String pattern) {
+		if (pattern == null || pattern.isBlank()) {
+			return;
+		}
+		try {
+			Pattern.compile(pattern.trim());
+		} catch (PatternSyntaxException e) {
+			throw new IllegalArgumentException("validation.fileNamePattern must be a valid regex pattern.", e);
+		}
+	}
+
+	private void validateFailureAction(String onFailure, String rejectPath) {
+		if (onFailure == null || onFailure.isBlank()) {
+			return;
+		}
+
+		String normalizedAction = onFailure.trim();
+		if (!"failStep".equalsIgnoreCase(normalizedAction) && !"rejectFile".equalsIgnoreCase(normalizedAction)) {
+			throw new IllegalArgumentException("validation.onFailure supports only failStep or rejectFile.");
+		}
+		if ("rejectFile".equalsIgnoreCase(normalizedAction) && (rejectPath == null || rejectPath.isBlank())) {
+			throw new IllegalArgumentException("validation.onFailure=rejectFile requires a non-blank rejectPath.");
+		}
 	}
 }
 

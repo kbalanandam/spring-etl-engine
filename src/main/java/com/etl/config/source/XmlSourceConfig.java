@@ -39,6 +39,25 @@ public class XmlSourceConfig extends SourceConfig {
      */
     private String recordElement;
 
+    /**
+     * Optional flattening strategy for XML source processing.
+     * Defaults to DirectXml to preserve current simple-reader behavior until overridden.
+     */
+    private String flatteningStrategy;
+
+    /**
+     * Optional Spring bean name for a job-specific XML flattening strategy.
+     */
+    private String jobSpecificStrategyBean;
+
+    /**
+     * Optional external structural XML model definition used for build-time generation,
+     * especially for nested XML contracts.
+     */
+    private String modelDefinitionPath;
+
+	private ValidationConfig validation;
+
   public String getFilePath() {
     return filePath;
   }
@@ -61,6 +80,38 @@ public class XmlSourceConfig extends SourceConfig {
 
   public void setRecordElement(String recordElement) {
     this.recordElement = recordElement;
+  }
+
+  public String getFlatteningStrategy() {
+    return flatteningStrategy == null || flatteningStrategy.isBlank() ? "DirectXml" : flatteningStrategy;
+  }
+
+  public void setFlatteningStrategy(String flatteningStrategy) {
+    this.flatteningStrategy = flatteningStrategy;
+  }
+
+  public String getJobSpecificStrategyBean() {
+    return jobSpecificStrategyBean;
+  }
+
+  public void setJobSpecificStrategyBean(String jobSpecificStrategyBean) {
+    this.jobSpecificStrategyBean = jobSpecificStrategyBean;
+  }
+
+  public String getModelDefinitionPath() {
+    return modelDefinitionPath;
+  }
+
+  public void setModelDefinitionPath(String modelDefinitionPath) {
+    this.modelDefinitionPath = modelDefinitionPath;
+  }
+
+  public ValidationConfig getValidation() {
+    return validation;
+  }
+
+  public void setValidation(ValidationConfig validation) {
+    this.validation = validation;
   }
 
     // No-args constructor for YAML/object mapping
@@ -124,4 +175,35 @@ public class XmlSourceConfig extends SourceConfig {
         }
         return count;
     }
+
+  public static class ValidationConfig {
+
+    private String fileNamePattern;
+    private String onFailure;
+    private String rejectPath;
+
+    public String getFileNamePattern() {
+      return fileNamePattern;
+    }
+
+    public void setFileNamePattern(String fileNamePattern) {
+      this.fileNamePattern = fileNamePattern;
+    }
+
+    public String getOnFailure() {
+      return onFailure;
+    }
+
+    public void setOnFailure(String onFailure) {
+      this.onFailure = onFailure;
+    }
+
+    public String getRejectPath() {
+      return rejectPath;
+    }
+
+    public void setRejectPath(String rejectPath) {
+      this.rejectPath = rejectPath;
+    }
+  }
 }

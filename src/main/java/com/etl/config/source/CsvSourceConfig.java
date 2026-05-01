@@ -186,6 +186,9 @@ public class CsvSourceConfig extends SourceConfig {
 
     private boolean allowEmpty = true;
     private boolean requireHeaderMatch;
+    private String fileNamePattern;
+    private String onFailure;
+    private String rejectPath;
 
     public boolean isAllowEmpty() {
       return allowEmpty;
@@ -201,6 +204,30 @@ public class CsvSourceConfig extends SourceConfig {
 
     public void setRequireHeaderMatch(boolean requireHeaderMatch) {
       this.requireHeaderMatch = requireHeaderMatch;
+    }
+
+    public String getFileNamePattern() {
+      return fileNamePattern;
+    }
+
+    public void setFileNamePattern(String fileNamePattern) {
+      this.fileNamePattern = fileNamePattern;
+    }
+
+    public String getOnFailure() {
+      return onFailure;
+    }
+
+    public void setOnFailure(String onFailure) {
+      this.onFailure = onFailure;
+    }
+
+    public String getRejectPath() {
+      return rejectPath;
+    }
+
+    public void setRejectPath(String rejectPath) {
+      this.rejectPath = rejectPath;
     }
   }
 }
