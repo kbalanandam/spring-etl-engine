@@ -13,6 +13,15 @@ import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+/**
+ * Creates writer implementations for configured target formats.
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>This remains the active runtime dispatch seam for writer selection in 1.4.x.
+ * Keep it stable during migration, but avoid expanding it into the final architecture
+ * center while the next-generation generation/runtime model is being introduced.</p>
+ */
 @Component
 public class DynamicWriterFactory {
 	private static final Logger logger = LoggerFactory.getLogger(DynamicWriterFactory.class);

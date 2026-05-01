@@ -5,5 +5,6 @@
  * through {@code com.etl.config.source.validation} and record-level validation through
  * {@code com.etl.processor.validation} instead.</p>
  */
-@Deprecated(packageName = "com.etl.validation")
 package com.etl.validation;
+
+

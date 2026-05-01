@@ -11,10 +11,12 @@ import java.math.BigInteger;
 import java.time.temporal.Temporal;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 abstract class AbstractXmlSourceStrategy implements XmlSourceStrategy {
 
@@ -27,6 +29,12 @@ abstract class AbstractXmlSourceStrategy implements XmlSourceStrategy {
         }
         if (context.getRecordClass() != null && context.getRecordClass().isInstance(xmlRoot)) {
             return List.of(xmlRoot);
+        }
+
+        List<Object> matches = new ArrayList<>();
+        collectMatchingRecords(context, xmlRoot, matches, java.util.Collections.newSetFromMap(new IdentityHashMap<>()));
+        if (!matches.isEmpty()) {
+            return List.copyOf(matches);
         }
 
         List<Field> readableFields = readableFields(xmlRoot.getClass());
@@ -51,6 +59,75 @@ abstract class AbstractXmlSourceStrategy implements XmlSourceStrategy {
         }
 
         return List.of(xmlRoot);
+    }
+
+    private void collectMatchingRecords(XmlSourceRuntimeContext context,
+                                        Object candidate,
+                                        List<Object> matches,
+                                        Set<Object> visited) {
+        if (candidate == null || isSimpleValue(candidate) || !visited.add(candidate)) {
+            return;
+        }
+
+        if (isRecordInstance(context, candidate)) {
+            matches.add(candidate);
+            return;
+        }
+
+        if (candidate instanceof Collection<?> collection) {
+            for (Object item : collection) {
+                collectMatchingRecords(context, item, matches, visited);
+            }
+            return;
+        }
+
+        String configuredRecordElement = context.getXmlSourceConfig() != null
+                ? context.getXmlSourceConfig().getRecordElement()
+                : null;
+
+        for (Field field : readableFields(candidate.getClass())) {
+            Object value = readField(candidate, field);
+            if (value == null) {
+                continue;
+            }
+
+            if (value instanceof Collection<?> collection) {
+                if (matchesConfiguredRecordCollection(context, configuredRecordElement, field, collection)) {
+                    matches.addAll(collection);
+                    continue;
+                }
+                for (Object item : collection) {
+                    collectMatchingRecords(context, item, matches, visited);
+                }
+                continue;
+            }
+
+            if (isRecordInstance(context, value)) {
+                matches.add(value);
+                continue;
+            }
+
+            collectMatchingRecords(context, value, matches, visited);
+        }
+    }
+
+    private boolean matchesConfiguredRecordCollection(XmlSourceRuntimeContext context,
+                                                      String configuredRecordElement,
+                                                      Field field,
+                                                      Collection<?> collection) {
+        if (collection.isEmpty()) {
+            return false;
+        }
+        if (configuredRecordElement != null
+                && configuredRecordElement.equalsIgnoreCase(resolveFieldName(field))
+                && collection.stream().allMatch(item -> item == null || isRecordInstance(context, item))) {
+            return true;
+        }
+        return collection.stream().allMatch(item -> item == null || isRecordInstance(context, item));
+    }
+
+    private boolean isRecordInstance(XmlSourceRuntimeContext context, Object value) {
+        return context.getRecordClass() != null && context.getRecordClass().isInstance(value);
     }
 
     protected Map<String, Object> extractMappedValues(Object record, Map<String, String> fieldMappings) {
@@ -232,4 +309,5 @@ abstract class AbstractXmlSourceStrategy implements XmlSourceStrategy {
         }
     }
 }
+
 

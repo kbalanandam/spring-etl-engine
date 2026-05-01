@@ -5,5 +5,5 @@
  * {@code com.etl.config.source.validation} and processor rule evaluation in
  * {@code com.etl.processor.validation}.</p>
  */
-@Deprecated
 package com.etl.validation.rules;
+
