@@ -1,6 +1,6 @@
 # xml-nested-to-csv-tag-validation
 
-Preserved explicit job scenario for a nested XML source to CSV target flow using the same nested tag-validation sample payload.
+Preserved explicit job scenario for a nested XML source to CSV target flow using the shared nested tag-validation shape.
 
 ## Purpose
 
@@ -11,7 +11,7 @@ It preserves:
 - build-time generated XML source models
 - nested XML source flattening through `NestedXml`
 - shared `DefaultDynamicProcessor` mapping from flattened nested keys
-- CSV target writing through a checked-in flat target model class
+- CSV target writing through a job-scoped generated flat target model class
 
 ## Files
 
@@ -20,11 +20,13 @@ It preserves:
 - `target-config.yaml` - CSV target definition for the flattened export shape
 - `processor-config.yaml` - shared processor mapping from flattened nested keys to CSV fields
 - `definitions/nested-source-model.yaml` - structural nested XML source contract
-- `input/nested-sample.xml` - preserved nested XML sample payload reused from the XML target proof
+- `input/9002_9002_20260427070109.DTVL` - preserved production-style DTVL payload used for higher-volume nested XML verification
 
 ## Notes
 
-- This scenario intentionally reuses the same nested XML business payload as `xml-nested-tag-validation`.
+- This scenario intentionally keeps a larger preserved DTVL payload for scale-oriented nested XML verification.
+- Tests or examples that need a tiny sample should reuse `../xml-nested-tag-validation/input/nested-sample.xml` instead of assuming a local `nested-sample.xml` copy exists here.
 - The source model definition remains structural only; flattening stays in the XML source strategy layer.
-- The CSV target uses a flat checked-in target class `com.etl.model.target.TagValidationCsv`.
+- The CSV target class `com.etl.generated.job.xmlnestedtocsvtagvalidation.target.TagValidationCsv` is regenerated from `target-config.yaml` during the job-scoped generation flow.
+
 

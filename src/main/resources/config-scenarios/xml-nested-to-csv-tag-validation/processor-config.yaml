@@ -1,16 +1,40 @@
 type: default
+rejectHandling:
+  enabled: true
+  outputPath: target/rejects/
+  includeReasonColumns: true
 mappings:
   - source: TagValidationSource
     target: TagValidationCsv
     fields:
       - from: HomeAgencyID
         to: homeAgencyId
+        rules:
+          - type: notNull
+            onFailure: rejectRecord
       - from: TagAgencyID
         to: tagAgencyId
+        rules:
+          - type: notNull
+            onFailure: rejectRecord
       - from: TVLPlateDetails.PlateCountry
         to: plateCountry
+      - from: TagSerialNumber
+        to: tagSerialNumber
+        rules:
+          - type: notNull
+            onFailure: rejectRecord
+          - type: duplicate
+            onFailure: rejectRecord
+            keyFields:
+              - TagSerialNumber
+      - from: TVLPlateDetails.PlateNumber
+        to: plateNumber
       - from: TVLPlateDetails.PlateState
         to: plateState
       - from: TVLAccountDetails.AccountNumber
         to: accountNumber
+        rules:
+          - type: notNull
+            onFailure: rejectRecord
 

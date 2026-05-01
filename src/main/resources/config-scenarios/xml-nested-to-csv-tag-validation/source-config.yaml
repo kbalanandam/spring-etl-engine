@@ -2,7 +2,7 @@ sources:
   - format: xml
     sourceName: TagValidationSource
     packageName: com.etl.generated.job.xmlnestedtocsvtagvalidation.source
-    filePath: input/nested-sample.xml
+    filePath: src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/input/9002_9002_20260427070109.DTVL
     rootElement: TagValidationList
     recordElement: TVLTagDetails
     flatteningStrategy: NestedXml
