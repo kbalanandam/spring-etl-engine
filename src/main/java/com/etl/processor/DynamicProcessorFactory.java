@@ -11,6 +11,15 @@ import org.springframework.stereotype.Component;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.target.TargetConfig;
 
+/**
+ * Creates processor implementations for the active processor type.
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>This remains the current runtime dispatch seam for processor selection in 1.4.x.
+ * Keep it stable during migration, but avoid letting new architecture work depend on
+ * this class as the final processor orchestration model without an explicit design decision.</p>
+ */
 @Component
 public class DynamicProcessorFactory {
 

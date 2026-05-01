@@ -75,6 +75,12 @@ import java.util.List;
  * configurations supplied to the step.
  * </p>
  *
+ * <p><strong>Transition status:</strong> REUSE.</p>
+ *
+ * <p>This is the current shared processor baseline and remains aligned with the next
+ * architecture direction. Prefer extending shared processor rules and transforms around
+ * this path instead of adding new scenario-specific processors by default.</p>
+ *
  * @author
  *   ETL Framework Auto-Mapper
  */

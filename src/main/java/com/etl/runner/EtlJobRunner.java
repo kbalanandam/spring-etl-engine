@@ -22,6 +22,12 @@ import java.util.Date;
  * EtlJobRunner is responsible for executing the ETL job when the application
  * starts. It implements CommandLineRunner to run the job with specific
  * parameters.
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>Keep this class as the current launch entry while the next runtime path is
+ * introduced, but avoid building long-term architecture decisions directly into it.
+ * Prefer delegating future launch behavior to new generation-first runtime components.</p>
  */
 @Component
 public class EtlJobRunner implements CommandLineRunner {

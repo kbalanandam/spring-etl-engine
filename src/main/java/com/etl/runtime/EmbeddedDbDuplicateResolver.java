@@ -2,6 +2,7 @@ package com.etl.runtime;
 
 import com.etl.processor.validation.ValidationIssue;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,7 +15,9 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -32,6 +35,9 @@ import java.util.UUID;
  * and then best-effort cleans up the temporary database files on close.</p>
  */
 public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
+
+	private static final TypeReference<LinkedHashMap<String, Object>> STRING_OBJECT_MAP = new TypeReference<>() {
+	};
 
 	private static final String CLASSIFICATION_RANKED = "RANKED";
 	private static final String CLASSIFICATION_PASS_THROUGH = "PASS_THROUGH";
@@ -131,20 +137,29 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 	                         Object payload,
 	                         String issueMessage,
 	                         boolean invalidOrderingValue) {
+		Object serializablePayload = normalizePayloadForStaging(payload);
+		String payloadClassName = serializablePayload instanceof Map<?, ?> ? Map.class.getName() : serializablePayload.getClass().getName();
 		try (PreparedStatement statement = connection.prepareStatement(
 				"INSERT INTO staged_duplicates (arrival_sequence, classification, key_value, payload_class, payload_json, issue_message, invalid_ordering) VALUES (?, ?, ?, ?, ?, ?, ?)")
 		) {
 			statement.setLong(1, arrivalSequence);
 			statement.setString(2, classification);
 			statement.setString(3, keyValue);
-			statement.setString(4, payload.getClass().getName());
-			statement.setString(5, objectMapper.writeValueAsString(payload));
+			statement.setString(4, payloadClassName);
+			statement.setString(5, objectMapper.writeValueAsString(serializablePayload));
 			statement.setString(6, issueMessage);
 			statement.setBoolean(7, invalidOrderingValue);
 			statement.executeUpdate();
 		} catch (SQLException | IOException exception) {
 			throw new IllegalStateException("Failed to stage ordered duplicate record in embedded database.", exception);
 		}
+	}
+
+	private Object normalizePayloadForStaging(Object payload) {
+		if (payload instanceof Map<?, ?> mapPayload) {
+			return new LinkedHashMap<>(mapPayload);
+		}
+		return payload;
 	}
 
 	private List<OrderedRecord> loadPassThroughRecords() {
@@ -264,6 +279,9 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 
 	private Object deserializePayload(String className, String payloadJson) {
 		try {
+			if (Map.class.getName().equals(className)) {
+				return objectMapper.readValue(payloadJson, STRING_OBJECT_MAP);
+			}
 			Class<?> payloadClass = Class.forName(className);
 			return objectMapper.readValue(payloadJson, payloadClass);
 		} catch (IOException | ClassNotFoundException exception) {

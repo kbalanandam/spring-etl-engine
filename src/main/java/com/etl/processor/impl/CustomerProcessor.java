@@ -1,7 +1,9 @@
 package com.etl.processor.impl;
 
-import org.springframework.batch.item.ItemProcessor;
-import org.springframework.stereotype.Component;
+// Transition status: LEGACY.
+// Historical example only. This class is commented out, not compiled, and not part of the
+// active runtime path. Prefer shared processor behavior through DefaultDynamicProcessor plus
+// YAML mapping/validation rules instead of restoring scenario-specific processors here.
 
 /*@Component
 public class CustomerProcessor implements ItemProcessor<com.etl.model.source.Customers, com.etl.model.target.Customers> {

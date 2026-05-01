@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -98,6 +99,7 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 		}
 
 		List<OrderSelector> selectors = new ArrayList<>();
+		Set<String> configuredFields = new LinkedHashSet<>();
 		for (ProcessorConfig.OrderByField orderByField : rule.getOrderBy()) {
 			if (orderByField == null) {
 				throw new IllegalStateException("FieldMapping rule 'duplicate' contains a null 'orderBy' entry.");
@@ -105,6 +107,9 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 			String field = normalizeBlank(orderByField.getField());
 			if (field == null) {
 				throw new IllegalStateException("FieldMapping rule 'duplicate' requires non-blank 'orderBy[].field' values.");
+			}
+			if (!configuredFields.add(field)) {
+				throw new IllegalStateException("FieldMapping rule 'duplicate' requires 'orderBy[].field' values to be unique.");
 			}
 			String direction = normalizeBlank(orderByField.getDirection());
 			if (direction == null) {
@@ -161,7 +166,7 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 
 	private List<Object> resolveKeyValues(Object input, String fieldName, Object value, List<String> keyFields) {
 		if (keyFields.size() == 1 && keyFields.get(0).equals(fieldName)) {
-			return List.of(value);
+			return Collections.singletonList(value);
 		}
 		if (input == null) {
 			return List.of();

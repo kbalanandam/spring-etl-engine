@@ -11,6 +11,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Evaluates configured processor-side validation rules for a mapped runtime record.
+ *
+ * <p><strong>Transition status:</strong> REUSE.</p>
+ *
+ * <p>This class is part of the shared processor validation path and remains aligned
+ * with the next architecture direction. Prefer extending validation through the active
+ * processor-rule SPI rather than creating job-specific validation code paths.</p>
+ */
 @Component
 public class ValidationRuleEvaluator {
 

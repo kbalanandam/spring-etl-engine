@@ -12,6 +12,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.stereotype.Component;
 
+/**
+ * Creates reader implementations for configured source formats.
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>This remains the active runtime dispatch seam for reader selection in 1.4.x.
+ * Keep it stable during migration, but avoid growing it into the design center of
+ * the next architecture while generator-first runtime paths are being introduced.</p>
+ */
 @Component
 public class DynamicReaderFactory {
 

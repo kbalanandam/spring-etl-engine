@@ -36,6 +36,12 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>Duplicate tracking in this class is the lightweight keep-first path used when a
  * {@code duplicate} rule does not request ordered winner selection. Ordered duplicate winner
  * selection uses separate duplicate resolver implementations.</p>
+ *
+ * <p><strong>Transition status:</strong> REUSE.</p>
+ *
+ * <p>This remains a shared runtime support component for reject handling, duplicate support,
+ * and file-ingestion hardening concerns. Reuse it where possible instead of copying these
+ * behaviors into job-specific flows.</p>
  */
 @Component
 public class FileIngestionRuntimeSupport {
