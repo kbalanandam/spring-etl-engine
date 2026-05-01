@@ -55,6 +55,8 @@ sequenceDiagram
     Loader->>Loader: fail fast if missing unless demo fallback is enabled
     Loader->>Loader: resolve source/target/processor paths and explicit steps
     Loader->>Loader: validate selected relational configs early and reject placeholder values
+    Loader->>Loader: validate selected processor config for the scenario
+    Loader->>Resolver: validate required generated model classes for selected steps
     App->>Batch: build etlJob
     Runner->>Batch: run job
     Batch->>Batch: resolve next configured step by source/target name
@@ -80,8 +82,12 @@ sequenceDiagram
 
 When the selected source or target uses relational configuration, `ConfigLoader` now validates those chosen configs before job execution starts. Placeholder values such as `<SQLSERVER_HOST>` are rejected early with scenario-aware error messages instead of surfacing later as JDBC runtime failures.
 
+For explicit `etl.config.job` runs, `ConfigLoader` also validates the selected processor config before it checks generated-model class availability for the selected steps. That ordering keeps malformed processor mappings or rule settings from being masked by unrelated missing generated classes and produces scenario-aware configuration failures earlier in startup.
+
 ### 2. Model resolution
 `GeneratedModelClassResolver` translates config into concrete runtime class names and wrapper metadata.
+
+For XML sources, explicit startup always requires the generated record class. Non-`NestedXml` XML sources also require the generated root class, while `NestedXml` source validation skips that root-class requirement because the active runtime path flattens from the generated record model.
 
 ### 3. Step strategy
 `BatchConfig` walks the explicit step list from `job-config.yaml`. For each step, it resolves the named source and target, verifies that a matching processor mapping exists, emits machine-readable step-planning logs such as `STEP_PLAN` and `STEP_READY`, and then calls `getRecordCount()` on the selected source to compare it to `etl.chunk.threshold`.

@@ -102,6 +102,7 @@ This is the central contract between configuration, generated model classes, pro
 
 The next architecture topics that should extend this baseline rather than bypass it are:
 
+- code-transition classification from the current `1.4.x` baseline into `REUSE`, `BRIDGE`, `LEGACY`, and `REMOVE` buckets, captured in [`1-4-to-next-architecture-classification.md`](1-4-to-next-architecture-classification.md)
 - relational-source and relational-target hardening for larger data volumes
 - stored procedure execution as a first-class step type
 - multi-step and multi-job orchestration

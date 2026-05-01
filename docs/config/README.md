@@ -95,6 +95,8 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 | `src/main/resources/config-scenarios/csv-to-sqlserver/` | CSV -> relational SQL Server target | Preserved placeholder values now fail fast at startup until replaced with real connection settings |
 | `src/main/resources/config-scenarios/relational-to-relational/` | relational source -> relational target | Preserves `countQuery`, `fetchSize`, and `batchSize` for larger-volume relational testing |
 | `src/main/resources/config-scenarios/xml-to-csv-events/` | XML -> CSV | Preserved realistic flat XML event feed used as a baseline XML-to-CSV scenario without the optional validation/reject/archive config enabled |
+| `src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/` | nested XML -> CSV | Preserved explicit job bundle proving shared nested XML flattening into a flat CSV target using a larger preserved DTVL payload |
+| `src/main/resources/config-scenarios/xml-nested-tag-validation/` | nested XML -> XML | Preserved explicit job bundle proving nested XML source flattening, shared processor mapping, and generated XML target writing |
 | `src/main/resources/config-scenarios/customer-load/` | CSV -> XML | Single-step business scenario selected through `job-config.yaml` |
 | `src/main/resources/config-scenarios/department-load/` | CSV -> XML | Single-step business scenario selected through `job-config.yaml` |
 | `src/main/resources/config-scenarios/cust-dept-load/` | CSV -> XML + XML | Multi-step business scenario with explicit ordered `steps` |
@@ -109,6 +111,8 @@ Those scenarios together demonstrate:
 - relational SQL Server target
 - direct relational source to relational target flow
 - flat XML source to CSV target flow
+- nested XML source to CSV target flow through the shared flattening path
+- nested XML source to XML target flow through the next-direction XML generation and flattening path
 - explicit `job-config.yaml` driven selection
 - single-entity scenarios such as `customer-load` and `department-load`
 - a multi-entity scenario such as `cust-dept-load` where one selected config set drives multiple ETL steps in one run
@@ -151,6 +155,8 @@ steps:
 ```
 
 Relative paths in `job-config.yaml` are resolved from the job-config file's folder, and explicit job-config runs now require a non-empty `steps` list.
+
+Legacy development-time model generation paths from `model.paths.*` remain anchored to the repository root rather than the selected scenario working directory. This keeps explicit job runs from creating scenario-local `src/main/java` or `target/classes` trees when older dev-profile generators are still active.
 
 For the full job-config field reference, including multi-step examples such as `cust-dept-load`, see [`job-config.md`](job-config.md).
 
