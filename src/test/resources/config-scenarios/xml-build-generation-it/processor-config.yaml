@@ -1,0 +1,8 @@
+type: default
+mappings:
+  - source: BuildXmlSource
+    target: BuildXmlTarget
+    fields:
+      - from: HomeAgencyID
+        to: HomeAgencyID
+

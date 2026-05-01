@@ -1,0 +1,12 @@
+packageName: ignored.by.maven.profile
+rootElement: TagValidationList
+recordElement: TVLTagDetails
+fields:
+  - name: HomeAgencyID
+    type: String
+  - name: TVLAccountDetails
+    className: TVLAccountDetails
+    fields:
+      - name: AccountNumber
+        type: String
+

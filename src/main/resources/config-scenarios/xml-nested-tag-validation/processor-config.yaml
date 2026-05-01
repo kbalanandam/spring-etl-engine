@@ -1,0 +1,16 @@
+type: default
+mappings:
+  - source: TagValidationSource
+    target: TagValidationExport
+    fields:
+      - from: HomeAgencyID
+        to: homeAgencyId
+      - from: TagAgencyID
+        to: tagAgencyId
+      - from: TVLPlateDetails.PlateCountry
+        to: plateCountry
+      - from: TVLPlateDetails.PlateState
+        to: plateState
+      - from: TVLAccountDetails.AccountNumber
+        to: accountNumber
+

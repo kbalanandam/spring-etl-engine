@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TagValidationList>
+  <TVLTagDetails>
+    <HomeAgencyID>0056</HomeAgencyID>
+    <TagAgencyID>1300</TagAgencyID>
+    <TagSerialNumber>0003518358</TagSerialNumber>
+    <TVLPlateDetails>
+      <PlateCountry>US</PlateCountry>
+      <PlateState>KS</PlateState>
+      <PlateNumber>7064AFP</PlateNumber>
+    </TVLPlateDetails>
+    <TVLAccountDetails>
+      <AccountNumber>4773316</AccountNumber>
+      <FleetIndicator>N</FleetIndicator>
+    </TVLAccountDetails>
+  </TVLTagDetails>
+</TagValidationList>
+

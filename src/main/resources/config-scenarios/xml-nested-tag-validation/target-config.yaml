@@ -1,0 +1,19 @@
+targets:
+  - format: xml
+    targetName: TagValidationExport
+    packageName: com.etl.generated.job.xmlnestedtagvalidation.target
+    filePath: target/tag-validation-export.xml
+    rootElement: TagValidationExports
+    recordElement: TagValidationExport
+    fields:
+      - name: homeAgencyId
+        type: String
+      - name: tagAgencyId
+        type: String
+      - name: plateCountry
+        type: String
+      - name: plateState
+        type: String
+      - name: accountNumber
+        type: String
+

@@ -1,0 +1,26 @@
+packageName: com.etl.generated.job.xmlmodelspike.nested.source
+rootElement: TagValidationList
+recordElement: TVLTagDetails
+fields:
+  - name: HomeAgencyID
+    type: String
+  - name: TagAgencyID
+    type: String
+  - name: TagSerialNumber
+    type: String
+  - name: TVLPlateDetails
+    className: TVLPlateDetails
+    fields:
+      - name: PlateCountry
+        type: String
+      - name: PlateState
+        type: String
+      - name: PlateNumber
+        type: String
+  - name: TVLAccountDetails
+    className: TVLAccountDetails
+    fields:
+      - name: AccountNumber
+        type: String
+      - name: FleetIndicator
+        type: String

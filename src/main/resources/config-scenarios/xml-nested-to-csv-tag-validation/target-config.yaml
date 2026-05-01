@@ -1,0 +1,18 @@
+targets:
+  - format: csv
+    targetName: TagValidationCsv
+    packageName: com.etl.model.target
+    filePath: target/tag-validation-export.csv
+    delimiter: ","
+    fields:
+      - name: homeAgencyId
+        type: String
+      - name: tagAgencyId
+        type: String
+      - name: plateCountry
+        type: String
+      - name: plateState
+        type: String
+      - name: accountNumber
+        type: String
+

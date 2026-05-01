@@ -1,0 +1,12 @@
+targets:
+  - format: xml
+    targetName: BuildXmlTarget
+    packageName: com.etl.generated.maven.it.target
+    filePath: target/xml-build-generation-it.xml
+    rootElement: TagValidationList
+    recordElement: TVLTagDetails
+    modelDefinitionPath: definitions/nested-target-model.yaml
+    fields:
+      - name: HomeAgencyID
+        type: String
+
