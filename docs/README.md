@@ -27,12 +27,14 @@ For every significant enhancement, add or update:
 
 ### Architecture
 - [`architecture/overview.md`](architecture/overview.md) — current high-level system architecture
+- [`architecture/1-4-to-next-architecture-classification.md`](architecture/1-4-to-next-architecture-classification.md) — transition map for classifying current 1.4.x code into reuse, bridge, legacy, and remove buckets during the next architecture shift
 - [`architecture/runtime-flow.md`](architecture/runtime-flow.md) — end-to-end ETL runtime flow
 - [`architecture/extension-points.md`](architecture/extension-points.md) — where new formats, processors, and future capabilities plug in
 - [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md) — top architectural risks to watch during roadmap execution
 - [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase, future enterprise integration direction, and the high-level guide for what belongs now vs later
 - [`architecture/file-ingestion-hardening.md`](architecture/file-ingestion-hardening.md) — first-slice file-ingestion hardening status plus remaining design direction for validation rules, rejected-record output, and processed-file archiving
 - [`architecture/file-ingestion-hardening-checklist.md`](architecture/file-ingestion-hardening-checklist.md) — execution checklist and remaining follow-on considerations around the first file-ingestion hardening slice
+- [`architecture/hardening-documentation-sync-checklist.md`](architecture/hardening-documentation-sync-checklist.md) — implementation-to-documentation sync note for the explicit-scenario hardening changes
 - [`architecture/sftp-transport-capability.md`](architecture/sftp-transport-capability.md) — near-term SFTP transport direction, deployment boundary, security-layer guidance, and first staged inbound scope
 - [`architecture/validation-extension-architecture.md`](architecture/validation-extension-architecture.md) — future extension architecture for source-level validation and processor-rule validation without reviving the deprecated legacy validation framework
 - [`architecture/relational-db-support.md`](architecture/relational-db-support.md) — current relational support baseline, phase-1 implementation status, and future hardening direction
@@ -68,6 +70,8 @@ For every significant enhancement, add or update:
 - `src/main/resources/config-scenarios/csv-validation-reject-archive/` — preserved example for the first shipped CSV validation, rejected-record output, and archive-on-success slice
 - `src/main/resources/config-scenarios/csv-to-sqlserver/` — preserved example for CSV source to SQL Server target without changing the default resource YAMLs
 - `src/main/resources/config-scenarios/xml-to-csv-events/` — preserved example for a realistic flat XML source to CSV target baseline run
+- `src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/` — preserved example for nested XML source flattening into a flat CSV target using the shared nested XML path
+- `src/main/resources/config-scenarios/xml-nested-tag-validation/` — preserved example for nested XML source flattening into a generated XML target through the next-direction XML path
 - `src/main/resources/config-scenarios/customer-load/` — business scenario for customer-only ETL
 - `src/main/resources/config-scenarios/department-load/` — business scenario for department-only ETL
 - `src/main/resources/config-scenarios/cust-dept-load/` — business scenario for multi-step customer + department ETL
