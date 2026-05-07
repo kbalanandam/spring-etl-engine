@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
@@ -60,6 +61,8 @@ public class CsvSourceValidator implements SourceValidator {
 			throw new IllegalArgumentException("validation requires a non-blank delimiter.");
 		}
 
+		validateRejectConfiguration(validation);
+
 		Path filePath = Path.of(csvSourceConfig.getFilePath());
 		if (!Files.exists(filePath)) {
 			throw new IllegalArgumentException("CSV file must exist for validation: " + filePath);
@@ -70,8 +73,33 @@ public class CsvSourceValidator implements SourceValidator {
 		if (!Files.isReadable(filePath)) {
 			throw new IllegalArgumentException("CSV file must be readable for validation: " + filePath);
 		}
+		validateFileNamePattern(validation, filePath);
 
 		validateFileContents(csvSourceConfig, validation, filePath);
+	}
+
+	private void validateRejectConfiguration(CsvSourceConfig.ValidationConfig validation) {
+		if (!"rejectFile".equalsIgnoreCase(normalize(validation.getOnFailure()))) {
+			return;
+		}
+
+		if (validation.getRejectPath() == null || validation.getRejectPath().isBlank()) {
+			throw new IllegalArgumentException("validation.onFailure=rejectFile requires a non-blank rejectPath.");
+		}
+	}
+
+	private void validateFileNamePattern(CsvSourceConfig.ValidationConfig validation, Path filePath) {
+		if (validation.getFileNamePattern() == null || validation.getFileNamePattern().isBlank()) {
+			return;
+		}
+
+		String fileName = filePath.getFileName() == null ? "" : filePath.getFileName().toString();
+		if (Pattern.compile(validation.getFileNamePattern()).matcher(fileName).matches()) {
+			return;
+		}
+
+		handleValidationFailure(validation, filePath,
+				"CSV fileNamePattern validation failed. pattern=" + validation.getFileNamePattern() + " fileName=" + fileName);
 	}
 
 	private void validateFileContents(CsvSourceConfig csvSourceConfig,
@@ -81,27 +109,33 @@ public class CsvSourceValidator implements SourceValidator {
 			String headerLine = reader.readLine();
 			if (headerLine == null || headerLine.isBlank()) {
 				if (validation.isRequireHeaderMatch()) {
-					throw new IllegalArgumentException("CSV header row is required when validation.requireHeaderMatch=true.");
+					handleValidationFailure(validation, filePath,
+							"CSV header row is required when validation.requireHeaderMatch=true.");
 				}
 				if (!validation.isAllowEmpty()) {
-					throw new IllegalArgumentException("CSV file must contain at least one header row and one data row when validation.allowEmpty=false.");
+					handleValidationFailure(validation, filePath,
+							"CSV file must contain at least one header row and one data row when validation.allowEmpty=false.");
 				}
 				return;
 			}
 
 			if (validation.isRequireHeaderMatch()) {
-				validateHeader(csvSourceConfig, headerLine);
+				validateHeader(csvSourceConfig, validation, filePath, headerLine);
 			}
 
 			if (!validation.isAllowEmpty() && !hasDataRows(reader)) {
-				throw new IllegalArgumentException("CSV file must contain at least one data row when validation.allowEmpty=false.");
+				handleValidationFailure(validation, filePath,
+						"CSV file must contain at least one data row when validation.allowEmpty=false.");
 			}
 		} catch (IOException e) {
 			throw new IllegalArgumentException("Unable to read CSV file for validation: " + filePath, e);
 		}
 	}
 
-	private void validateHeader(CsvSourceConfig csvSourceConfig, String headerLine) {
+	private void validateHeader(CsvSourceConfig csvSourceConfig,
+	                           CsvSourceConfig.ValidationConfig validation,
+	                           Path filePath,
+	                           String headerLine) {
 		List<String> expectedHeaders = csvSourceConfig.getFields().stream()
 				.map(field -> normalizeHeaderValue(field.getName()))
 				.toList();
@@ -110,9 +144,34 @@ public class CsvSourceValidator implements SourceValidator {
 				.toList();
 
 		if (!actualHeaders.equals(expectedHeaders)) {
-			throw new IllegalArgumentException("CSV header does not match configured fields. expected="
-					+ expectedHeaders + " actual=" + actualHeaders);
+			handleValidationFailure(validation, filePath,
+					"CSV header does not match configured fields. expected=" + expectedHeaders + " actual=" + actualHeaders);
 		}
+	}
+
+	private void handleValidationFailure(CsvSourceConfig.ValidationConfig validation, Path filePath, String message) {
+		if (!"rejectFile".equalsIgnoreCase(normalize(validation.getOnFailure()))) {
+			throw new IllegalArgumentException(message);
+		}
+
+		Path rejectedPath = moveToRejectPath(filePath, validation.getRejectPath());
+		throw new IllegalArgumentException(message + "; moved to reject path: " + rejectedPath);
+	}
+
+	private Path moveToRejectPath(Path filePath, String rejectPathValue) {
+		try {
+			Path rejectDirectory = Path.of(rejectPathValue.trim()).toAbsolutePath().normalize();
+			Files.createDirectories(rejectDirectory);
+			Path destination = rejectDirectory.resolve(filePath.getFileName());
+			Files.move(filePath, destination, StandardCopyOption.REPLACE_EXISTING);
+			return destination;
+		} catch (IOException e) {
+			throw new IllegalArgumentException("Unable to move invalid CSV file to reject path: " + filePath, e);
+		}
+	}
+
+	private String normalize(String value) {
+		return value == null ? "" : value.trim();
 	}
 
 	private boolean hasDataRows(BufferedReader reader) throws IOException {

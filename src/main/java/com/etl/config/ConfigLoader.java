@@ -9,6 +9,7 @@ import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.common.util.GeneratedModelClassResolver;
+import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.config.source.validation.SourceValidationContext;
 import com.etl.config.source.validation.SourceValidationService;
 import com.etl.config.target.CsvTargetConfig;
@@ -110,6 +111,7 @@ public class ConfigLoader {
 			if (runtimeConfig.requireExternalConfigs()) {
 				SourceWrapper sourceWrapper = loadRequiredExternalYamlConfig(runtimeConfig.sourceConfigPath(), SourceWrapper.class);
 				normalizeSourceConfigPaths(sourceWrapper, parentDirectory(runtimeConfig.sourceConfigPath()));
+				applyDefaultSourcePackages(sourceWrapper, runtimeConfig.scenarioName());
 				return sourceWrapper;
 			}
 			return loadYamlConfig(runtimeConfig.sourceConfigPath(), "source-config.yaml", SourceWrapper.class);
@@ -127,6 +129,7 @@ public class ConfigLoader {
 			if (runtimeConfig.requireExternalConfigs()) {
 				TargetWrapper targetWrapper = loadRequiredExternalYamlConfig(runtimeConfig.targetConfigPath(), TargetWrapper.class);
 				normalizeTargetConfigPaths(targetWrapper, parentDirectory(runtimeConfig.targetConfigPath()));
+				applyDefaultTargetPackages(targetWrapper, runtimeConfig.scenarioName());
 				return targetWrapper;
 			}
 			return loadYamlConfig(runtimeConfig.targetConfigPath(), "target-config.yaml", TargetWrapper.class);
@@ -322,6 +325,7 @@ public class ConfigLoader {
 		ProcessorConfig explicitProcessorConfig = loadRequiredExternalYamlConfig(resolvedProcessorConfigPath, ProcessorConfig.class, mapper);
 		normalizeSourceConfigPaths(explicitSourceWrapper, parentDirectory(resolvedSourceConfigPath));
 		normalizeTargetConfigPaths(explicitTargetWrapper, parentDirectory(resolvedTargetConfigPath));
+		applyJobScopedPackageDefaults(explicitSourceWrapper, explicitTargetWrapper, scenarioName);
 		normalizeProcessorConfigPaths(explicitProcessorConfig, parentDirectory(resolvedProcessorConfigPath));
 		sourceValidationService.validateSelectedSources(
 				explicitSourceWrapper,
@@ -521,20 +525,81 @@ public class ConfigLoader {
 	}
 
 	private String deriveScenarioName(JobConfig jobConfig, Path jobConfigDirectory) {
-		String configuredName = jobConfig.getName();
-		if (configuredName != null && !configuredName.isBlank()) {
-			return configuredName.trim();
+		return JobScopedPackageNameResolver.deriveJobName(jobConfig, jobConfigDirectory);
+	}
+
+	private void applyJobScopedPackageDefaults(SourceWrapper sourceWrapper,
+	                                         TargetWrapper targetWrapper,
+	                                         String scenarioName) {
+		applyDefaultSourcePackages(sourceWrapper, scenarioName);
+		applyDefaultTargetPackages(targetWrapper, scenarioName);
+	}
+
+	private void applyDefaultSourcePackages(SourceWrapper sourceWrapper, String scenarioName) {
+		if (sourceWrapper == null || sourceWrapper.getSources() == null) {
+			return;
 		}
 
-		Path directoryName = jobConfigDirectory.getFileName();
-		if (directoryName != null) {
-			String folderName = directoryName.toString().trim();
-			if (!folderName.isBlank()) {
-				return folderName;
+		String defaultSourcePackage = JobScopedPackageNameResolver.resolveSourcePackage(scenarioName);
+		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
+			if (!hasText(sourceConfig.getPackageName())) {
+				sourceConfig.setPackageName(defaultSourcePackage);
 			}
 		}
+	}
 
-		return "selected-job";
+	private void applyDefaultTargetPackages(TargetWrapper targetWrapper, String scenarioName) {
+		if (targetWrapper == null || targetWrapper.getTargets() == null) {
+			return;
+		}
+
+		List<TargetConfig> defaultedTargets = new ArrayList<>();
+		for (TargetConfig targetConfig : targetWrapper.getTargets()) {
+			defaultedTargets.add(applyDefaultTargetPackage(targetConfig, scenarioName));
+		}
+		targetWrapper.setTargets(List.copyOf(defaultedTargets));
+	}
+
+	private TargetConfig applyDefaultTargetPackage(TargetConfig targetConfig, String scenarioName) {
+		if (targetConfig == null || hasText(targetConfig.getPackageName())) {
+			return targetConfig;
+		}
+
+		String defaultTargetPackage = JobScopedPackageNameResolver.resolveTargetPackage(scenarioName);
+		if (targetConfig instanceof CsvTargetConfig csvTargetConfig) {
+			return new CsvTargetConfig(
+					csvTargetConfig.getTargetName(),
+					defaultTargetPackage,
+					copyColumns(csvTargetConfig.getFields()),
+					csvTargetConfig.getFilePath(),
+					csvTargetConfig.getDelimiter(),
+					csvTargetConfig.isIncludeHeader()
+			);
+		}
+		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
+			return new XmlTargetConfig(
+					xmlTargetConfig.getTargetName(),
+					defaultTargetPackage,
+					copyColumns(xmlTargetConfig.getFields()),
+					xmlTargetConfig.getFilePath(),
+					xmlTargetConfig.getRootElement(),
+					xmlTargetConfig.getRecordElement(),
+					xmlTargetConfig.getModelDefinitionPath()
+			);
+		}
+		if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
+			return new RelationalTargetConfig(
+					relationalTargetConfig.getTargetName(),
+					defaultTargetPackage,
+					copyColumns(relationalTargetConfig.getFields()),
+					relationalTargetConfig.getConnection(),
+					relationalTargetConfig.getTable(),
+					relationalTargetConfig.getSchema(),
+					relationalTargetConfig.getWriteMode().name(),
+					relationalTargetConfig.getBatchSize()
+			);
+		}
+		return targetConfig;
 	}
 
 	private String resolveReferencedPath(Path jobConfigDirectory, String configuredPath, String propertyName) {
@@ -572,7 +637,6 @@ public class ConfigLoader {
 				}
 			}
 			if (sourceConfig instanceof XmlSourceConfig xmlSourceConfig) {
-				xmlSourceConfig.setFilePath(resolveScenarioPath(configDirectory, xmlSourceConfig.getFilePath()));
 				xmlSourceConfig.setModelDefinitionPath(resolveScenarioPath(configDirectory, xmlSourceConfig.getModelDefinitionPath()));
 				if (xmlSourceConfig.getValidation() != null) {
 					xmlSourceConfig.getValidation().setRejectPath(resolveScenarioPath(configDirectory, xmlSourceConfig.getValidation().getRejectPath()));
@@ -651,13 +715,34 @@ public class ConfigLoader {
 		}
 
 		Path path = Path.of(configuredPath.trim());
+		if (path.isAbsolute()) {
+			return path.normalize().toString();
+		}
+
+		if (isWorkingDirectoryRelativeCompatibilityPath(path)) {
+			return path.toAbsolutePath().normalize().toString();
+		}
+
+		return configDirectory.resolve(path).normalize().toString();
+	}
+
+	private boolean isWorkingDirectoryRelativeCompatibilityPath(Path path) {
+		if (path.getNameCount() == 0) {
+			return false;
+		}
+
+		String firstSegment = path.getName(0).toString();
 		return path.isAbsolute()
-				? path.normalize().toString()
-				: configDirectory.resolve(path).normalize().toString();
+				|| "src".equals(firstSegment)
+				|| "target".equals(firstSegment);
 	}
 
 	private String defaultName(String configuredName) {
 		return configuredName == null || configuredName.isBlank() ? "unnamed" : configuredName.trim();
+	}
+
+	private boolean hasText(String value) {
+		return value != null && !value.isBlank();
 	}
 
 	private void validateProcessorConfig(ProcessorConfig config, String scenarioName, String resolvedProcessorConfigPath) {

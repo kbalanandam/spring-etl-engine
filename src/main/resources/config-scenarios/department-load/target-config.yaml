@@ -1,7 +1,7 @@
 targets:
   - format: xml
-    packageName: com.etl.model.target
-    filePath: target/
+    packageName: com.etl.generated.job.departmentload.target
+    filePath: output/departments.xml
     targetName: Departments
     rootElement: Departments
     recordElement: Department

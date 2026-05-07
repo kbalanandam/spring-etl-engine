@@ -130,7 +130,7 @@ The first proposed archive shape is intentionally small and file-source specific
 sources:
   - format: csv
     sourceName: Events
-    packageName: com.etl.model.source
+    packageName: com.etl.generated.job.fileingestionhardening.source
     filePath: input/events.csv
     delimiter: ","
     archive:

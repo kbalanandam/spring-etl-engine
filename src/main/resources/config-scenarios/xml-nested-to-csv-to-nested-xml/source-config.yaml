@@ -9,8 +9,8 @@ sources:
     modelDefinitionPath: definitions/nested-source-model.yaml
   - format: csv
     sourceName: TagValidationCsvIntermediate
-    packageName: com.etl.model.source
-    filePath: target/intermediate/tag-validation-intermediate.csv
+    packageName: com.etl.generated.job.xmlnestedcsvroundtrip.source
+    filePath: output/intermediate/tag-validation-intermediate.csv
     delimiter: ","
     fields:
       - name: homeAgencyId

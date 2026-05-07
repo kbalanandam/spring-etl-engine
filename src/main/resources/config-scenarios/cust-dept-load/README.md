@@ -14,6 +14,7 @@ Business scenario for loading both customer and department data in one run.
 - `source-config.yaml`
 - `target-config.yaml`
 - `processor-config.yaml`
+- `output/` - scenario-local runtime output folder for `customers.xml` and `departments.xml`
 
 ## Notes
 

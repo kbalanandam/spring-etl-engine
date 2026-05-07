@@ -54,6 +54,32 @@ class XmlDynamicWriterTest {
     assertTrue(xml.contains("Jane Doe"));
     }
 
+  @Test
+  void writesDirectoryStyleXmlTargetToTargetNameFile(@TempDir Path tempDir) throws Exception {
+    Path outputDirectory = tempDir.resolve("target");
+    Files.createDirectories(outputDirectory);
+    Path expectedOutputFile = outputDirectory.resolve("customers.xml");
+    XmlTargetConfig config = getXmlTargetConfig(outputDirectory);
+    ItemWriter<Object> writer = factory.createWriter(config, Customers.class);
+    assertInstanceOf(SingleObjectXmlWriter.class, writer);
+
+    Customer customer = new Customer();
+    customer.setId(11);
+    customer.setName("Directory Jane");
+    customer.setEmail("directory@example.com");
+
+    Customers customers = new Customers();
+    customers.setCustomer(List.of(customer));
+
+    writer.write(new Chunk<>(List.of(customers)));
+
+    assertTrue(Files.exists(expectedOutputFile));
+    assertFalse(Files.exists(tempDir.resolve("targetcustomers.xml")));
+    String xml = Files.readString(expectedOutputFile);
+    assertTrue(xml.contains("<Customers>"));
+    assertTrue(xml.contains("Directory Jane"));
+  }
+
     @Test
     void createsChunkXmlWriterForRecordClass(@TempDir Path tempDir) throws Exception {
     Path outputFile = tempDir.resolve("customers_test.xml");

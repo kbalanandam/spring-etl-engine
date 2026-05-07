@@ -141,6 +141,8 @@ Those scenarios together demonstrate:
 - single-entity scenarios such as `customer-load` and `department-load`
 - a multi-entity scenario such as `cust-dept-load` where one selected config set drives multiple ETL steps in one run
 
+For preserved local examples, keep visible runtime artifacts such as final outputs, rejects, archives, and intermediate handoff files under each scenario bundle's `output/` folder when practical. This keeps `input/`, `output/`, and config files together for quick inspection while production runs can still override paths explicitly. Those local `output/` folders are intentionally ignored from Git and excluded from packaged application resources.
+
 For relational scenarios, prefer preserving large-volume settings directly in the scenario bundle:
 
 - `countQuery` when source counting should stay explicit
@@ -182,13 +184,15 @@ steps:
 
 Relative paths in `job-config.yaml` are resolved from the job-config file's folder, and explicit job-config runs now require a non-empty `steps` list.
 
+For explicit job-config runs, source and target `packageName` values are now optional. When omitted, the runtime and job-scoped generation path derive them as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`. Explicit `packageName` values still override that default for compatibility.
+
 Legacy development-time model generation paths from `model.paths.*` remain anchored to the repository root rather than the selected scenario working directory. This keeps explicit job runs from creating scenario-local `src/main/java` or `target/classes` trees when older dev-profile generators are still active.
 
 For the full job-config field reference, including multi-step examples such as `cust-dept-load`, see [`job-config.md`](job-config.md).
 
 The engine should not auto-discover all scenario folders and execute them. One run should explicitly select one scenario/config set through `etl.config.job`.
 
-`JobConfig.name` is currently descriptive metadata for the selected scenario. It is not yet used as an independent runtime lookup key.
+`JobConfig.name` is currently the selected scenario/job identity used in logs and metadata. It is still not a separate lookup registry key, but it now also seeds the default generated package path when the selected source or target config omits `packageName`.
 
 If `etl.config.job` is not set, startup should fail unless `etl.config.allow-demo-fallback=true` is enabled. Demo fallback mode may then use the direct config path properties and, if those direct files are missing, continue into bundled classpath YAML intended for local/demo usage.
 

@@ -2,7 +2,7 @@ targets:
   - format: csv
     targetName: TagValidationCsvIntermediate
     packageName: com.etl.generated.job.xmlnestedcsvroundtrip.target
-    filePath: target/intermediate/tag-validation-intermediate.csv
+    filePath: output/intermediate/tag-validation-intermediate.csv
     delimiter: ","
     includeHeader: true
     fields:
@@ -23,7 +23,7 @@ targets:
   - format: xml
     targetName: TagValidationNestedXml
     packageName: com.etl.generated.job.xmlnestedcsvroundtrip.target
-    filePath: target/tag-validation-roundtrip.xml
+    filePath: output/tag-validation-roundtrip.xml
     rootElement: TagValidationExports
     recordElement: TagValidationExport
     modelDefinitionPath: definitions/nested-target-model.yaml

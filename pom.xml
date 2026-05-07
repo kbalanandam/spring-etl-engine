@@ -30,6 +30,7 @@
 	</scm>
 	<properties>
 		<generate-models>run</generate-models>
+		<etl.xml.generation.jobConfig>__unset__</etl.xml.generation.jobConfig>
 		<java.version>17</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
@@ -157,6 +158,14 @@
 		</dependency>
 	</dependencies>
 	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<excludes>
+					<exclude>config-scenarios/**/output/**</exclude>
+				</excludes>
+			</resource>
+		</resources>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>

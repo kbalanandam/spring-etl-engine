@@ -1,7 +1,7 @@
 type: default
 rejectHandling:
   enabled: true
-  outputPath: target/rejects/
+  outputPath: output/rejects/
   includeReasonColumns: true
 mappings:
   - source: Events

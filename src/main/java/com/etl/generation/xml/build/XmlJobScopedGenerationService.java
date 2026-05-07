@@ -1,11 +1,13 @@
 package com.etl.generation.xml.build;
 
+import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.common.util.ValidationUtils;
 import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.target.CsvTargetConfig;
+import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.config.target.XmlTargetConfig;
@@ -28,7 +30,13 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Generates XML source/target model classes for the XML assets referenced by one explicit job config.
+ * Generates selected scenario-scoped model classes for one explicit job config.
+ * <p>
+ * XML sources and XML targets still use structural generation, while flat CSV and
+ * relational sources/targets now generate simple POJOs from their configured fields.
+ * The existing class and profile names are retained for compatibility with the current
+ * build workflow.
+ * </p>
  */
 public class XmlJobScopedGenerationService {
 
@@ -65,11 +73,13 @@ public class XmlJobScopedGenerationService {
 
         JobConfig jobConfig = yamlMapper.readValue(normalizedJobConfigPath.toFile(), JobConfig.class);
         Path jobDirectory = Objects.requireNonNull(normalizedJobConfigPath.getParent(), "Job config parent directory must exist.");
+        String jobName = JobScopedPackageNameResolver.deriveJobName(jobConfig, jobDirectory);
         Path sourceConfigPath = resolveReferencedPath(jobDirectory, jobConfig.getSourceConfigPath(), "sourceConfigPath");
         Path targetConfigPath = resolveReferencedPath(jobDirectory, jobConfig.getTargetConfigPath(), "targetConfigPath");
 
         SourceWrapper sourceWrapper = yamlMapper.readValue(sourceConfigPath.toFile(), SourceWrapper.class);
         TargetWrapper targetWrapper = yamlMapper.readValue(targetConfigPath.toFile(), TargetWrapper.class);
+        applyJobScopedPackageDefaults(sourceWrapper, targetWrapper, jobName);
         List<JobConfig.JobStepConfig> steps = requireSteps(jobConfig);
 
         Map<String, SourceConfig> sourcesByName = indexSources(sourceWrapper);
@@ -96,8 +106,7 @@ public class XmlJobScopedGenerationService {
 
         List<XmlModelGenerationResult> sourceResults = selectedSourceNames.stream()
                 .map(sourcesByName::get)
-                .filter(XmlSourceConfig.class::isInstance)
-                .map(XmlSourceConfig.class::cast)
+                .filter(this::supportsBuildTimeSourceGeneration)
                 .map(config -> generateSourceModel(config, sourceConfigPath.getParent(), sourceOutputRoot))
                 .toList();
 
@@ -107,29 +116,105 @@ public class XmlJobScopedGenerationService {
                 .map(config -> generateTargetModel(config, targetConfigPath.getParent(), targetOutputRoot))
                 .toList();
 
-        return new XmlJobScopedGenerationResult(deriveJobName(jobConfig, jobDirectory), sourceResults, targetResults);
+        return new XmlJobScopedGenerationResult(jobName, sourceResults, targetResults);
     }
 
-    private XmlModelGenerationResult generateSourceModel(XmlSourceConfig config, Path sourceConfigDirectory, Path outputRoot) {
-        try {
-            XmlModelDefinition definition = resolveSourceDefinition(config, sourceConfigDirectory);
-            return classGenerator.generate(definition, outputRoot);
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to generate XML source model for source '" + config.getSourceName() + "'.", e);
+    private void applyJobScopedPackageDefaults(SourceWrapper sourceWrapper,
+                                              TargetWrapper targetWrapper,
+                                              String jobName) {
+        applyDefaultSourcePackages(sourceWrapper, jobName);
+        applyDefaultTargetPackages(targetWrapper, jobName);
+    }
+
+    private void applyDefaultSourcePackages(SourceWrapper sourceWrapper, String jobName) {
+        if (sourceWrapper == null || sourceWrapper.getSources() == null) {
+            return;
+        }
+
+        String defaultSourcePackage = JobScopedPackageNameResolver.resolveSourcePackage(jobName);
+        for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
+            if (!hasText(sourceConfig.getPackageName())) {
+                sourceConfig.setPackageName(defaultSourcePackage);
+            }
         }
     }
 
-    private XmlModelGenerationResult generateTargetModel(TargetConfig config, Path targetConfigDirectory, Path outputRoot) {
-        if (config instanceof CsvTargetConfig csvTargetConfig) {
-            return flatTargetModelClassGenerator.generate(
-                    csvTargetConfig.getPackageName(),
-                    csvTargetConfig.getTargetName(),
-                    csvTargetConfig.getFields(),
-                    outputRoot
+    private void applyDefaultTargetPackages(TargetWrapper targetWrapper, String jobName) {
+        if (targetWrapper == null || targetWrapper.getTargets() == null) {
+            return;
+        }
+
+        List<TargetConfig> defaultedTargets = targetWrapper.getTargets().stream()
+                .map(targetConfig -> applyDefaultTargetPackage(targetConfig, jobName))
+                .toList();
+        targetWrapper.setTargets(defaultedTargets);
+    }
+
+    private TargetConfig applyDefaultTargetPackage(TargetConfig targetConfig, String jobName) {
+        if (targetConfig == null || hasText(targetConfig.getPackageName())) {
+            return targetConfig;
+        }
+
+        String defaultTargetPackage = JobScopedPackageNameResolver.resolveTargetPackage(jobName);
+        if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
+            return new XmlTargetConfig(
+                    xmlTargetConfig.getTargetName(),
+                    defaultTargetPackage,
+                    copyColumns(xmlTargetConfig.getFields()),
+                    xmlTargetConfig.getFilePath(),
+                    xmlTargetConfig.getRootElement(),
+                    xmlTargetConfig.getRecordElement(),
+                    xmlTargetConfig.getModelDefinitionPath()
             );
         }
 
-        XmlTargetConfig xmlTargetConfig = (XmlTargetConfig) config;
+        if (targetConfig instanceof CsvTargetConfig csvTargetConfig) {
+            return new CsvTargetConfig(
+                    csvTargetConfig.getTargetName(),
+                    defaultTargetPackage,
+                    copyColumns(csvTargetConfig.getFields()),
+                    csvTargetConfig.getFilePath(),
+                    csvTargetConfig.getDelimiter(),
+                    csvTargetConfig.isIncludeHeader()
+            );
+        }
+
+        if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
+            return new RelationalTargetConfig(
+                    relationalTargetConfig.getTargetName(),
+                    defaultTargetPackage,
+                    copyColumns(relationalTargetConfig.getFields()),
+                    relationalTargetConfig.getConnection(),
+                    relationalTargetConfig.getTable(),
+                    relationalTargetConfig.getSchema(),
+                    relationalTargetConfig.getWriteMode().name(),
+                    relationalTargetConfig.getBatchSize()
+            );
+        }
+
+        return targetConfig;
+    }
+
+    private XmlModelGenerationResult generateSourceModel(SourceConfig config, Path sourceConfigDirectory, Path outputRoot) {
+        if (config instanceof XmlSourceConfig xmlSourceConfig) {
+            try {
+                XmlModelDefinition definition = resolveSourceDefinition(xmlSourceConfig, sourceConfigDirectory);
+                return classGenerator.generate(definition, outputRoot);
+            } catch (IOException e) {
+                throw new IllegalStateException("Failed to generate XML source model for source '" + xmlSourceConfig.getSourceName() + "'.", e);
+            }
+        }
+
+        return generateFlatModel(config.getPackageName(), config.getSourceName(), config.getFields(), outputRoot,
+                "source", config.getSourceName());
+    }
+
+    private XmlModelGenerationResult generateTargetModel(TargetConfig config, Path targetConfigDirectory, Path outputRoot) {
+        if (!(config instanceof XmlTargetConfig xmlTargetConfig)) {
+            return generateFlatModel(config.getPackageName(), config.getTargetName(), config.getFields(), outputRoot,
+                    "target", config.getTargetName());
+        }
+
         try {
             XmlModelDefinition definition = resolveTargetDefinition(xmlTargetConfig, targetConfigDirectory);
             return classGenerator.generate(definition, outputRoot);
@@ -138,8 +223,29 @@ public class XmlJobScopedGenerationService {
         }
     }
 
+    private boolean supportsBuildTimeSourceGeneration(SourceConfig config) {
+        return config instanceof XmlSourceConfig
+                || config.getFormat() == com.etl.enums.ModelFormat.CSV
+                || config.getFormat() == com.etl.enums.ModelFormat.RELATIONAL;
+    }
+
     private boolean supportsBuildTimeTargetGeneration(TargetConfig config) {
-        return config instanceof XmlTargetConfig || config instanceof CsvTargetConfig;
+        return config instanceof XmlTargetConfig
+                || config.getFormat() == com.etl.enums.ModelFormat.CSV
+                || config.getFormat() == com.etl.enums.ModelFormat.RELATIONAL;
+    }
+
+    private XmlModelGenerationResult generateFlatModel(String packageName,
+                                                       String className,
+                                                       List<? extends com.etl.config.FieldDefinition> fields,
+                                                       Path outputRoot,
+                                                       String role,
+                                                       String configName) {
+        try {
+            return flatTargetModelClassGenerator.generate(packageName, className, fields, outputRoot);
+        } catch (RuntimeException e) {
+            throw new IllegalStateException("Failed to generate flat " + role + " model for '" + configName + "'.", e);
+        }
     }
 
     private XmlModelDefinition resolveSourceDefinition(XmlSourceConfig config, Path configDirectory) throws IOException {
@@ -218,13 +324,23 @@ public class XmlJobScopedGenerationService {
         return path.isAbsolute() ? path.normalize() : baseDirectory.resolve(path).normalize();
     }
 
-    private String deriveJobName(JobConfig jobConfig, Path jobDirectory) {
-        String configuredName = jobConfig.getName();
-        if (configuredName != null && !configuredName.isBlank()) {
-            return configuredName.trim();
+    private List<com.etl.config.ColumnConfig> copyColumns(List<? extends com.etl.config.FieldDefinition> fields) {
+        if (fields == null || fields.isEmpty()) {
+            return List.of();
         }
-        Path fileName = jobDirectory.getFileName();
-        return fileName == null ? "selected-job" : fileName.toString();
+
+        return fields.stream()
+                .map(field -> {
+                    com.etl.config.ColumnConfig column = new com.etl.config.ColumnConfig();
+                    column.setName(field.getName());
+                    column.setType(field.getType());
+                    return column;
+                })
+                .toList();
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private String requireNonBlank(String value, String propertyName) {

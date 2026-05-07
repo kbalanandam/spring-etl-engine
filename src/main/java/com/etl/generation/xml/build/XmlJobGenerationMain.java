@@ -1,7 +1,8 @@
 package com.etl.generation.xml.build;
 import java.nio.file.Path;
 /**
- * Build-time entry point for generating job-scoped source/target classes for one explicit job.
+ * Build-time entry point for generating selected scenario-scoped source/target classes for one explicit job.
+ * The existing xml-generation naming is preserved for compatibility with the current Maven profile.
  */
 public final class XmlJobGenerationMain {
     private XmlJobGenerationMain() {

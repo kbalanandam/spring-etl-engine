@@ -1,6 +1,7 @@
 package com.etl.flow;
 
 import com.etl.common.util.GeneratedModelClassResolver;
+import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
@@ -58,13 +59,14 @@ class CsvSourceToNestedXmlTargetFlowTest {
         SourceWrapper sourceWrapper = mapper.readValue(scenarioDir.resolve(jobConfig.getSourceConfigPath()).toFile(), SourceWrapper.class);
         TargetWrapper targetWrapper = mapper.readValue(scenarioDir.resolve(jobConfig.getTargetConfigPath()).toFile(), TargetWrapper.class);
         ProcessorConfig processorConfig = mapper.readValue(scenarioDir.resolve(jobConfig.getProcessorConfigPath()).toFile(), ProcessorConfig.class);
+        applyDerivedPackages(jobConfig, scenarioDir, sourceWrapper, targetWrapper);
 
         CsvSourceConfig sourceConfig = (CsvSourceConfig) sourceWrapper.getSources().get(0);
         XmlTargetConfig targetConfig = (XmlTargetConfig) targetWrapper.getTargets().get(0);
 
         XmlJobScopedGenerationResult generationResult = new XmlJobScopedGenerationService()
                 .generate(scenarioDir.resolve("job-config.yaml"), generatedSourceRoot);
-        assertEquals(0, generationResult.sourceResults().size());
+        assertEquals(1, generationResult.sourceResults().size());
         assertEquals(1, generationResult.targetResults().size());
 
         compile(generationResult.allGeneratedFiles(), Path.of("target", "test-classes"));
@@ -139,7 +141,7 @@ class CsvSourceToNestedXmlTargetFlowTest {
         copyDirectory(sourceScenarioDir, scenarioDir);
 
         Path inputFile = scenarioDir.resolve("input/customers.csv").toAbsolutePath().normalize();
-        Path outputFile = scenarioDir.resolve("target/customers-nested.xml").toAbsolutePath().normalize();
+        Path outputFile = scenarioDir.resolve("output/customers-nested.xml").toAbsolutePath().normalize();
         Files.createDirectories(outputFile.getParent());
 
         Files.writeString(
@@ -155,6 +157,45 @@ class CsvSourceToNestedXmlTargetFlowTest {
 
         return scenarioDir;
     }
+
+  private void applyDerivedPackages(JobConfig jobConfig,
+                                   Path scenarioDir,
+                                   SourceWrapper sourceWrapper,
+                                   TargetWrapper targetWrapper) {
+    String jobName = JobScopedPackageNameResolver.deriveJobName(jobConfig, scenarioDir);
+    if (sourceWrapper.getSources() != null) {
+      for (var sourceConfig : sourceWrapper.getSources()) {
+        if (sourceConfig.getPackageName() == null || sourceConfig.getPackageName().isBlank()) {
+          sourceConfig.setPackageName(JobScopedPackageNameResolver.resolveSourcePackage(jobName));
+        }
+      }
+    }
+    if (targetWrapper.getTargets() != null) {
+      java.util.List<com.etl.config.target.TargetConfig> defaultedTargets = new java.util.ArrayList<>();
+      for (var target : targetWrapper.getTargets()) {
+        XmlTargetConfig targetConfig = (XmlTargetConfig) target;
+        if (targetConfig.getPackageName() == null || targetConfig.getPackageName().isBlank()) {
+          defaultedTargets.add(new XmlTargetConfig(
+              targetConfig.getTargetName(),
+              JobScopedPackageNameResolver.resolveTargetPackage(jobName),
+              targetConfig.getFields().stream().map(field -> {
+                com.etl.config.ColumnConfig column = new com.etl.config.ColumnConfig();
+                column.setName(field.getName());
+                column.setType(field.getType());
+                return column;
+              }).toList(),
+              targetConfig.getFilePath(),
+              targetConfig.getRootElement(),
+              targetConfig.getRecordElement(),
+              targetConfig.getModelDefinitionPath()
+          ));
+        } else {
+          defaultedTargets.add(targetConfig);
+        }
+      }
+      targetWrapper.setTargets(defaultedTargets);
+    }
+  }
 
     private void copyDirectory(Path source, Path target) throws Exception {
         try (var stream = Files.walk(source)) {

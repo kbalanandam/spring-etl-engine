@@ -275,6 +275,12 @@ For the target direction where scenario descriptors and step links become the st
 
 `ConfigLoader` does not auto-discover scenario folders. Exactly one config set is selected for a run.
 
+When explicit `job-config.yaml` loading rebases the selected source, target, and processor YAMLs:
+
+- `job-config.yaml` references still resolve from the selected job-config folder
+- most nested file paths inside the selected YAMLs still resolve from that YAML file's folder so scenario-local assets such as `input/...`, `definitions/...`, and relative reject/archive folders remain bundle-local
+- preserved repo-root compatibility paths that begin with `src/` or `target/` stay anchored to the working directory so baseline demo inputs and shared `target/` outputs continue to land in the same repository locations
+
 When the selected source or target uses relational configuration, `ConfigLoader` now validates those chosen configs before job execution starts on the explicit `etl.config.job` path. Placeholder values such as `<SQLSERVER_HOST>` are rejected early with scenario-aware error messages instead of surfacing later as JDBC runtime failures.
 
 For explicit `etl.config.job` runs, `ConfigLoader` also validates the selected processor config before it checks generated-model class availability for the selected steps. That ordering keeps malformed processor mappings or rule settings from being masked by unrelated missing generated classes and produces scenario-aware configuration failures earlier in startup.

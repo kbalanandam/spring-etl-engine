@@ -1,7 +1,7 @@
 sources:
   - format: xml
     sourceName: Events
-    packageName: com.etl.model.source
+    packageName: com.etl.generated.job.xmltocsvevents.source
     filePath: src/main/resources/demo-input/Events.xml
     rootElement: Events
     recordElement: Event

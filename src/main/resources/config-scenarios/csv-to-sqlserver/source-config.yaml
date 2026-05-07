@@ -1,7 +1,7 @@
 sources:
   - format: csv
     sourceName: Customers
-    packageName: com.etl.model.source
+    packageName: com.etl.generated.job.csvtosqlserver.source
     filePath: ../../demo-input/Customers.csv
     delimiter: ","
     fields:

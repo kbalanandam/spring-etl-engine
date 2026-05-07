@@ -1,12 +1,12 @@
 sources:
   - format: csv
     sourceName: Events
-    packageName: com.etl.model.source
-    filePath: target/events-validation-input.csv
+    packageName: com.etl.generated.job.csvvalidationrejectarchive.source
+    filePath: input/events-validation-input.csv
     delimiter: ","
     archive:
       enabled: true
-      successPath: target/archive/success/
+      successPath: output/archive/success/
       namePattern: "{originalName}-{timestamp}"
     fields:
       - name: id

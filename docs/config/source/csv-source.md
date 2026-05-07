@@ -18,7 +18,7 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `csv` |
 | `sourceName` | yes | string | Logical source name used in processor mapping lookup |
-| `packageName` | yes | string | Package used for generated source model naming |
+| `packageName` | no in explicit job mode; otherwise yes | string | Package used for generated source model naming. When omitted for an explicit `job-config.yaml` run, the runtime derives `com.etl.generated.job.<normalized-job-name>.source` |
 | `filePath` | yes | string | CSV file path |
 | `delimiter` | yes | string | Field delimiter, usually `,` |
 | `archive` | no | object | Optional archive-on-success behavior for CSV file sources |
@@ -41,19 +41,19 @@ Backed by:
 sources:
   - format: csv
     sourceName: Events
-    packageName: com.etl.model.source
-    filePath: target/events-validation-input.csv
+    packageName: com.etl.generated.job.csvvalidationrejectarchive.source
+    filePath: input/events-validation-input.csv
     delimiter: ","
     archive:
       enabled: true
-      successPath: target/archive/success/
+      successPath: output/archive/success/
       namePattern: "{originalName}-{timestamp}"
     validation:
       allowEmpty: false
       requireHeaderMatch: true
       fileNamePattern: '^events-\d{8}\.csv$'
       onFailure: rejectFile
-      rejectPath: target/rejected-files/
+      rejectPath: output/rejected-files/
     fields:
       - name: id
         type: String
@@ -75,6 +75,8 @@ sources:
 - Archive behavior is part of the shared file-source contract and applies after successful step completion when enabled for the active source config.
 - If archive is enabled, `archive.successPath` is required.
 - The preserved first-slice example is `src/main/resources/config-scenarios/csv-validation-reject-archive/source-config.yaml`.
+- For explicit job-config runs, `packageName` may be omitted and defaults to scenario/job-scoped generated classes such as `com.etl.generated.job.<normalized-job-name>.source`.
+- If you keep `packageName` explicit, prefer scenario/job-scoped generated classes rather than shared handwritten `com.etl.model.source` packages.
 
 ## Current limitations
 

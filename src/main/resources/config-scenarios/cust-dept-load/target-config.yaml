@@ -1,7 +1,7 @@
 targets:
   - format: xml
-    packageName: com.etl.model.target
-    filePath: target/
+    packageName: com.etl.generated.job.custdeptload.target
+    filePath: output/customers.xml
     targetName: Customers
     rootElement: Customers
     recordElement: Customer
@@ -14,8 +14,8 @@ targets:
         type: String
 
   - format: xml
-    packageName: com.etl.model.target
-    filePath: target/
+    packageName: com.etl.generated.job.custdeptload.target
+    filePath: output/departments.xml
     targetName: Departments
     rootElement: Departments
     recordElement: Department

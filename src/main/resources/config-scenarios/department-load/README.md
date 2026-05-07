@@ -14,6 +14,7 @@ Business scenario for loading only department data.
 - `source-config.yaml`
 - `target-config.yaml`
 - `processor-config.yaml`
+- `output/` - scenario-local runtime output folder for `departments.xml`
 
 ## Run example
 

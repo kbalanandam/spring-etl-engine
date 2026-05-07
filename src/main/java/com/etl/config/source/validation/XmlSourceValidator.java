@@ -11,8 +11,10 @@ import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Pattern;
 
 @Component
 public class XmlSourceValidator implements SourceValidator {
@@ -32,6 +34,8 @@ public class XmlSourceValidator implements SourceValidator {
 
 		Path filePath = Path.of(filePathValue.trim());
 		validateFile(filePath);
+		validateRejectConfiguration(xmlSourceConfig.getValidation());
+		validateFileNamePattern(xmlSourceConfig.getValidation(), filePath);
 		validateXmlStructure(filePath, expectedRootElement.trim(), expectedRecordElement.trim());
 	}
 
@@ -56,6 +60,30 @@ public class XmlSourceValidator implements SourceValidator {
 		if (!Files.isReadable(filePath)) {
 			throw new IllegalArgumentException("XML file must be readable for validation: " + filePath);
 		}
+	}
+
+	private void validateRejectConfiguration(XmlSourceConfig.ValidationConfig validation) {
+		if (validation == null || !"rejectFile".equalsIgnoreCase(normalize(validation.getOnFailure()))) {
+			return;
+		}
+
+		if (validation.getRejectPath() == null || validation.getRejectPath().isBlank()) {
+			throw new IllegalArgumentException("validation.onFailure=rejectFile requires a non-blank rejectPath.");
+		}
+	}
+
+	private void validateFileNamePattern(XmlSourceConfig.ValidationConfig validation, Path filePath) {
+		if (validation == null || validation.getFileNamePattern() == null || validation.getFileNamePattern().isBlank()) {
+			return;
+		}
+
+		String fileName = filePath.getFileName() == null ? "" : filePath.getFileName().toString();
+		if (Pattern.compile(validation.getFileNamePattern()).matcher(fileName).matches()) {
+			return;
+		}
+
+		handleValidationFailure(validation, filePath,
+				"XML fileNamePattern validation failed. pattern=" + validation.getFileNamePattern() + " fileName=" + fileName);
 	}
 
 	private void validateXmlStructure(Path filePath, String expectedRootElement, String expectedRecordElement) {
@@ -131,6 +159,31 @@ public class XmlSourceValidator implements SourceValidator {
 	}
 
 	private String normalizeElementName(String value) {
+		return value == null ? "" : value.trim();
+	}
+
+	private void handleValidationFailure(XmlSourceConfig.ValidationConfig validation, Path filePath, String message) {
+		if (validation == null || !"rejectFile".equalsIgnoreCase(normalize(validation.getOnFailure()))) {
+			throw new IllegalArgumentException(message);
+		}
+
+		Path rejectedPath = moveToRejectPath(filePath, validation.getRejectPath());
+		throw new IllegalArgumentException(message + "; moved to reject path: " + rejectedPath);
+	}
+
+	private Path moveToRejectPath(Path filePath, String rejectPathValue) {
+		try {
+			Path rejectDirectory = Path.of(rejectPathValue.trim()).toAbsolutePath().normalize();
+			Files.createDirectories(rejectDirectory);
+			Path destination = rejectDirectory.resolve(filePath.getFileName());
+			Files.move(filePath, destination, StandardCopyOption.REPLACE_EXISTING);
+			return destination;
+		} catch (IOException e) {
+			throw new IllegalArgumentException("Unable to move invalid XML file to reject path: " + filePath, e);
+		}
+	}
+
+	private String normalize(String value) {
 		return value == null ? "" : value.trim();
 	}
 }

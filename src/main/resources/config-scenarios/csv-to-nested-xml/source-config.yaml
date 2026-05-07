@@ -1,7 +1,6 @@
 sources:
   - format: csv
     sourceName: CustomersCsv
-    packageName: com.etl.model.source
     filePath: src/main/resources/config-scenarios/csv-to-nested-xml/input/customers.csv
     delimiter: ","
     fields:

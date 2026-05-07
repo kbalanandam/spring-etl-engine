@@ -19,10 +19,12 @@ This scenario is the first checked-in runtime bundle that proves the next-direct
 - `processor-config.yaml` - shared processor mapping from flattened nested keys to target fields
 - `definitions/nested-source-model.yaml` - structural nested XML source contract
 - `input/nested-sample.xml` - preserved nested XML sample payload
+- `output/` - scenario-local runtime output folder for the generated XML export
 
 ## Notes
 
 - This scenario keeps flattening outside the XML generator.
 - The source model definition is structural only.
 - The target model is generated from flat target fields because the output shape is flat XML.
+- The visible XML artifact is written under `output/tag-validation-export.xml` inside this scenario bundle.
 

@@ -1,7 +1,7 @@
 targets:
   - format: xml
-    packageName: com.etl.model.target
-    filePath: target/
+    packageName: com.etl.generated.job.customerload.target
+    filePath: output/customers.xml
     targetName: Customers
     rootElement: Customers
     recordElement: Customer

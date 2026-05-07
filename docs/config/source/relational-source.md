@@ -28,7 +28,7 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `relational` |
 | `sourceName` | yes | string | Logical source name used in processor mapping lookup |
-| `packageName` | yes | string | Package used for generated source model naming |
+| `packageName` | no in explicit job mode; otherwise yes | string | Package used for generated source model naming. When omitted for an explicit `job-config.yaml` run, the runtime and build-time generation path derive `com.etl.generated.job.<normalized-job-name>.source` |
 | `table` | conditional | string | Source table name when reading directly from a table |
 | `schema` | no | string | Optional schema override |
 | `query` | conditional | string | Explicit select query instead of table read |
@@ -68,7 +68,7 @@ This shape mirrors the preserved relational source bundle under `src/main/resour
 sources:
   - format: relational
     sourceName: Customers
-    packageName: com.etl.model.source
+    packageName: com.etl.generated.job.relationaltorelational.source
     table: Customers
     schema: dbo
     fetchSize: 500
@@ -93,7 +93,7 @@ sources:
 sources:
   - format: relational
     sourceName: Customers
-    packageName: com.etl.model.source
+    packageName: com.etl.generated.job.relationaltorelational.source
     query: SELECT id, name, email FROM dbo.Customers WHERE active = 1
     countQuery: SELECT COUNT(*) FROM dbo.Customers WHERE active = 1
     fetchSize: 500
@@ -122,6 +122,7 @@ sources:
 - Field names are currently treated as both:
   - source column names
   - generated source model property names
+- For explicit job-config runs, `packageName` may be omitted and defaults to scenario/job-scoped generated classes such as `com.etl.generated.job.<normalized-job-name>.source`.
 
 ## Current limitations
 

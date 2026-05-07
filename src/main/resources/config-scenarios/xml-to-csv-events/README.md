@@ -18,6 +18,7 @@ Business scenario for converting one realistic flat XML event feed into CSV outp
 ## Notes
 
 - The XML sample lives at `src/main/resources/demo-input/Events.xml`.
+- The CSV artifact is written to `output/events-output.csv` inside this scenario bundle.
 - This scenario remains a runnable baseline XML-to-CSV flow.
 - The shared validation/reject/archive seams now exist for file-backed scenarios such as CSV and XML, but this preserved XML scenario intentionally does not enable those optional config fields and still maps/writes records as-is.
 

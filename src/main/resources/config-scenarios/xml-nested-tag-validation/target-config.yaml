@@ -2,7 +2,7 @@ targets:
   - format: xml
     targetName: TagValidationExport
     packageName: com.etl.generated.job.xmlnestedtagvalidation.target
-    filePath: target/tag-validation-export.xml
+    filePath: output/tag-validation-export.xml
     rootElement: TagValidationExports
     recordElement: TagValidationExport
     fields:

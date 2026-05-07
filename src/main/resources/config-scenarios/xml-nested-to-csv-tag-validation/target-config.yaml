@@ -2,14 +2,14 @@ targets:
   - format: csv
     targetName: TagValidationCsv
     packageName: com.etl.generated.job.xmlnestedtocsvtagvalidation.target
-    filePath: target/tag-validation-export.csv
+    filePath: output/tag-validation-export.csv
     delimiter: ","
     fields:
       - name: homeAgencyId
         type: String
       - name: tagAgencyId
         type: String
-      - name: TagSerialNumber
+      - name: tagSerialNumber
         type: String
       - name: plateNumber
         type: String

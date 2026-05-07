@@ -124,7 +124,7 @@ class XmlNestedSourceToXmlTargetFlowTest {
         copyDirectory(sourceScenarioDir, scenarioDir);
 
         Path inputFile = scenarioDir.resolve("input/nested-sample.xml").toAbsolutePath().normalize();
-        Path outputFile = scenarioDir.resolve("target/tag-validation-export.xml").toAbsolutePath().normalize();
+        Path outputFile = scenarioDir.resolve("output/tag-validation-export.xml").toAbsolutePath().normalize();
         Files.createDirectories(outputFile.getParent());
 
         Files.writeString(
@@ -135,7 +135,7 @@ class XmlNestedSourceToXmlTargetFlowTest {
         Files.writeString(
                 scenarioDir.resolve("target-config.yaml"),
                 Files.readString(scenarioDir.resolve("target-config.yaml"))
-                        .replace("filePath: target/tag-validation-export.xml", "filePath: " + toYamlPath(outputFile))
+                        .replace("filePath: output/tag-validation-export.xml", "filePath: " + toYamlPath(outputFile))
         );
 
         return scenarioDir;

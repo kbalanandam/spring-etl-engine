@@ -189,6 +189,163 @@ class XmlJobScopedGenerationServiceTest {
         }
     }
 
+    @Test
+    void generatesSelectedFlatCsvAndRelationalSourceAndTargetModels() throws Exception {
+        Path scenarioDir = tempDir.resolve("flat-job");
+        Files.createDirectories(scenarioDir);
+
+        Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+                name: flat-job
+                sourceConfigPath: source-config.yaml
+                targetConfigPath: target-config.yaml
+                processorConfigPath: processor-config.yaml
+                steps:
+                  - name: customers-to-sql-step
+                    source: CustomersCsv
+                    target: CustomersSql
+                """);
+        Files.writeString(scenarioDir.resolve("processor-config.yaml"), "type: default\n");
+        Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+                sources:
+                  - format: csv
+                    sourceName: CustomersCsv
+                    packageName: com.etl.generated.job.flatjob.source
+                    filePath: input/customers.csv
+                    delimiter: ","
+                    fields:
+                      - name: id
+                        type: int
+                      - name: name
+                        type: String
+                  - format: relational
+                    sourceName: IgnoredRelationalSource
+                    packageName: com.etl.generated.job.flatjob.ignored
+                    table: Customers
+                    schema: dbo
+                    connection:
+                      vendor: sqlserver
+                      jdbcUrl: jdbc:sqlserver://ignored
+                      schema: dbo
+                      username: ignored
+                      password: ignored
+                      driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+                    fields:
+                      - name: ignored
+                        type: String
+                """);
+        Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+                targets:
+                  - format: relational
+                    targetName: CustomersSql
+                    packageName: com.etl.generated.job.flatjob.target
+                    schema: dbo
+                    table: Customers
+                    writeMode: insert
+                    batchSize: 100
+                    connection:
+                      vendor: sqlserver
+                      jdbcUrl: jdbc:sqlserver://ignored
+                      schema: dbo
+                      username: ignored
+                      password: ignored
+                      driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+                    fields:
+                      - name: id
+                        type: int
+                      - name: name
+                        type: String
+                  - format: csv
+                    targetName: IgnoredCsvTarget
+                    packageName: com.etl.generated.job.flatjob.ignored
+                    filePath: output/ignored.csv
+                    delimiter: ","
+                    fields:
+                      - name: ignored
+                        type: String
+                """);
+
+        Path outputRoot = tempDir.resolve("generated-flat-model-output");
+        XmlJobScopedGenerationResult result = new XmlJobScopedGenerationService()
+                .generate(scenarioDir.resolve("job-config.yaml"), outputRoot);
+
+        assertEquals("flat-job", result.jobName());
+        assertEquals(1, result.sourceResults().size());
+        assertEquals(1, result.targetResults().size());
+        assertTrue(Files.exists(outputRoot.resolve("source/com/etl/generated/job/flatjob/source/CustomersCsv.java")));
+        assertTrue(Files.exists(outputRoot.resolve("target/com/etl/generated/job/flatjob/target/CustomersSql.java")));
+
+        Path classesDir = tempDir.resolve("generated-flat-model-compiled");
+        compile(result.allGeneratedFiles(), classesDir);
+        try (URLClassLoader classLoader = new URLClassLoader(new URL[]{classesDir.toUri().toURL()}, getClass().getClassLoader())) {
+            assertNotNull(classLoader.loadClass("com.etl.generated.job.flatjob.source.CustomersCsv"));
+            assertNotNull(classLoader.loadClass("com.etl.generated.job.flatjob.target.CustomersSql"));
+        }
+    }
+
+  @Test
+  void derivesDefaultPackagesWhenSelectedJobOmitsPackageNames() throws Exception {
+    Path scenarioDir = tempDir.resolve("derived-package-job");
+    Files.createDirectories(scenarioDir.resolve("definitions"));
+
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+        name: csv-to-nested-xml
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: customers-to-nested-xml-step
+            source: CustomersCsv
+            target: CustomersNestedXml
+        """);
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), "type: default\n");
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+        sources:
+          - format: csv
+            sourceName: CustomersCsv
+            filePath: input/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: String
+              - name: email
+                type: String
+        """);
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+        targets:
+          - format: xml
+            targetName: CustomersNestedXml
+            filePath: output/customers-nested.xml
+            rootElement: Customers
+            recordElement: CustomerRecord
+            modelDefinitionPath: definitions/nested-target-model.yaml
+            fields:
+              - name: id
+                type: String
+        """);
+    Files.writeString(scenarioDir.resolve("definitions/nested-target-model.yaml"), """
+        packageName: ignored.by.service
+        rootElement: Customers
+        recordElement: CustomerRecord
+        fields:
+          - name: id
+            type: String
+          - name: profile
+            className: Profile
+            fields:
+              - name: email
+                type: String
+        """);
+
+    Path outputRoot = tempDir.resolve("derived-package-output");
+    XmlJobScopedGenerationResult result = new XmlJobScopedGenerationService()
+        .generate(scenarioDir.resolve("job-config.yaml"), outputRoot);
+
+    assertEquals("csv-to-nested-xml", result.jobName());
+    assertTrue(Files.exists(outputRoot.resolve("source/com/etl/generated/job/csvtonestedxml/source/CustomersCsv.java")));
+    assertTrue(Files.exists(outputRoot.resolve("target/com/etl/generated/job/csvtonestedxml/target/Customers.java")));
+    assertTrue(Files.exists(outputRoot.resolve("target/com/etl/generated/job/csvtonestedxml/target/CustomerRecord.java")));
+  }
+
     private void compile(List<Path> javaFiles, Path classRoot) throws Exception {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         assertNotNull(compiler, "A JDK is required to compile generated sources during the build-time generation test.");

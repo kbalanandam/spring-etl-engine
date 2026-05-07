@@ -20,15 +20,16 @@ This scenario proves four things together inside one selected `job-config.yaml`:
 - `definitions/nested-source-model.yaml` - structural nested XML source contract
 - `definitions/nested-target-model.yaml` - structural nested XML target contract
 - `input/nested-sample.xml` - preserved nested XML sample payload
+- `output/` - scenario-local runtime folder for the intermediate CSV handoff and final XML artifact
 
 ## Expected behavior
 
 - step 1 reads `input/nested-sample.xml`
-- step 1 writes `target/intermediate/tag-validation-intermediate.csv` with a header row
+- step 1 writes `output/intermediate/tag-validation-intermediate.csv` with a header row
 - step 1 archives the original XML file to `archive/success/nested-sample.xml`
 - step 1 emits `archivedSourcePath` in `STEP_EVENT event=step_finished`
 - step 2 reads that intermediate CSV file in the same job run
-- step 2 writes `target/tag-validation-roundtrip.xml`
+- step 2 writes `output/tag-validation-roundtrip.xml`
 
 ## Run example
 

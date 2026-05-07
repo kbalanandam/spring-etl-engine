@@ -2,7 +2,6 @@ package com.etl.common.util;
 
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.XmlSourceConfig;
-import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.XmlTargetConfig;
 
@@ -138,6 +137,11 @@ public final class GeneratedModelClassResolver {
 
     public static void requireSourceModelClassesAvailable(SourceConfig sourceConfig) {
         if (!(sourceConfig instanceof XmlSourceConfig xmlSourceConfig)) {
+            requireClassPresent(
+                    resolveSourceClassName(sourceConfig),
+                    "Source model class",
+                    sourceConfig.getSourceName()
+            );
             return;
         }
 
@@ -157,9 +161,6 @@ public final class GeneratedModelClassResolver {
     }
 
     public static void requireTargetModelClassesAvailable(TargetConfig targetConfig) {
-        if (targetConfig instanceof RelationalTargetConfig) {
-            return;
-        }
 
         if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
             requireClassPresent(

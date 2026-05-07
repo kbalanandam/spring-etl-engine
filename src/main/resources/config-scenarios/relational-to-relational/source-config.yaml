@@ -1,7 +1,7 @@
 sources:
   - format: relational
     sourceName: Customers
-    packageName: com.etl.model.source
+    packageName: com.etl.generated.job.relationaltorelational.source
     schema: dbo
     table: CustomersSource
     countQuery: SELECT COUNT(*) FROM dbo.CustomersSource

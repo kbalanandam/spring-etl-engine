@@ -18,7 +18,7 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `xml` |
 | `sourceName` | yes | string | Logical source name used in processor mapping lookup |
-| `packageName` | yes | string | Package used for generated source model naming; runtime validates that the generated XML record class exists in this package during startup, and non-`NestedXml` source paths also require the generated XML root class |
+| `packageName` | no in explicit job mode; otherwise yes | string | Package used for generated source model naming; runtime validates that the generated XML record class exists in this package during startup, and non-`NestedXml` source paths also require the generated XML root class. When omitted for an explicit `job-config.yaml` run, the runtime derives `com.etl.generated.job.<normalized-job-name>.source` |
 | `filePath` | yes | string | XML file path |
 | `archive` | no | object | Optional archive-on-success behavior for XML file sources |
 | `archive.enabled` | yes, when `archive` is present | boolean | Enables processed-file archiving after successful step completion |
@@ -94,7 +94,7 @@ Compatibility option for flat XML without an external structural definition:
 sources:
   - format: xml
     sourceName: Events
-    packageName: com.etl.model.source
+    packageName: com.etl.generated.job.xmltocsvevents.source
     filePath: input/events.xml
     rootElement: Events
     recordElement: Event
@@ -115,7 +115,7 @@ This mirrors `src/main/resources/config-scenarios/xml-to-csv-events/source-confi
 sources:
   - format: xml
     sourceName: Events
-    packageName: com.etl.model.source.xml
+    packageName: com.etl.generated.job.xmltocsvevents.source
     filePath: src/main/resources/demo-input/Events.xml
     rootElement: Events
     recordElement: Event
@@ -194,6 +194,8 @@ Runtime implications of that split:
 
 - `sourceName` must match the selected `processor.mappings[].source` value.
 - `packageName`, `rootElement`, and `recordElement` must line up with the generated XML classes that Maven compiled for the selected job.
+- In explicit job mode, `packageName` may be omitted and defaults to `com.etl.generated.job.<normalized-job-name>.source`.
+- The preserved flat XML baseline `xml-to-csv-events` now uses scenario-scoped generated classes under `com.etl.generated.job.xmltocsvevents.source`, so prepare it with the build-time generation profile before running the explicit scenario.
 - If `modelDefinitionPath` is omitted, provide `fields` so flat XML source classes can still be derived directly from `source-config.yaml`.
 - If `modelDefinitionPath` is present, keep nested structural fields in that referenced definition instead of duplicating a partial nested shape in `source-config.yaml`.
 - For `NestedXml`, the generated record class is still required even when the XML source root wrapper class is not.
@@ -223,7 +225,7 @@ When that profile is enabled:
 
 - Maven adds `target/generated-sources/etl/source` and `target/generated-sources/etl/target` as source roots
 - the build-time XML generation entrypoint runs after main classes compile
-- generated XML source and target model classes are written into those generated roots
+- generated XML source classes plus selected flat CSV/relational source and target model classes are written into those generated roots for the chosen job
 - Maven compiles those generated classes before test execution and packaging
 
 ## Preserved examples

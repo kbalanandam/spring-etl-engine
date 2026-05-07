@@ -26,7 +26,7 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `relational` |
 | `targetName` | yes | string | Logical target name used in processor mapping lookup |
-| `packageName` | yes | string | Package used for generated target model naming |
+| `packageName` | no in explicit job mode; otherwise yes | string | Package used for generated target model naming. When omitted for an explicit `job-config.yaml` run, the runtime and build-time generation path derive `com.etl.generated.job.<normalized-job-name>.target` |
 | `schema` | no | string | Optional schema override, e.g. `dbo` |
 | `table` | yes | string | Target table name |
 | `writeMode` | no | string | Currently only `insert` is supported |
@@ -62,7 +62,7 @@ This shape mirrors the preserved SQL Server target bundles under `src/main/resou
 targets:
   - format: relational
     targetName: CustomersSql
-    packageName: com.etl.model.target
+    packageName: com.etl.generated.job.csvtosqlserver.target
     schema: dbo
     table: Customers
     writeMode: insert
@@ -119,6 +119,7 @@ Phase-1 relational target support is intentionally narrow.
 ## Validation / usage notes
 
 - `targetName` must match `processor.mappings[].target`.
+- In explicit job mode, `packageName` may be omitted and defaults to `com.etl.generated.job.<normalized-job-name>.target`.
 - Use explicit `jdbcUrl` for the first live test when possible.
 - Keep DB column names aligned with configured field names during phase 1.
 - Keep credentials out of committed real environment configs where possible; use placeholders in committed scenario YAMLs.

@@ -21,7 +21,7 @@ Backed by:
 
 | Field | Required | Type | Description |
 |---|---|---|---|
-| `name` | yes | string | Descriptive scenario name for the selected config bundle |
+| `name` | yes | string | Descriptive scenario name for the selected config bundle; when selected source/target configs omit `packageName`, explicit job runs also use this value as the seed for the default generated package path |
 | `sourceConfigPath` | yes | string | Relative or absolute path to the selected source config file |
 | `targetConfigPath` | yes | string | Relative or absolute path to the selected target config file |
 | `processorConfigPath` | yes | string | Relative or absolute path to the selected processor config file |
@@ -84,7 +84,7 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - When an upstream step/subflow fails, downstream descriptor-derived subflows can now be logged as `BLOCKED` with explicit dependency and handoff reasons, but `job-config.yaml` still does not require explicit authored subflow blocks.
 - Relative `sourceConfigPath`, `targetConfigPath`, and `processorConfigPath` values are resolved from the `job-config.yaml` file's folder.
 - The runtime does not scan scenario folders automatically; one run explicitly chooses one `job-config.yaml`.
-- `name` is currently descriptive metadata for the selected bundle rather than a separate lookup key.
+- `name` is still the selected bundle identity shown in logs and metadata. When the selected source or target config omits `packageName`, explicit job runs also derive default packages as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`.
 - During explicit startup, the selected source and target configs are validated first, then the selected processor config is validated before generated-model class checks run.
 - Processor-config validation failures in explicit runs are surfaced with the selected scenario name and processor-config path so operators can identify the broken scenario bundle quickly.
 
@@ -92,6 +92,7 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 
 - Every `steps[].source` value must match a configured `sourceName` in the selected source config file.
 - Every `steps[].target` value must match a configured `targetName` in the selected target config file.
+- In explicit job mode, `packageName` in the selected source/target config is now optional. When omitted, the runtime and build-time generation path derive it from the selected `job-config.yaml` name (or the job folder name fallback) using a normalized lowercase alphanumeric segment.
 - The selected processor config must contain a matching mapping for each source/target pair used by the selected steps.
 - A multi-step scenario can reuse one processor config file with multiple mappings; runtime picks the mapping by `source` and `target` names, not by list position.
 - If the selected processor config is malformed, explicit startup now fails before generated-model class validation so processor issues are not masked by unrelated missing generated classes.

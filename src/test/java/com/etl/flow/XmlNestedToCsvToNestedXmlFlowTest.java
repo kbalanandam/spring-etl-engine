@@ -81,7 +81,7 @@ class XmlNestedToCsvToNestedXmlFlowTest {
 
         XmlJobScopedGenerationResult generationResult = new XmlJobScopedGenerationService()
                 .generate(scenarioDir.resolve("job-config.yaml"), generatedSourceRoot);
-        assertEquals(1, generationResult.sourceResults().size());
+        assertEquals(2, generationResult.sourceResults().size());
         assertEquals(2, generationResult.targetResults().size());
 
         compile(generationResult.allGeneratedFiles(), Path.of("target", "test-classes"));
@@ -192,8 +192,8 @@ class XmlNestedToCsvToNestedXmlFlowTest {
         copyDirectory(sourceScenarioDir, scenarioDir);
 
         Path inputFile = scenarioDir.resolve("input/nested-sample.xml").toAbsolutePath().normalize();
-        Path intermediateCsv = scenarioDir.resolve("target/intermediate/tag-validation-intermediate.csv").toAbsolutePath().normalize();
-        Path outputFile = scenarioDir.resolve("target/tag-validation-roundtrip.xml").toAbsolutePath().normalize();
+        Path intermediateCsv = scenarioDir.resolve("output/intermediate/tag-validation-intermediate.csv").toAbsolutePath().normalize();
+        Path outputFile = scenarioDir.resolve("output/tag-validation-roundtrip.xml").toAbsolutePath().normalize();
         Files.createDirectories(intermediateCsv.getParent());
         Files.createDirectories(outputFile.getParent());
 
@@ -201,13 +201,13 @@ class XmlNestedToCsvToNestedXmlFlowTest {
                 scenarioDir.resolve("source-config.yaml"),
                 Files.readString(scenarioDir.resolve("source-config.yaml"))
                         .replace("filePath: input/nested-sample.xml", "filePath: " + toYamlPath(inputFile))
-                        .replace("filePath: target/intermediate/tag-validation-intermediate.csv", "filePath: " + toYamlPath(intermediateCsv))
+                        .replace("filePath: output/intermediate/tag-validation-intermediate.csv", "filePath: " + toYamlPath(intermediateCsv))
         );
         Files.writeString(
                 scenarioDir.resolve("target-config.yaml"),
                 Files.readString(scenarioDir.resolve("target-config.yaml"))
-                        .replace("filePath: target/intermediate/tag-validation-intermediate.csv", "filePath: " + toYamlPath(intermediateCsv))
-                        .replace("filePath: target/tag-validation-roundtrip.xml", "filePath: " + toYamlPath(outputFile))
+                        .replace("filePath: output/intermediate/tag-validation-intermediate.csv", "filePath: " + toYamlPath(intermediateCsv))
+                        .replace("filePath: output/tag-validation-roundtrip.xml", "filePath: " + toYamlPath(outputFile))
         );
 
         return scenarioDir;

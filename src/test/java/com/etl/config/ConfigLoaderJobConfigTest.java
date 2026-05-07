@@ -343,6 +343,52 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void appliesDerivedGeneratedPackagesWhenExplicitJobConfigsOmitPackageName() {
+    CsvSourceConfig derivedSource = new CsvSourceConfig(
+        "CustomersCsv",
+        null,
+        List.of(column("id", "String")),
+        "input/customers.csv",
+        ","
+    );
+    CsvSourceConfig explicitSource = new CsvSourceConfig(
+        "Customers",
+        "com.example.explicit.source",
+        List.of(column("id", "String")),
+        "input/customers.csv",
+        ","
+    );
+    SourceWrapper sourceWrapper = new SourceWrapper();
+    sourceWrapper.setSources(List.of(derivedSource, explicitSource));
+
+    TargetWrapper targetWrapper = new TargetWrapper();
+    targetWrapper.setTargets(List.of(
+        new CsvTargetConfig(
+            "CustomersCsv",
+            null,
+            List.of(column("id", "String")),
+            "output/customers.csv",
+            ","
+        ),
+        new CsvTargetConfig(
+            "CustomersOut",
+            "com.example.explicit.target",
+            List.of(column("id", "String")),
+            "output/customers-out.csv",
+            ","
+        )
+    ));
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.invokeMethod(loader, "applyJobScopedPackageDefaults", sourceWrapper, targetWrapper, "csv-to-nested-xml");
+
+    assertEquals("com.etl.generated.job.csvtonestedxml.source", sourceWrapper.getSources().get(0).getPackageName());
+    assertEquals("com.example.explicit.source", sourceWrapper.getSources().get(1).getPackageName());
+    assertEquals("com.etl.generated.job.csvtonestedxml.target", targetWrapper.getTargets().get(0).getPackageName());
+    assertEquals("com.example.explicit.target", targetWrapper.getTargets().get(1).getPackageName());
+  }
+
+  @Test
   void failsFastWhenJobConfigDoesNotDefineSteps() throws IOException {
     Path sourceConfig = tempDir.resolve("source-config.yaml");
     Path targetConfig = tempDir.resolve("target-config.yaml");
@@ -887,7 +933,7 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Events
-          packageName: com.etl.model.source.xml
+          packageName: com.etl.model.source
           filePath: %s
           delimiter: ","
           validation:
@@ -956,7 +1002,7 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Events
-          packageName: com.etl.model.source.xml
+          packageName: com.etl.model.source
           filePath: input/events.csv
           delimiter: ","
           fields:
@@ -1150,7 +1196,7 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Events
-          packageName: com.etl.model.source.xml
+          packageName: com.etl.model.source
           filePath: input/events.csv
           delimiter: ","
           fields:
@@ -2061,6 +2107,13 @@ class ConfigLoaderJobConfigTest {
 
   private String yamlPath(Path path) {
     return path.toString().replace("\\", "\\\\");
+  }
+
+  private ColumnConfig column(String name, String type) {
+    ColumnConfig column = new ColumnConfig();
+    column.setName(name);
+    column.setType(type);
+    return column;
   }
 
   private static final class StartsWithProcessorValidationRule implements ProcessorValidationRule {

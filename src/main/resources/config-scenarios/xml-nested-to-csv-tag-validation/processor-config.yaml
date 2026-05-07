@@ -1,7 +1,7 @@
 type: default
 rejectHandling:
   enabled: true
-  outputPath: target/rejects/
+  outputPath: output/rejects/
   includeReasonColumns: true
 mappings:
   - source: TagValidationSource
@@ -34,6 +34,7 @@ mappings:
         to: plateState
       - from: TVLAccountDetails.AccountNumber
         to: accountNumber
+        rules:
           - type: notNull
             onFailure: rejectRecord
 

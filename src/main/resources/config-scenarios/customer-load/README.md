@@ -14,6 +14,7 @@ Business scenario for loading only customer data.
 - `source-config.yaml`
 - `target-config.yaml`
 - `processor-config.yaml`
+- `output/` - scenario-local runtime output folder for `customers.xml`
 
 ## Run example
 

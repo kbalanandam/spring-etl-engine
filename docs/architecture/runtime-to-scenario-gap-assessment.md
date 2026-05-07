@@ -155,7 +155,7 @@ Main-flow and subflow evidence is still future architecture.
 
 ### 5. Bridge-era generation assumptions still exist
 
-The codebase is moving toward build-time and scenario-scoped generation, but parity and cleanup are incomplete.
+The codebase now supports build-time and scenario-scoped generation for XML plus selected flat CSV and relational source/target models. Explicit job runs can also derive default source/target package names from the selected `job-config.yaml` identity when `packageName` is omitted, which reduces repeated YAML package declarations. Cleanup is still incomplete because some checked-in bridge classes remain in the handwritten source tree and some preserved bundles still keep explicit package aliases for compatibility.
 
 ### 6. No reusable component catalog or identity layer
 
@@ -172,7 +172,7 @@ The following ratings are directional, not contractual.
 | Reusable low-level runtime seams | ~70% |
 | Reusable multi-step scenario execution | ~50% |
 | Scenario runtime descriptor foundation | ~45% |
-| Scenario-scoped generation/resolution maturity | ~40% |
+| Scenario-scoped generation/resolution maturity | ~60% |
 | Reusable flow-block composition model | ~25% |
 | Main-flow / subflow runtime hierarchy | ~15% |
 | Hierarchical logging and evidence | ~20% |
