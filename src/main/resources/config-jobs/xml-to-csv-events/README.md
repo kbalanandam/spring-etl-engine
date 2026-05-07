@@ -26,6 +26,6 @@ Business scenario for converting one realistic flat XML event feed into CSV outp
 
 ```powershell
 Set-Location '<repo-root>'
-mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-scenarios/xml-to-csv-events/job-config.yaml" spring-boot:run
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-jobs/xml-to-csv-events/job-config.yaml" spring-boot:run
 ```
 

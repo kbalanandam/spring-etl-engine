@@ -45,8 +45,8 @@ Today that baseline means:
 Generate the job-scoped XML classes first, then run the scenario:
 
 ```powershell
-mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml/job-config.yaml" -DskipTests package
-java "-Detl.config.job=src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml/job-config.yaml" -jar target/spring-etl-engine-1.3.0.jar
+mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml" -DskipTests package
+java "-Detl.config.job=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml" -jar target/spring-etl-engine-1.3.0.jar
 ```
 
 

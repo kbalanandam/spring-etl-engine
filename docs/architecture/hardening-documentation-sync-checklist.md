@@ -1,4 +1,4 @@
-# Hardening Documentation Sync Note
+﻿# Hardening Documentation Sync Note
 
 ## Purpose
 
@@ -12,7 +12,7 @@ It remains in the repo as a lightweight implementation-to-doc audit trail.
 
 These documentation fixes are already applied because they match the checked-in scenario assets today:
 
-- `src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/README.md`
+- `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/README.md`
 - `docs/config/README.md`
 
 Those files now correctly describe that:
@@ -107,6 +107,7 @@ This sync note was closed after:
   - `generated model`
   - `scenario-aware`
 - keeping scenario READMEs aligned with the actual checked-in assets
+
 
 
 

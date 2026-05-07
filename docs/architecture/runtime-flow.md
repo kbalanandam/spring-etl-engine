@@ -6,6 +6,8 @@ This page explains how one ETL run currently executes from startup to output.
 
 For the target next-direction runtime contract, where one selected scenario becomes the only normal execution boundary and model generation/resolution becomes scenario-scoped, continue in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
 
+For repository-provided preserved bundles, explicit runtime and build-time generation entry points now resolve directly against the checked-in `config-jobs/...` bundle tree, while legacy `config-scenarios/...` paths remain backward-compatible aliases.
+
 ## Status
 
 - Classification: **Current runtime**

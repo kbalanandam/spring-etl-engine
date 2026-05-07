@@ -1,4 +1,4 @@
-<#
+﻿<#
     Runs a small end-to-end smoke verification after code changes.
 
     What it verifies:
@@ -9,7 +9,7 @@
     Main artifacts:
     - target/verify-customer-load.log
     - target/verify-csv-to-sqlserver.log
-    - src/main/resources/config-scenarios/customer-load/output/customers.xml
+    - src/main/resources/config-jobs/customer-load/output/customers.xml
 
     Important behavior:
     - The second scenario is expected to fail.
@@ -118,8 +118,8 @@ function Assert-FileContainsAll {
 
 $positiveCapture = Join-Path $RepoRoot 'target\verify-customer-load.log'
 $negativeCapture = Join-Path $RepoRoot 'target\verify-csv-to-sqlserver.log'
-$customerOutputRoot = Join-Path $RepoRoot 'src\main\resources\config-scenarios\customer-load\output'
-$customerOutput = Join-Path $RepoRoot 'src\main\resources\config-scenarios\customer-load\output\customers.xml'
+$customerOutputRoot = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output'
+$customerOutput = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output\customers.xml'
 
 Write-Host "[1/2] Verifying positive smoke run: customer-load"
 if (Test-Path (Join-Path $RepoRoot 'targetcustomers.xml')) {
@@ -128,7 +128,7 @@ if (Test-Path (Join-Path $RepoRoot 'targetcustomers.xml')) {
 if (Test-Path (Join-Path $RepoRoot 'target\customers.xml')) {
     Remove-Item (Join-Path $RepoRoot 'target\customers.xml') -Force
 }
-Get-ChildItem (Join-Path $RepoRoot 'target\classes\config-scenarios') -Recurse -Force -ErrorAction SilentlyContinue |
+Get-ChildItem (Join-Path $RepoRoot 'target\classes\config-jobs') -Recurse -Force -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -eq 'output' } |
     Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
 if (Test-Path $customerOutputRoot) {
@@ -137,7 +137,7 @@ if (Test-Path $customerOutputRoot) {
 
 # Positive smoke: prove that one explicit scenario still runs end-to-end,
 # emits the expected run/step events, and writes its target output.
-Invoke-MavenScenario -ScenarioName 'customer-load' -JobConfigPath 'src/main/resources/config-scenarios/customer-load/job-config.yaml' -CaptureFile $positiveCapture -ExpectSuccess $true | Out-Null
+Invoke-MavenScenario -ScenarioName 'customer-load' -JobConfigPath 'src/main/resources/config-jobs/customer-load/job-config.yaml' -CaptureFile $positiveCapture -ExpectSuccess $true | Out-Null
 Assert-FileContains -Path $positiveCapture -ExpectedText 'RUN_SUMMARY event=run_summary scenario=customer-load' -Message 'customer-load did not emit expected run summary.'
 Assert-FileContains -Path $positiveCapture -ExpectedText 'status=COMPLETED' -Message 'customer-load did not complete successfully.'
 Assert-FileContainsAll -Path $positiveCapture -ExpectedTexts @('STEP_EVENT event=step_finished', 'stepName=customers-step') -Message 'customer-load did not finish the explicit step.'
@@ -146,7 +146,7 @@ Assert-FileContains -Path $customerOutput -ExpectedText '<Customers>' -Message '
 Write-Host "[2/2] Verifying fail-fast smoke run: csv-to-sqlserver placeholder validation"
 # Negative smoke: prove that the preserved SQL Server scenario now fails early for
 # placeholder connection values instead of progressing to a late JDBC failure.
-Invoke-MavenScenario -ScenarioName 'csv-to-sqlserver' -JobConfigPath 'src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml' -CaptureFile $negativeCapture -ExpectSuccess $false | Out-Null
+Invoke-MavenScenario -ScenarioName 'csv-to-sqlserver' -JobConfigPath 'src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml' -CaptureFile $negativeCapture -ExpectSuccess $false | Out-Null
 Assert-FileContains -Path $negativeCapture -ExpectedText "Invalid relational target configuration for scenario 'csv-to-sqlserver'" -Message 'csv-to-sqlserver did not fail with scenario-aware config validation.'
 Assert-FileContains -Path $negativeCapture -ExpectedText 'placeholder value' -Message 'csv-to-sqlserver did not report placeholder connection details.'
 Assert-FileContains -Path $negativeCapture -ExpectedText 'BUILD FAILURE' -Message 'csv-to-sqlserver did not fail the Maven run as expected.'
@@ -161,6 +161,7 @@ Write-Host "- Positive output: $customerOutput"
 # in the expected way and all smoke assertions passed.
 $global:LASTEXITCODE = 0
 exit 0
+
 
 
 

@@ -1,4 +1,4 @@
-<#
+﻿<#
     Generates a local verification report after code changes.
 
     What it does:
@@ -376,7 +376,7 @@ function Invoke-SmokeVerification {
 
     $positiveLog = Join-Path $WorkingDirectory 'target\verify-customer-load.log'
     $negativeLog = Join-Path $WorkingDirectory 'target\verify-csv-to-sqlserver.log'
-    $positiveOutput = Join-Path $WorkingDirectory 'src\main\resources\config-scenarios\customer-load\output\customers.xml'
+    $positiveOutput = Join-Path $WorkingDirectory 'src\main\resources\config-jobs\customer-load\output\customers.xml'
 
     $positivePassed = (Test-Path $positiveLog) -and (Test-Path $positiveOutput)
     $negativePassed = (Test-Path $negativeLog)
@@ -857,7 +857,7 @@ if (-not $SkipSmoke) {
             CaptureFile = $smokeCapture
             PositiveLog = (Join-Path $RepoRoot 'target\verify-customer-load.log')
             NegativeLog = (Join-Path $RepoRoot 'target\verify-csv-to-sqlserver.log')
-            PositiveOutput = (Join-Path $RepoRoot 'src\main\resources\config-scenarios\customer-load\output\customers.xml')
+            PositiveOutput = (Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output\customers.xml')
         }
         $_ | Out-File -FilePath $smokeCapture -Append -Encoding utf8
     }
@@ -876,6 +876,7 @@ Write-Host 'Verification report generated:' -ForegroundColor Green
 Write-Host "- Latest: $ReportPath"
 Write-Host "- Timestamped: $timestampedReportPath"
 Write-Host "- Retention: keeping latest $KeepLatestCount timestamped reports"
+
 
 
 

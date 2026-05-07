@@ -346,6 +346,58 @@ class XmlJobScopedGenerationServiceTest {
     assertTrue(Files.exists(outputRoot.resolve("target/com/etl/generated/job/csvtonestedxml/target/CustomerRecord.java")));
   }
 
+  @Test
+  void resolvesLegacyConfigScenariosAliasPathToCanonicalConfigJobsBundle() throws Exception {
+    Path canonicalScenarioDir = tempDir.resolve("src/main/resources/config-jobs/alias-job");
+    Files.createDirectories(canonicalScenarioDir.resolve("definitions"));
+
+    Files.writeString(canonicalScenarioDir.resolve("job-config.yaml"), """
+        name: alias-job
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: alias-step
+            source: EventsXml
+            target: EventsCsv
+        """);
+    Files.writeString(canonicalScenarioDir.resolve("processor-config.yaml"), "type: default\n");
+    Files.writeString(canonicalScenarioDir.resolve("source-config.yaml"), """
+        sources:
+          - format: xml
+            sourceName: EventsXml
+            packageName: com.etl.generated.job.aliasjob.source
+            filePath: input/events.xml
+            rootElement: Events
+            recordElement: Event
+            fields:
+              - name: eventCode
+                type: String
+        """);
+    Files.writeString(canonicalScenarioDir.resolve("target-config.yaml"), """
+        targets:
+          - format: csv
+            targetName: EventsCsv
+            packageName: com.etl.generated.job.aliasjob.target
+            filePath: output/events.csv
+            delimiter: ","
+            fields:
+              - name: eventCode
+                type: String
+        """);
+
+    Path requestedAliasJobConfig = tempDir.resolve("src/main/resources/config-scenarios/alias-job/job-config.yaml");
+    Path outputRoot = tempDir.resolve("generated-alias-output");
+
+    XmlJobScopedGenerationResult result = new XmlJobScopedGenerationService().generate(requestedAliasJobConfig, outputRoot);
+
+    assertEquals("alias-job", result.jobName());
+    assertEquals(1, result.sourceResults().size());
+    assertEquals(1, result.targetResults().size());
+    assertTrue(Files.exists(outputRoot.resolve("source/com/etl/generated/job/aliasjob/source/Event.java")));
+    assertTrue(Files.exists(outputRoot.resolve("target/com/etl/generated/job/aliasjob/target/EventsCsv.java")));
+  }
+
     private void compile(List<Path> javaFiles, Path classRoot) throws Exception {
         JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
         assertNotNull(compiler, "A JDK is required to compile generated sources during the build-time generation test.");

@@ -6,7 +6,7 @@
 
 It chooses exactly one source config file, one target config file, and one processor config file for a run, and it defines the explicit ETL step order for that run.
 
-This is the config contract that now anchors the preserved scenario bundles under `src/main/resources/config-scenarios/`.
+This is the config contract that now anchors the preserved scenario bundles checked in under `src/main/resources/config-jobs/`.
 
 Today this remains the shipped flat execution baseline. The frozen architecture direction may later group those ordered steps into subflows inside one selected main flow, but the runtime boundary still remains one selected scenario and one selected `job-config.yaml`.
 
@@ -32,7 +32,7 @@ Backed by:
 
 ## Single-step example
 
-This mirrors `src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml`.
+This mirrors `src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml`.
 
 ```yaml
 name: csv-to-sqlserver
@@ -47,7 +47,7 @@ steps:
 
 ## Multi-step example
 
-This mirrors `src/main/resources/config-scenarios/cust-dept-load/job-config.yaml`.
+This mirrors `src/main/resources/config-jobs/cust-dept-load/job-config.yaml`.
 
 ```yaml
 name: cust-dept-load
@@ -65,7 +65,7 @@ steps:
 
 ## Composed-flow baseline example
 
-For a multi-step scenario where one step's output becomes the next step's input, use `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml/job-config.yaml` as the current baseline pattern.
+For a multi-step scenario where one step's output becomes the next step's input, use `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml` as the current baseline pattern.
 
 That preserved bundle demonstrates that:
 
@@ -83,6 +83,7 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - Current descriptor assembly synthesizes named subflow/status metadata from the flat ordered `steps` list for observability, so startup/job logs can emit `MAIN_FLOW_PLAN`, `SUBFLOW_PLAN`, and `SUBFLOW_SUMMARY` evidence even though execution still follows the flat `steps` list.
 - When an upstream step/subflow fails, downstream descriptor-derived subflows can now be logged as `BLOCKED` with explicit dependency and handoff reasons, but `job-config.yaml` still does not require explicit authored subflow blocks.
 - Relative `sourceConfigPath`, `targetConfigPath`, and `processorConfigPath` values are resolved from the `job-config.yaml` file's folder.
+- Explicit job selection accepts either `config-jobs/...` or the preserved `config-scenarios/...` bundle path when pointing at repository examples.
 - The runtime does not scan scenario folders automatically; one run explicitly chooses one `job-config.yaml`.
 - `name` is still the selected bundle identity shown in logs and metadata. When the selected source or target config omits `packageName`, explicit job runs also derive default packages as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`.
 - During explicit startup, the selected source and target configs are validated first, then the selected processor config is validated before generated-model class checks run.
@@ -106,15 +107,15 @@ The broader file-ingestion hardening direction beyond the first preserved CSV pr
 
 ## Preserved examples
 
-- `src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml`
-- `src/main/resources/config-scenarios/csv-validation-reject-archive/job-config.yaml`
-- `src/main/resources/config-scenarios/relational-to-relational/job-config.yaml`
-- `src/main/resources/config-scenarios/xml-to-csv-events/job-config.yaml`
-- `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml/job-config.yaml`
-- `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml`
-- `src/main/resources/config-scenarios/customer-load/job-config.yaml`
-- `src/main/resources/config-scenarios/department-load/job-config.yaml`
-- `src/main/resources/config-scenarios/cust-dept-load/job-config.yaml`
+- `src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml`
+- `src/main/resources/config-jobs/csv-validation-reject-archive/job-config.yaml`
+- `src/main/resources/config-jobs/relational-to-relational/job-config.yaml`
+- `src/main/resources/config-jobs/xml-to-csv-events/job-config.yaml`
+- `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml`
+- `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml`
+- `src/main/resources/config-jobs/customer-load/job-config.yaml`
+- `src/main/resources/config-jobs/department-load/job-config.yaml`
+- `src/main/resources/config-jobs/cust-dept-load/job-config.yaml`
 
 ## Related docs
 

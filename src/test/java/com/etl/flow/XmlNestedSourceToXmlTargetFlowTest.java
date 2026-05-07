@@ -119,7 +119,7 @@ class XmlNestedSourceToXmlTargetFlowTest {
     }
 
     private Path prepareScenarioBundle() throws Exception {
-        Path sourceScenarioDir = Path.of("src", "main", "resources", "config-scenarios", "xml-nested-tag-validation");
+        Path sourceScenarioDir = Path.of("src", "main", "resources", "config-jobs", "xml-nested-tag-validation");
         Path scenarioDir = tempDir.resolve("xml-nested-tag-validation");
         copyDirectory(sourceScenarioDir, scenarioDir);
 
@@ -185,6 +185,7 @@ class XmlNestedSourceToXmlTargetFlowTest {
         return path.toAbsolutePath().normalize().toString().replace("\\", "/");
     }
 }
+
 
 
 

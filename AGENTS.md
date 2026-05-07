@@ -19,18 +19,19 @@
 - Many core classes carry `Transition status` markers like `BRIDGE` / `REUSE` / `LEGACY`. Respect them: don’t quietly turn bridge classes such as `ConfigLoader`, `BatchConfig`, or the factories into the final architecture center.
 
 ## Scenario/config conventions
-- Preserve runnable scenario bundles under `src/main/resources/config-scenarios/`; each folder should be a self-contained example with `job-config.yaml` plus matching source/target/processor YAMLs.
-- Keep baseline defaults under `src/main/resources/` simple and demo-friendly; add new real examples under `config-scenarios/` instead of constantly rewriting the baseline YAMLs (`docs/config/README.md`).
-- For multi-step scenarios, follow the existing handoff pattern from `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml/`: explicit step order in `job-config.yaml`, intermediate artifact paths declared in config, and downstream-readable formats (for example `includeHeader: true` on intermediate CSV).
+- Preserve runnable scenario bundles under `src/main/resources/config-jobs/`; each folder should be a self-contained example with `job-config.yaml` plus matching source/target/processor YAMLs.
+- Keep baseline defaults under `src/main/resources/` simple and demo-friendly; add new real examples under `config-jobs/` instead of constantly rewriting the baseline YAMLs (`docs/config/README.md`).
+- For multi-step scenarios, follow the existing handoff pattern from `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/`: explicit step order in `job-config.yaml`, intermediate artifact paths declared in config, and downstream-readable formats (for example `includeHeader: true` on intermediate CSV).
 - Relative paths inside `job-config.yaml` resolve from the job-config folder, not the repo root.
 
 ## Build, run, verify
 - Tests/CI baseline: `mvn --batch-mode --no-transfer-progress test` (see `.github/workflows/pr-unit-tests.yml`).
-- Preferred local run style is explicit job-config mode, e.g. `mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-scenarios/customer-load/job-config.yaml" spring-boot:run`.
+- Preferred local run style is explicit job-config mode, e.g. `mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-jobs/customer-load/job-config.yaml" spring-boot:run`.
 - Demo fallback exists for local-only use and must be explicitly enabled with `-Detl.config.allow-demo-fallback=true`; strict startup without `etl.config.job` is intentional (`src/main/resources/application.properties`).
 - For XML scenarios that depend on generated job-scoped classes (example: `xml-nested-to-csv-to-nested-xml`), run the Maven `xml-generation` profile first, then execute the jar (`pom.xml`, that scenario’s `README.md`).
 - After code changes, the project-specific verification workflow is `powershell.exe -ExecutionPolicy Bypass -File .\scripts\generate-verification-report.ps1`. It runs `mvn test`, parses Surefire XML, then runs smoke verification via `scripts/verify-recent-changes.ps1`.
 - The smoke script intentionally expects `customer-load` to succeed and `csv-to-sqlserver` to fail fast on placeholder SQL Server values. A failing `csv-to-sqlserver` run can be the correct result.
+- `config-scenarios/...` is now a legacy compatibility alias for older commands and tests; new docs, examples, and preserved bundles should use `config-jobs/...`.
 
 ## Debugging and evidence
 - Read `logs/startup/startup.log` for startup-time `STEP_PLAN` / `STEP_READY` events; read `logs/<yyyy-MM-dd>/<scenario>.log` for `RUN_EVENT`, `MAIN_FLOW_PLAN`, `SUBFLOW_PLAN`, `STEP_EVENT`, `SUBFLOW_SUMMARY`, and `RUN_SUMMARY` (`src/main/resources/logback-spring.xml`, `docs/architecture/runtime-flow.md`).

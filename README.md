@@ -115,7 +115,7 @@ Use this table as the recommended reading order by goal:
 | Explore architecture/runtime flow | [Architecture Docs](#architecture-docs) | [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md) |
 | Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
 | Assess current gaps to the reusable scenario model | [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md) | [`docs/architecture/hierarchical-flow-composition.md`](docs/architecture/hierarchical-flow-composition.md) |
-| See preserved runnable examples | `src/main/resources/config-scenarios/` | [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples) |
+| See preserved runnable examples | `src/main/resources/config-jobs/` (preferred alias) | [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples) |
 | Understand what is shipped vs planned | [`docs/README.md`](docs/README.md) | [`docs/product/product-backlog.md`](docs/product/product-backlog.md) |
 
 ## Documentation strategy
@@ -125,7 +125,7 @@ Use the repository docs in this order:
 1. **`README.md`** — product landing page, run modes, and first navigation choices
 2. **`docs/README.md`** — docs portal, core terms, and architecture/product navigation
 3. **`docs/config/README.md`** — current supported config contracts and scenario-reading order
-4. **`src/main/resources/config-scenarios/`** — preserved runnable examples that should stay aligned with the docs
+4. **`src/main/resources/config-jobs/`** — preserved runnable example bundles and the canonical explicit job path
 
 Documentation intent is split deliberately:
 
@@ -250,8 +250,10 @@ Run with:
 
 ```powershell
 Set-Location '<repo-root>'
-mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml" spring-boot:run
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml" spring-boot:run
 ```
+
+`config-jobs` is now the canonical path for explicit job commands and the checked-in preserved bundles. The runtime still accepts legacy `config-scenarios/...` paths for backward compatibility.
 
 In this mode, the app does **not** auto-discover other scenarios or sibling config sets. It only loads the three files referenced by the job config and executes the explicit `steps` in the order declared.
 

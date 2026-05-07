@@ -43,10 +43,11 @@ class ModelPathConfigTest {
 
     @Test
     void detectsProjectRootWhenStartingFromScenarioFolder() {
-        Path scenarioDirectory = Path.of("src", "main", "resources", "config-scenarios", "xml-nested-to-csv-tag-validation");
+        Path scenarioDirectory = Path.of("src", "main", "resources", "config-jobs", "xml-nested-to-csv-tag-validation");
         Path projectRoot = ModelPathConfig.detectProjectRoot(Path.of(""));
 
         assertEquals(projectRoot, ModelPathConfig.detectProjectRoot(scenarioDirectory));
     }
 }
+
 

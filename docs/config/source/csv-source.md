@@ -1,4 +1,4 @@
-# CSV Source Config
+﻿# CSV Source Config
 
 ## Purpose
 
@@ -74,7 +74,7 @@ sources:
 - The current record count implementation counts file rows and subtracts one for the header.
 - Archive behavior is part of the shared file-source contract and applies after successful step completion when enabled for the active source config.
 - If archive is enabled, `archive.successPath` is required.
-- The preserved first-slice example is `src/main/resources/config-scenarios/csv-validation-reject-archive/source-config.yaml`.
+- The preserved first-slice example is `src/main/resources/config-jobs/csv-validation-reject-archive/source-config.yaml`.
 - For explicit job-config runs, `packageName` may be omitted and defaults to scenario/job-scoped generated classes such as `com.etl.generated.job.<normalized-job-name>.source`.
 - If you keep `packageName` explicit, prefer scenario/job-scoped generated classes rather than shared handwritten `com.etl.model.source` packages.
 
@@ -95,4 +95,5 @@ The broader file-ingestion hardening direction, including future expansion beyon
 
 - [`../processor/default-processor.md`](../processor/default-processor.md)
 - [`../target/relational-target.md`](../target/relational-target.md)
+
 

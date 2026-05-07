@@ -25,12 +25,12 @@ class XmlNestedToCsvTagValidationSourceModelTest {
     @Test
     void checkedInSourceModelUnmarshalsNestedFieldsFromTagValidationXml() throws Exception {
         try (GeneratedScenarioModelSupport.CompiledGeneratedModels compiledModels = GeneratedScenarioModelSupport.compileJobScopedModels(
-                Path.of("src", "main", "resources", "config-scenarios", "xml-nested-to-csv-tag-validation", "job-config.yaml"),
+                Path.of("src", "main", "resources", "config-jobs", "xml-nested-to-csv-tag-validation", "job-config.yaml"),
                 tempDir
         )) {
             Class<?> recordClass = compiledModels.loadClass("com.etl.generated.job.xmlnestedtocsvtagvalidation.source.TVLTagDetails");
             List<Object> records = readRecords(
-                    Path.of("src", "main", "resources", "config-scenarios", "xml-nested-tag-validation", "input", "nested-sample.xml"),
+                    Path.of("src", "main", "resources", "config-jobs", "xml-nested-tag-validation", "input", "nested-sample.xml"),
                     recordClass
             );
 
@@ -77,5 +77,6 @@ class XmlNestedToCsvTagValidationSourceModelTest {
         return (String) target.getClass().getMethod(methodName).invoke(target);
     }
 }
+
 
 

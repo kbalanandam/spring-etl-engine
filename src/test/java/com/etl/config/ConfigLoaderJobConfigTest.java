@@ -343,6 +343,72 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void loadsJobConfigWhenLegacyConfigScenariosAliasPointsAtCanonicalConfigJobsBundle() throws IOException {
+    Path canonicalScenarioDir = tempDir.resolve("src/main/resources/config-jobs/customer-load");
+    Files.createDirectories(canonicalScenarioDir.resolve("input"));
+    Files.createDirectories(canonicalScenarioDir.resolve("output"));
+    Files.writeString(canonicalScenarioDir.resolve("input/customers.csv"), "id,name\n1,Alice\n");
+
+    Files.writeString(canonicalScenarioDir.resolve("source-config.yaml"), """
+        sources:
+          - format: csv
+            sourceName: Customers
+            packageName: com.etl.model.source
+            filePath: input/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+              - name: name
+                type: String
+        """);
+    Files.writeString(canonicalScenarioDir.resolve("target-config.yaml"), """
+        targets:
+          - format: csv
+            targetName: CustomersOut
+            packageName: com.etl.model.target
+            filePath: output/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+              - name: name
+                type: String
+        """);
+    Files.writeString(canonicalScenarioDir.resolve("processor-config.yaml"), """
+        type: default
+        mappings:
+          - source: Customers
+            target: CustomersOut
+            fields:
+              - from: id
+                to: id
+              - from: name
+                to: name
+        """);
+    Files.writeString(canonicalScenarioDir.resolve("job-config.yaml"), """
+        name: customer-load
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: customers-step
+            source: Customers
+            target: CustomersOut
+        """);
+
+    Path requestedAliasJobConfig = tempDir.resolve("src/main/resources/config-scenarios/customer-load/job-config.yaml");
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", requestedAliasJobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+    assertEquals("customer-load", metadata.scenarioName());
+    assertEquals(canonicalScenarioDir.resolve("job-config.yaml").toAbsolutePath().normalize().toString(), metadata.jobConfigPath());
+  }
+
+  @Test
   void appliesDerivedGeneratedPackagesWhenExplicitJobConfigsOmitPackageName() {
     CsvSourceConfig derivedSource = new CsvSourceConfig(
         "CustomersCsv",

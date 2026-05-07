@@ -1,4 +1,4 @@
-# XML Source Config
+﻿# XML Source Config
 
 ## Purpose
 
@@ -109,7 +109,7 @@ Treat that inline-`fields` form as the flat XML fallback, not the preferred patt
 
 ## Example
 
-This mirrors `src/main/resources/config-scenarios/xml-to-csv-events/source-config.yaml`.
+This mirrors `src/main/resources/config-jobs/xml-to-csv-events/source-config.yaml`.
 
 ```yaml
 sources:
@@ -218,7 +218,7 @@ Runtime implications of that split:
 The first job-scoped build-time XML generation slice can be invoked through the opt-in Maven profile:
 
 ```powershell
-mvn --no-transfer-progress -Pxml-generation -Detl.xml.generation.jobConfig=src/test/resources/config-scenarios/xml-build-generation-it/job-config.yaml clean test
+mvn --no-transfer-progress -Pxml-generation -Detl.xml.generation.jobConfig=src/test/resources/config-jobs/xml-build-generation-it/job-config.yaml clean test
 ```
 
 When that profile is enabled:
@@ -230,16 +230,17 @@ When that profile is enabled:
 
 ## Preserved examples
 
-- `src/main/resources/config-scenarios/xml-to-csv-events/source-config.yaml`
-- `src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/source-config.yaml`
-- `src/main/resources/config-scenarios/xml-nested-tag-validation/source-config.yaml`
-- `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml-archive-e2e/source-config.yaml`
+- `src/main/resources/config-jobs/xml-to-csv-events/source-config.yaml`
+- `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/source-config.yaml`
+- `src/main/resources/config-jobs/xml-nested-tag-validation/source-config.yaml`
+- `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/source-config.yaml`
 
 ## Related docs
 
 - [`csv-source.md`](csv-source.md)
 - [`../processor/default-processor.md`](../processor/default-processor.md)
 - [`../../architecture/file-ingestion-hardening.md`](../../architecture/file-ingestion-hardening.md)
+
 
 
 

@@ -24,7 +24,7 @@ class JobScopedPackageNameResolverTest {
         JobConfig jobConfig = new JobConfig();
         jobConfig.setName("   ");
 
-        assertEquals("customer-load", JobScopedPackageNameResolver.deriveJobName(jobConfig, Path.of("config-scenarios", "customer-load")));
+        assertEquals("customer-load", JobScopedPackageNameResolver.deriveJobName(jobConfig, Path.of("config-jobs", "customer-load")));
         assertEquals("customerload", JobScopedPackageNameResolver.normalizeJobPackageSegment("customer-load"));
     }
 
@@ -34,4 +34,5 @@ class JobScopedPackageNameResolverTest {
         assertEquals("selectedjob", JobScopedPackageNameResolver.normalizeJobPackageSegment("!!!"));
     }
 }
+
 

@@ -36,5 +36,5 @@ build/
 tmp-test-config/
 tmp-sqlserver-connect.txt
 logs/
-src/main/resources/config-scenarios/**/output/
+src/main/resources/config-jobs/**/output/
 

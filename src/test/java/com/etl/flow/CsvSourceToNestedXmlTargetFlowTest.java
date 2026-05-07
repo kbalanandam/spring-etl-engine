@@ -136,7 +136,7 @@ class CsvSourceToNestedXmlTargetFlowTest {
     }
 
     private Path prepareScenarioBundle() throws Exception {
-        Path sourceScenarioDir = Path.of("src", "main", "resources", "config-scenarios", "csv-to-nested-xml");
+        Path sourceScenarioDir = Path.of("src", "main", "resources", "config-jobs", "csv-to-nested-xml");
         Path scenarioDir = tempDir.resolve("csv-to-nested-xml");
         copyDirectory(sourceScenarioDir, scenarioDir);
 
@@ -242,6 +242,7 @@ class CsvSourceToNestedXmlTargetFlowTest {
     }
 
 }
+
 
 
 

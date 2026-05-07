@@ -94,6 +94,7 @@ class XmlStructureClassGeneratorSpikeTest {
         }
     }
     private Path scenarioPath(String fileName) {
-        return Path.of("src", "main", "resources", "config-scenarios", "xml-model-spike", fileName);
+        return Path.of("src", "main", "resources", "config-jobs", "xml-model-spike", fileName);
     }
 }
+

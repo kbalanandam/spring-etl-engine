@@ -19,7 +19,7 @@ As features grow, the goal is to keep architectural intent in the repository ins
 
 Use these short definitions as the shared vocabulary for the rest of the docs:
 
-- **scenario bundle** — one runnable config folder for one use case, usually under `src/main/resources/config-scenarios/`
+- **scenario bundle** — one runnable config folder for one use case. The checked-in bundle root is `src/main/resources/config-jobs/`, while legacy `config-scenarios/...` paths remain backward-compatible aliases.
 - **`job-config.yaml`** — the run entry point that selects config files and ordered steps for one scenario; see [`config/job-config.md`](config/job-config.md)
 - **main flow** — the top-level reusable business flow executed inside one selected scenario; see [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md)
 - **subflow** — a reusable grouped phase inside one main flow, containing one or more ordered steps; see [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md)
@@ -38,7 +38,7 @@ Start with the path that matches your goal:
 
 | If you want to... | Start here | Then go to |
 |---|---|---|
-| run or configure one scenario | [`config/README.md`](config/README.md) | [`config/job-config.md`](config/job-config.md) and one preserved scenario bundle |
+| run or configure one scenario | [`config/README.md`](config/README.md) | [`config/job-config.md`](config/job-config.md) and one preserved job/scenario bundle |
 | understand the shipped runtime flow | [`architecture/runtime-flow.md`](architecture/runtime-flow.md) | [`architecture/runtime-flow-walkthrough.html`](architecture/runtime-flow-walkthrough.html) for the hierarchy-aware product-flow walkthrough, and [`architecture/overview.md`](architecture/overview.md) |
 | understand the next runtime architecture target | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) | [`architecture/1-4-to-next-architecture-classification.md`](architecture/1-4-to-next-architecture-classification.md) |
 | understand main flow / subflow composition | [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) and [`config/job-config.md`](config/job-config.md) |
@@ -114,17 +114,19 @@ For every significant enhancement, add or update:
 - [`product/github-promotion.md`](product/github-promotion.md) — approved GitHub-facing About text, tagline, topic guidance, and positioning guardrails for OneFlow
 
 ### Scenario examples
-- `src/main/resources/config-scenarios/csv-validation-reject-archive/` — preserved example for the first shipped CSV validation, rejected-record output, and archive-on-success slice
-- `src/main/resources/config-scenarios/csv-to-nested-xml/` — preserved explicit job scenario proving CSV source mapping into a nested XML target through a generated target model definition
-- `src/main/resources/config-scenarios/csv-to-sqlserver/` — preserved example for CSV source to SQL Server target without changing the default resource YAMLs
-- `src/main/resources/config-scenarios/xml-to-csv-events/` — preserved example for a realistic flat XML source to CSV target baseline run
-- `src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/` — preserved example for nested XML source flattening into a flat CSV target using the shared nested XML path
-- `src/main/resources/config-scenarios/xml-nested-tag-validation/` — preserved example for nested XML source flattening into a generated XML target through the next-direction XML path
-- `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml/` — preserved explicit multi-step scenario proving one selected job can hand off nested XML -> CSV -> nested XML inside a single run
-- `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml-archive-e2e/` — preserved explicit multi-step scenario proving the same roundtrip flow with XML archive-on-success and `archivedSourcePath` evidence on step completion
-- `src/main/resources/config-scenarios/customer-load/` — business scenario for customer-only ETL
-- `src/main/resources/config-scenarios/department-load/` — business scenario for department-only ETL
-- `src/main/resources/config-scenarios/cust-dept-load/` — business scenario for multi-step customer + department ETL
+- `src/main/resources/config-jobs/csv-validation-reject-archive/` — preferred entry path for the preserved CSV validation, rejected-record output, and archive-on-success slice
+- `src/main/resources/config-jobs/csv-to-nested-xml/` — preferred entry path for the preserved explicit job proving CSV source mapping into a nested XML target through a generated target model definition
+- `src/main/resources/config-jobs/csv-to-sqlserver/` — preferred entry path for the preserved CSV source to SQL Server target example without changing the default resource YAMLs
+- `src/main/resources/config-jobs/xml-to-csv-events/` — preferred entry path for the realistic flat XML source to CSV target baseline run
+- `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/` — preferred entry path for the nested XML source flattening example using the shared nested XML path
+- `src/main/resources/config-jobs/xml-nested-tag-validation/` — preferred entry path for the nested XML source to generated XML target example
+- `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/` — preferred entry path for the preserved explicit multi-step roundtrip example
+- `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/` — preferred entry path for the preserved roundtrip example with XML archive-on-success
+- `src/main/resources/config-jobs/customer-load/` — preferred entry path for the customer-only ETL example
+- `src/main/resources/config-jobs/department-load/` — preferred entry path for the department-only ETL example
+- `src/main/resources/config-jobs/cust-dept-load/` — preferred entry path for the multi-step customer + department ETL example
+
+Those `config-jobs` paths now point at the checked-in preserved bundles directly. Older `config-scenarios/...` references remain supported as compatibility aliases.
 
 ## Maintenance rules
 

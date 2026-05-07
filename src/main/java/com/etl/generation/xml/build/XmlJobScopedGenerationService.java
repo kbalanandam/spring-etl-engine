@@ -1,5 +1,6 @@
 package com.etl.generation.xml.build;
 
+import com.etl.common.util.ConfigBundlePathAliasResolver;
 import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.common.util.ValidationUtils;
 import com.etl.config.job.JobConfig;
@@ -66,7 +67,7 @@ public class XmlJobScopedGenerationService {
         ValidationUtils.requireNonNull(jobConfigPath, "jobConfigPath must not be null.");
         ValidationUtils.requireNonNull(outputRoot, "outputRoot must not be null.");
 
-        Path normalizedJobConfigPath = jobConfigPath.toAbsolutePath().normalize();
+        Path normalizedJobConfigPath = ConfigBundlePathAliasResolver.resolveExistingPath(jobConfigPath.toAbsolutePath().normalize());
         if (!Files.isRegularFile(normalizedJobConfigPath)) {
             throw new IOException("Job config not found: " + normalizedJobConfigPath);
         }

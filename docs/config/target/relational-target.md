@@ -1,4 +1,4 @@
-# Relational Target Config
+﻿# Relational Target Config
 
 ## Purpose
 
@@ -56,7 +56,7 @@ Backed by:
 
 ## Recommended example
 
-This shape mirrors the preserved SQL Server target bundles under `src/main/resources/config-scenarios/csv-to-sqlserver/target-config.yaml` and `src/main/resources/config-scenarios/relational-to-relational/target-config.yaml`.
+This shape mirrors the preserved SQL Server target bundles under `src/main/resources/config-jobs/csv-to-sqlserver/target-config.yaml` and `src/main/resources/config-jobs/relational-to-relational/target-config.yaml`.
 
 ```yaml
 targets:
@@ -129,12 +129,13 @@ Phase-1 relational target support is intentionally narrow.
 
 ## Preserved examples
 
-- `src/main/resources/config-scenarios/csv-to-sqlserver/target-config.yaml`
-- `src/main/resources/config-scenarios/relational-to-relational/target-config.yaml`
+- `src/main/resources/config-jobs/csv-to-sqlserver/target-config.yaml`
+- `src/main/resources/config-jobs/relational-to-relational/target-config.yaml`
 
 ## Related docs
 
 - [`../source/csv-source.md`](../source/csv-source.md)
 - [`../processor/default-processor.md`](../processor/default-processor.md)
 - [`../../architecture/relational-db-support.md`](../../architecture/relational-db-support.md)
+
 

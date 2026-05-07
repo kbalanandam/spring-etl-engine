@@ -21,14 +21,14 @@ Preferred run style: point the app at this scenario's `job-config.yaml` so one f
 
 ```powershell
 Set-Location '<repo-root>'
-mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml" spring-boot:run
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml" spring-boot:run
 ```
 
 Legacy direct-path override mode still works if needed:
 
 ```powershell
 Set-Location '<repo-root>'
-mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.source=src/main/resources/config-scenarios/csv-to-sqlserver/source-config.yaml -Detl.config.target=src/main/resources/config-scenarios/csv-to-sqlserver/target-config.yaml -Detl.config.processor=src/main/resources/config-scenarios/csv-to-sqlserver/processor-config.yaml" spring-boot:run
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.source=src/main/resources/config-jobs/csv-to-sqlserver/source-config.yaml -Detl.config.target=src/main/resources/config-jobs/csv-to-sqlserver/target-config.yaml -Detl.config.processor=src/main/resources/config-jobs/csv-to-sqlserver/processor-config.yaml" spring-boot:run
 ```
 
 ## Intended target table

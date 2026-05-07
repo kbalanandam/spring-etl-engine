@@ -26,12 +26,12 @@ class XmlNestedDtvlFragmentSourceModelTest {
     @Test
     void unmarshalsRealDtvlFragmentsIntoFullNestedSourceRecords() throws Exception {
         try (GeneratedScenarioModelSupport.CompiledGeneratedModels compiledModels = GeneratedScenarioModelSupport.compileJobScopedModels(
-                Path.of("src", "main", "resources", "config-scenarios", "xml-nested-to-csv-tag-validation", "job-config.yaml"),
+                Path.of("src", "main", "resources", "config-jobs", "xml-nested-to-csv-tag-validation", "job-config.yaml"),
                 tempDir
         )) {
             Class<?> recordClass = compiledModels.loadClass("com.etl.generated.job.xmlnestedtocsvtagvalidation.source.TVLTagDetails");
             List<Object> records = readRecords(
-                    Path.of("src", "main", "resources", "config-scenarios", "xml-nested-to-csv-tag-validation", "input", "9002_9002_20260427070109.DTVL"),
+                    Path.of("src", "main", "resources", "config-jobs", "xml-nested-to-csv-tag-validation", "input", "9002_9002_20260427070109.DTVL"),
                     recordClass,
                     2
             );
@@ -85,6 +85,7 @@ class XmlNestedDtvlFragmentSourceModelTest {
         return (String) target.getClass().getMethod(methodName).invoke(target);
     }
 }
+
 
 
 

@@ -23,7 +23,7 @@ class XmlDynamicReaderDtvlFragmentTest {
     @SuppressWarnings("unchecked")
     void flattensRealDtvlFragmentRecordsIntoFullMaps() throws Exception {
         try (GeneratedScenarioModelSupport.CompiledGeneratedModels compiledModels = GeneratedScenarioModelSupport.compileJobScopedModels(
-                Path.of("src", "main", "resources", "config-scenarios", "xml-nested-to-csv-tag-validation", "job-config.yaml"),
+                Path.of("src", "main", "resources", "config-jobs", "xml-nested-to-csv-tag-validation", "job-config.yaml"),
                 tempDir
         )) {
             Class<?> recordClass = compiledModels.loadClass("com.etl.generated.job.xmlnestedtocsvtagvalidation.source.TVLTagDetails");
@@ -31,7 +31,7 @@ class XmlDynamicReaderDtvlFragmentTest {
             XmlSourceConfig config = new XmlSourceConfig();
             config.setSourceName("TagValidationSource");
             config.setPackageName("com.etl.generated.job.xmlnestedtocsvtagvalidation.source");
-            config.setFilePath(Path.of("src", "main", "resources", "config-scenarios", "xml-nested-tag-validation", "input", "nested-sample.xml").toString());
+            config.setFilePath(Path.of("src", "main", "resources", "config-jobs", "xml-nested-tag-validation", "input", "nested-sample.xml").toString());
             config.setRootElement("TagValidationList");
             config.setRecordElement("TVLTagDetails");
             config.setFlatteningStrategy("NestedXml");
@@ -52,5 +52,6 @@ class XmlDynamicReaderDtvlFragmentTest {
         }
     }
 }
+
 
 

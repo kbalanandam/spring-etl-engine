@@ -1,4 +1,4 @@
-# Relational Source Config
+﻿# Relational Source Config
 
 ## Purpose
 
@@ -62,7 +62,7 @@ Backed by:
 
 ### Table source
 
-This shape mirrors the preserved relational source bundle under `src/main/resources/config-scenarios/relational-to-relational/source-config.yaml`.
+This shape mirrors the preserved relational source bundle under `src/main/resources/config-jobs/relational-to-relational/source-config.yaml`.
 
 ```yaml
 sources:
@@ -154,12 +154,13 @@ sources:
 
 ## Preserved examples
 
-- `src/main/resources/config-scenarios/relational-to-relational/source-config.yaml`
+- `src/main/resources/config-jobs/relational-to-relational/source-config.yaml`
 
 ## Related docs
 
 - [`csv-source.md`](csv-source.md)
 - [`../target/relational-target.md`](../target/relational-target.md)
 - [`../../architecture/relational-db-support.md`](../../architecture/relational-db-support.md)
+
 
 

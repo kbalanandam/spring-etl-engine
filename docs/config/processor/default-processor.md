@@ -1,4 +1,4 @@
-# Default Processor Config
+﻿# Default Processor Config
 
 ## Purpose
 
@@ -228,16 +228,16 @@ Use the expression transform for derived fields and other processor-side value c
 
 ### Transform and rule order
 
-- Cleaning/normalization behavior should not be modeled as validation-only `rules`. Validation answers “accept or reject this record”; cleaning/normalization answers “rewrite this value before it is validated or written”.
-- The shipped processor order for configurable field cleanup is: read raw value → apply configured transforms/cleaners → evaluate validation rules on the transformed value → write the target field.
+- Cleaning/normalization behavior should not be modeled as validation-only `rules`. Validation answers â€œaccept or reject this recordâ€; cleaning/normalization answers â€œrewrite this value before it is validated or writtenâ€.
+- The shipped processor order for configurable field cleanup is: read raw value â†’ apply configured transforms/cleaners â†’ evaluate validation rules on the transformed value â†’ write the target field.
 - Transform-then-reject is valid and expected. For example, a `valueMap` transform may normalize `IND -> IN`, `USA -> US`, and all other codes to `UNKNOWN`, after which a processor rule may reject `UNKNOWN` if that value is not allowed.
 - Multiple `transforms[]` entries on the same field run in the order configured.
 - The shipped transform types are `valueMap` and `expression`.
 - `valueMap` supports direct code normalization, optional `defaultValue`, and optional case-insensitive matching through `caseSensitive: false`.
 - `expression` uses Spring Expression Language (SpEL) and can reference:
-  - `#input` or `#source` — the original runtime record
-  - `#value` — the current field value entering that transform step
-  - `#resolved` — previously resolved mapping values from earlier `fields[]` entries
+  - `#input` or `#source` â€” the original runtime record
+  - `#value` â€” the current field value entering that transform step
+  - `#resolved` â€” previously resolved mapping values from earlier `fields[]` entries
 - When `from` is omitted for a derived field, the first transform must be `expression`.
 - The shipped validation rule types are `notNull`, `timeFormat`, and `duplicate`.
 
@@ -260,7 +260,7 @@ Use the expression transform for derived fields and other processor-side value c
 - If a `duplicate` rule is configured with `keyFields` but without `orderBy`, the first encountered record for that duplicate key is retained and later matching records are treated as duplicates.
 - If `orderBy` is present, the retained record per duplicate key is selected using the configured ordered fields such as `eventTime DESC` followed by `sequenceNo ASC`.
 - Repeating the same `orderBy[].field` more than once in one `duplicate` rule is invalid and is rejected during processor-config validation.
-- When `orderBy` is not present, duplicate handling does not do “best record wins” selection; it stays in simple keep-first mode.
+- When `orderBy` is not present, duplicate handling does not do â€œbest record winsâ€ selection; it stays in simple keep-first mode.
 - The current shipped `duplicate` rule uses step-local in-memory tracking for keep-first duplicate elimination.
 - When `orderBy` is present, runtime resolves winners through a shared ordered-duplicate abstraction and currently chooses between in-memory and embedded-DB staging based on runtime volume hints before the final write phase.
 - Ordered duplicate winner selection still uses tasklet-style final buffering for that mapping so earlier writes do not need to be undone.
@@ -294,11 +294,11 @@ That separation keeps shipped behavior readable today and leaves room for future
 
 ## Preserved runnable examples
 
-- `src/main/resources/config-scenarios/csv-validation-reject-archive/processor-config.yaml` — first shipped validation, reject-output, and archive-aligned processor example
-- `src/main/resources/config-scenarios/csv-to-sqlserver/processor-config.yaml` — basic file-to-relational mapping example
-- `src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/processor-config.yaml` — nested XML flattening scenario proving the shared processor rule/reject contract on a file-backed XML flow
-- `src/main/resources/config-scenarios/relational-to-relational/processor-config.yaml` — relational source to relational target mapping example
-- `src/main/resources/config-scenarios/cust-dept-load/processor-config.yaml` — multi-step scenario with multiple processor mappings in one file
+- `src/main/resources/config-jobs/csv-validation-reject-archive/processor-config.yaml` - first shipped validation, reject-output, and archive-aligned processor example
+- `src/main/resources/config-jobs/csv-to-sqlserver/processor-config.yaml` - basic file-to-relational mapping example
+- `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/processor-config.yaml` - nested XML flattening scenario proving the shared processor rule/reject contract on a file-backed XML flow
+- `src/main/resources/config-jobs/relational-to-relational/processor-config.yaml` - relational source to relational target mapping example
+- `src/main/resources/config-jobs/cust-dept-load/processor-config.yaml` - multi-step scenario with multiple processor mappings in one file
 
 ## Current limitations
 
@@ -325,4 +325,6 @@ The broader file-ingestion hardening direction, including future expansion beyon
 
 - [`../source/csv-source.md`](../source/csv-source.md)
 - [`../target/relational-target.md`](../target/relational-target.md)
+
+
 

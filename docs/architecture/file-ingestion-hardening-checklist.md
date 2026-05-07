@@ -1,4 +1,4 @@
-# File Ingestion Hardening Checklist
+﻿# File Ingestion Hardening Checklist
 
 ## Purpose
 
@@ -35,7 +35,7 @@ The current runtime treats archive-on-success as a **shared file-backed source c
 
 The original first preserved proof remains intentionally CSV-centered:
 
-- `src/main/resources/config-scenarios/csv-validation-reject-archive/`
+- `src/main/resources/config-jobs/csv-validation-reject-archive/`
 
 That bundle is still the clearest first-slice proof for accepted rows, rejected rows, reject metadata, and archive-on-success in one scenario.
 
@@ -55,29 +55,29 @@ The following items are still not part of the shipped hardening contract:
 
 ### Config contract anchors
 
-- `src/main/java/com/etl/config/source/FileSourceConfig.java` — shared contract for file-backed sources that expose `filePath` and archive behavior
-- `src/main/java/com/etl/config/source/FileArchiveConfig.java` — shared archive-on-success config object
-- `src/main/java/com/etl/config/source/CsvSourceConfig.java` — CSV file-backed source contract
-- `src/main/java/com/etl/config/source/XmlSourceConfig.java` — XML file-backed source contract
-- `src/main/java/com/etl/config/processor/ProcessorConfig.java` — processor rule and reject-handling config
-- `src/main/java/com/etl/config/ConfigLoader.java` — validation and scenario-relative path normalization for source, target, reject, and archive paths
+- `src/main/java/com/etl/config/source/FileSourceConfig.java` â€” shared contract for file-backed sources that expose `filePath` and archive behavior
+- `src/main/java/com/etl/config/source/FileArchiveConfig.java` â€” shared archive-on-success config object
+- `src/main/java/com/etl/config/source/CsvSourceConfig.java` â€” CSV file-backed source contract
+- `src/main/java/com/etl/config/source/XmlSourceConfig.java` â€” XML file-backed source contract
+- `src/main/java/com/etl/config/processor/ProcessorConfig.java` â€” processor rule and reject-handling config
+- `src/main/java/com/etl/config/ConfigLoader.java` â€” validation and scenario-relative path normalization for source, target, reject, and archive paths
 
 ### Runtime lifecycle anchors
 
-- `src/main/java/com/etl/runtime/FileIngestionRuntimeSupport.java` — step-scoped reject handling, duplicate tracking, and archive-on-success lifecycle support
-- `src/main/java/com/etl/job/listener/FileIngestionHardeningStepListener.java` — initializes and completes the hardening runtime state around each step
-- `src/main/java/com/etl/job/listener/StepLoggingContextListener.java` — publishes `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath` in machine-readable step-finished logs
-- `src/main/java/com/etl/runtime/scenario/ScenarioRuntimeDescriptorAssembler.java` — exposes archive/reject-related execution hints into descriptor metadata
+- `src/main/java/com/etl/runtime/FileIngestionRuntimeSupport.java` â€” step-scoped reject handling, duplicate tracking, and archive-on-success lifecycle support
+- `src/main/java/com/etl/job/listener/FileIngestionHardeningStepListener.java` â€” initializes and completes the hardening runtime state around each step
+- `src/main/java/com/etl/job/listener/StepLoggingContextListener.java` â€” publishes `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath` in machine-readable step-finished logs
+- `src/main/java/com/etl/runtime/scenario/ScenarioRuntimeDescriptorAssembler.java` â€” exposes archive/reject-related execution hints into descriptor metadata
 
 ## Preserved proof scenarios
 
 Use these preserved bundles when reviewing or extending the hardening slice:
 
-- `src/main/resources/config-scenarios/csv-validation-reject-archive/`
+- `src/main/resources/config-jobs/csv-validation-reject-archive/`
   - first preserved proof for processor rules, rejected-record output, and archive-on-success
-- `src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/`
+- `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/`
   - preserved proof that the shared processor rule and reject-handling contract also applies on a file-backed XML flow after XML flattening
-- `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml-archive-e2e/`
+- `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/`
   - preserved proof that XML sources now participate in archive-on-success and emit `archivedSourcePath` evidence after step completion
 
 ## Verification anchors
@@ -119,4 +119,5 @@ Before considering additional hardening changes complete, confirm:
 - [`validation-extension-architecture.md`](validation-extension-architecture.md)
 - [`transformation-capability-roadmap.md`](transformation-capability-roadmap.md)
 - [`../product/product-backlog.md`](../product/product-backlog.md)
+
 

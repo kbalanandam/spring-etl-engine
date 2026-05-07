@@ -8,6 +8,7 @@ import com.etl.config.source.FileSourceConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.source.XmlSourceConfig;
+import com.etl.common.util.ConfigBundlePathAliasResolver;
 import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.config.source.validation.SourceValidationContext;
@@ -232,11 +233,12 @@ public class ConfigLoader {
 	}
 
 	private <T> T loadYamlConfig(String configuredPath, String fallbackClasspathResource, Class<T> targetType, ObjectMapper mapper) throws IOException {
-		File externalFile = new File(configuredPath);
+		String resolvedConfiguredPath = ConfigBundlePathAliasResolver.resolveExistingPath(configuredPath);
+		File externalFile = new File(resolvedConfiguredPath);
 		if (externalFile.exists() && externalFile.isFile()) {
-			logger.info("Loading {} from external YAML file: {}", targetType.getSimpleName(), configuredPath);
+			logger.info("Loading {} from external YAML file: {}", targetType.getSimpleName(), resolvedConfiguredPath);
 			if (logger.isDebugEnabled()) {
-				logger.debug("YAML content from {}:\n{}", configuredPath, readString(externalFile.toPath()));
+				logger.debug("YAML content from {}:\n{}", resolvedConfiguredPath, readString(externalFile.toPath()));
 			}
 			return mapper.readValue(externalFile, targetType);
 		}
@@ -253,14 +255,15 @@ public class ConfigLoader {
 	}
 
 	private <T> T loadRequiredExternalYamlConfig(String configuredPath, Class<T> targetType, ObjectMapper mapper) throws IOException {
-		File externalFile = new File(configuredPath);
+		String resolvedConfiguredPath = ConfigBundlePathAliasResolver.resolveExistingPath(configuredPath);
+		File externalFile = new File(resolvedConfiguredPath);
 		if (!externalFile.exists() || !externalFile.isFile()) {
 			throw new IOException("Required YAML file not found: " + configuredPath);
 		}
 
-		logger.info("Loading {} from job-config referenced YAML file: {}", targetType.getSimpleName(), configuredPath);
+		logger.info("Loading {} from job-config referenced YAML file: {}", targetType.getSimpleName(), resolvedConfiguredPath);
 		if (logger.isDebugEnabled()) {
-			logger.debug("YAML content from {}:\n{}", configuredPath, readString(externalFile.toPath()));
+			logger.debug("YAML content from {}:\n{}", resolvedConfiguredPath, readString(externalFile.toPath()));
 		}
 		return mapper.readValue(externalFile, targetType);
 	}
@@ -307,13 +310,14 @@ public class ConfigLoader {
 		}
 
 		ObjectMapper mapper = buildYamlMapper();
-		File jobConfigFile = new File(jobConfigPath);
+		String resolvedRequestedJobConfigPath = resolveSelectedJobConfigPath(jobConfigPath);
+		File jobConfigFile = new File(resolvedRequestedJobConfigPath);
 		if (!jobConfigFile.exists() || !jobConfigFile.isFile()) {
 			logger.error("Configured job config YAML not found at {}. Explicit job selection never falls back automatically.", jobConfigPath);
 			throw new ConfigException("Configured job config YAML not found at " + jobConfigPath);
 		}
 
-		logger.info("Loading JobConfig from external YAML file: {}", jobConfigPath);
+		logger.info("Loading JobConfig from external YAML file: {}", resolvedRequestedJobConfigPath);
 		JobConfig jobConfig = mapper.readValue(jobConfigFile, JobConfig.class);
 		Path jobConfigDirectory = jobConfigFile.getAbsoluteFile().getParentFile().toPath();
 		String scenarioName = deriveScenarioName(jobConfig, jobConfigDirectory);
@@ -346,6 +350,16 @@ public class ConfigLoader {
 				false,
 				resolvedSteps
 		);
+	}
+
+	private String resolveSelectedJobConfigPath(String configuredJobConfigPath) {
+		String resolvedPath = ConfigBundlePathAliasResolver.resolveExistingPath(configuredJobConfigPath);
+		if (configuredJobConfigPath != null
+				&& !configuredJobConfigPath.isBlank()
+				&& !configuredJobConfigPath.trim().equals(resolvedPath)) {
+			logger.info("Resolved config bundle alias '{}' -> '{}'.", configuredJobConfigPath.trim(), resolvedPath);
+		}
+		return resolvedPath;
 	}
 
 	private List<JobConfig.JobStepConfig> resolveExplicitSteps(JobConfig jobConfig,

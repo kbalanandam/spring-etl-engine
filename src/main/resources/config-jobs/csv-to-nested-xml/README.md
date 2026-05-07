@@ -39,7 +39,9 @@ When this selected job runs through the explicit job path, omitted `packageName`
 Generate the job-scoped XML target classes first, then run the selected scenario:
 
 ```powershell
-mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-scenarios/csv-to-nested-xml/job-config.yaml" -DskipTests package
-java "-Detl.config.job=src/main/resources/config-scenarios/csv-to-nested-xml/job-config.yaml" -jar target/spring-etl-engine-1.3.0.jar
+mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-jobs/csv-to-nested-xml/job-config.yaml" -DskipTests package
+java "-Detl.config.job=src/main/resources/config-jobs/csv-to-nested-xml/job-config.yaml" -jar target/spring-etl-engine-1.3.0.jar
 ```
+
+The checked-in bundle root is now `config-jobs`. The runtime still accepts legacy `config-scenarios/...` paths for backward compatibility.
 

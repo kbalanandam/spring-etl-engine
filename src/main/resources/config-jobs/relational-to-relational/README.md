@@ -25,6 +25,6 @@ Business scenario for relational source to relational target flow.
 
 ```powershell
 Set-Location '<repo-root>'
-mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-scenarios/relational-to-relational/job-config.yaml" spring-boot:run
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-jobs/relational-to-relational/job-config.yaml" spring-boot:run
 ```
 

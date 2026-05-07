@@ -3,6 +3,7 @@ package com.etl.job.listener;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.etl.common.util.ConfigBundlePathAliasResolver;
 import com.etl.config.ColumnConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
@@ -42,7 +43,7 @@ import static org.mockito.Mockito.when;
 
 class LoggingContextListenerTest {
 
-    private static final String CUSTOMER_LOAD_JOB_CONFIG = resourcePath("config-scenarios/customer-load/job-config.yaml");
+    private static final String CUSTOMER_LOAD_JOB_CONFIG = resourcePath("config-jobs/customer-load/job-config.yaml");
     private final Logger jobListenerLogger = (Logger) LoggerFactory.getLogger(JobCompletionNotificationListener.class);
     private final Logger stepListenerLogger = (Logger) LoggerFactory.getLogger(StepLoggingContextListener.class);
 
@@ -303,9 +304,13 @@ class LoggingContextListenerTest {
 
     private static String resourcePath(String resourceName) {
         try {
+            String resolvedResourceName = ConfigBundlePathAliasResolver.resolveExistingResourceName(
+                    LoggingContextListenerTest.class.getClassLoader(),
+                    resourceName
+            );
             return Path.of(Objects.requireNonNull(
-                    LoggingContextListenerTest.class.getClassLoader().getResource(resourceName),
-                    () -> "Missing test resource: " + resourceName
+                    LoggingContextListenerTest.class.getClassLoader().getResource(resolvedResourceName),
+                    () -> "Missing test resource: " + resolvedResourceName
             ).toURI()).toString();
         } catch (URISyntaxException e) {
             throw new IllegalStateException("Failed to resolve test resource: " + resourceName, e);

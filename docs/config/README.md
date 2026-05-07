@@ -2,7 +2,7 @@
 
 This section documents the configuration contracts supported by `spring-etl-engine` today.
 
-It should be read together with the preserved scenario YAML bundles under `src/main/resources/config-scenarios/`. Those scenario files are the executable examples that should stay aligned with the field references in `docs/config/`.
+It should be read together with the preserved scenario YAML bundles under `src/main/resources/config-jobs/`. Those checked-in executable examples should stay aligned with the field references in `docs/config/`.
 
 The goal is to keep the baseline resource YAML files stable while providing:
 
@@ -17,7 +17,7 @@ Legacy `validation-config.yaml`-style validation under `src/main/java/com/etl/va
 Use these docs in two ways:
 
 1. as a reference for what each config type supports today
-2. as a guide when creating scenario-specific YAML files under `src/main/resources/config-scenarios/`
+2. as a guide when creating scenario-specific YAML files under `src/main/resources/config-jobs/`
 
 ## Status legend
 
@@ -52,7 +52,7 @@ These remain under `src/main/resources/`:
 They should stay simple and readable, and serve as the default demo/reference flow.
 
 ### 2. Scenario configs
-These live under `src/main/resources/config-scenarios/`.
+These live under `src/main/resources/config-jobs/`.
 
 Each folder represents one runnable business or connector scenario, for example:
 
@@ -110,18 +110,18 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 
 | Scenario bundle | Primary flow | Notes |
 |---|---|---|
-| `src/main/resources/config-scenarios/csv-validation-reject-archive/` | CSV -> CSV | Preserved first shipped proof for CSV field validation rules, rejected-record output, and archive-on-success behavior |
-| `src/main/resources/config-scenarios/csv-to-nested-xml/` | CSV -> nested XML | Preserved explicit job bundle proving flat CSV fields can map into nested XML target paths through a generated target model definition |
-| `src/main/resources/config-scenarios/csv-to-sqlserver/` | CSV -> relational SQL Server target | Preserved placeholder values now fail fast at startup until replaced with real connection settings |
-| `src/main/resources/config-scenarios/relational-to-relational/` | relational source -> relational target | Preserves `countQuery`, `fetchSize`, and `batchSize` for larger-volume relational testing |
-| `src/main/resources/config-scenarios/xml-to-csv-events/` | XML -> CSV | Preserved realistic flat XML event feed used as a baseline XML-to-CSV scenario without the optional validation/reject/archive config enabled |
-| `src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/` | nested XML -> CSV | Preserved explicit job bundle proving shared nested XML flattening into a flat CSV target using a larger preserved DTVL payload |
-| `src/main/resources/config-scenarios/xml-nested-tag-validation/` | nested XML -> XML | Preserved explicit job bundle proving nested XML source flattening, shared processor mapping, and generated XML target writing |
-| `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml/` | nested XML -> CSV -> nested XML | Preserved explicit multi-step bundle proving one selected scenario can hand off a CSV intermediate file from step 1 into step 2 and finish as nested XML |
-| `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml-archive-e2e/` | nested XML -> CSV -> nested XML | Preserved explicit multi-step bundle that also enables XML archive-on-success and emits `archivedSourcePath` evidence after step 1 |
-| `src/main/resources/config-scenarios/customer-load/` | CSV -> XML | Single-step business scenario selected through `job-config.yaml` |
-| `src/main/resources/config-scenarios/department-load/` | CSV -> XML | Single-step business scenario selected through `job-config.yaml` |
-| `src/main/resources/config-scenarios/cust-dept-load/` | CSV -> XML + XML | Multi-step business scenario with explicit ordered `steps` |
+| `src/main/resources/config-jobs/csv-validation-reject-archive/` | CSV -> CSV | Preferred entry path for the preserved first shipped proof for CSV field validation rules, rejected-record output, and archive-on-success behavior |
+| `src/main/resources/config-jobs/csv-to-nested-xml/` | CSV -> nested XML | Preferred entry path for the preserved explicit job bundle proving flat CSV fields can map into nested XML target paths through a generated target model definition |
+| `src/main/resources/config-jobs/csv-to-sqlserver/` | CSV -> relational SQL Server target | Preferred entry path for the preserved placeholder SQL Server scenario |
+| `src/main/resources/config-jobs/relational-to-relational/` | relational source -> relational target | Preferred entry path for the preserved larger-volume relational testing bundle |
+| `src/main/resources/config-jobs/xml-to-csv-events/` | XML -> CSV | Preferred entry path for the preserved realistic flat XML baseline |
+| `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/` | nested XML -> CSV | Preferred entry path for the preserved nested XML flattening example |
+| `src/main/resources/config-jobs/xml-nested-tag-validation/` | nested XML -> XML | Preferred entry path for the preserved nested XML to XML example |
+| `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/` | nested XML -> CSV -> nested XML | Preferred entry path for the preserved explicit multi-step roundtrip bundle |
+| `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/` | nested XML -> CSV -> nested XML | Preferred entry path for the preserved multi-step roundtrip bundle with XML archive-on-success |
+| `src/main/resources/config-jobs/customer-load/` | CSV -> XML | Preferred entry path for the single-step customer-load example |
+| `src/main/resources/config-jobs/department-load/` | CSV -> XML | Preferred entry path for the single-step department-load example |
+| `src/main/resources/config-jobs/cust-dept-load/` | CSV -> XML + XML | Preferred entry path for the multi-step customer + department example |
 
 Those scenarios together demonstrate:
 - first shipped CSV field validation / reject / archive behavior
@@ -191,6 +191,8 @@ Legacy development-time model generation paths from `model.paths.*` remain ancho
 For the full job-config field reference, including multi-step examples such as `cust-dept-load`, see [`job-config.md`](job-config.md).
 
 The engine should not auto-discover all scenario folders and execute them. One run should explicitly select one scenario/config set through `etl.config.job`.
+
+The canonical external bundle path is now `config-jobs`, and the runtime still accepts legacy `config-scenarios/...` references for backward compatibility.
 
 `JobConfig.name` is currently the selected scenario/job identity used in logs and metadata. It is still not a separate lookup registry key, but it now also seeds the default generated package path when the selected source or target config omits `packageName`.
 

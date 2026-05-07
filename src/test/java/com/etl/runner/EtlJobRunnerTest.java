@@ -1,5 +1,6 @@
 package com.etl.runner;
 
+import com.etl.common.util.ConfigBundlePathAliasResolver;
 import com.etl.config.RunConfigurationMetadata;
 import com.etl.logging.RunLoggingContext;
 import com.etl.runtime.scenario.ScenarioRecoveryPolicy;
@@ -81,7 +82,10 @@ class EtlJobRunnerTest {
     }
 
     private static String customerLoadJobConfigPath() {
-        String resourceName = "config-scenarios/customer-load/job-config.yaml";
+        String resourceName = ConfigBundlePathAliasResolver.resolveExistingResourceName(
+                EtlJobRunnerTest.class.getClassLoader(),
+                "config-jobs/customer-load/job-config.yaml"
+        );
         try {
             return Path.of(Objects.requireNonNull(
                     EtlJobRunnerTest.class.getClassLoader().getResource(resourceName),
