@@ -15,7 +15,9 @@ import org.springframework.batch.test.MetaDataInstanceFactory;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -146,6 +148,80 @@ class ValidationAwareDynamicMappingTest {
     assertTrue(exception.getMessage().contains("Events -> EventsCsv"));
   }
 
+  @Test
+  void appliesTransformsBeforeValidationAndWritesTransformedValue() throws Exception {
+    ProcessorConfig.FieldTransform statusTransform = new ProcessorConfig.FieldTransform();
+    statusTransform.setType("valueMap");
+    statusTransform.setMappings(new LinkedHashMap<>(Map.of("1", "Success", "2", "Fail")));
+    statusTransform.setDefaultValue("Unknown");
+
+    ProcessorConfig.FieldRule startsWith = new ProcessorConfig.FieldRule();
+    startsWith.setType("startsWith");
+    startsWith.setPattern("Suc");
+
+    ProcessorConfig.FieldMapping status = new ProcessorConfig.FieldMapping();
+    status.setFrom("statusCode");
+    status.setTo("status");
+    status.setTransforms(List.of(statusTransform));
+    status.setRules(List.of(startsWith));
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Events");
+    mapping.setTarget("EventsCsv");
+    mapping.setFields(List.of(status));
+
+    ValidationRuleEvaluator evaluator = new ValidationRuleEvaluator(List.of(new StartsWithProcessorValidationRule()));
+    ValidationAwareDynamicMapping<StatusRecord, StatusTargetRecord> processor = new ValidationAwareDynamicMapping<>(
+        mapping,
+        StatusTargetRecord.class,
+        new com.etl.processor.transform.TransformEvaluator(),
+        evaluator,
+        new FileIngestionRuntimeSupport(),
+        true
+    );
+
+    StatusTargetRecord accepted = processor.process(new StatusRecord("1"));
+
+    assertNotNull(accepted);
+    assertEquals("Success", accepted.getStatus());
+  }
+
+  @Test
+  void validatesAndWritesDerivedExpressionFieldWithoutSourceProperty() throws Exception {
+    ProcessorConfig.FieldTransform fullNameTransform = new ProcessorConfig.FieldTransform();
+    fullNameTransform.setType("expression");
+    fullNameTransform.setExpression("#input.firstName + ' ' + #input.lastName");
+
+    ProcessorConfig.FieldRule startsWith = new ProcessorConfig.FieldRule();
+    startsWith.setType("startsWith");
+    startsWith.setPattern("Ada");
+
+    ProcessorConfig.FieldMapping fullName = new ProcessorConfig.FieldMapping();
+    fullName.setTo("fullName");
+    fullName.setTransforms(List.of(fullNameTransform));
+    fullName.setRules(List.of(startsWith));
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Customers");
+    mapping.setTarget("CustomersOut");
+    mapping.setFields(List.of(fullName));
+
+    ValidationRuleEvaluator evaluator = new ValidationRuleEvaluator(List.of(new StartsWithProcessorValidationRule()));
+    ValidationAwareDynamicMapping<NameRecord, NameTargetRecord> processor = new ValidationAwareDynamicMapping<>(
+        mapping,
+        NameTargetRecord.class,
+        new com.etl.processor.transform.TransformEvaluator(),
+        evaluator,
+        new FileIngestionRuntimeSupport(),
+        true
+    );
+
+    NameTargetRecord accepted = processor.process(new NameRecord("Ada", "Lovelace"));
+
+    assertNotNull(accepted);
+    assertEquals("Ada Lovelace", accepted.getFullName());
+  }
+
       @Test
       void rejectsLaterDuplicateCompositeKeysAndKeepsDifferentKeyCombinations() throws Exception {
           Path sourceFile = tempDir.resolve("events-composite.csv");
@@ -244,6 +320,12 @@ class ValidationAwareDynamicMappingTest {
       private record CompositeEventRecord(String id, String eventTime, String description) {
       }
 
+	private record StatusRecord(String statusCode) {
+	}
+
+  private record NameRecord(String firstName, String lastName) {
+  }
+
     public static final class TargetRecord {
         public String id;
         public String description;
@@ -266,6 +348,47 @@ class ValidationAwareDynamicMappingTest {
               return eventTime;
           }
       }
+
+  public static final class StatusTargetRecord {
+    public String status;
+
+    public String getStatus() {
+      return status;
+    }
+  }
+
+  public static final class NameTargetRecord {
+    public String fullName;
+
+    public String getFullName() {
+      return fullName;
+    }
+  }
+
+  private static final class StartsWithProcessorValidationRule implements com.etl.processor.validation.ProcessorValidationRule {
+
+    @Override
+    public String getRuleType() {
+      return "startsWith";
+    }
+
+    @Override
+    public void validateConfiguration(ProcessorConfig.EntityMapping entityMapping,
+                                   ProcessorConfig.FieldMapping fieldMapping,
+                                   ProcessorConfig.FieldRule rule) {
+      if (rule.getPattern() == null || rule.getPattern().isBlank()) {
+        throw new IllegalStateException("startsWith requires pattern");
+      }
+    }
+
+    @Override
+    public com.etl.processor.validation.ValidationIssue evaluate(String fieldName, Object value, ProcessorConfig.FieldRule rule) {
+      if (value == null || value.toString().startsWith(rule.getPattern())) {
+        return null;
+      }
+      return new com.etl.processor.validation.ValidationIssue(fieldName, getRuleType(), fieldName + " must start with " + rule.getPattern());
+    }
+  }
 }
 
 

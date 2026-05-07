@@ -19,6 +19,25 @@ Use these docs in two ways:
 1. as a reference for what each config type supports today
 2. as a guide when creating scenario-specific YAML files under `src/main/resources/config-scenarios/`
 
+## Status legend
+
+- **Supported** — part of the active runtime contract today
+- **Supported (phase 1)** — shipped today with explicit current limitations
+- **Future** — preserved in architecture notes, not part of the active config contract yet
+- **Deprecated** — retained temporarily for cleanup or migration and not part of the active runtime contract
+
+## Recommended reading order
+
+Use this reading order when authoring or reviewing one scenario:
+
+1. [`job-config.md`](job-config.md) — start here; this is the primary entry point for one selected run
+2. one source reference such as [`source/csv-source.md`](source/csv-source.md), [`source/xml-source.md`](source/xml-source.md), or [`source/relational-source.md`](source/relational-source.md)
+3. one target reference such as [`target/csv-target.md`](target/csv-target.md), [`target/xml-target.md`](target/xml-target.md), or [`target/relational-target.md`](target/relational-target.md)
+4. [`processor/default-processor.md`](processor/default-processor.md) — define field mappings, transforms, and rules
+5. [Scenario examples](#scenario-examples) — compare with a preserved runnable bundle closest to your use case
+
+For future-only config proposals that are not shipped yet, stop here and continue in `docs/architecture/` rather than treating them as active config contracts. In particular, proposals for new runtime entry points, registries, UI selectors, or richer step models should still align with the scenario-driven runtime contract in [`../architecture/scenario-driven-runtime-direction.md`](../architecture/scenario-driven-runtime-direction.md) instead of bypassing `job-config.yaml`.
+
 ## Recommended config asset strategy
 
 Keep three layers of config assets in the repository:
@@ -92,17 +111,21 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 | Scenario bundle | Primary flow | Notes |
 |---|---|---|
 | `src/main/resources/config-scenarios/csv-validation-reject-archive/` | CSV -> CSV | Preserved first shipped proof for CSV field validation rules, rejected-record output, and archive-on-success behavior |
+| `src/main/resources/config-scenarios/csv-to-nested-xml/` | CSV -> nested XML | Preserved explicit job bundle proving flat CSV fields can map into nested XML target paths through a generated target model definition |
 | `src/main/resources/config-scenarios/csv-to-sqlserver/` | CSV -> relational SQL Server target | Preserved placeholder values now fail fast at startup until replaced with real connection settings |
 | `src/main/resources/config-scenarios/relational-to-relational/` | relational source -> relational target | Preserves `countQuery`, `fetchSize`, and `batchSize` for larger-volume relational testing |
 | `src/main/resources/config-scenarios/xml-to-csv-events/` | XML -> CSV | Preserved realistic flat XML event feed used as a baseline XML-to-CSV scenario without the optional validation/reject/archive config enabled |
 | `src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/` | nested XML -> CSV | Preserved explicit job bundle proving shared nested XML flattening into a flat CSV target using a larger preserved DTVL payload |
 | `src/main/resources/config-scenarios/xml-nested-tag-validation/` | nested XML -> XML | Preserved explicit job bundle proving nested XML source flattening, shared processor mapping, and generated XML target writing |
+| `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml/` | nested XML -> CSV -> nested XML | Preserved explicit multi-step bundle proving one selected scenario can hand off a CSV intermediate file from step 1 into step 2 and finish as nested XML |
+| `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml-archive-e2e/` | nested XML -> CSV -> nested XML | Preserved explicit multi-step bundle that also enables XML archive-on-success and emits `archivedSourcePath` evidence after step 1 |
 | `src/main/resources/config-scenarios/customer-load/` | CSV -> XML | Single-step business scenario selected through `job-config.yaml` |
 | `src/main/resources/config-scenarios/department-load/` | CSV -> XML | Single-step business scenario selected through `job-config.yaml` |
 | `src/main/resources/config-scenarios/cust-dept-load/` | CSV -> XML + XML | Multi-step business scenario with explicit ordered `steps` |
 
 Those scenarios together demonstrate:
 - first shipped CSV field validation / reject / archive behavior
+- CSV source mapping into nested XML target structure through `modelDefinitionPath`
 - existing CSV source
 - existing XML source
 - default processor mapping
@@ -113,6 +136,7 @@ Those scenarios together demonstrate:
 - flat XML source to CSV target flow
 - nested XML source to CSV target flow through the shared flattening path
 - nested XML source to XML target flow through the next-direction XML generation and flattening path
+- one selected multi-step scenario that hands nested XML -> CSV -> nested XML through an intermediate file inside the same job
 - explicit `job-config.yaml` driven selection
 - single-entity scenarios such as `customer-load` and `department-load`
 - a multi-entity scenario such as `cust-dept-load` where one selected config set drives multiple ETL steps in one run
@@ -140,6 +164,8 @@ Recommended precedence:
 1. use `etl.config.job` as the primary business-scenario selector for one run
 2. require `etl.config.job` by default for normal runtime execution
 3. use `etl.config.source`, `etl.config.target`, and `etl.config.processor` only when demo fallback is explicitly enabled for local/manual runs
+
+Treat `etl.config.job` and its selected `job-config.yaml` as the normal reader entry point for the config model. The direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides remain secondary and are mainly for controlled demo fallback or low-level local runs.
 
 Example job config:
 

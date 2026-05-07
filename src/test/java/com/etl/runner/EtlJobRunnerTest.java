@@ -2,6 +2,7 @@ package com.etl.runner;
 
 import com.etl.config.RunConfigurationMetadata;
 import com.etl.logging.RunLoggingContext;
+import com.etl.runtime.scenario.ScenarioRecoveryPolicy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
@@ -45,6 +46,9 @@ class EtlJobRunnerTest {
                 "Customer Load",
                 CUSTOMER_LOAD_JOB_CONFIG,
                 false,
+                "customer-load-main-flow",
+                "default-subflow",
+                ScenarioRecoveryPolicy.RERUN_FROM_START,
                 List.of(step("customers-step", "Customers", "Customers"))
         );
 
@@ -56,10 +60,16 @@ class EtlJobRunnerTest {
 
         assertEquals("Customer Load", jobParameters.getString("scenario"));
         assertEquals(LocalDate.now() + "/Customer_Load", jobParameters.getString("scenarioLogKey"));
+        assertEquals("customer-load-main-flow", jobParameters.getString("mainFlow"));
+        assertEquals("default-subflow", jobParameters.getString("subFlow"));
+        assertEquals("rerun-from-start", jobParameters.getString("recoveryPolicy"));
         assertEquals("explicit-job", jobParameters.getString("runMode"));
         assertNull(MDC.get(RunLoggingContext.SCENARIO));
         assertNull(MDC.get(RunLoggingContext.SCENARIO_LOG_KEY));
         assertNull(MDC.get(RunLoggingContext.RUN_CORRELATION_ID));
+        assertNull(MDC.get(RunLoggingContext.MAIN_FLOW));
+        assertNull(MDC.get(RunLoggingContext.SUB_FLOW));
+        assertNull(MDC.get(RunLoggingContext.RECOVERY_POLICY));
     }
 
     private static com.etl.config.job.JobConfig.JobStepConfig step(String name, String source, String target) {

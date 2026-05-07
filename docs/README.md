@@ -15,6 +15,48 @@ As features grow, the goal is to keep architectural intent in the repository ins
 - `config/` — field-level config references and preserved scenario examples
 - `product/` — product vision, backlog, milestones, and execution tracking
 
+## Core terms
+
+Use these short definitions as the shared vocabulary for the rest of the docs:
+
+- **scenario bundle** — one runnable config folder for one use case, usually under `src/main/resources/config-scenarios/`
+- **`job-config.yaml`** — the run entry point that selects config files and ordered steps for one scenario; see [`config/job-config.md`](config/job-config.md)
+- **main flow** — the top-level reusable business flow executed inside one selected scenario; see [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md)
+- **subflow** — a reusable grouped phase inside one main flow, containing one or more ordered steps; see [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md)
+- **step** — one ordered `source -> processor -> target` unit inside a selected run
+- **source config** — the YAML contract that describes where records come from; see [`config/README.md`](config/README.md)
+- **target config** — the YAML contract that describes where records go; see [`config/README.md`](config/README.md)
+- **processor mapping** — the field-level contract that maps data from the selected source to the selected target; see [`config/processor/default-processor.md`](config/processor/default-processor.md)
+- **format** — the connector type selected in config, such as `csv`, `xml`, or `relational`
+- **factory** — a runtime component that creates the correct reader, writer, or processor implementation from the selected config type
+- **resolver** — a runtime component that selects the correct metadata or implementation for the current step, such as model classes or relational vendor behavior
+- **database dialect** — the relational abstraction that keeps vendor-specific SQL behavior behind one `relational` format instead of creating vendor-per-format modeling
+
+## How to navigate these docs
+
+Start with the path that matches your goal:
+
+| If you want to... | Start here | Then go to |
+|---|---|---|
+| run or configure one scenario | [`config/README.md`](config/README.md) | [`config/job-config.md`](config/job-config.md) and one preserved scenario bundle |
+| understand the shipped runtime flow | [`architecture/runtime-flow.md`](architecture/runtime-flow.md) | [`architecture/runtime-flow-walkthrough.html`](architecture/runtime-flow-walkthrough.html) for the hierarchy-aware product-flow walkthrough, and [`architecture/overview.md`](architecture/overview.md) |
+| understand the next runtime architecture target | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) | [`architecture/1-4-to-next-architecture-classification.md`](architecture/1-4-to-next-architecture-classification.md) |
+| understand main flow / subflow composition | [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) and [`config/job-config.md`](config/job-config.md) |
+| understand how simple and complex flows normalize into one model | [`architecture/flow-normalization-rules.md`](architecture/flow-normalization-rules.md) | [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) and [`config/job-config.md`](config/job-config.md) |
+| assess the gap from shipped runtime to the reusable scenario model | [`architecture/runtime-to-scenario-gap-assessment.md`](architecture/runtime-to-scenario-gap-assessment.md) | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) and [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) |
+| understand validation, transforms, or extension seams | [`architecture/extension-points.md`](architecture/extension-points.md) | [`config/processor/default-processor.md`](config/processor/default-processor.md) |
+| understand relational support | [`architecture/relational-db-support.md`](architecture/relational-db-support.md) | [`config/source/relational-source.md`](config/source/relational-source.md) and [`config/target/relational-target.md`](config/target/relational-target.md) |
+| see what is planned next | [`product/product-backlog.md`](product/product-backlog.md) | [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) |
+
+## Status legend
+
+Use these labels while reading:
+
+- **Shipped** — part of the active runtime path today
+- **Current baseline + future evolution** — starts from the shipped baseline and also preserves the intended next direction
+- **Future direction** — design guidance, not a shipped runtime path today
+- **Deprecated** — retained temporarily for cleanup or migration and not part of the active contract
+
 ## Documentation standard
 
 For every significant enhancement, add or update:
@@ -27,8 +69,13 @@ For every significant enhancement, add or update:
 
 ### Architecture
 - [`architecture/overview.md`](architecture/overview.md) — current high-level system architecture
+- [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) — target next-direction runtime contract for strict scenario-driven execution without compromising future scale, UI views, or richer transformations
+- [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) — frozen working direction for reusable main flows composed from reusable subflows and executable steps under one selected scenario
+- [`architecture/flow-normalization-rules.md`](architecture/flow-normalization-rules.md) — normalization rules for simple and complex flows, including optional or implicit subflow handling in the first slice
+- [`architecture/runtime-to-scenario-gap-assessment.md`](architecture/runtime-to-scenario-gap-assessment.md) — current-state versus target-state gap assessment for reusable components evolving into scenario-driven execution
 - [`architecture/1-4-to-next-architecture-classification.md`](architecture/1-4-to-next-architecture-classification.md) — transition map for classifying current 1.4.x code into reuse, bridge, legacy, and remove buckets during the next architecture shift
 - [`architecture/runtime-flow.md`](architecture/runtime-flow.md) — end-to-end ETL runtime flow
+- [`architecture/runtime-flow-walkthrough.html`](architecture/runtime-flow-walkthrough.html) — lightweight animated HTML walkthrough of the shipped runtime path with `MainFlow -> SubFlow -> Step` product-flow context
 - [`architecture/extension-points.md`](architecture/extension-points.md) — where new formats, processors, and future capabilities plug in
 - [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md) — top architectural risks to watch during roadmap execution
 - [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase, future enterprise integration direction, and the high-level guide for what belongs now vs later
@@ -68,10 +115,13 @@ For every significant enhancement, add or update:
 
 ### Scenario examples
 - `src/main/resources/config-scenarios/csv-validation-reject-archive/` — preserved example for the first shipped CSV validation, rejected-record output, and archive-on-success slice
+- `src/main/resources/config-scenarios/csv-to-nested-xml/` — preserved explicit job scenario proving CSV source mapping into a nested XML target through a generated target model definition
 - `src/main/resources/config-scenarios/csv-to-sqlserver/` — preserved example for CSV source to SQL Server target without changing the default resource YAMLs
 - `src/main/resources/config-scenarios/xml-to-csv-events/` — preserved example for a realistic flat XML source to CSV target baseline run
 - `src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/` — preserved example for nested XML source flattening into a flat CSV target using the shared nested XML path
 - `src/main/resources/config-scenarios/xml-nested-tag-validation/` — preserved example for nested XML source flattening into a generated XML target through the next-direction XML path
+- `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml/` — preserved explicit multi-step scenario proving one selected job can hand off nested XML -> CSV -> nested XML inside a single run
+- `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml-archive-e2e/` — preserved explicit multi-step scenario proving the same roundtrip flow with XML archive-on-success and `archivedSourcePath` evidence on step completion
 - `src/main/resources/config-scenarios/customer-load/` — business scenario for customer-only ETL
 - `src/main/resources/config-scenarios/department-load/` — business scenario for department-only ETL
 - `src/main/resources/config-scenarios/cust-dept-load/` — business scenario for multi-step customer + department ETL

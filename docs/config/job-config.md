@@ -8,6 +8,8 @@ It chooses exactly one source config file, one target config file, and one proce
 
 This is the config contract that now anchors the preserved scenario bundles under `src/main/resources/config-scenarios/`.
 
+Today this remains the shipped flat execution baseline. The frozen architecture direction may later group those ordered steps into subflows inside one selected main flow, but the runtime boundary still remains one selected scenario and one selected `job-config.yaml`.
+
 ## Java contract
 
 Backed by:
@@ -61,10 +63,25 @@ steps:
     target: Departments
 ```
 
+## Composed-flow baseline example
+
+For a multi-step scenario where one step's output becomes the next step's input, use `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml/job-config.yaml` as the current baseline pattern.
+
+That preserved bundle demonstrates that:
+
+- one selected `job-config.yaml` can run multiple ordered steps across different formats
+- the intermediate artifact path is preserved in the selected source and target config files rather than inferred at runtime
+- downstream readability requirements belong to the selected format config, for example `includeHeader: true` on the intermediate CSV target so the next CSV source step can consume the file safely
+
+The longer-term direction is for `MainFlow` descriptor context to carry small cross-subflow handshake metadata such as artifact references, readiness flags, checksums, or schema/version markers. The actual business payload should still move through the explicit step/subflow outputs rather than through `job-config.yaml` fields.
+
 ## Runtime behavior today
 
 - Explicit `etl.config.job` runs require a non-empty `steps` list.
 - Step order is taken from `steps` and is no longer inferred by source/target list position.
+- The current flat `steps` list is the executable baseline even when future architecture docs describe a richer `main flow -> subflow -> step` hierarchy.
+- Current descriptor assembly synthesizes named subflow/status metadata from the flat ordered `steps` list for observability, so startup/job logs can emit `MAIN_FLOW_PLAN`, `SUBFLOW_PLAN`, and `SUBFLOW_SUMMARY` evidence even though execution still follows the flat `steps` list.
+- When an upstream step/subflow fails, downstream descriptor-derived subflows can now be logged as `BLOCKED` with explicit dependency and handoff reasons, but `job-config.yaml` still does not require explicit authored subflow blocks.
 - Relative `sourceConfigPath`, `targetConfigPath`, and `processorConfigPath` values are resolved from the `job-config.yaml` file's folder.
 - The runtime does not scan scenario folders automatically; one run explicitly chooses one `job-config.yaml`.
 - `name` is currently descriptive metadata for the selected bundle rather than a separate lookup key.
@@ -79,12 +96,12 @@ steps:
 - A multi-step scenario can reuse one processor config file with multiple mappings; runtime picks the mapping by `source` and `target` names, not by list position.
 - If the selected processor config is malformed, explicit startup now fails before generated-model class validation so processor issues are not masked by unrelated missing generated classes.
 - Use `etl.config.job` as the normal production-style entry point. Direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides are intended for demo/fallback cases only.
-- Archive-on-success remains part of the selected CSV source config, not `job-config.yaml`.
+- Archive-on-success remains part of the selected file-backed source config (for example CSV or XML), not `job-config.yaml`.
 - Rejected-record output and field-level validation rules remain part of the selected processor config, not `job-config.yaml`.
 
 ## Related design note
 
-The broader file-ingestion hardening direction beyond the current CSV slice is documented in [`../architecture/file-ingestion-hardening.md`](../architecture/file-ingestion-hardening.md).
+The broader file-ingestion hardening direction beyond the first preserved CSV proof slice and the current shared file-source archive contract is documented in [`../architecture/file-ingestion-hardening.md`](../architecture/file-ingestion-hardening.md).
 
 ## Preserved examples
 
@@ -92,6 +109,8 @@ The broader file-ingestion hardening direction beyond the current CSV slice is d
 - `src/main/resources/config-scenarios/csv-validation-reject-archive/job-config.yaml`
 - `src/main/resources/config-scenarios/relational-to-relational/job-config.yaml`
 - `src/main/resources/config-scenarios/xml-to-csv-events/job-config.yaml`
+- `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml/job-config.yaml`
+- `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml`
 - `src/main/resources/config-scenarios/customer-load/job-config.yaml`
 - `src/main/resources/config-scenarios/department-load/job-config.yaml`
 - `src/main/resources/config-scenarios/cust-dept-load/job-config.yaml`
@@ -100,5 +119,7 @@ The broader file-ingestion hardening direction beyond the current CSV slice is d
 
 - [`README.md`](README.md)
 - [`processor/default-processor.md`](processor/default-processor.md)
+- [`../architecture/hierarchical-flow-composition.md`](../architecture/hierarchical-flow-composition.md)
+- [`../architecture/flow-normalization-rules.md`](../architecture/flow-normalization-rules.md)
 - [`../architecture/runtime-flow.md`](../architecture/runtime-flow.md)
 

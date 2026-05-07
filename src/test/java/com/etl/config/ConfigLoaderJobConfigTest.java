@@ -3,9 +3,13 @@ package com.etl.config;
 import com.etl.config.exception.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.config.source.CsvSourceConfig;
+import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.source.validation.SourceValidationService;
 import com.etl.config.source.SourceWrapper;
+import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.TargetWrapper;
+import com.etl.runtime.scenario.ScenarioRuntimeDescriptor;
 import com.etl.processor.validation.NotNullProcessorValidationRule;
 import com.etl.processor.validation.ProcessorValidationRule;
 import com.etl.processor.validation.TimeFormatProcessorValidationRule;
@@ -100,6 +104,12 @@ class ConfigLoaderJobConfigTest {
         SourceWrapper sourceWrapper = loader.sourceWrapper();
         TargetWrapper targetWrapper = loader.targetWrapper();
         ProcessorConfig loadedProcessorConfig = loader.processorConfig();
+        ScenarioRuntimeDescriptor scenarioRuntimeDescriptor = loader.scenarioRuntimeDescriptor(
+                sourceWrapper,
+                targetWrapper,
+                loadedProcessorConfig,
+                loader.scenarioRuntimeDescriptorAssembler()
+        );
 
 		assertEquals("csv-to-csv-test", runConfigurationMetadata.scenarioName());
 		assertEquals(jobConfig.toString(), runConfigurationMetadata.jobConfigPath());
@@ -108,6 +118,9 @@ class ConfigLoaderJobConfigTest {
     assertEquals("customers-step", runConfigurationMetadata.steps().get(0).getName());
     assertEquals("Customers", runConfigurationMetadata.steps().get(0).getSource());
     assertEquals("CustomersOut", runConfigurationMetadata.steps().get(0).getTarget());
+    assertEquals("csv-to-csv-test", scenarioRuntimeDescriptor.scenarioName());
+    assertEquals(runConfigurationMetadata.steps().size(), scenarioRuntimeDescriptor.steps().size());
+    assertEquals(runConfigurationMetadata.steps().get(0).getName(), scenarioRuntimeDescriptor.steps().get(0).stepName());
 
         assertEquals(1, sourceWrapper.getSources().size());
         assertEquals("Customers", sourceWrapper.getSources().get(0).getSourceName());
@@ -119,6 +132,83 @@ class ConfigLoaderJobConfigTest {
         assertEquals(1, loadedProcessorConfig.getMappings().size());
         assertEquals("Customers", loadedProcessorConfig.getMappings().get(0).getSource());
         assertEquals("CustomersOut", loadedProcessorConfig.getMappings().get(0).getTarget());
+    }
+
+    @Test
+    void normalizesScenarioRelativePathsInsideReferencedConfigs() throws IOException {
+        Path scenarioDir = tempDir.resolve("csv-roundtrip");
+        Files.createDirectories(scenarioDir.resolve("input"));
+        Files.createDirectories(scenarioDir.resolve("output"));
+        Files.writeString(scenarioDir.resolve("input/customers.csv"), "id,name\n1,Alice\n");
+
+        Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+                sources:
+                  - format: csv
+                    sourceName: Customers
+                    packageName: com.etl.model.source
+                    filePath: input/customers.csv
+                    delimiter: ","
+                    fields:
+                      - name: id
+                        type: int
+                      - name: name
+                        type: String
+                """);
+
+        Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+                targets:
+                  - format: csv
+                    targetName: CustomersOut
+                    packageName: com.etl.model.target
+                    filePath: output/customers.csv
+                    delimiter: ","
+                    fields:
+                      - name: id
+                        type: int
+                      - name: name
+                        type: String
+                """);
+
+        Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+                type: default
+                rejectHandling:
+                  enabled: true
+                  outputPath: rejects
+                mappings:
+                  - source: Customers
+                    target: CustomersOut
+                    fields:
+                      - from: id
+                        to: id
+                      - from: name
+                        to: name
+                """);
+
+        Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+                name: csv-roundtrip
+                sourceConfigPath: source-config.yaml
+                targetConfigPath: target-config.yaml
+                processorConfigPath: processor-config.yaml
+                steps:
+                  - name: customers-step
+                    source: Customers
+                    target: CustomersOut
+                """);
+
+        ConfigLoader loader = new ConfigLoader();
+        ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+        ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+        SourceWrapper sourceWrapper = loader.sourceWrapper();
+        TargetWrapper targetWrapper = loader.targetWrapper();
+        ProcessorConfig processorConfig = loader.processorConfig();
+
+        CsvSourceConfig sourceConfig = (CsvSourceConfig) sourceWrapper.getSources().get(0);
+        CsvTargetConfig targetConfig = (CsvTargetConfig) targetWrapper.getTargets().get(0);
+
+        assertEquals(scenarioDir.resolve("input/customers.csv").toAbsolutePath().normalize().toString(), sourceConfig.getFilePath());
+        assertEquals(scenarioDir.resolve("output/customers.csv").toAbsolutePath().normalize().toString(), targetConfig.getFilePath());
+        assertEquals(scenarioDir.resolve("rejects").toAbsolutePath().normalize().toString(), processorConfig.getRejectHandling().getOutputPath());
     }
 
     @Test
@@ -921,6 +1011,132 @@ class ConfigLoaderJobConfigTest {
     ProcessorConfig loadedProcessorConfig = loader.processorConfig();
 
     assertEquals("startsWith", loadedProcessorConfig.getMappings().get(0).getFields().get(0).getRules().get(0).getType());
+  }
+
+  @Test
+  void loadsProcessorConfigWhenExpressionTransformDefinesDerivedFieldWithoutSource() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: csv
+          sourceName: Customers
+          packageName: com.etl.model.source
+          filePath: input/customers.csv
+          delimiter: ","
+          fields:
+            - name: firstName
+              type: String
+            - name: lastName
+              type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+        - format: csv
+          targetName: CustomersOut
+          packageName: com.etl.model.target
+          filePath: output/customers.csv
+          delimiter: ","
+          fields:
+            - name: fullName
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: Customers
+          target: CustomersOut
+          fields:
+            - to: fullName
+              transforms:
+                - type: expression
+                  expression: "#input.firstName + ' ' + #input.lastName"
+      """);
+    Files.writeString(jobConfig, """
+      name: expression-derived-field
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: customers-step
+          source: Customers
+          target: CustomersOut
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ProcessorConfig loadedProcessorConfig = loader.processorConfig();
+
+    ProcessorConfig.FieldMapping fieldMapping = loadedProcessorConfig.getMappings().get(0).getFields().get(0);
+    assertEquals("fullName", fieldMapping.getTo());
+    assertTrue(fieldMapping.getFrom() == null || fieldMapping.getFrom().isBlank());
+    assertEquals("expression", fieldMapping.getTransforms().get(0).getType());
+    assertEquals("#input.firstName + ' ' + #input.lastName", fieldMapping.getTransforms().get(0).getExpression());
+  }
+
+  @Test
+  void failsFastWhenExpressionTransformHasInvalidSyntax() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: csv
+          sourceName: Customers
+          packageName: com.etl.model.source
+          filePath: input/customers.csv
+          delimiter: ","
+          fields:
+            - name: firstName
+              type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+        - format: csv
+          targetName: CustomersOut
+          packageName: com.etl.model.target
+          filePath: output/customers.csv
+          delimiter: ","
+          fields:
+            - name: fullName
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: Customers
+          target: CustomersOut
+          fields:
+            - to: fullName
+              transforms:
+                - type: expression
+                  expression: "#input.firstName + "
+      """);
+    Files.writeString(jobConfig, """
+      name: expression-invalid-syntax
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: customers-step
+          source: Customers
+          target: CustomersOut
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(messageChain(exception).contains("expression"));
+    assertTrue(messageChain(exception).contains("invalid SpEL"));
   }
 
   @Test
@@ -1796,6 +2012,39 @@ class ConfigLoaderJobConfigTest {
     ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
     assertTrue(exception.getMessage().contains("archive"));
     assertTrue(exception.getMessage().contains("successPath"));
+  }
+
+  @Test
+  void normalizesRelativeXmlArchivePathsFromSelectedScenarioDirectory() throws IOException {
+    Path scenarioDir = tempDir.resolve("xml-archive-scenario");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.createDirectories(scenarioDir.resolve("definitions"));
+    Files.writeString(scenarioDir.resolve("input/events.xml"), "<Events><Event><id>1</id></Event></Events>");
+    Files.writeString(scenarioDir.resolve("definitions/events-source-model.yaml"), "type: xml\n");
+
+    XmlSourceConfig xmlSourceConfig = new XmlSourceConfig();
+    xmlSourceConfig.setSourceName("EventsXml");
+    xmlSourceConfig.setPackageName("com.etl.model.source");
+    xmlSourceConfig.setFilePath("input/events.xml");
+    xmlSourceConfig.setRootElement("Events");
+    xmlSourceConfig.setRecordElement("Event");
+    xmlSourceConfig.setModelDefinitionPath("definitions/events-source-model.yaml");
+    var archive = new com.etl.config.source.FileArchiveConfig();
+    archive.setEnabled(true);
+    archive.setSuccessPath("archive/success/");
+    archive.setNamePattern("{originalName}-{timestamp}");
+    xmlSourceConfig.setArchive(archive);
+
+    SourceWrapper sourceWrapper = new SourceWrapper();
+    sourceWrapper.setSources(List.of(xmlSourceConfig));
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.invokeMethod(loader, "normalizeSourceConfigPaths", sourceWrapper, scenarioDir);
+
+    assertEquals(scenarioDir.resolve("input/events.xml").normalize().toString(), xmlSourceConfig.getFilePath());
+    assertEquals(scenarioDir.resolve("definitions/events-source-model.yaml").normalize().toString(), xmlSourceConfig.getModelDefinitionPath());
+    assertNotNull(xmlSourceConfig.getArchive());
+    assertEquals(scenarioDir.resolve("archive/success").normalize().toString(), xmlSourceConfig.getArchive().getSuccessPath());
   }
 
   private String messageChain(Throwable throwable) {

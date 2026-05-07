@@ -12,6 +12,8 @@ The immediate next direction is:
 - selective reuse of shared runtime utilities such as processor validation, duplicate handling, and logging
 - gradual replacement of the current runtime assembly rather than a blind rewrite in one step
 
+Use [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md) as the target runtime contract while applying the reuse/bridge/legacy decisions in this classification.
+
 This page is intentionally practical. It tells contributors what to reuse, what to bridge temporarily, what to avoid extending, and what should eventually be removed.
 
 ## Classification legend
@@ -122,6 +124,8 @@ Start the next architecture work in the generation utility path first:
 - separate generated output roots
 - shared XML / CSV / relational generation support
 - preserve flattening and scenario-specific business semantics outside the shared generators
+
+That work should now be organized toward the strict scenario-driven runtime direction described in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
 
 That direction gives the clearest way to reuse the useful parts of `1.4.x` without carrying forward the parts that no longer fit.
 

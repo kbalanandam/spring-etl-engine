@@ -8,7 +8,7 @@ It remains in the repo as a lightweight implementation-to-doc audit trail.
 
 ## Current status
 
-### Completed in the current working tree
+### Completed in the checked-in baseline
 
 These documentation fixes are already applied because they match the checked-in scenario assets today:
 
@@ -20,7 +20,7 @@ Those files now correctly describe that:
 - `xml-nested-to-csv-tag-validation` keeps the preserved `9002_9002_20260427070109.DTVL` payload
 - tiny sample-based nested XML examples should reuse `xml-nested-tag-validation/input/nested-sample.xml`
 
-The current working tree now contains the hardening behavior and matching documentation updates for:
+The checked-in baseline now contains the hardening behavior and matching documentation updates for:
 
 - processor config validation runs before generated-model validation for explicit `etl.config.job` scenarios
 - processor config failures are surfaced with scenario-aware context
@@ -107,6 +107,7 @@ This sync note was closed after:
   - `generated model`
   - `scenario-aware`
 - keeping scenario READMEs aligned with the actual checked-in assets
+
 
 
 

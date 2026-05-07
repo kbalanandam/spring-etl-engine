@@ -7,7 +7,4 @@ sources:
     recordElement: TVLTagDetails
     flatteningStrategy: NestedXml
     modelDefinitionPath: definitions/nested-source-model.yaml
-    fields:
-      - name: HomeAgencyID
-        type: String
 

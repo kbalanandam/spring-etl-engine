@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SourceConfigPolymorphicDeserializationTest {
@@ -97,6 +98,10 @@ class SourceConfigPolymorphicDeserializationTest {
             filePath: input/customers.xml
             rootElement: Customers
             recordElement: Customer
+            archive:
+              enabled: true
+              successPath: target/archive/xml-success/
+              namePattern: "{originalName}-{timestamp}"
             flatteningStrategy: NestedXml
             jobSpecificStrategyBean: customerXmlSourceStrategy
             modelDefinitionPath: definitions/customer-source-model.yaml
@@ -117,6 +122,9 @@ class SourceConfigPolymorphicDeserializationTest {
     assertEquals("input/customers.xml", xmlSource.getFilePath());
     assertEquals("Customers", xmlSource.getRootElement());
     assertEquals("Customer", xmlSource.getRecordElement());
+    assertNotNull(xmlSource.getArchive());
+    assertTrue(xmlSource.getArchive().isEnabled());
+    assertEquals("target/archive/xml-success/", xmlSource.getArchive().getSuccessPath());
     assertEquals("NestedXml", xmlSource.getFlatteningStrategy());
     assertEquals("customerXmlSourceStrategy", xmlSource.getJobSpecificStrategyBean());
     assertEquals("definitions/customer-source-model.yaml", xmlSource.getModelDefinitionPath());

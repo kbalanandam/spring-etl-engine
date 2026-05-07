@@ -1,8 +1,9 @@
 package com.etl.runtime;
 
 import com.etl.common.util.ReflectionUtils;
+import com.etl.config.source.FileArchiveConfig;
+import com.etl.config.source.FileSourceConfig;
 import com.etl.config.processor.ProcessorConfig;
-import com.etl.config.source.CsvSourceConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.processor.validation.ValidationIssue;
 import org.springframework.batch.core.ExitStatus;
@@ -28,8 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Provides step-scoped runtime support for file-ingestion hardening concerns.
  *
- * <p>This component manages reject-file output, keep-first duplicate key tracking, and
- * success-only CSV source archiving for the active Spring Batch step. It also exposes execution
+	 * <p>This component manages reject-file output, keep-first duplicate key tracking, and
+	 * success-only file-source archiving for the active Spring Batch step. It also exposes execution
  * context keys used by listeners and reporting code to publish reject counts, reject output paths,
  * and archived source paths.</p>
  *
@@ -104,8 +105,8 @@ public class FileIngestionRuntimeSupport {
 			}
 		}
 
-		if (ExitStatus.COMPLETED.equals(stepExecution.getExitStatus()) && sourceConfig instanceof CsvSourceConfig csvSourceConfig) {
-			archiveSourceIfConfigured(stepExecution, csvSourceConfig);
+		if (ExitStatus.COMPLETED.equals(stepExecution.getExitStatus()) && sourceConfig instanceof FileSourceConfig fileSourceConfig) {
+			archiveSourceIfConfigured(stepExecution, fileSourceConfig);
 		}
 
 		return stepExecution.getExitStatus();
@@ -138,13 +139,13 @@ public class FileIngestionRuntimeSupport {
 		return !seenValues.add(normalizedValue);
 	}
 
-	private void archiveSourceIfConfigured(StepExecution stepExecution, CsvSourceConfig csvSourceConfig) {
-		CsvSourceConfig.ArchiveConfig archiveConfig = csvSourceConfig.getArchive();
+	private void archiveSourceIfConfigured(StepExecution stepExecution, FileSourceConfig fileSourceConfig) {
+		FileArchiveConfig archiveConfig = fileSourceConfig.getArchiveConfig();
 		if (archiveConfig == null || !archiveConfig.isEnabled()) {
 			return;
 		}
 
-		Path sourcePath = Path.of(csvSourceConfig.getFilePath());
+		Path sourcePath = Path.of(fileSourceConfig.getFilePath());
 		Path archiveDirectory = Path.of(archiveConfig.getSuccessPath());
 		String originalName = sourcePath.getFileName().toString();
 		String namePattern = archiveConfig.getNamePattern() == null || archiveConfig.getNamePattern().isBlank()

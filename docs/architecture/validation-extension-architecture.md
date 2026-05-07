@@ -4,6 +4,11 @@
 
 This note defines the target extension architecture for future validation growth in `spring-etl-engine`.
 
+## Status
+
+- Classification: **Current baseline + future evolution**
+- The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.
+
 Use it to answer four questions before adding more validations:
 
 1. where source-level validation should plug into the runtime
@@ -23,8 +28,10 @@ Today the active runtime already has two validation-related paths:
 The current shipped first slice supports:
 
 - CSV-focused processor field rules (`notNull`, `timeFormat`, and `duplicate` with single-field, composite-key, or ordered winner-selection behavior)
+- source-validation SPI dispatch for CSV, XML, and relational source validation concerns
+- optional source-file rejection on validation failure through `validation.onFailure=rejectFile`
 - rejected-record output through `processor-config.yaml`
-- archive-on-success through CSV source config
+- archive-on-success through the shared file-source config contract for file-backed sources such as CSV and XML
 
 The legacy standalone validation framework under `src/main/java/com/etl/validation/` and `src/main/resources/validation-config.yaml` is deprecated and is not part of the active runtime path.
 
@@ -251,6 +258,8 @@ This proposal does **not** mean:
 7. add more processor rule types through `ProcessorValidationRule` implementations as rule growth continues
 
 ## Runtime view
+
+Read this as current baseline + future evolution for the validation and transform-extension path.
 
 ```mermaid
 flowchart TD

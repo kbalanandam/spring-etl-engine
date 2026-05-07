@@ -1,0 +1,12 @@
+name: xml-nested-to-csv-to-nested-xml
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: nested-xml-to-csv-step
+    source: TagValidationSource
+    target: TagValidationCsvIntermediate
+  - name: csv-to-nested-xml-step
+    source: TagValidationCsvIntermediate
+    target: TagValidationNestedXml
+

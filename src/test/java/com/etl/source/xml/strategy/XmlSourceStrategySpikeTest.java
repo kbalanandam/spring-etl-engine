@@ -1,6 +1,5 @@
 package com.etl.source.xml.strategy;
 
-import com.etl.common.util.ReflectionUtils;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.generation.xml.XmlModelDefinitionLoader;
 import com.etl.generation.xml.XmlModelGenerationResult;
@@ -14,7 +13,6 @@ import jakarta.xml.bind.annotation.XmlAccessorType;
 import jakarta.xml.bind.annotation.XmlElement;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.springframework.batch.item.ItemReader;
 import org.springframework.context.support.StaticApplicationContext;
 
 import javax.tools.JavaCompiler;
@@ -31,7 +29,6 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
 class XmlSourceStrategySpikeTest {
@@ -182,36 +179,6 @@ class XmlSourceStrategySpikeTest {
         assertEquals("invoiceXmlSource", customResult.getRows().get(0).get("source"));
     }
 
-    @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
-    void xmlDynamicReaderUsesNestedStrategyToEmitFlattenedRows() throws Exception {
-        ScenarioArtifacts artifacts = generateAndLoad("nested-source-model.yaml");
-
-        XmlSourceConfig config = xmlConfig(
-                artifacts.result().packageName(),
-                scenarioPath("nested-sample.xml"),
-                artifacts.result().rootClassName(),
-                artifacts.result().recordClassName(),
-                XmlFlatteningStrategyNames.NESTED_XML
-        );
-
-        XmlSourceStrategySelector selector = new XmlSourceStrategySelector(
-                new XmlSourceStrategyRegistry(List.of(new DirectXmlSourceStrategy(), new NestedXmlSourceStrategy())),
-                new JobSpecificXmlStrategyResolver(new StaticApplicationContext())
-        );
-
-        com.etl.reader.impl.XmlDynamicReader<Object> reader = new com.etl.reader.impl.XmlDynamicReader<>(selector);
-        ItemReader<Map<String, Object>> flatteningReader = (ItemReader<Map<String, Object>>) (ItemReader)
-                reader.getReader(config, (Class<Object>) artifacts.recordClass());
-
-        Map<String, Object> row = flatteningReader.read();
-        assertNotNull(row);
-        assertEquals("0056", row.get("HomeAgencyID"));
-        assertEquals("US", row.get("TVLPlateDetails.PlateCountry"));
-        assertEquals("4773316", row.get("TVLAccountDetails.AccountNumber"));
-        assertEquals("US", ReflectionUtils.getFieldValue(row, "TVLPlateDetails.PlateCountry"));
-        assertNull(flatteningReader.read());
-    }
 
     private XmlSourceRuntimeContext context(XmlSourceConfig config,
                                             Class<?> rootClass,

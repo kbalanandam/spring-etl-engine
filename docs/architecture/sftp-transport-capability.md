@@ -4,6 +4,11 @@
 
 This document defines the near-term architecture direction for SFTP-based file transport in `spring-etl-engine`.
 
+## Status
+
+- Classification: **Future direction**
+- The Mermaid diagrams in this document describe the preferred future direction, not a shipped runtime path today.
+
 It keeps SFTP work aligned with the current ETL-first phase while acknowledging a practical reality: many real scenarios begin with daily file pickup from external parties and end with controlled file delivery to downstream locations.
 
 The goal is not to build a full managed file transfer platform immediately. The goal is to standardize repeated SFTP-related integration work without mixing transport and security concerns into the core transformation runtime.
@@ -53,7 +58,7 @@ It should not become the center of transformation logic.
 
 ### Preferred operational model
 
-The preferred default runtime shape is:
+Future-only, not shipped today: this diagram shows the preferred target shape for SFTP transport capability.
 
 ```mermaid
 flowchart LR

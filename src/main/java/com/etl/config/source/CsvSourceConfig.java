@@ -17,7 +17,7 @@ import java.util.List;
  * Holds CSV-specific properties such as file path and delimiter.
  * The format for this config is always "csv".
  */
-public class CsvSourceConfig extends SourceConfig {
+public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
 
     /** Path to the CSV file. */
     private String filePath;
@@ -51,6 +51,11 @@ public class CsvSourceConfig extends SourceConfig {
 
   public void setArchive(ArchiveConfig archive) {
     this.archive = archive;
+  }
+
+  @Override
+  public FileArchiveConfig getArchiveConfig() {
+    return archive;
   }
 
 	public ValidationConfig getValidation() {
@@ -151,35 +156,7 @@ public class CsvSourceConfig extends SourceConfig {
         return count > 0 ? count - 1 : 0;
     }
 
-  public static class ArchiveConfig {
-
-    private boolean enabled;
-    private String successPath;
-    private String namePattern;
-
-    public boolean isEnabled() {
-      return enabled;
-    }
-
-    public void setEnabled(boolean enabled) {
-      this.enabled = enabled;
-    }
-
-    public String getSuccessPath() {
-      return successPath;
-    }
-
-    public void setSuccessPath(String successPath) {
-      this.successPath = successPath;
-    }
-
-    public String getNamePattern() {
-      return namePattern;
-    }
-
-    public void setNamePattern(String namePattern) {
-      this.namePattern = namePattern;
-    }
+  public static class ArchiveConfig extends FileArchiveConfig {
   }
 
   public static class ValidationConfig {

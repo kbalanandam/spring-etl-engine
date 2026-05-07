@@ -1,5 +1,6 @@
 package com.etl.config.source.validation;
 
+import com.etl.config.source.FileArchiveConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.XmlSourceConfig;
 import org.springframework.stereotype.Component;
@@ -12,8 +13,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.regex.Pattern;
-import java.util.regex.PatternSyntaxException;
 
 @Component
 public class XmlSourceValidator implements SourceValidator {
@@ -26,23 +25,25 @@ public class XmlSourceValidator implements SourceValidator {
 	@Override
 	public void validate(SourceConfig sourceConfig, SourceValidationContext context) {
 		XmlSourceConfig xmlSourceConfig = (XmlSourceConfig) sourceConfig;
+		validateArchive(xmlSourceConfig);
 		String filePathValue = requireNonBlank(xmlSourceConfig.getFilePath(), "filePath");
 		String expectedRootElement = requireNonBlank(xmlSourceConfig.getRootElement(), "rootElement");
 		String expectedRecordElement = requireNonBlank(xmlSourceConfig.getRecordElement(), "recordElement");
-		validateValidationConfig(xmlSourceConfig.getValidation());
 
 		Path filePath = Path.of(filePathValue.trim());
 		validateFile(filePath);
-		validateFileName(filePath, xmlSourceConfig.getValidation());
 		validateXmlStructure(filePath, expectedRootElement.trim(), expectedRecordElement.trim());
 	}
 
-	private void validateValidationConfig(XmlSourceConfig.ValidationConfig validation) {
-		if (validation == null) {
+	private void validateArchive(XmlSourceConfig xmlSourceConfig) {
+		FileArchiveConfig archive = xmlSourceConfig.getArchive();
+		if (archive == null || !archive.isEnabled()) {
 			return;
 		}
-		compileIfConfigured(validation.getFileNamePattern());
-		validateFailureAction(validation.getOnFailure(), validation.getRejectPath());
+
+		if (archive.getSuccessPath() == null || archive.getSuccessPath().isBlank()) {
+			throw new IllegalArgumentException("archive.enabled=true requires a non-blank successPath.");
+		}
 	}
 
 	private void validateFile(Path filePath) {
@@ -131,42 +132,5 @@ public class XmlSourceValidator implements SourceValidator {
 
 	private String normalizeElementName(String value) {
 		return value == null ? "" : value.trim();
-	}
-
-	private void validateFileName(Path filePath, XmlSourceConfig.ValidationConfig validation) {
-		if (validation == null || validation.getFileNamePattern() == null || validation.getFileNamePattern().isBlank()) {
-			return;
-		}
-
-		String fileName = filePath.getFileName() == null ? filePath.toString() : filePath.getFileName().toString();
-		if (!Pattern.compile(validation.getFileNamePattern().trim()).matcher(fileName).matches()) {
-			throw new IllegalArgumentException("XML file name does not match validation.fileNamePattern. expectedPattern="
-					+ validation.getFileNamePattern().trim() + " actual=" + fileName);
-		}
-	}
-
-	private void compileIfConfigured(String pattern) {
-		if (pattern == null || pattern.isBlank()) {
-			return;
-		}
-		try {
-			Pattern.compile(pattern.trim());
-		} catch (PatternSyntaxException e) {
-			throw new IllegalArgumentException("validation.fileNamePattern must be a valid regex pattern.", e);
-		}
-	}
-
-	private void validateFailureAction(String onFailure, String rejectPath) {
-		if (onFailure == null || onFailure.isBlank()) {
-			return;
-		}
-
-		String normalizedAction = onFailure.trim();
-		if (!"failStep".equalsIgnoreCase(normalizedAction) && !"rejectFile".equalsIgnoreCase(normalizedAction)) {
-			throw new IllegalArgumentException("validation.onFailure supports only failStep or rejectFile.");
-		}
-		if ("rejectFile".equalsIgnoreCase(normalizedAction) && (rejectPath == null || rejectPath.isBlank())) {
-			throw new IllegalArgumentException("validation.onFailure=rejectFile requires a non-blank rejectPath.");
-		}
 	}
 }

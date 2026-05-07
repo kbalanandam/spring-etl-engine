@@ -23,7 +23,7 @@ class XmlJobScopedGenerationServiceTest {
     Path tempDir;
 
     @Test
-    void generatesReferencedXmlSourceAndTargetModelsIntoDedicatedOutputRoots() throws Exception {
+    void generatesReferencedXmlSourceAndTargetModelsIntoDedicatedOutputRootsWhenNestedSourceUsesExternalModelDefinition() throws Exception {
         Path scenarioDir = tempDir.resolve("tag-validation-job");
         Files.createDirectories(scenarioDir.resolve("definitions"));
 
@@ -47,9 +47,6 @@ class XmlJobScopedGenerationServiceTest {
                     rootElement: TagValidationList
                     recordElement: TVLTagDetails
                     modelDefinitionPath: definitions/nested-source-model.yaml
-                    fields:
-                      - name: HomeAgencyID
-                        type: String
                   - format: csv
                     sourceName: IgnoredCsvSource
                     packageName: com.etl.generated.job.tagvalidation.ignored

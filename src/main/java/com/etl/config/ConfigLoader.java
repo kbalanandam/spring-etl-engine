@@ -3,14 +3,24 @@ package com.etl.config;
 import com.etl.config.exception.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.config.source.CsvSourceConfig;
+import com.etl.config.source.FileSourceConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
+import com.etl.config.source.XmlSourceConfig;
 import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.config.source.validation.SourceValidationContext;
 import com.etl.config.source.validation.SourceValidationService;
+import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
+import com.etl.config.target.XmlTargetConfig;
+import com.etl.runtime.scenario.ScenarioConfigPaths;
+import com.etl.runtime.scenario.ScenarioRunMode;
+import com.etl.runtime.scenario.ScenarioRuntimeDescriptor;
+import com.etl.runtime.scenario.ScenarioRuntimeDescriptorAssembler;
+import com.etl.processor.transform.TransformEvaluator;
 import com.etl.processor.validation.ValidationRuleEvaluator;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -67,16 +77,24 @@ public class ConfigLoader {
 	private volatile ResolvedRuntimeConfig cachedRuntimeConfig;
 	private final SourceValidationService sourceValidationService;
 	private final ValidationRuleEvaluator validationRuleEvaluator;
+	private final TransformEvaluator transformEvaluator;
 
 	public ConfigLoader() {
-		this(new SourceValidationService(), new ValidationRuleEvaluator());
+		this(new SourceValidationService(), new ValidationRuleEvaluator(), new TransformEvaluator());
+	}
+
+	public ConfigLoader(SourceValidationService sourceValidationService,
+	                  ValidationRuleEvaluator validationRuleEvaluator) {
+		this(sourceValidationService, validationRuleEvaluator, new TransformEvaluator());
 	}
 
 	@Autowired
 	public ConfigLoader(SourceValidationService sourceValidationService,
-	                  ValidationRuleEvaluator validationRuleEvaluator) {
+	                  ValidationRuleEvaluator validationRuleEvaluator,
+	                  TransformEvaluator transformEvaluator) {
 		this.sourceValidationService = sourceValidationService;
 		this.validationRuleEvaluator = validationRuleEvaluator;
+		this.transformEvaluator = transformEvaluator;
 	}
 
     /**
@@ -90,7 +108,9 @@ public class ConfigLoader {
 		try {
 			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
 			if (runtimeConfig.requireExternalConfigs()) {
-				return loadRequiredExternalYamlConfig(runtimeConfig.sourceConfigPath(), SourceWrapper.class);
+				SourceWrapper sourceWrapper = loadRequiredExternalYamlConfig(runtimeConfig.sourceConfigPath(), SourceWrapper.class);
+				normalizeSourceConfigPaths(sourceWrapper, parentDirectory(runtimeConfig.sourceConfigPath()));
+				return sourceWrapper;
 			}
 			return loadYamlConfig(runtimeConfig.sourceConfigPath(), "source-config.yaml", SourceWrapper.class);
 		} catch (ConfigException e) {
@@ -105,7 +125,9 @@ public class ConfigLoader {
 		try {
 			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
 			if (runtimeConfig.requireExternalConfigs()) {
-				return loadRequiredExternalYamlConfig(runtimeConfig.targetConfigPath(), TargetWrapper.class);
+				TargetWrapper targetWrapper = loadRequiredExternalYamlConfig(runtimeConfig.targetConfigPath(), TargetWrapper.class);
+				normalizeTargetConfigPaths(targetWrapper, parentDirectory(runtimeConfig.targetConfigPath()));
+				return targetWrapper;
 			}
 			return loadYamlConfig(runtimeConfig.targetConfigPath(), "target-config.yaml", TargetWrapper.class);
 		} catch (ConfigException e) {
@@ -124,6 +146,9 @@ public class ConfigLoader {
 			ProcessorConfig config = runtimeConfig.requireExternalConfigs()
 					? loadRequiredExternalYamlConfig(runtimeConfig.processorConfigPath(), ProcessorConfig.class, mapper)
 					: loadYamlConfig(runtimeConfig.processorConfigPath(), "processor-config.yaml", ProcessorConfig.class, mapper);
+			if (runtimeConfig.requireExternalConfigs()) {
+				normalizeProcessorConfigPaths(config, parentDirectory(runtimeConfig.processorConfigPath()));
+			}
 			validateProcessorConfig(config, runtimeConfig.scenarioName(), runtimeConfig.processorConfigPath());
 			return config;
 		} catch (ConfigException e) {
@@ -134,19 +159,57 @@ public class ConfigLoader {
 	}
 
 	@Bean
-	RunConfigurationMetadata runConfigurationMetadata() {
+	RunConfigurationMetadata runConfigurationMetadata(ScenarioRuntimeDescriptor scenarioRuntimeDescriptor) {
 		try {
-			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
-			return new RunConfigurationMetadata(
-					runtimeConfig.scenarioName(),
-					runtimeConfig.jobConfigPath(),
-					runtimeConfig.demoFallbackMode(),
-					runtimeConfig.steps()
-			);
+			return RunConfigurationMetadata.fromScenarioRuntimeDescriptor(scenarioRuntimeDescriptor);
 		} catch (ConfigException e) {
 			throw e;
 		} catch (Exception e) {
 			throw new ConfigException("Failed to resolve runtime configuration metadata", e);
+		}
+	}
+
+	RunConfigurationMetadata runConfigurationMetadata() {
+		return runConfigurationMetadata(
+				scenarioRuntimeDescriptor(
+						sourceWrapper(),
+						targetWrapper(),
+						processorConfig(),
+						scenarioRuntimeDescriptorAssembler()
+				)
+		);
+	}
+
+	@Bean
+	ScenarioRuntimeDescriptorAssembler scenarioRuntimeDescriptorAssembler() {
+		return new ScenarioRuntimeDescriptorAssembler();
+	}
+
+	@Bean
+	ScenarioRuntimeDescriptor scenarioRuntimeDescriptor(SourceWrapper sourceWrapper,
+	                                                  TargetWrapper targetWrapper,
+	                                                  ProcessorConfig processorConfig,
+	                                                  ScenarioRuntimeDescriptorAssembler assembler) {
+		try {
+			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
+			return assembler.assemble(
+					runtimeConfig.scenarioName(),
+					runtimeConfig.jobConfigPath(),
+					runtimeConfig.demoFallbackMode() ? ScenarioRunMode.DEMO_FALLBACK : ScenarioRunMode.EXPLICIT_JOB,
+					new ScenarioConfigPaths(
+							runtimeConfig.sourceConfigPath(),
+							runtimeConfig.targetConfigPath(),
+							runtimeConfig.processorConfigPath()
+					),
+					runtimeConfig.steps(),
+					sourceWrapper,
+					targetWrapper,
+					processorConfig
+			);
+		} catch (ConfigException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new ConfigException("Failed to assemble scenario runtime descriptor", e);
 		}
 	}
 
@@ -257,6 +320,9 @@ public class ConfigLoader {
 		SourceWrapper explicitSourceWrapper = loadRequiredExternalYamlConfig(resolvedSourceConfigPath, SourceWrapper.class);
 		TargetWrapper explicitTargetWrapper = loadRequiredExternalYamlConfig(resolvedTargetConfigPath, TargetWrapper.class);
 		ProcessorConfig explicitProcessorConfig = loadRequiredExternalYamlConfig(resolvedProcessorConfigPath, ProcessorConfig.class, mapper);
+		normalizeSourceConfigPaths(explicitSourceWrapper, parentDirectory(resolvedSourceConfigPath));
+		normalizeTargetConfigPaths(explicitTargetWrapper, parentDirectory(resolvedTargetConfigPath));
+		normalizeProcessorConfigPaths(explicitProcessorConfig, parentDirectory(resolvedProcessorConfigPath));
 		sourceValidationService.validateSelectedSources(
 				explicitSourceWrapper,
 				new SourceValidationContext(scenarioName, resolvedSourceConfigPath)
@@ -482,6 +548,114 @@ public class ConfigLoader {
 				: jobConfigDirectory.resolve(path).normalize().toString();
 	}
 
+	private Path parentDirectory(String resolvedConfigPath) {
+		Path absolutePath = Path.of(resolvedConfigPath).toAbsolutePath().normalize();
+		Path parent = absolutePath.getParent();
+		return parent == null ? absolutePath : parent;
+	}
+
+	private void normalizeSourceConfigPaths(SourceWrapper sourceWrapper, Path configDirectory) {
+		if (sourceWrapper == null || sourceWrapper.getSources() == null) {
+			return;
+		}
+
+		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
+			if (sourceConfig instanceof FileSourceConfig fileSourceConfig) {
+				fileSourceConfig.setFilePath(resolveScenarioPath(configDirectory, fileSourceConfig.getFilePath()));
+				if (fileSourceConfig.getArchiveConfig() != null) {
+					fileSourceConfig.getArchiveConfig().setSuccessPath(resolveScenarioPath(configDirectory, fileSourceConfig.getArchiveConfig().getSuccessPath()));
+				}
+			}
+			if (sourceConfig instanceof CsvSourceConfig csvSourceConfig) {
+				if (csvSourceConfig.getValidation() != null) {
+					csvSourceConfig.getValidation().setRejectPath(resolveScenarioPath(configDirectory, csvSourceConfig.getValidation().getRejectPath()));
+				}
+			}
+			if (sourceConfig instanceof XmlSourceConfig xmlSourceConfig) {
+				xmlSourceConfig.setFilePath(resolveScenarioPath(configDirectory, xmlSourceConfig.getFilePath()));
+				xmlSourceConfig.setModelDefinitionPath(resolveScenarioPath(configDirectory, xmlSourceConfig.getModelDefinitionPath()));
+				if (xmlSourceConfig.getValidation() != null) {
+					xmlSourceConfig.getValidation().setRejectPath(resolveScenarioPath(configDirectory, xmlSourceConfig.getValidation().getRejectPath()));
+				}
+			}
+		}
+	}
+
+	private void normalizeTargetConfigPaths(TargetWrapper targetWrapper, Path configDirectory) {
+		if (targetWrapper == null || targetWrapper.getTargets() == null) {
+			return;
+		}
+
+		List<TargetConfig> normalizedTargets = new ArrayList<>();
+		for (TargetConfig targetConfig : targetWrapper.getTargets()) {
+			normalizedTargets.add(normalizeTargetConfig(targetConfig, configDirectory));
+		}
+		targetWrapper.setTargets(List.copyOf(normalizedTargets));
+	}
+
+	private TargetConfig normalizeTargetConfig(TargetConfig targetConfig, Path configDirectory) {
+		if (targetConfig instanceof CsvTargetConfig csvTargetConfig) {
+			return new CsvTargetConfig(
+					csvTargetConfig.getTargetName(),
+					csvTargetConfig.getPackageName(),
+					copyColumns(csvTargetConfig.getFields()),
+					resolveScenarioPath(configDirectory, csvTargetConfig.getFilePath()),
+					csvTargetConfig.getDelimiter(),
+					csvTargetConfig.isIncludeHeader()
+			);
+		}
+		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
+			return new XmlTargetConfig(
+					xmlTargetConfig.getTargetName(),
+					xmlTargetConfig.getPackageName(),
+					copyColumns(xmlTargetConfig.getFields()),
+					resolveScenarioPath(configDirectory, xmlTargetConfig.getFilePath()),
+					xmlTargetConfig.getRootElement(),
+					xmlTargetConfig.getRecordElement(),
+					resolveScenarioPath(configDirectory, xmlTargetConfig.getModelDefinitionPath())
+			);
+		}
+		if (targetConfig instanceof RelationalTargetConfig) {
+			return targetConfig;
+		}
+		return targetConfig;
+	}
+
+	private void normalizeProcessorConfigPaths(ProcessorConfig processorConfig, Path configDirectory) {
+		if (processorConfig == null || processorConfig.getRejectHandling() == null) {
+			return;
+		}
+		processorConfig.getRejectHandling().setOutputPath(
+				resolveScenarioPath(configDirectory, processorConfig.getRejectHandling().getOutputPath())
+		);
+	}
+
+	private List<ColumnConfig> copyColumns(List<? extends FieldDefinition> fields) {
+		if (fields == null || fields.isEmpty()) {
+			return List.of();
+		}
+
+		List<ColumnConfig> columns = new ArrayList<>();
+		for (FieldDefinition field : fields) {
+			ColumnConfig column = new ColumnConfig();
+			column.setName(field.getName());
+			column.setType(field.getType());
+			columns.add(column);
+		}
+		return List.copyOf(columns);
+	}
+
+	private String resolveScenarioPath(Path configDirectory, String configuredPath) {
+		if (configuredPath == null || configuredPath.isBlank()) {
+			return configuredPath;
+		}
+
+		Path path = Path.of(configuredPath.trim());
+		return path.isAbsolute()
+				? path.normalize().toString()
+				: configDirectory.resolve(path).normalize().toString();
+	}
+
 	private String defaultName(String configuredName) {
 		return configuredName == null || configuredName.isBlank() ? "unnamed" : configuredName.trim();
 	}
@@ -510,12 +684,14 @@ public class ConfigLoader {
 				}
 
 				for (ProcessorConfig.FieldMapping fieldMapping : entityMapping.getFields()) {
-					if (fieldMapping.getFrom() == null || fieldMapping.getFrom().isEmpty()) {
-						throw new IllegalStateException("FieldMapping missing 'from' in entity " + entityMapping.getSource());
+					if ((fieldMapping.getFrom() == null || fieldMapping.getFrom().isBlank()) && !allowsDerivedFieldWithoutSource(fieldMapping)) {
+						throw new IllegalStateException("FieldMapping missing 'from' in entity " + entityMapping.getSource()
+								+ ". Omit 'from' only when the first transform is type 'expression'.");
 					}
 					if (fieldMapping.getTo() == null || fieldMapping.getTo().isEmpty()) {
 						throw new IllegalStateException("FieldMapping missing 'to' in entity " + entityMapping.getSource());
 					}
+					validateFieldTransforms(entityMapping, fieldMapping);
 					validateFieldRules(config, entityMapping, fieldMapping);
 				}
 			}
@@ -553,6 +729,33 @@ public class ConfigLoader {
 			validateRuleFailureAction(config, entityMapping, fieldMapping, rule);
 			validationRuleEvaluator.validateConfiguration(entityMapping, fieldMapping, rule);
 		}
+	}
+
+	private void validateFieldTransforms(ProcessorConfig.EntityMapping entityMapping,
+	                                  ProcessorConfig.FieldMapping fieldMapping) {
+		if (fieldMapping.getTransforms() == null || fieldMapping.getTransforms().isEmpty()) {
+			return;
+		}
+
+		if ((fieldMapping.getFrom() == null || fieldMapping.getFrom().isBlank())
+				&& !"expression".equalsIgnoreCase(fieldMapping.getTransforms().get(0).getType())) {
+			throw new IllegalStateException("FieldMapping for entity " + entityMapping.getSource() + " -> "
+					+ entityMapping.getTarget() + " field '" + fieldMapping.getTo()
+					+ "' omits 'from' but its first transform is not type 'expression'.");
+		}
+
+		for (int i = 0; i < fieldMapping.getTransforms().size(); i++) {
+			ProcessorConfig.FieldTransform transform = fieldMapping.getTransforms().get(i);
+			transformEvaluator.validateConfiguration(entityMapping, fieldMapping, transform);
+		}
+	}
+
+	private boolean allowsDerivedFieldWithoutSource(ProcessorConfig.FieldMapping fieldMapping) {
+		return fieldMapping != null
+				&& fieldMapping.getTransforms() != null
+				&& !fieldMapping.getTransforms().isEmpty()
+				&& fieldMapping.getTransforms().get(0) != null
+				&& "expression".equalsIgnoreCase(fieldMapping.getTransforms().get(0).getType());
 	}
 
 	private void validateRuleFailureAction(ProcessorConfig config,

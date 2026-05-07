@@ -58,6 +58,9 @@ public class EtlJobRunner implements CommandLineRunner {
 				.addString("scenario", runConfigurationMetadata.scenarioName())
 				.addString("scenarioLogKey", scenarioLogKey)
 				.addString("jobConfigPath", defaultString(runConfigurationMetadata.jobConfigPath()))
+				.addString("mainFlow", defaultString(runConfigurationMetadata.mainFlowName()))
+				.addString("subFlow", defaultString(runConfigurationMetadata.subFlowName()))
+				.addString("recoveryPolicy", runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue())
 				.addString("runCorrelationId", runCorrelationId)
 				.addString("runMode", runMode)
 				.toJobParameters();
@@ -67,17 +70,27 @@ public class EtlJobRunner implements CommandLineRunner {
 		RunLoggingContext.put(RunLoggingContext.RUN_CORRELATION_ID, runCorrelationId);
 		RunLoggingContext.put(RunLoggingContext.RUN_MODE, runMode);
 		RunLoggingContext.put(RunLoggingContext.JOB_CONFIG_PATH, defaultString(runConfigurationMetadata.jobConfigPath()));
+		RunLoggingContext.put(RunLoggingContext.MAIN_FLOW, defaultString(runConfigurationMetadata.mainFlowName()));
+		RunLoggingContext.put(RunLoggingContext.SUB_FLOW, defaultString(runConfigurationMetadata.subFlowName()));
+		RunLoggingContext.put(RunLoggingContext.RECOVERY_POLICY,
+				runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue());
 
         try {
-	            logger.info("RUN_EVENT event=run_requested scenario={} runMode={} jobConfigPath={} plannedStepCount={} plannedSteps={}",
+	            logger.info("RUN_EVENT event=run_requested scenario={} mainFlow={} subFlow={} recoveryPolicy={} runMode={} jobConfigPath={} plannedStepCount={} plannedSteps={}",
 	                    runConfigurationMetadata.scenarioName(),
+	                    defaultString(runConfigurationMetadata.mainFlowName()),
+	                    defaultString(runConfigurationMetadata.subFlowName()),
+	                    runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
 	                    runMode,
 	                    defaultString(runConfigurationMetadata.jobConfigPath()),
 	                    runConfigurationMetadata.steps().size(),
 	                    formatPlannedSteps(runConfigurationMetadata.steps()));
             jobLauncher.run(etlJob, jobParameters);
-	            logger.info("RUN_EVENT event=run_finished scenario={} runMode={} plannedStepCount={}",
+	            logger.info("RUN_EVENT event=run_finished scenario={} mainFlow={} subFlow={} recoveryPolicy={} runMode={} plannedStepCount={}",
 	                    runConfigurationMetadata.scenarioName(),
+	                    defaultString(runConfigurationMetadata.mainFlowName()),
+	                    defaultString(runConfigurationMetadata.subFlowName()),
+	                    runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
 	                    runMode,
 	                    runConfigurationMetadata.steps().size());
         } catch (Exception e) {

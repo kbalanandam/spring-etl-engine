@@ -1,8 +1,10 @@
 package com.etl.runtime;
 
 import com.etl.config.ColumnConfig;
+import com.etl.config.source.FileArchiveConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
+import com.etl.config.source.XmlSourceConfig;
 import com.etl.processor.validation.ValidationIssue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -90,6 +92,44 @@ class FileIngestionRuntimeSupportTest {
         assertTrue(Files.exists(Path.of(archivedPath)));
         assertFalse(Files.exists(sourceFile));
     }
+
+          @Test
+          void archivesXmlSourceAfterSuccessfulCompletionWhenArchiveIsEnabled() throws Exception {
+            Path sourceFile = tempDir.resolve("events.xml");
+            Files.writeString(sourceFile, "<Events><Event><id>EVT-1</id></Event></Events>");
+
+            Path archiveDir = tempDir.resolve("archive/xml-success");
+            FileArchiveConfig archive = new FileArchiveConfig();
+            archive.setEnabled(true);
+            archive.setSuccessPath(archiveDir.toString());
+            archive.setNamePattern("{originalName}-{timestamp}");
+
+            XmlSourceConfig sourceConfig = new XmlSourceConfig();
+            sourceConfig.setSourceName("EventsXml");
+            sourceConfig.setPackageName("com.etl.model.source");
+            sourceConfig.setFilePath(sourceFile.toString());
+            sourceConfig.setRootElement("Events");
+            sourceConfig.setRecordElement("Event");
+            sourceConfig.setArchive(archive);
+            sourceConfig.setFields(List.of(column("id")));
+
+            ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+            mapping.setSource("EventsXml");
+            mapping.setTarget("EventsCsv");
+            mapping.setFields(List.of(field("id", "id")));
+
+            FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+            StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+            runtimeSupport.initializeStep(stepExecution, sourceConfig, new ProcessorConfig(), mapping);
+
+            stepExecution.setExitStatus(ExitStatus.COMPLETED);
+            runtimeSupport.completeStep(stepExecution, sourceConfig);
+
+            String archivedPath = stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.ARCHIVED_SOURCE_PATH_KEY);
+            assertFalse(archivedPath.isBlank());
+            assertTrue(Files.exists(Path.of(archivedPath)));
+            assertFalse(Files.exists(sourceFile));
+          }
 
       @Test
       void resetsDuplicateTrackingForEachStepExecution() {

@@ -8,10 +8,10 @@ targets:
     batchSize: 100
     connection:
       vendor: sqlserver
-      jdbcUrl: jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true
+      jdbcUrl: jdbc:sqlserver://192.168.50.195:1433;databaseName=TESTDB;encrypt=true;trustServerCertificate=true
       schema: dbo
-      username: <SQLSERVER_USERNAME>
-      password: <SQLSERVER_PASSWORD>
+      username: TESTDB
+      password: Test@4321
       driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
     fields:
       - name: id

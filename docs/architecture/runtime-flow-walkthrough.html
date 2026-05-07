@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OneFlow Runtime Flow Walkthrough</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #0b1020;
+            --panel: rgba(16, 24, 48, 0.88);
+            --panel-strong: rgba(20, 30, 60, 0.96);
+            --text: #e9eefc;
+            --muted: #a9b7dd;
+            --line: rgba(142, 166, 255, 0.35);
+            --accent: #78a6ff;
+            --accent-strong: #99c2ff;
+            --ok: #3ddc97;
+            --warn: #ffb454;
+            --danger: #ff7b7b;
+            --chapter-assembly-start: #99c2ff;
+            --chapter-assembly-end: #d8e7ff;
+            --chapter-composition-start: #c2a8ff;
+            --chapter-composition-end: #e6dbff;
+            --chapter-execution-start: #7fe3b3;
+            --chapter-execution-end: #d7f8e6;
+            --chapter-evidence-start: #ffd79d;
+            --chapter-evidence-end: #ffb454;
+            --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+            --radius: 18px;
+            font-family: Inter, Segoe UI, Arial, sans-serif;
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(120,166,255,0.24), transparent 28%),
+                radial-gradient(circle at top right, rgba(61,220,151,0.14), transparent 24%),
+                linear-gradient(180deg, #0b1020 0%, #111934 100%);
+            color: var(--text);
+        }
+
+        .page {
+            max-width: 1320px;
+            margin: 0 auto;
+            padding: 32px 20px 56px;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1.35fr 0.95fr;
+            gap: 24px;
+            align-items: stretch;
+            margin-bottom: 24px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid rgba(152, 176, 255, 0.16);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+        }
+
+        .hero-copy {
+            padding: 28px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: rgba(120, 166, 255, 0.12);
+            color: var(--accent-strong);
+            font-size: 13px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+        }
+
+        h1 {
+            margin: 0 0 12px;
+            font-size: clamp(2rem, 2.7vw, 3.2rem);
+            line-height: 1.1;
+        }
+
+        .subtitle {
+            margin: 0;
+            color: var(--muted);
+            font-size: 1.05rem;
+            line-height: 1.65;
+            max-width: 68ch;
+        }
+
+        .hero-meta {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .tag {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(152, 176, 255, 0.14);
+            background: rgba(255,255,255,0.03);
+            color: var(--text);
+            font-size: 14px;
+        }
+
+        .status-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 18px;
+        }
+
+        .status-card h2 {
+            margin: 0;
+            font-size: 1.2rem;
+        }
+
+        .progress {
+            height: 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            overflow: hidden;
+            border: 1px solid rgba(152, 176, 255, 0.12);
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, var(--accent), var(--ok));
+            transition: width 420ms ease;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .chapter-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .chapter-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(152, 176, 255, 0.12);
+            background: rgba(255,255,255,0.04);
+            color: var(--muted);
+            font-size: 12px;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: background 220ms ease, color 220ms ease, border-color 220ms ease, transform 220ms ease;
+        }
+
+        .chapter-badge.active {
+            color: #09101f;
+            transform: translateY(-1px);
+        }
+
+        .chapter-badge[data-chapter="Assembly"].active {
+            background: linear-gradient(180deg, var(--chapter-assembly-start), var(--chapter-assembly-end));
+            border-color: rgba(153,194,255,0.95);
+        }
+
+        .chapter-badge[data-chapter="Composition"].active {
+            background: linear-gradient(180deg, var(--chapter-composition-start), var(--chapter-composition-end));
+            border-color: rgba(194,168,255,0.92);
+        }
+
+        .chapter-badge[data-chapter="Execution"].active {
+            background: linear-gradient(180deg, var(--chapter-execution-start), var(--chapter-execution-end));
+            border-color: rgba(127,227,179,0.92);
+        }
+
+        .chapter-badge[data-chapter="Evidence"].active {
+            background: linear-gradient(180deg, var(--chapter-evidence-start), var(--chapter-evidence-end));
+            border-color: rgba(255,180,84,0.92);
+        }
+
+        .metric {
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(152, 176, 255, 0.1);
+        }
+
+        .metric-label {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+
+        .metric-value {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        button {
+            border: 0;
+            border-radius: 12px;
+            padding: 10px 14px;
+            font: inherit;
+            color: #09101f;
+            background: linear-gradient(180deg, #e6eeff, #bdd3ff);
+            cursor: pointer;
+            transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.18);
+        }
+
+        button.secondary {
+            background: rgba(255,255,255,0.08);
+            color: var(--text);
+            border: 1px solid rgba(152, 176, 255, 0.16);
+            box-shadow: none;
+        }
+
+        button:hover { transform: translateY(-1px); }
+        button:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+        .walkthrough {
+            display: grid;
+            grid-template-columns: 1.65fr 0.95fr;
+            gap: 24px;
+            align-items: start;
+        }
+
+        .summary-section {
+            display: grid;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .summary-card {
+            padding: 20px;
+        }
+
+        .summary-card h3,
+        .drill-card h3 {
+            margin: 0 0 8px;
+            font-size: 1rem;
+        }
+
+        .summary-card p,
+        .drill-card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .summary-value {
+            display: block;
+            margin-top: 12px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text);
+        }
+
+        .drill-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .drill-card {
+            padding: 20px;
+            display: grid;
+            gap: 14px;
+        }
+
+        .drill-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .inline-button {
+            width: fit-content;
+        }
+
+        .deep-dive-intro {
+            margin-bottom: 18px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .deep-dive-copy {
+            color: var(--muted);
+            line-height: 1.6;
+            max-width: 72ch;
+            margin: 0;
+        }
+
+        .diagram-card {
+            padding: 26px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .diagram-title,
+        .details-title {
+            margin: 0 0 8px;
+            font-size: 1.2rem;
+        }
+
+        .diagram-copy,
+        .details-copy {
+            margin: 0 0 20px;
+            color: var(--muted);
+            line-height: 1.6;
+        }
+
+        .flow {
+            position: relative;
+            min-height: 690px;
+            border-radius: 22px;
+            background:
+                linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01)),
+                rgba(7, 12, 26, 0.72);
+            border: 1px solid rgba(152, 176, 255, 0.1);
+            overflow: hidden;
+        }
+
+        .lane-label {
+            position: absolute;
+            left: 18px;
+            color: rgba(169, 183, 221, 0.85);
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        .lane-startup { top: 18px; }
+        .lane-config { top: 150px; }
+        .lane-runtime { top: 292px; }
+        .lane-output { top: 544px; }
+
+        .connector {
+            position: absolute;
+            height: 3px;
+            background: linear-gradient(90deg, rgba(120,166,255,0.16), rgba(120,166,255,0.48));
+            border-radius: 999px;
+            opacity: 0.65;
+            transform-origin: left center;
+            transition: opacity 260ms ease, background 260ms ease, box-shadow 260ms ease;
+        }
+
+        .connector.active {
+            opacity: 1;
+            background: linear-gradient(90deg, rgba(120,166,255,0.55), rgba(61,220,151,0.92));
+            box-shadow: 0 0 18px rgba(120,166,255,0.45);
+        }
+
+        .connector.vertical {
+            width: 3px;
+            height: 74px;
+            background: linear-gradient(180deg, rgba(120,166,255,0.16), rgba(120,166,255,0.48));
+        }
+
+        .connector.vertical.active {
+            background: linear-gradient(180deg, rgba(120,166,255,0.55), rgba(61,220,151,0.92));
+        }
+
+        .node {
+            position: absolute;
+            width: 170px;
+            min-height: 88px;
+            padding: 14px 14px 12px;
+            border-radius: 18px;
+            border: 1px solid rgba(152, 176, 255, 0.16);
+            background: rgba(14, 22, 42, 0.92);
+            color: var(--text);
+            box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+            transition: transform 300ms ease, border-color 300ms ease, background 300ms ease, box-shadow 300ms ease, opacity 300ms ease;
+            opacity: 0.55;
+            cursor: pointer;
+        }
+
+        .node:hover {
+            opacity: 0.85;
+            border-color: rgba(153,194,255,0.35);
+        }
+
+        .node:focus-visible {
+            outline: 2px solid rgba(153,194,255,0.95);
+            outline-offset: 3px;
+        }
+
+        .node strong {
+            display: block;
+            font-size: 15px;
+            margin-bottom: 6px;
+        }
+
+        .node small {
+            display: block;
+            color: var(--muted);
+            line-height: 1.4;
+            font-size: 12px;
+        }
+
+        .node.completed {
+            opacity: 0.85;
+            border-color: rgba(61, 220, 151, 0.28);
+            background: rgba(13, 34, 35, 0.82);
+        }
+
+        .node.active {
+            opacity: 1;
+            transform: translateY(-4px) scale(1.02);
+            border-color: rgba(120, 166, 255, 0.9);
+            background: linear-gradient(180deg, rgba(26, 47, 92, 0.96), rgba(15, 29, 59, 0.94));
+            box-shadow: 0 18px 32px rgba(0,0,0,0.28), 0 0 0 1px rgba(153,194,255,0.18);
+        }
+
+        .node.active::after {
+            content: "";
+            position: absolute;
+            inset: -1px;
+            border-radius: inherit;
+            box-shadow: 0 0 0 1px rgba(153,194,255,0.28), 0 0 22px rgba(120,166,255,0.28);
+            pointer-events: none;
+        }
+
+        .node.branch {
+            background: rgba(39, 27, 14, 0.92);
+        }
+
+        .node.branch.active {
+            background: linear-gradient(180deg, rgba(84, 56, 15, 0.95), rgba(53, 36, 13, 0.95));
+            border-color: rgba(255, 180, 84, 0.86);
+        }
+
+        .node.output.active.accepted {
+            border-color: rgba(61,220,151,0.92);
+            background: linear-gradient(180deg, rgba(22, 71, 48, 0.95), rgba(11, 42, 30, 0.95));
+        }
+
+        .node.output.active.rejected {
+            border-color: rgba(255,180,84,0.92);
+            background: linear-gradient(180deg, rgba(83, 60, 22, 0.95), rgba(52, 36, 14, 0.95));
+        }
+
+        .node.output.active.logging {
+            border-color: rgba(153,194,255,0.92);
+            background: linear-gradient(180deg, rgba(32, 45, 93, 0.95), rgba(18, 29, 61, 0.95));
+        }
+
+        .details-card {
+            padding: 26px;
+            position: sticky;
+            top: 18px;
+        }
+
+        .step-pill {
+            display: inline-flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(120,166,255,0.12);
+            color: var(--accent-strong);
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+
+        .chapter-pill {
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            color: var(--text);
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+        }
+
+        .chapter-pill[data-chapter="Assembly"] {
+            background: linear-gradient(180deg, rgba(153,194,255,0.28), rgba(216,231,255,0.18));
+            border: 1px solid rgba(153,194,255,0.35);
+        }
+
+        .chapter-pill[data-chapter="Composition"] {
+            background: linear-gradient(180deg, rgba(194,168,255,0.28), rgba(230,219,255,0.18));
+            border: 1px solid rgba(194,168,255,0.35);
+        }
+
+        .chapter-pill[data-chapter="Execution"] {
+            background: linear-gradient(180deg, rgba(127,227,179,0.28), rgba(215,248,230,0.18));
+            border: 1px solid rgba(127,227,179,0.35);
+        }
+
+        .chapter-pill[data-chapter="Evidence"] {
+            background: linear-gradient(180deg, rgba(255,215,157,0.28), rgba(255,180,84,0.18));
+            border: 1px solid rgba(255,180,84,0.35);
+        }
+
+        .step-counter {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.1);
+            color: var(--text);
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .detail-title {
+            margin: 0 0 10px;
+            font-size: 1.45rem;
+            line-height: 1.2;
+        }
+
+        .detail-summary {
+            margin: 0 0 18px;
+            color: var(--muted);
+            line-height: 1.72;
+        }
+
+        .hierarchy-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+            margin: 0 0 20px;
+        }
+
+        .hierarchy-card {
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(152, 176, 255, 0.12);
+        }
+
+        .hierarchy-card strong {
+            display: block;
+            font-size: 14px;
+            line-height: 1.45;
+            color: var(--text);
+        }
+
+        .callout-grid {
+            display: grid;
+            gap: 12px;
+            margin: 18px 0 20px;
+        }
+
+        .callout {
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(152, 176, 255, 0.12);
+        }
+
+        .callout strong {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: var(--accent-strong);
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .callout p {
+            margin: 0;
+            color: var(--text);
+            line-height: 1.55;
+            font-size: 14px;
+        }
+
+        .drilldown-card {
+            margin: 20px 0 0;
+            padding: 18px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.035);
+            border: 1px solid rgba(152, 176, 255, 0.12);
+        }
+
+        .drilldown-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .drilldown-title {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .drilldown-hint {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .drilldown-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .drilldown-block {
+            padding: 14px 16px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(152, 176, 255, 0.1);
+        }
+
+        .drilldown-block h5 {
+            margin: 0 0 8px;
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--accent-strong);
+        }
+
+        .drilldown-block p {
+            margin: 0;
+            color: var(--text);
+            line-height: 1.62;
+            font-size: 14px;
+        }
+
+        .drilldown-list {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--text);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .drilldown-list li + li {
+            margin-top: 6px;
+        }
+
+        .doc-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 14px;
+        }
+
+        .doc-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            border-radius: 999px;
+            background: rgba(120,166,255,0.1);
+            border: 1px solid rgba(152, 176, 255, 0.12);
+            color: var(--text);
+            text-decoration: none;
+            font-size: 13px;
+        }
+
+        .doc-link:hover {
+            background: rgba(120,166,255,0.16);
+        }
+
+        .timeline {
+            list-style: none;
+            padding: 0;
+            margin: 20px 0 0;
+            display: grid;
+            gap: 10px;
+        }
+
+        .timeline li {
+            color: var(--muted);
+            padding: 0;
+        }
+
+        .timeline-button {
+            width: 100%;
+            display: grid;
+            grid-template-columns: 28px 1fr;
+            gap: 10px;
+            align-items: start;
+            padding: 8px 0;
+            text-align: left;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            box-shadow: none;
+            border-radius: 12px;
+        }
+
+        .timeline-button:hover {
+            transform: none;
+            background: rgba(255,255,255,0.035);
+        }
+
+        .timeline-button:focus-visible {
+            outline: 2px solid rgba(153,194,255,0.95);
+            outline-offset: 2px;
+        }
+
+        .timeline-index {
+            width: 28px;
+            height: 28px;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            color: var(--text);
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .timeline li.active .timeline-index {
+            background: linear-gradient(180deg, var(--accent), var(--ok));
+            color: #07111f;
+        }
+
+        .timeline li.completed {
+            color: rgba(233, 238, 252, 0.85);
+        }
+
+        .timeline li.active {
+            color: var(--text);
+        }
+
+        .legend {
+            margin-top: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .legend span {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            color: var(--muted);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(152, 176, 255, 0.1);
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            display: inline-block;
+        }
+
+        .dot-blue { background: var(--accent); }
+        .dot-green { background: var(--ok); }
+        .dot-yellow { background: var(--warn); }
+
+        .footer-note {
+            margin-top: 24px;
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 1100px) {
+            .hero,
+            .walkthrough {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-grid,
+            .drill-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+
+            .details-card {
+                position: static;
+            }
+        }
+
+        @media (max-width: 860px) {
+            .page { padding: 22px 14px 40px; }
+            .diagram-card, .details-card, .hero-copy, .status-card { padding: 20px; }
+            .flow {
+                min-height: 1120px;
+            }
+            .node { width: 82%; left: 9% !important; }
+            .connector { display: none; }
+            .lane-label { left: 22px; }
+            .summary-grid,
+            .drill-grid,
+            .hierarchy-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+<div class="page">
+    <section class="hero">
+        <div class="panel hero-copy">
+            <div class="eyebrow">Animated walkthrough · Runtime + composition</div>
+            <h1>The GUI now explains three views: runtime assembly, flow composition, and compiled execution.</h1>
+            <p class="subtitle">
+                This walkthrough now mirrors <code>runtime-flow.md</code> more directly.
+                It first shows how the shipped engine is wired, then how one selected scenario is projected into
+                <code>MainFlow → SubFlow → Step</code> composition, and finally how that hierarchy still compiles into one explicit
+                ordered Spring Batch step plan with operational evidence.
+            </p>
+            <div class="hero-meta">
+                <span class="tag">Source of truth: <code>docs/architecture/runtime-flow.md</code></span>
+                <span class="tag">Architecture style: <code>scenario → main flow → subflow → step</code></span>
+                <span class="tag">Runtime shape: explicit ordered Spring Batch step plan</span>
+            </div>
+        </div>
+        <aside class="panel status-card">
+            <div>
+                <h2>Walkthrough status</h2>
+                <p class="details-copy">Use autoplay for a guided tour, or step manually when you want to inspect which chapter is active: Assembly, Composition, Execution, or Evidence.</p>
+                <div class="progress" aria-label="Walkthrough progress">
+                    <div class="progress-bar" id="progressBar"></div>
+                </div>
+                <div class="chapter-badges" id="chapterBadges" aria-label="Walkthrough chapters">
+                    <span class="chapter-badge active" data-chapter="Assembly">Assembly</span>
+                    <span class="chapter-badge" data-chapter="Composition">Composition</span>
+                    <span class="chapter-badge" data-chapter="Execution">Execution</span>
+                    <span class="chapter-badge" data-chapter="Evidence">Evidence</span>
+                </div>
+            </div>
+            <div class="status-grid">
+                <div class="metric">
+                    <span class="metric-label">Current scene</span>
+                    <span class="metric-value" id="metricStage">Startup</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Current view</span>
+                    <span class="metric-value" id="metricMode">Runtime assembly</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Current focus</span>
+                    <span class="metric-value" id="metricArtifact">Application bootstrap</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Animation</span>
+                    <span class="metric-value" id="metricPlayback">Autoplay on</span>
+                </div>
+            </div>
+            <div class="controls" aria-label="Animation controls">
+                <button id="prevBtn" class="secondary">◀ Previous</button>
+                <button id="playBtn">▶ Play</button>
+                <button id="pauseBtn" class="secondary">❚❚ Pause</button>
+                <button id="nextBtn" class="secondary">Next ▶</button>
+                <button id="restartBtn" class="secondary">↺ Restart</button>
+            </div>
+        </aside>
+    </section>
+
+    <section class="summary-section" aria-label="Summary and drill-through views">
+        <div class="summary-grid">
+            <article class="panel summary-card">
+                <h3>Scenario boundary</h3>
+                <p>One selected <code>job-config.yaml</code> remains the only normal runtime boundary for the run.</p>
+                <span class="summary-value">Selected scenario → MainFlow launch context</span>
+            </article>
+            <article class="panel summary-card">
+                <h3>MainFlow</h3>
+                <p>Represents the run-wide launch pad, shared recovery context, and top-level evidence boundary.</p>
+                <span class="summary-value">1 synthesized MainFlow per selected scenario</span>
+            </article>
+            <article class="panel summary-card">
+                <h3>SubFlows</h3>
+                <p>Currently synthesized from the flat step list to improve hierarchy meaning and evidence visibility.</p>
+                <span class="summary-value">Ordered synthesized phase view</span>
+            </article>
+            <article class="panel summary-card">
+                <h3>Execution</h3>
+                <p>The current engine still executes one explicit ordered Spring Batch step plan underneath the hierarchy.</p>
+                <span class="summary-value">Flat step execution today</span>
+            </article>
+            <article class="panel summary-card">
+                <h3>Evidence</h3>
+                <p>Logs and artifact paths expose run, subflow, and step evidence around the flat execution path.</p>
+                <span class="summary-value">Run + subflow + step evidence</span>
+            </article>
+        </div>
+
+        <div class="drill-grid">
+            <article class="panel drill-card">
+                <h3>Runtime assembly</h3>
+                <p>See how startup, config selection, validation, and runtime contract projection prepare one selected scenario for execution.</p>
+                <div class="drill-actions">
+                    <button type="button" class="inline-button" data-jump-scene="0">Open assembly view</button>
+                </div>
+            </article>
+            <article class="panel drill-card">
+                <h3>Flow composition</h3>
+                <p>Inspect how the descriptor synthesizes <code>MainFlow → SubFlow → Step</code> meaning from the flat authored step list.</p>
+                <div class="drill-actions">
+                    <button type="button" class="inline-button" data-jump-scene="3">Open composition view</button>
+                </div>
+            </article>
+            <article class="panel drill-card">
+                <h3>Execution path</h3>
+                <p>Follow how the hierarchy compiles into one explicit Spring Batch step plan and executes through reader/processor/writer services.</p>
+                <div class="drill-actions">
+                    <button type="button" class="inline-button" data-jump-scene="5">Open execution view</button>
+                </div>
+            </article>
+            <article class="panel drill-card">
+                <h3>Evidence</h3>
+                <p>Review accepted outputs, reject artifacts, and machine-readable lifecycle evidence for the run.</p>
+                <div class="drill-actions">
+                    <button type="button" class="inline-button" data-jump-scene="7">Open evidence view</button>
+                </div>
+            </article>
+        </div>
+    </section>
+
+    <section class="walkthrough" id="deepDiveSection">
+        <div class="panel diagram-card">
+            <div class="deep-dive-intro">
+                <div>
+                    <h2 class="diagram-title">Animated deep-dive map</h2>
+                    <p class="deep-dive-copy">
+                        Use this deeper map after the summary view when you want to inspect how one selected scenario moves from assembly,
+                        into synthesized composition, into flat step execution, and finally into operational evidence.
+                    </p>
+                </div>
+                <button type="button" class="secondary inline-button" data-jump-scene="0">Restart deep dive</button>
+            </div>
+            <div class="flow" id="flowDiagram" aria-label="Animated ETL runtime flow diagram">
+                <span class="lane-label lane-startup">Runtime assembly</span>
+                <span class="lane-label lane-config">Flow composition</span>
+                <span class="lane-label lane-runtime">Compiled flat execution</span>
+                <span class="lane-label lane-output">Outputs & observability</span>
+
+                <div class="connector" id="c-start-config" style="left: 265px; top: 86px; width: 86px;"></div>
+                <div class="connector" id="c-config-validate" style="left: 437px; top: 86px; width: 90px;"></div>
+                <div class="connector vertical" id="c-validate-descriptor" style="left: 611px; top: 126px;"></div>
+                <div class="connector" id="c-descriptor-batch" style="left: 264px; top: 226px; width: 88px;"></div>
+                <div class="connector" id="c-batch-strategy" style="left: 438px; top: 226px; width: 88px;"></div>
+                <div class="connector vertical" id="c-strategy-readwrite" style="left: 612px; top: 266px;"></div>
+                <div class="connector" id="c-readwrite-accepted" style="left: 266px; top: 478px; width: 84px;"></div>
+                <div class="connector" id="c-readwrite-rejects" style="left: 266px; top: 534px; width: 84px;"></div>
+                <div class="connector" id="c-readwrite-logs" style="left: 266px; top: 590px; width: 84px;"></div>
+
+                <article class="node" data-step="0" id="node-start" style="left: 94px; top: 42px;">
+                    <strong>Application start</strong>
+                    <small>Spring Boot prepares the runtime assembly before any scenario, MainFlow, or explicit step plan is bound.</small>
+                </article>
+
+                <article class="node" data-step="1" id="node-config" style="left: 350px; top: 42px;">
+                    <strong>Selected scenario & config set</strong>
+                    <small><code>ConfigLoader</code> resolves one selected <code>job-config.yaml</code> and binds the run to one explicit scenario boundary.</small>
+                </article>
+
+                <article class="node" data-step="2" id="node-validate" style="left: 528px; top: 42px;">
+                    <strong>Fail-fast validation</strong>
+                    <small>Checks the chosen source, target, processor, and model contracts before any descriptor projection or step execution begins.</small>
+                </article>
+
+                <article class="node" data-step="3" id="node-descriptor" style="left: 94px; top: 182px;">
+                    <strong>ScenarioRuntimeDescriptor / MAIN_FLOW_PLAN</strong>
+                    <small>Projects the selected scenario into one MainFlow context with visible subflows, recovery policy, and handoff aliases.</small>
+                </article>
+
+                <article class="node" data-step="4" id="node-batch" style="left: 350px; top: 182px;">
+                    <strong>SubFlow composition / SUBFLOW_PLAN</strong>
+                    <small>Synthesizes ordered subflows, dependency rules, and step membership from the selected scenario descriptor.</small>
+                </article>
+
+                <article class="node" data-step="5" id="node-strategy" style="left: 528px; top: 182px;">
+                    <strong>Flat step plan / STEP_PLAN</strong>
+                    <small>Compiles the hierarchy into an explicit ordered Spring Batch step plan and publishes startup-time assembly policy as <code>STEP_PLAN</code> / <code>STEP_READY</code>.</small>
+                </article>
+
+                <article class="node" data-step="6" id="node-readwrite" style="left: 94px; top: 392px; width: 610px; min-height: 118px;">
+                    <strong>Compiled flat step runtime</strong>
+                    <small>
+                        One explicit step now executes through reader, processor, and writer factories while the runtime preserves
+                        <code>mainFlow</code>, <code>subFlow</code>, dependency, handoff, and step-summary context as evidence.
+                    </small>
+                </article>
+
+                <article class="node output accepted" data-step="7" id="node-accepted" style="left: 350px; top: 438px;">
+                    <strong>Accepted target / handoff artifact</strong>
+                    <small>Accepted records are written to the selected target or preserved as the explicit intermediate artifact for the next step.</small>
+                </article>
+
+                <article class="node output rejected branch" data-step="7" id="node-rejects" style="left: 350px; top: 494px;">
+                    <strong>Rejects / SUBFLOW_SUMMARY</strong>
+                    <small>Reject artifacts and subflow outcomes are both preserved so downstream phases can be summarized or logged as <code>BLOCKED</code>.</small>
+                </article>
+
+                <article class="node output logging" data-step="7" id="node-logs" style="left: 350px; top: 550px;">
+                    <strong>Scenario log / RUN_EVENT / STEP_EVENT / RUN_SUMMARY</strong>
+                    <small>Scenario-scoped lifecycle logs preserve composition context, recovery policy, counts, artifact paths, and rolled-up flow evidence after MDC is bound to the selected run.</small>
+                </article>
+            </div>
+        </div>
+
+        <aside class="panel details-card">
+            <h2 class="details-title">Narrated scene details</h2>
+            <p class="details-copy">This panel explains how the active scene maps to the runtime assembly view, the flow composition view, and the shipped evidence vocabulary, including the split between startup-time planning logs and scenario-scoped lifecycle logs.</p>
+            <div class="step-pill">
+                <span class="step-counter" id="stepCounter">Step 1 / 8</span>
+                <span id="stepTag">Startup</span>
+                <span class="chapter-pill" id="chapterPill" data-chapter="Assembly">Assembly</span>
+            </div>
+            <h3 class="detail-title" id="detailTitle">Application startup</h3>
+            <p class="detail-summary" id="detailSummary"></p>
+
+            <div class="hierarchy-grid" aria-label="Current walkthrough architecture snapshot">
+                <div class="hierarchy-card">
+                    <span class="metric-label">View lens</span>
+                    <strong id="hierarchyMainFlow">Runtime assembly</strong>
+                </div>
+                <div class="hierarchy-card">
+                    <span class="metric-label">Composition focus</span>
+                    <strong id="hierarchySubFlow">Application bootstrap</strong>
+                </div>
+                <div class="hierarchy-card">
+                    <span class="metric-label">Active execution</span>
+                    <strong id="hierarchyStep">No execution yet</strong>
+                </div>
+                <div class="hierarchy-card">
+                    <span class="metric-label">Control signal</span>
+                    <strong id="hierarchyControl">No scenario bound</strong>
+                </div>
+            </div>
+
+            <div class="callout-grid" id="calloutGrid"></div>
+
+            <section class="drilldown-card" aria-labelledby="drilldownTitle">
+                <div class="drilldown-header">
+                    <h4 class="drilldown-title" id="drilldownTitle">Phase drill-down</h4>
+                    <span class="drilldown-hint">Click a node or timeline stage to pause and inspect this phase.</span>
+                </div>
+
+                <div class="drilldown-grid">
+                    <div class="drilldown-block">
+                        <h5>Phase responsibility</h5>
+                        <p id="drilldownResponsibility"></p>
+                    </div>
+                    <div class="drilldown-block">
+                        <h5>Inputs into this phase</h5>
+                        <ul class="drilldown-list" id="drilldownInputs"></ul>
+                    </div>
+                    <div class="drilldown-block">
+                        <h5>Key runtime pieces</h5>
+                        <ul class="drilldown-list" id="drilldownRuntimePieces"></ul>
+                    </div>
+                    <div class="drilldown-block">
+                        <h5>Important decisions here</h5>
+                        <ul class="drilldown-list" id="drilldownDecisions"></ul>
+                    </div>
+                    <div class="drilldown-block">
+                        <h5>Outputs from this phase</h5>
+                        <ul class="drilldown-list" id="drilldownOutputs"></ul>
+                    </div>
+                    <div class="drilldown-block">
+                        <h5>Operational evidence</h5>
+                        <ul class="drilldown-list" id="drilldownEvidence"></ul>
+                    </div>
+                </div>
+
+                <div class="doc-links" id="docLinks"></div>
+            </section>
+
+            <ul class="timeline" id="timeline"></ul>
+
+            <div class="legend">
+                <span><i class="legend-dot dot-blue"></i> active runtime stage</span>
+                <span><i class="legend-dot dot-green"></i> accepted forward path</span>
+                <span><i class="legend-dot dot-yellow"></i> composition summary / blocked-flow evidence</span>
+            </div>
+
+            <p class="footer-note">
+                Keep <code>docs/architecture/runtime-flow.md</code> as the canonical explanation.
+                This HTML page is a companion GUI-style walkthrough for the runtime assembly view, the flow composition view, and the shipped logging evidence.
+            </p>
+        </aside>
+    </section>
+</div>
+
+<script>
+    const scenes = [
+        {
+            key: 'startup',
+            chapter: 'Assembly',
+            stage: 'Runtime assembly',
+            mainFlow: 'Runtime assembly',
+            subFlow: 'Application bootstrap',
+            activeStep: 'No execution yet',
+            control: 'No scenario bound',
+            tag: 'Startup',
+            title: 'Application startup',
+            summary: 'The walkthrough begins with runtime assembly. Spring Boot starts the application context, but the run has not yet been bound to one selected scenario, one MainFlow, or one explicit step plan.',
+            nodes: ['node-start'],
+            connectors: [],
+            callouts: [
+                ['Primary class', 'ETLEngineApplication starts the Spring context and prepares the explicit job-launch path.'],
+                ['Current chapter', 'This scene belongs to the runtime assembly view, not the composition view yet.'],
+                ['User mental model', 'The product is preparing to choose one scenario, not yet moving business data or projecting hierarchy.']
+            ],
+            responsibility: 'Bootstrap the application context and prepare the runtime entry path without yet binding the run to one scenario-specific product flow.',
+            inputs: [
+                'Spring Boot application start command.',
+                'Base runtime properties and application profile configuration.'
+            ],
+            runtimePieces: [
+                'ETLEngineApplication',
+                'Spring container startup',
+                'EtlJobRunner registration'
+            ],
+            decisions: [
+                'Do not bind hierarchy context before scenario selection succeeds.',
+                'Keep startup distinct from config resolution so the product flow can be narrated cleanly.'
+            ],
+            outputs: [
+                'Initialized application context.',
+                'Ready-to-run job launch path.'
+            ],
+            evidence: [
+                'Startup-level logs before scenario, mainFlow, or subFlow MDC fields are populated.'
+            ],
+            relatedDocs: [
+                { label: 'Runtime flow note', href: 'runtime-flow.md' },
+                { label: 'Hierarchy model', href: 'hierarchical-flow-composition.md' }
+            ]
+        },
+        {
+            key: 'config',
+            chapter: 'Assembly',
+            stage: 'Runtime assembly',
+            mainFlow: 'Runtime assembly',
+            subFlow: 'Selected scenario boundary',
+            activeStep: 'No execution yet',
+            control: 'One selected job-config.yaml',
+            tag: 'Config selection',
+            title: 'ConfigLoader selects the scenario that becomes the runtime boundary',
+            summary: 'ConfigLoader reads the runtime entry property and resolves one selected job configuration. That selected job defines the scenario boundary from which both the composition model and the explicit execution plan will later be derived.',
+            nodes: ['node-start', 'node-config'],
+            connectors: ['c-start-config'],
+            callouts: [
+                ['Primary class', 'ConfigLoader'],
+                ['Key contract', 'etl.config.job → one selected job-config.yaml → one selected scenario boundary'],
+                ['Operator view', 'The chosen scenario is now visible and traceable before hierarchy plans are emitted.'],
+                ['Bridge to later scenes', 'The selected scenario will later be projected into MainFlow/SubFlow composition and then compiled into one flat step plan.']
+            ],
+            responsibility: 'Resolve one effective scenario/config set for the run and prevent the runtime from drifting into implicit scenario discovery.',
+            inputs: [
+                'etl.config.job runtime property.',
+                'Referenced job-config.yaml path.',
+                'Scenario bundle config files referenced by the job config.'
+            ],
+            runtimePieces: [
+                'ConfigLoader',
+                'JobConfig',
+                'SourceWrapper / TargetWrapper / ProcessorConfig loading'
+            ],
+            decisions: [
+                'If etl.config.job is present, treat it as the selected scenario boundary.',
+                'If it is missing and demo fallback is disabled, fail instead of inferring a runtime flow.'
+            ],
+            outputs: [
+                'Resolved source, target, and processor config trio.',
+                'Explicit ordered step list for the run.',
+                'Selected scenario name that later becomes the MainFlow label.'
+            ],
+            evidence: [
+                'Scenario identity becomes available so later lifecycle evidence can route to the selected scenario log instead of the default startup log.'
+            ],
+            relatedDocs: [
+                { label: 'Runtime flow note', href: 'runtime-flow.md' },
+                { label: 'Job config contract', href: '../config/job-config.md' }
+            ]
+        },
+        {
+            key: 'validation',
+            chapter: 'Assembly',
+            stage: 'Runtime assembly',
+            mainFlow: 'Runtime assembly',
+            subFlow: 'Fail-fast validation gate',
+            activeStep: 'No execution yet',
+            control: 'Selected config contract must pass',
+            tag: 'Fail-fast validation',
+            title: 'Selected configs and model contracts are validated before the flow is projected',
+            summary: 'Before the runtime starts processing records, the selected source, target, processor rules, and required generated model classes are validated. The goal is to fail early with scenario-aware errors before composition and execution views become active.',
+            nodes: ['node-start', 'node-config', 'node-validate'],
+            connectors: ['c-start-config', 'c-config-validate'],
+            callouts: [
+                ['Checks performed', 'Selected source/target contracts, processor configuration, and required model availability.'],
+                ['Why it matters', 'Scenario-aware startup failures are easier to diagnose than deep runtime surprises.'],
+                ['GUI rule', 'Do not represent MainFlow/SubFlow composition or active execution as ready until this gate passes.']
+            ],
+            responsibility: 'Reject malformed selected scenarios early so execution starts only when the chosen config, mapping, and model contracts are sound.',
+            inputs: [
+                'Selected source config.',
+                'Selected target config.',
+                'Selected processor config and explicit steps.',
+                'Required generated model class expectations.'
+            ],
+            runtimePieces: [
+                'ConfigLoader startup validation',
+                'SourceValidationService',
+                'Processor validation checks',
+                'GeneratedModelClassResolver validation'
+            ],
+            decisions: [
+                'Fail startup if selected config is malformed or incomplete.',
+                'Validate processor config before model availability so unrelated class errors do not mask mapping problems.'
+            ],
+            outputs: [
+                'Validated selected scenario contract.',
+                'Clear scenario-aware blockers when validation fails.'
+            ],
+            evidence: [
+                'Startup failure messages stay attached to the selected scenario instead of surfacing later as execution noise.'
+            ],
+            relatedDocs: [
+                { label: 'Runtime decisions', href: 'runtime-flow.md' },
+                { label: 'Validation architecture', href: 'validation-extension-architecture.md' }
+            ]
+        },
+        {
+            key: 'mainFlow',
+            chapter: 'Composition',
+            stage: 'Flow composition',
+            mainFlow: 'Flow composition',
+            subFlow: 'Scenario → MainFlow',
+            activeStep: 'Descriptor only',
+            control: 'visibleSubFlows + handoffAliases',
+            tag: 'MAIN_FLOW_PLAN',
+            title: 'The descriptor projects one selected scenario into MainFlow context',
+            summary: 'The selected scenario is projected into a self-explanatory runtime descriptor. This is the start of the flow composition view: one scenario becomes one MainFlow with shared recovery context, visible subflows, and handoff aliases before any step starts running.',
+            nodes: ['node-start', 'node-config', 'node-validate', 'node-descriptor'],
+            connectors: ['c-start-config', 'c-config-validate', 'c-validate-descriptor'],
+            callouts: [
+                ['Primary objects', 'ScenarioRuntimeDescriptor and ScenarioMainFlowContextDescriptor.'],
+                ['Event emitted', 'JobCompletionNotificationListener writes MAIN_FLOW_PLAN with visibleSubFlows, handoffAliases, and recovery context into the scenario log once MDC is bound.'],
+                ['Why it matters', 'It gives logging, UI, and execution one shared MainFlow view instead of scattered assumptions.']
+            ],
+            responsibility: 'Turn the selected scenario into one self-explanatory MainFlow contract that carries the assets needed for that run and nothing broader.',
+            inputs: [
+                'Scenario name and selected config paths.',
+                'Explicit configured steps.',
+                'Resolved source/target/processor selections.',
+                'Validation outcomes and model expectations.'
+            ],
+            runtimePieces: [
+                'ScenarioRuntimeDescriptorAssembler',
+                'ScenarioRuntimeDescriptor',
+                'ScenarioMainFlowContextDescriptor',
+                'ScenarioValidationSummary'
+            ],
+            decisions: [
+                'Represent the selected run as one MainFlow boundary inside the scenario.',
+                'Keep visibleSubFlows and handoffAliases explicit now so later orchestration remains explainable.'
+            ],
+            outputs: [
+                'Scenario runtime descriptor with main-flow context, visible subflows, and validation summary.',
+                'Shared scenario-scoped view for runtime assembly, diagnostics, and later UI projection.'
+            ],
+            evidence: [
+                'MAIN_FLOW_PLAN exposes visibleSubFlows, handoffAliases, plannedStepCount, and summary text in the scenario log.'
+            ],
+            relatedDocs: [
+                { label: 'Hierarchy model', href: 'hierarchical-flow-composition.md' },
+                { label: 'Scenario-driven direction', href: 'scenario-driven-runtime-direction.md' }
+            ]
+        },
+        {
+            key: 'subFlow',
+            chapter: 'Composition',
+            stage: 'Flow composition',
+            mainFlow: 'Flow composition',
+            subFlow: 'MainFlow → SubFlow → Step',
+            activeStep: 'Descriptor only',
+            control: 'dependsOnSubFlows + step links',
+            tag: 'SUBFLOW_PLAN',
+            title: 'SUBFLOW_PLAN explains the reusable phases inside the MainFlow',
+            summary: 'The descriptor and runtime assembly layers turn the flat ordered step list into named subflow phases for observability. Each synthesized subflow gets order, initial status, dependency information, and explicit step membership so the composition model is easier to understand than a flat step-only list.',
+            nodes: ['node-start', 'node-config', 'node-validate', 'node-descriptor', 'node-batch'],
+            connectors: ['c-start-config', 'c-config-validate', 'c-validate-descriptor', 'c-descriptor-batch'],
+            callouts: [
+                ['Primary objects', 'ScenarioSubFlowDescriptor and BatchConfig.'],
+                ['Important decision', 'Use synthesized subflows for observability while execution still follows the explicit ordered steps.'],
+                ['Event emitted', 'SUBFLOW_PLAN logs subFlowOrder, dependsOnSubFlows, handoff aliases, and step names in the scenario log.']
+            ],
+            responsibility: 'Translate the selected scenario into named reusable phases while preserving one explicit executable plan.',
+            inputs: [
+                'ScenarioRuntimeDescriptor.',
+                'RunConfigurationMetadata.',
+                'Named step source/target selections.',
+                'Processor mapping for each step.'
+            ],
+            runtimePieces: [
+                'BatchConfig',
+                'ScenarioSubFlowDescriptor consumption',
+                'Step membership and dependency projection'
+            ],
+            decisions: [
+                'Treat one scenario as one MainFlow containing ordered subflows.',
+                'Preserve dependency and handoff metadata even before the runtime has first-class authored subflow blocks.'
+            ],
+            outputs: [
+                'Named subflow plan with dependency and handoff context.',
+                'Resolved per-step source, target, and mapping context.'
+            ],
+            evidence: [
+                'SUBFLOW_PLAN shows the hierarchy that later STEP_PLAN and STEP_EVENT entries will inherit, even though the plan and runtime evidence split across startup and scenario logs.'
+            ],
+            relatedDocs: [
+                { label: 'Hierarchy model', href: 'hierarchical-flow-composition.md' },
+                { label: 'Flow normalization rules', href: 'flow-normalization-rules.md' }
+            ]
+        },
+        {
+            key: 'stepPlan',
+            chapter: 'Execution',
+            stage: 'Compiled flat execution',
+            mainFlow: 'Compiled flat execution',
+            subFlow: 'Explicit ordered Spring Batch plan',
+            activeStep: 'Next executable step resolved',
+            control: 'STEP_PLAN / STEP_READY',
+            tag: 'STEP_PLAN',
+            title: 'STEP_PLAN compiles the hierarchy into one explicit executable step plan',
+            summary: 'Once a step is resolved, the runtime publishes step-level planning evidence that includes MainFlow, SubFlow, dependency data, handoff alias usage, and execution policy. This is the bridge from the composition model to the shipped flat execution plan.',
+            nodes: ['node-start', 'node-config', 'node-validate', 'node-descriptor', 'node-batch', 'node-strategy'],
+            connectors: ['c-start-config', 'c-config-validate', 'c-validate-descriptor', 'c-descriptor-batch', 'c-batch-strategy'],
+            callouts: [
+                ['Primary event', 'STEP_PLAN from BatchConfig plus STEP_READY when the step is fully assembled; these assembly events currently route to logs/startup/startup.log.'],
+                ['Why it matters', 'Operators can now see how the composition model compiles into one explicit step plan before records move.'],
+                ['Execution policy', 'Chunk/tasklet choice remains a step policy, not a MainFlow identity change.']
+            ],
+            responsibility: 'Choose the execution policy for the resolved step without changing the meaning of the selected MainFlow or SubFlow.',
+            inputs: [
+                'Resolved step definition.',
+                'Source record count estimate.',
+                'Duplicate handling configuration and ordering rules.'
+            ],
+            runtimePieces: [
+                'BatchConfig step planning',
+                'ScenarioHierarchyLoggingSupport metadata',
+                'Chunk threshold decision',
+                'DuplicateResolverFactory influence on tasklet override'
+            ],
+            decisions: [
+                'Use chunk execution for larger normal flows.',
+                'Use tasklet execution for smaller flows or ordered duplicate winner selection.'
+            ],
+            outputs: [
+                'Chosen execution mode for the step.',
+                'Prepared runtime path for factories, model resolution, and step logging.'
+            ],
+            evidence: [
+                'STEP_PLAN exposes mainFlow, subFlow, stepOrder, stepSubFlowOrder, dependency metadata, and stepSummary in the startup log before execution begins.',
+                'STEP_READY stays with that same startup-log assembly view.'
+            ],
+            relatedDocs: [
+                { label: 'Runtime decisions', href: 'runtime-flow.md' },
+                { label: 'Job config contract', href: '../config/job-config.md' }
+            ]
+        },
+        {
+            key: 'execution',
+            chapter: 'Execution',
+            stage: 'Compiled flat execution',
+            mainFlow: 'Compiled flat execution',
+            subFlow: 'Reader → processor → writer runtime',
+            activeStep: 'Current explicit step',
+            control: 'Upstream complete → handoff ready',
+            tag: 'Runtime execution',
+            title: 'The shipped runtime executes one explicit step while preserving composition context as evidence',
+            summary: 'The runtime now resolves model metadata and uses factories to create the correct reader, processor, and writer implementations. Records move through the configured mapping, transform, validation, and writing path while the listener layer keeps the step anchored to its MainFlow, SubFlow, dependencies, and handoff context.',
+            nodes: ['node-start', 'node-config', 'node-validate', 'node-descriptor', 'node-batch', 'node-strategy', 'node-readwrite'],
+            connectors: ['c-start-config', 'c-config-validate', 'c-validate-descriptor', 'c-descriptor-batch', 'c-batch-strategy', 'c-strategy-readwrite'],
+            callouts: [
+                ['Factories', 'DynamicReaderFactory, DynamicProcessorFactory, and DynamicWriterFactory create the step components.'],
+                ['Resolver role', 'GeneratedModelClassResolver determines the concrete model contract to use.'],
+                ['Hierarchy evidence', 'StepLoggingContextListener emits step_started and step_finished with mainFlow, subFlow, dependency, and handoff metadata even though execution stays flat.']
+            ],
+            responsibility: 'Assemble and execute the active step runtime so records move through the selected models, factories, mappings, transforms, and rules without losing the hierarchy context above the step.',
+            inputs: [
+                'Resolved source config and source class.',
+                'Resolved target config and write/processing class metadata.',
+                'Selected processor mapping and transform/rule chain.'
+            ],
+            runtimePieces: [
+                'GeneratedModelClassResolver',
+                'DynamicReaderFactory',
+                'DynamicProcessorFactory',
+                'DynamicWriterFactory',
+                'Reader → processor → writer step runtime'
+            ],
+            decisions: [
+                'Resolve the concrete runtime model contract first.',
+                'Use factory seams to choose the correct reader, processor, and writer implementations.',
+                'Route invalid records to reject output when configured instead of silently losing evidence.',
+                'Allow downstream subflows to start only after required upstream work has completed.'
+            ],
+            outputs: [
+                'Accepted records ready for the selected target.',
+                'Rejected-record evidence when rules fail.',
+                'Per-step processing statistics.'
+            ],
+            evidence: [
+                'STEP_EVENT step_started and step_finished expose counts, rejectOutputPath, archivedSourcePath, dependencies, and stepSummary in the selected scenario log.',
+                'This phase is where operational behavior becomes visible in output artifacts.'
+            ],
+            relatedDocs: [
+                { label: 'Extension points', href: 'extension-points.md' },
+                { label: 'Default processor config', href: '../config/processor/default-processor.md' }
+            ]
+        },
+        {
+            key: 'outputs',
+            chapter: 'Evidence',
+            stage: 'Outputs & evidence',
+            mainFlow: 'Outputs & evidence',
+            subFlow: 'Accepted, rejected, and rolled-up summaries',
+            activeStep: 'Run complete',
+            control: 'SUBFLOW_SUMMARY + RUN_SUMMARY',
+            tag: 'Outputs & evidence',
+            title: 'Business output and rolled-up evidence finish the walkthrough',
+            summary: 'A completed run is not only about writing final target data. The runtime also emits blocked-downstream reasoning, step-level hardening evidence, and machine-readable lifecycle logs in the current observed scenario-log order: RUN_EVENT run_requested, RUN_EVENT job_started, MAIN_FLOW_PLAN, SUBFLOW_PLAN, STEP_EVENT activity, RUN_SUMMARY, SUBFLOW_SUMMARY, and RUN_EVENT run_finished. That makes the runtime assembly and composition model operationally understandable after execution.',
+            nodes: ['node-start', 'node-config', 'node-validate', 'node-descriptor', 'node-batch', 'node-strategy', 'node-readwrite', 'node-accepted', 'node-rejects', 'node-logs'],
+            connectors: ['c-start-config', 'c-config-validate', 'c-validate-descriptor', 'c-descriptor-batch', 'c-batch-strategy', 'c-strategy-readwrite', 'c-readwrite-accepted', 'c-readwrite-rejects', 'c-readwrite-logs'],
+            callouts: [
+                ['Business path', 'Final target outputs are written to the configured destination.'],
+                ['Subflow path', 'SUBFLOW_SUMMARY records which subflows completed and which downstream subflows were blocked by upstream failure.'],
+                ['Run evidence', 'Lifecycle listeners emit machine-readable scenario-log evidence, while startup planning remains in logs/startup/startup.log.']
+            ],
+            responsibility: 'Finish the run with business output plus rolled-up hierarchy evidence so the scenario is understandable after execution, not only during coding.',
+            inputs: [
+                'Processed accepted records.',
+                'Rejected records and rule outcomes.',
+                'Step execution statistics and lifecycle events.'
+            ],
+            runtimePieces: [
+                'JobCompletionNotificationListener',
+                'StepLoggingContextListener',
+                'FileIngestionHardeningStepListener',
+                'Accepted target writer output',
+                'Reject output path'
+            ],
+            decisions: [
+                'Persist final target output to the configured destination.',
+                'Write reject evidence when configured.',
+                'Emit machine-readable main-flow, subflow, run, and step lifecycle summaries.'
+            ],
+            outputs: [
+                'Final target artifacts.',
+                'Reject CSV or equivalent evidence.',
+                'MAIN_FLOW_PLAN, SUBFLOW_PLAN, SUBFLOW_SUMMARY, RUN_EVENT, STEP_EVENT, and RUN_SUMMARY scenario-log entries.'
+            ],
+            evidence: [
+                'Accepted output is the business artifact.',
+                'Reject output is the data-quality artifact.',
+                'SUBFLOW_SUMMARY is the phase-level artifact.',
+                'Lifecycle logs are the operational artifact, with startup planning separated from scenario execution evidence.'
+            ],
+            relatedDocs: [
+                { label: 'Runtime flow note', href: 'runtime-flow.md' },
+                { label: 'Job history & observability', href: 'job-history-and-operational-observability.md' },
+                { label: 'Hierarchy model', href: 'hierarchical-flow-composition.md' }
+            ]
+        }
+    ];
+
+    const timelineLabels = [
+        'Assembly · application startup',
+        'Assembly · scenario selection',
+        'Assembly · fail-fast validation',
+        'Composition · MAIN_FLOW_PLAN',
+        'Composition · SUBFLOW_PLAN',
+        'Execution · STEP_PLAN / STEP_READY',
+        'Execution · active flat step runtime',
+        'Evidence · outputs and summaries'
+    ];
+
+    const elements = {
+        progressBar: document.getElementById('progressBar'),
+        metricStage: document.getElementById('metricStage'),
+        metricMode: document.getElementById('metricMode'),
+        metricArtifact: document.getElementById('metricArtifact'),
+        metricPlayback: document.getElementById('metricPlayback'),
+        stepCounter: document.getElementById('stepCounter'),
+        stepTag: document.getElementById('stepTag'),
+        chapterPill: document.getElementById('chapterPill'),
+        detailTitle: document.getElementById('detailTitle'),
+        detailSummary: document.getElementById('detailSummary'),
+        hierarchyMainFlow: document.getElementById('hierarchyMainFlow'),
+        hierarchySubFlow: document.getElementById('hierarchySubFlow'),
+        hierarchyStep: document.getElementById('hierarchyStep'),
+        hierarchyControl: document.getElementById('hierarchyControl'),
+        calloutGrid: document.getElementById('calloutGrid'),
+        drilldownResponsibility: document.getElementById('drilldownResponsibility'),
+        drilldownInputs: document.getElementById('drilldownInputs'),
+        drilldownRuntimePieces: document.getElementById('drilldownRuntimePieces'),
+        drilldownDecisions: document.getElementById('drilldownDecisions'),
+        drilldownOutputs: document.getElementById('drilldownOutputs'),
+        drilldownEvidence: document.getElementById('drilldownEvidence'),
+        docLinks: document.getElementById('docLinks'),
+        timeline: document.getElementById('timeline'),
+        prevBtn: document.getElementById('prevBtn'),
+        playBtn: document.getElementById('playBtn'),
+        pauseBtn: document.getElementById('pauseBtn'),
+        nextBtn: document.getElementById('nextBtn'),
+        restartBtn: document.getElementById('restartBtn')
+    };
+
+    let currentIndex = 0;
+    let timer = null;
+    const intervalMs = 2600;
+
+    function renderTimeline(index) {
+        elements.timeline.innerHTML = '';
+        timelineLabels.forEach((label, i) => {
+            const item = document.createElement('li');
+            if (i < index) item.classList.add('completed');
+            if (i === index) item.classList.add('active');
+            item.innerHTML = `<button type="button" class="timeline-button" data-step="${i}" aria-pressed="${i === index}"><span class="timeline-index">${i + 1}</span><span>${label}</span></button>`;
+            elements.timeline.appendChild(item);
+        });
+
+        elements.timeline.querySelectorAll('.timeline-button').forEach(button => {
+            button.addEventListener('click', () => jumpToScene(Number(button.dataset.step)));
+        });
+    }
+
+    function renderCallouts(callouts) {
+        elements.calloutGrid.innerHTML = '';
+        callouts.forEach(([title, text]) => {
+            const div = document.createElement('div');
+            div.className = 'callout';
+            div.innerHTML = `<strong>${title}</strong><p>${text}</p>`;
+            elements.calloutGrid.appendChild(div);
+        });
+    }
+
+    function renderList(target, items) {
+        target.innerHTML = '';
+        (items || []).forEach(item => {
+            const li = document.createElement('li');
+            li.textContent = item;
+            target.appendChild(li);
+        });
+    }
+
+    function renderDocLinks(links) {
+        elements.docLinks.innerHTML = '';
+        (links || []).forEach(link => {
+            const anchor = document.createElement('a');
+            anchor.className = 'doc-link';
+            anchor.href = link.href;
+            anchor.textContent = link.label;
+            elements.docLinks.appendChild(anchor);
+        });
+    }
+
+    function renderDrilldown(scene) {
+        elements.drilldownResponsibility.textContent = scene.responsibility || '';
+        renderList(elements.drilldownInputs, scene.inputs);
+        renderList(elements.drilldownRuntimePieces, scene.runtimePieces);
+        renderList(elements.drilldownDecisions, scene.decisions);
+        renderList(elements.drilldownOutputs, scene.outputs);
+        renderList(elements.drilldownEvidence, scene.evidence);
+        renderDocLinks(scene.relatedDocs);
+    }
+
+    function setupInteractiveNodes() {
+        document.querySelectorAll('.node').forEach(node => {
+            const stepIndex = Number(node.dataset.step);
+            node.setAttribute('role', 'button');
+            node.setAttribute('tabindex', '0');
+            node.setAttribute('aria-label', `Show drill-down for ${node.textContent.trim()}`);
+            node.addEventListener('click', () => jumpToScene(stepIndex));
+            node.addEventListener('keydown', event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    jumpToScene(stepIndex);
+                }
+            });
+        });
+    }
+
+    function jumpToScene(index) {
+        stopAutoplay();
+        updateScene(index);
+        document.getElementById('deepDiveSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function setupDrillthroughButtons() {
+        document.querySelectorAll('[data-jump-scene]').forEach(button => {
+            button.addEventListener('click', () => jumpToScene(Number(button.dataset.jumpScene)));
+        });
+    }
+
+    function updateScene(index) {
+        currentIndex = index;
+        const scene = scenes[index];
+        const progress = ((index + 1) / scenes.length) * 100;
+
+        document.querySelectorAll('.node').forEach(node => {
+            node.classList.remove('active', 'completed');
+        });
+        document.querySelectorAll('.connector').forEach(connector => {
+            connector.classList.remove('active');
+        });
+
+        scenes.forEach((s, i) => {
+            if (i < index) {
+                s.nodes.forEach(id => document.getElementById(id)?.classList.add('completed'));
+            }
+        });
+
+        scene.nodes.forEach(id => {
+            const node = document.getElementById(id);
+            if (node) node.classList.add('active');
+        });
+
+        scene.connectors.forEach(id => {
+            const connector = document.getElementById(id);
+            if (connector) connector.classList.add('active');
+        });
+
+        elements.progressBar.style.width = `${progress}%`;
+        elements.metricStage.textContent = scene.stage;
+        elements.metricMode.textContent = scene.mainFlow;
+        elements.metricArtifact.textContent = scene.subFlow;
+        elements.stepCounter.textContent = `Step ${index + 1} / ${scenes.length}`;
+        elements.stepTag.textContent = scene.tag;
+        elements.chapterPill.textContent = scene.chapter || 'Assembly';
+        elements.chapterPill.dataset.chapter = scene.chapter || 'Assembly';
+        elements.detailTitle.textContent = scene.title;
+        elements.detailSummary.textContent = scene.summary;
+        elements.hierarchyMainFlow.textContent = scene.mainFlow;
+        elements.hierarchySubFlow.textContent = scene.subFlow;
+        elements.hierarchyStep.textContent = scene.activeStep;
+        elements.hierarchyControl.textContent = scene.control;
+        document.querySelectorAll('.chapter-badge').forEach(badge => {
+            badge.classList.toggle('active', badge.dataset.chapter === scene.chapter);
+        });
+        renderCallouts(scene.callouts);
+        renderDrilldown(scene);
+        renderTimeline(index);
+        updateButtons();
+    }
+
+    function updateButtons() {
+        elements.prevBtn.disabled = currentIndex === 0;
+        elements.nextBtn.disabled = currentIndex === scenes.length - 1;
+    }
+
+    function stopAutoplay() {
+        if (timer) {
+            window.clearInterval(timer);
+            timer = null;
+        }
+        elements.metricPlayback.textContent = 'Autoplay off';
+    }
+
+    function startAutoplay() {
+        stopAutoplay();
+        elements.metricPlayback.textContent = 'Autoplay on';
+        timer = window.setInterval(() => {
+            if (currentIndex >= scenes.length - 1) {
+                stopAutoplay();
+                return;
+            }
+            updateScene(currentIndex + 1);
+        }, intervalMs);
+    }
+
+    elements.prevBtn.addEventListener('click', () => {
+        stopAutoplay();
+        if (currentIndex > 0) updateScene(currentIndex - 1);
+    });
+
+    elements.nextBtn.addEventListener('click', () => {
+        stopAutoplay();
+        if (currentIndex < scenes.length - 1) updateScene(currentIndex + 1);
+    });
+
+    elements.playBtn.addEventListener('click', () => {
+        startAutoplay();
+    });
+
+    elements.pauseBtn.addEventListener('click', () => {
+        stopAutoplay();
+    });
+
+    elements.restartBtn.addEventListener('click', () => {
+        stopAutoplay();
+        updateScene(0);
+        startAutoplay();
+    });
+
+    setupInteractiveNodes();
+    setupDrillthroughButtons();
+    updateScene(0);
+    startAutoplay();
+</script>
+</body>
+</html>
+

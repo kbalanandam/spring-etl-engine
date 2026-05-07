@@ -4,6 +4,11 @@
 
 This document explains where new capabilities should be added so the architecture stays coherent as the product grows.
 
+## Status
+
+- Classification: **Current baseline + future evolution**
+- The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.
+
 ## Current extension model
 
 The engine is designed around three runtime extension points:
@@ -14,11 +19,11 @@ The engine is designed around three runtime extension points:
 
 These are selected dynamically based on config.
 
-Validation and field-level processing behavior are now implemented or planned as additional extension points on the active runtime path:
+Validation and field-level processing behavior now use both shipped and planned extension points around the active runtime path:
 
-- source-level validation extensions for source artifact / source contract checks
+- shipped source-level validation extensions for source artifact / source contract checks
 - future source-level transform extensions for source-native adaptation before normal runtime records exist
-- processor-rule validation extensions for record acceptance / rejection checks
+- shipped processor-rule validation extensions for record acceptance / rejection checks
 - processor-transform extensions for record cleaning / normalization before validation and write
 
 ## Current code anchors
@@ -33,6 +38,8 @@ Validation and field-level processing behavior are now implemented or planned as
 - Source validation dispatch: `src/main/java/com/etl/config/source/validation/SourceValidationService.java`
 - Processor rule SPI: `src/main/java/com/etl/processor/validation/ProcessorValidationRule.java`
 - Processor rule dispatch: `src/main/java/com/etl/processor/validation/ValidationRuleEvaluator.java`
+- Current built-in source validators: `CsvSourceValidator`, `XmlSourceValidator`, `RelationalSourceValidator`
+- Current built-in processor rules: `NotNullProcessorValidationRule`, `TimeFormatProcessorValidationRule`, `DuplicateProcessorValidationRule`
 - Planned processor transform extension point: keep it adjacent to `src/main/java/com/etl/config/processor/ProcessorConfig.java`, `src/main/java/com/etl/processor/impl/DefaultDynamicProcessor.java`, and the mapping path under `src/main/java/com/etl/mapping/`
 
 ## How to add a new source/target format
@@ -90,6 +97,8 @@ Planned runtime precedence should stay explicit:
 
 That means transform-then-reject is a valid and expected flow. For example, a country code may be normalized to `UNKNOWN` first and then rejected by a processor rule.
 
+Today, the shipped runtime already implements steps 1, 3, 5, and 6 on the active path. Steps 2 and 4 remain the intended future transform-extension seams.
+
 ## Config guardrails
 
 To avoid ambiguous ownership once source transforms exist:
@@ -142,6 +151,8 @@ Use a target config for:
 Do not force stored procedures entirely into source/target classes. Treat them as an explicit operation type when that feature is introduced.
 
 ## Recommended future extension points
+
+Read this as current baseline + future evolution for how new runtime seams should be added.
 
 ```mermaid
 flowchart LR

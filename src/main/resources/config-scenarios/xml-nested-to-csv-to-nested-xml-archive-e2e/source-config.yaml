@@ -1,0 +1,34 @@
+sources:
+  - format: xml
+    sourceName: TagValidationSource
+    packageName: com.etl.generated.job.xmlnestedcsvroundtrip.source
+    filePath: input/nested-sample.xml
+    rootElement: TagValidationList
+    recordElement: TVLTagDetails
+    archive:
+      enabled: true
+      successPath: archive/success/
+      namePattern: "{originalName}"
+    flatteningStrategy: NestedXml
+    modelDefinitionPath: definitions/nested-source-model.yaml
+  - format: csv
+    sourceName: TagValidationCsvIntermediate
+    packageName: com.etl.model.source
+    filePath: target/intermediate/tag-validation-intermediate.csv
+    delimiter: ","
+    fields:
+      - name: homeAgencyId
+        type: String
+      - name: tagAgencyId
+        type: String
+      - name: tagSerialNumber
+        type: String
+      - name: plateNumber
+        type: String
+      - name: plateCountry
+        type: String
+      - name: plateState
+        type: String
+      - name: accountNumber
+        type: String
+

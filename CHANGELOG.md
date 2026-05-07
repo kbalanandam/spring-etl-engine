@@ -6,6 +6,22 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Added
+- Added processor-side `expression` transforms on the active `transforms[]` seam so mappings can derive target fields from source data, including derived fields that omit `from` when `expression` is the first transform.
+- Added focused processor, mapping, validation-aware, and config-loader coverage proving expression-derived fields, resolved-value access, and fail-fast invalid-expression validation.
+- Added a preserved `csv-to-nested-xml` scenario bundle proving that a CSV source can map into a generated nested XML target through explicit `job-config.yaml` selection and `modelDefinitionPath`.
+- Added focused flow-proof coverage for CSV source to nested XML target execution, including generated nested target classes and final XML structure verification.
+- Added optional `includeHeader` support on CSV targets so a CSV artifact produced by one step can be consumed by a downstream CSV source step in the same scenario using the normal header-skipping reader path.
+- Added a preserved `xml-nested-to-csv-to-nested-xml` multi-step scenario bundle proving one selected job can execute nested XML -> CSV -> nested XML in one ordered run with an intermediate CSV handoff.
+- Added focused roundtrip flow coverage for the new nested XML -> CSV -> nested XML multi-step scenario.
+- Added a shared file-backed archive-on-success contract so archive behavior now applies across supported file sources such as CSV and XML, with scenario-relative archive path normalization and step-finished `archivedSourcePath` evidence on the active runtime path.
+- Added a preserved `xml-nested-to-csv-to-nested-xml-archive-e2e` scenario bundle proving nested XML -> CSV -> nested XML execution together with XML source archive-on-success behavior.
+- Added descriptor-backed `MAIN_FLOW_PLAN`, `SUBFLOW_PLAN`, and `SUBFLOW_SUMMARY` evidence so logs can explain synthesized subflows and report blocked downstream subflows when an upstream step fails.
+- Added a refreshed hierarchy-aware `docs/architecture/runtime-flow-walkthrough.html` GUI walkthrough so the product flow now shows `MainFlow -> SubFlow -> Step` alongside shipped logging and evidence vocabulary.
+
+### Changed
+- Refreshed architecture, config, scenario, and product-tracking documentation so archive-on-success is now described consistently as a shared file-backed source concern instead of CSV-only wording, and preserved XML archive proof guidance is now included in the active docs set.
+
 ---
 
 ## [1.4.0] - 2026-04-28

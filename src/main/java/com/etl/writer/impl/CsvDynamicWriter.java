@@ -6,13 +6,12 @@ import com.etl.config.target.TargetConfig;
 import com.etl.enums.ModelFormat;
 import com.etl.writer.DynamicWriter;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.file.FlatFileItemWriter;
 import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
 import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.util.Arrays;
 
 @Component("csvWriter")
 public class CsvDynamicWriter implements DynamicWriter {
@@ -27,14 +26,12 @@ public class CsvDynamicWriter implements DynamicWriter {
 
         CsvTargetConfig csvConfig = (CsvTargetConfig) config;
 
-        FlatFileItemWriter<Object> writer = new FlatFileItemWriter<>();
-
         String path = csvConfig.getFilePath();
         if (path.endsWith("/") || new File(path).isDirectory()) {
             path += csvConfig.getTargetName().toLowerCase() + ".csv";
         }
 
-        writer.setResource(new FileSystemResource(path));
+        StagedFlatFileItemWriter<Object> writer = new StagedFlatFileItemWriter<>(path);
 
         // Dynamic line aggregator – converts object → CSV row
         BeanWrapperFieldExtractor<Object> extractor = new BeanWrapperFieldExtractor<>();
@@ -44,12 +41,19 @@ public class CsvDynamicWriter implements DynamicWriter {
                         .map(FieldDefinition::getName)
                         .toArray(String[]::new)
         );
+        String[] fieldNames = csvConfig.getFields()
+                .stream()
+                .map(FieldDefinition::getName)
+                .toArray(String[]::new);
 
         DelimitedLineAggregator<Object> aggregator = new DelimitedLineAggregator<>();
         aggregator.setDelimiter(",");
         aggregator.setFieldExtractor(extractor);
 
         writer.setLineAggregator(aggregator);
+        if (csvConfig.isIncludeHeader()) {
+            writer.setHeaderCallback(headerWriter -> headerWriter.write(String.join(",", Arrays.asList(fieldNames))));
+        }
         writer.afterPropertiesSet();
 
         return writer;

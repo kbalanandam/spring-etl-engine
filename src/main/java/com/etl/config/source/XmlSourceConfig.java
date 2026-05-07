@@ -16,7 +16,7 @@ import javax.xml.stream.XMLStreamReader;
  * Configuration class for XML source definitions.
  * Holds XML-specific properties such as file path, root element, and record element.
  */
-public class XmlSourceConfig extends SourceConfig {
+public class XmlSourceConfig extends SourceConfig implements FileSourceConfig {
 
     /** Path to the XML file.
      * -- SETTER --
@@ -57,6 +57,8 @@ public class XmlSourceConfig extends SourceConfig {
     private String modelDefinitionPath;
 
 	private ValidationConfig validation;
+
+  private FileArchiveConfig archive;
 
   public String getFilePath() {
     return filePath;
@@ -112,6 +114,19 @@ public class XmlSourceConfig extends SourceConfig {
 
   public void setValidation(ValidationConfig validation) {
     this.validation = validation;
+  }
+
+  public FileArchiveConfig getArchive() {
+    return archive;
+  }
+
+  public void setArchive(FileArchiveConfig archive) {
+    this.archive = archive;
+  }
+
+  @Override
+  public FileArchiveConfig getArchiveConfig() {
+    return archive;
   }
 
     // No-args constructor for YAML/object mapping

@@ -11,7 +11,7 @@ Use it to answer four questions when extending this area further:
 3. where field-level validation rules should be configured
 4. where future cleaner / normalization behavior should be configured and what the first supported file-ingestion slice should and should not do
 
-The first CSV-focused slice described here is now part of the shipped config contract. Broader expansion beyond that slice remains forward-looking architecture guidance.
+The first CSV-focused slice described here is now part of the shipped config contract, and the archive seam has since been generalized across shared file-backed source configs such as CSV and XML. Broader expansion beyond that slice remains forward-looking architecture guidance.
 
 For the longer-term extension model that separates future source-validation and processor-rule SPIs, see [`validation-extension-architecture.md`](validation-extension-architecture.md).
 
@@ -25,7 +25,7 @@ The current runtime already has:
 - machine-readable step/run evidence
 - a stronger documentation and backlog discipline
 
-The next practical product slice is not more connector breadth first.
+The practical product slice that followed from that baseline was not more connector breadth first.
 
 It is safer file ingestion behavior for real scenarios:
 
@@ -43,12 +43,13 @@ Today, the shipped config contract supports:
 - default processor field mapping through `processor-config.yaml`
 - target writing through the selected target config
 
-Today, the shipped config contract now supports a first CSV-focused slice for:
+Today, the shipped config contract now supports a first file-ingestion hardening slice with the strongest preserved proof on CSV scenarios for:
 
 - per-field validation rules in processor mappings (`notNull`, `timeFormat`)
 - duplicate handling for keep-first/reject-later semantics plus ordered winner selection across single-field and composite-key matching
 - explicit rejected-record output configuration in processor config
-- processed-source-file archive configuration in CSV source config
+- processed-source-file archive configuration in file-based source config
+- staged file-target publication for CSV/XML outputs so partial rerun artifacts are not treated as final published outputs
 - accepted vs rejected record artifact semantics for the preserved CSV proof scenario
 
 The remaining gaps are now the broader follow-on work beyond that first slice.
@@ -68,9 +69,9 @@ The main deferred exception to preserve is source-native duplicate identity that
 
 For ordered duplicate winner selection, the current shipped slice resolves the final winner per duplicate key before the write phase and therefore forces tasklet-style final buffering for that mapping.
 
-## Design goals for the next slice
+## Design goals for the follow-on slice
 
-The first implementation slice should:
+The next follow-on slice should:
 
 - stay file-ingestion focused
 - stay operator-visible and testable
@@ -78,7 +79,7 @@ The first implementation slice should:
 - avoid introducing a broad rule engine too early
 - avoid changing every config type at once
 
-The first implementation slice should prove one preserved realistic file scenario that shows:
+It should prove one preserved realistic file scenario that shows:
 
 - accepted records written to the target
 - rejected records written to reject output
@@ -92,10 +93,10 @@ Archive behavior is a file-lifecycle concern.
 
 It should live with the file source definition, not with field mapping rules.
 
-For the first slice, that means archive behavior should be added only to file-based source configs such as:
+For the current shipped slice, archive behavior is available only on file-based source configs such as:
 
 - `CsvSourceConfig`
-- later `XmlSourceConfig`
+- `XmlSourceConfig`
 
 ### 2. Validation rules belong in the processor config
 
@@ -155,6 +156,11 @@ For the first slice:
 - if records are rejected but the step completes successfully, the original file is still archived
 
 ## Processor config proposal
+
+This YAML block mixes shipped and future-looking examples intentionally:
+
+- `rejectHandling`, `rules`, and the duplicate examples reflect shipped first-slice behavior
+- the `transforms:` / `valueMap` example is future-facing and illustrates the intended next processor-transform contract, not behavior that is shipped today
 
 ```yaml
 processor:
@@ -258,6 +264,14 @@ For the first slice, one record should move through this decision path:
 6. if rules pass, record is written to the selected target
 7. if rules fail or an older duplicate is discarded, the record is written to reject output with reason metadata when rejected-record output is enabled
 8. when the step completes successfully, the original file is archived if archive is enabled
+
+For current file targets, the write path should also remain idempotent for the bounded `rerun-from-start` recovery slice:
+
+1. the writer produces a sibling staged file first
+2. the staged file is promoted to the configured final path only after successful step completion
+3. if the step fails, the staged file is cleaned and the previous published final output is left untouched
+
+This is the current bounded file-output hardening policy. Richer manifest-driven checkpoint/restart behavior remains future work.
 
 ## Proposed operator evidence
 

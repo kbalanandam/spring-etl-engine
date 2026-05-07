@@ -4,6 +4,11 @@
 
 This document defines the future architecture direction for job history, operational visibility, and diagnostic evidence in `spring-etl-engine`.
 
+## Status
+
+- Classification: **Current baseline + future evolution**
+- The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.
+
 Its main goal is to preserve the non-AI observability baseline that should exist before the product introduces richer operator tooling, replay analysis, or AI-assisted diagnostics.
 
 This note keeps the roadmap grounded in a practical rule:
@@ -19,7 +24,9 @@ The current codebase already implements a meaningful first observability slice:
 - scenario/job-run MDC fields in operational logging
 - daily scenario log files in the form `logs/<yyyy-MM-dd>/<scenario>.log`
 - machine-readable lifecycle events such as `RUN_EVENT`, `RUN_SUMMARY`, `STEP_PLAN`, `STEP_READY`, and `STEP_EVENT`
-- step-finished evidence with `readCount`, `writeCount`, `filterCount`, `skipCount`, and `rollbackCount`
+- run-level events for `run_requested`, `job_started`, `run_summary`, and `run_finished`
+- step-finished evidence with `readCount`, `writeCount`, `filterCount`, `skipCount`, `rollbackCount`, `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath`
+- source-validation rejection evidence through `SOURCE_VALIDATION event=file_rejected` when configured file-level validation rejects an input artifact
 - local verification-report generation that keeps build/release validation logs distinct from runtime scenario logs
 
 This document still describes future observability direction, but it should now be read as **current baseline plus future evolution**, not as a purely hypothetical design note.
@@ -69,15 +76,17 @@ The product also needs to avoid mixing unrelated log concerns into one undiffere
 
 ## Flow
 
+Read this as current baseline + future evolution for observability, history, and search.
+
 ```mermaid
 flowchart TD
     A[Scenario selected for execution] --> B[Job run created]
     B --> C[Correlation id and execution context established]
     C --> D[Scenario or job-run log stream selected]
-    D --> E[Step execution begins]
-    E --> F[Structured events emitted]
-    F --> G[Metrics and logs retained]
-    G --> H[Job and step history persisted]
+    D --> E[RUN_EVENT and STEP_EVENT emitted]
+    E --> F[Scenario log file retained]
+    F --> G[Verification evidence kept separate under target]
+    G --> H[Future job and step history persisted]
     H --> I[Operator search and diagnostics]
     I --> J[Future replay, governance, and AI assistance]
 ```
@@ -109,13 +118,17 @@ Each step should preserve at least:
 - top exception category for the step
 
 ### 3. Structured operational events
-In addition to text logs, the runtime should be able to express structured events such as:
+In addition to text logs, the runtime already emits an initial structured event vocabulary and should grow it further over time. The current baseline includes events such as:
 
+- run requested
 - job started
-- job completed
-- job failed
+- run summary emitted at job completion
+- run finished
 - step started
 - step completed
+
+Future observability growth may extend that vocabulary with events such as:
+
 - step failed
 - validation failed
 - source read error
@@ -175,6 +188,8 @@ They should answer:
 - what happened in this exact run?
 - which step or connector failed?
 - where is the evidence for this incident?
+
+Today, the shipped logging baseline groups by daily scenario file path (`logs/<yyyy-MM-dd>/<scenario>.log`) rather than by one file per run. The MDC fields and machine-readable run/step events keep the path job-run-aware even before a separate persisted history layer exists.
 
 ### 3. Build, CI, and release logs
 These logs are still useful, but they are engineering artifacts rather than product runtime evidence.

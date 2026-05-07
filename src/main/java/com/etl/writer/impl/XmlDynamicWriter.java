@@ -6,8 +6,6 @@ import com.etl.enums.ModelFormat;
 import com.etl.writer.DynamicWriter;
 import com.etl.writer.exception.MarshallerException;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.xml.StaxEventItemWriter;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 import org.springframework.stereotype.Component;
 
@@ -33,8 +31,7 @@ public class XmlDynamicWriter implements DynamicWriter {
 		Jaxb2Marshaller marshaller = jaxbMarshaller(clazz);
 		if (clazz.getSimpleName().equals(xmlConfig.getRecordElement())) {
 			// Stream individual record elements for chunk-oriented XML writes.
-			StaxEventItemWriter<Object> writer = new StaxEventItemWriter<>();
-			writer.setResource(new FileSystemResource(path));
+			StagedStaxEventItemWriter<Object> writer = new StagedStaxEventItemWriter<>(path);
 			writer.setRootTagName(xmlConfig.getRootElement());
 			writer.setMarshaller(marshaller);
 			writer.afterPropertiesSet();

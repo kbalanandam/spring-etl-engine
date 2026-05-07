@@ -2,276 +2,121 @@
 
 ## Purpose
 
-This checklist turns the proposed design in [`file-ingestion-hardening.md`](file-ingestion-hardening.md) into an execution-ready implementation plan without changing the agreed scope.
+This checklist now acts as a **current-state review aid** for the shipped file-ingestion hardening architecture in `spring-etl-engine`.
 
-Use it to answer three questions before coding starts:
+Use it to answer three questions before extending this area further:
 
-1. which classes and config contracts are expected to change first
-2. which tests should be added before the slice is considered done
-3. which preserved realistic scenario should prove the slice end to end
+1. what is already shipped on the active runtime path
+2. which classes and config contracts now anchor that behavior
+3. which preserved tests and scenarios should still be used as proof after new changes
 
-This note is still design-oriented. It is a checklist for implementation readiness, not proof that the runtime already supports the behavior.
+This page still preserves the history of the original first implementation slice, but it is no longer a pre-coding task list. For the broader architecture note, see [`file-ingestion-hardening.md`](file-ingestion-hardening.md).
 
-## Scope anchors
+## Current shipped scope
 
-The first slice stays intentionally narrow.
+### Shipped baseline today
 
-### In scope
-
-- CSV file source as the first supported source type
-- field-level validation rules in processor mappings
-- initial rules:
-  - `notNull`
-  - `timeFormat`
-- rejected-record output with reason metadata
+- processor-level field validation rules on the active default-processor path
+- rejected-record output with reason metadata through `processor-config.yaml`
+- duplicate handling for keep-first and ordered winner-selection behavior
 - processed-source-file archiving after successful step completion
-- operator-visible counts for read / accepted / rejected / written
-- one preserved realistic file scenario with mixed valid and invalid rows
+- step-finished evidence with `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath`
+- scenario-local path normalization for selected source, target, processor, reject, and archive paths
 
-### Explicitly out of scope for this slice
+### Shared file-backed source boundary
 
-- XML-specific nested validation behavior
-- relational-source archive handling
-- expression-based mapping itself
-- conditional transformation rules
-- quarantine workflow orchestration beyond a simple reject output
-- replay/retry semantics for archived or rejected files
-- rule severity levels
-- multi-destination reject routing
+The current runtime treats archive-on-success as a **shared file-backed source concern**.
 
-## Proposed first proof scenario
+- file-backed sources such as CSV and XML participate through the shared file-source contract
+- relational sources do not participate in archive-on-success because they are not file-backed sources
+- archive behavior is configured in source config, not in processor or job config
 
-### New preserved scenario bundle
+### Historical first proof
 
-Recommended first bundle:
+The original first preserved proof remains intentionally CSV-centered:
 
 - `src/main/resources/config-scenarios/csv-validation-reject-archive/`
 
-### Why a new bundle
+That bundle is still the clearest first-slice proof for accepted rows, rejected rows, reject metadata, and archive-on-success in one scenario.
 
-A new bundle keeps the proving slice isolated from:
+## Explicitly deferred or out of scope
 
-- `customer-load`
-- `csv-to-sqlserver`
-- `relational-to-relational`
+The following items are still not part of the shipped hardening contract:
 
-That makes it easier to review the first hardening behavior without mixing it into older scenarios.
+- relational-source archive handling
+- replay/retry orchestration for archived or rejected files
+- multi-destination reject routing
+- rule severity levels
+- broad conditional rule engines
+- XML-native duplicate identity rules based on XPath/namespaces or other pre-flattening structure
+- richer source-native XML validation beyond the current lightweight structural/file-level baseline
 
-### Suggested files in the bundle
+## Current architecture anchors
 
-- `job-config.yaml`
-- `source-config.yaml`
-- `target-config.yaml`
-- `processor-config.yaml`
-- input sample file under a scenario-local or test-local path
-- expected output / reject output references for tests where practical
+### Config contract anchors
 
-### Suggested sample rows
+- `src/main/java/com/etl/config/source/FileSourceConfig.java` — shared contract for file-backed sources that expose `filePath` and archive behavior
+- `src/main/java/com/etl/config/source/FileArchiveConfig.java` — shared archive-on-success config object
+- `src/main/java/com/etl/config/source/CsvSourceConfig.java` — CSV file-backed source contract
+- `src/main/java/com/etl/config/source/XmlSourceConfig.java` — XML file-backed source contract
+- `src/main/java/com/etl/config/processor/ProcessorConfig.java` — processor rule and reject-handling config
+- `src/main/java/com/etl/config/ConfigLoader.java` — validation and scenario-relative path normalization for source, target, reject, and archive paths
 
-The first sample should include at least:
+### Runtime lifecycle anchors
 
-- one valid row
-- one row with a missing required field
-- one row with an invalid time field
-- one additional valid row
+- `src/main/java/com/etl/runtime/FileIngestionRuntimeSupport.java` — step-scoped reject handling, duplicate tracking, and archive-on-success lifecycle support
+- `src/main/java/com/etl/job/listener/FileIngestionHardeningStepListener.java` — initializes and completes the hardening runtime state around each step
+- `src/main/java/com/etl/job/listener/StepLoggingContextListener.java` — publishes `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath` in machine-readable step-finished logs
+- `src/main/java/com/etl/runtime/scenario/ScenarioRuntimeDescriptorAssembler.java` — exposes archive/reject-related execution hints into descriptor metadata
 
-### Expected proof outcomes
+## Preserved proof scenarios
 
-The scenario should prove:
+Use these preserved bundles when reviewing or extending the hardening slice:
 
-- valid rows are written to the accepted target
-- invalid rows are written to reject output
-- reject metadata is present
-- the original input file is archived after successful completion
-- runtime evidence shows accepted, rejected, and written counts clearly
+- `src/main/resources/config-scenarios/csv-validation-reject-archive/`
+  - first preserved proof for processor rules, rejected-record output, and archive-on-success
+- `src/main/resources/config-scenarios/xml-nested-to-csv-tag-validation/`
+  - preserved proof that the shared processor rule and reject-handling contract also applies on a file-backed XML flow after XML flattening
+- `src/main/resources/config-scenarios/xml-nested-to-csv-to-nested-xml-archive-e2e/`
+  - preserved proof that XML sources now participate in archive-on-success and emit `archivedSourcePath` evidence after step completion
 
-## Likely production code touch points
+## Verification anchors
 
-## 1. Config binding and validation
+### Focused test evidence
 
-### `src/main/java/com/etl/config/source/CsvSourceConfig.java`
-Expected work:
+- `src/test/java/com/etl/runtime/FileIngestionRuntimeSupportTest.java`
+  - verifies archive-on-success behavior and execution-context evidence for file-backed sources
+- `src/test/java/com/etl/config/source/SourceConfigPolymorphicDeserializationTest.java`
+  - verifies source-config binding for shared archive config on CSV and XML sources
+- `src/test/java/com/etl/config/ConfigLoaderJobConfigTest.java`
+  - verifies scenario-relative path normalization and fail-fast config validation for reject/archive concerns
 
-- add file-source archive config object or fields
-- validate archive config shape where needed
-- preserve backward compatibility for current CSV scenarios
+### Runtime evidence to preserve
 
-### `src/main/java/com/etl/config/processor/ProcessorConfig.java`
-Expected work:
+After changes in this area, preserved proofs should still demonstrate:
 
-- add processor-level rejected-record output config
-- add per-field rule config under `FieldMapping`
-- keep current mapping-only scenarios valid without requiring new fields
+- accepted rows are written only to the intended target artifact
+- rejected rows are written only to the reject artifact when reject handling is enabled
+- original source files move only after successful step completion when archive is enabled
+- `STEP_EVENT event=step_finished` continues to emit `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath` consistently
+- relative scenario-local paths still resolve from the selected scenario bundle cleanly
 
-### `src/main/java/com/etl/config/ConfigLoader.java`
-Expected work:
+## Review checklist for future changes
 
-- validate the new processor config fields cleanly
-- validate archive config for file-based sources
-- keep current config-loading error messages explicit and operator-friendly
+Before considering additional hardening changes complete, confirm:
 
-## 2. Runtime orchestration and lifecycle behavior
-
-### `src/main/java/com/etl/config/BatchConfig.java`
-Expected work:
-
-- thread accepted vs rejected behavior through the step execution path
-- trigger archive-on-success after successful step completion
-- keep explicit `steps` orchestration unchanged
-- avoid changing the chunk/tasklet decision model unnecessarily
-
-### `src/main/java/com/etl/job/listener/StepLoggingContextListener.java`
-Expected work:
-
-- expand step-finished evidence to include accepted/rejected or archive-result details where justified
-- keep current machine-readable step event style stable
-
-### `src/main/java/com/etl/job/listener/JobCompletionNotificationListener.java`
-Expected work:
-
-- optionally roll up reject/archive evidence into run-summary output if needed for the first slice
-
-## 3. Mapping, validation, and reject behavior
-
-### `src/main/java/com/etl/processor/impl/DefaultDynamicProcessor.java`
-Expected work:
-
-- resolve the selected mapping as today
-- incorporate validation-aware processing for mapped fields
-- avoid mixing broad expression behavior into this first slice
-
-### `src/main/java/com/etl/mapping/DynamicMapping.java`
-Expected work:
-
-- likely evolve from direct field copy into validation-aware mapping support
-- decide whether rule evaluation belongs here or in a dedicated helper invoked by the processor
-
-### New helper classes likely needed
-
-Recommended new family rather than overloading existing classes too early:
-
-- field rule config model
-- field rule evaluator / validator helper
-- reject record model or reject writer helper
-- archive helper for file lifecycle handling
-
-## 4. Target / artifact writing
-
-### `src/main/java/com/etl/writer/impl/CsvDynamicWriter.java`
-Expected work:
-
-- support or reuse CSV writing for reject output artifacts
-- keep accepted target writing distinct from reject output writing
-
-### `src/main/java/com/etl/writer/DynamicWriterFactory.java`
-Expected work:
-
-- decide whether reject output uses the normal writer path, a specialized helper, or a small dedicated reject writer
-
-## Test checklist
-
-## 1. Config binding tests
-
-### `src/test/java/com/etl/config/source/SourceConfigPolymorphicDeserializationTest.java`
-Add coverage for:
-
-- CSV source archive config binding
-- backward compatibility when archive config is absent
-
-### `src/test/java/com/etl/config/ConfigLoaderJobConfigTest.java`
-Add coverage for:
-
-- new processor validation rule config binding
-- rejected-record output config validation
-- archive config validation for file-based sources
-- clear failure messages for malformed rule definitions
-
-## 2. Orchestration and runtime selection tests
-
-### `src/test/java/com/etl/config/BatchConfigStepOrchestrationTest.java`
-Add coverage for:
-
-- explicit-step runs still select mappings by source/target names
-- archive behavior does not change step ordering semantics
-- first validation/reject slice does not reintroduce positional assumptions
-
-### `src/test/java/com/etl/config/ScenarioConfigReferenceTest.java`
-Add coverage for:
-
-- new preserved scenario bundle references valid config files
-
-## 3. Processor and mapping tests
-
-### New tests recommended
-
-- `DefaultDynamicProcessorValidationTest`
-- `DynamicMappingValidationTest`
-
-Add coverage for:
-
-- `notNull` rule success and failure
-- `timeFormat` rule success and failure
-- valid row continues to accepted target path
-- invalid row is marked for reject output with reason metadata
-
-## 4. Writer / artifact tests
-
-### `src/test/java/com/etl/writer/DynamicWriterFactoryTest.java`
-Add coverage for:
-
-- reject output writer resolution if it enters the writer factory path
-
-### New tests recommended
-
-- `CsvRejectWriterTest`
-- `ArchiveOnSuccessBehaviorTest`
-
-Add coverage for:
-
-- reject output columns include reason metadata
-- accepted rows are not written to reject output
-- source file moves only after successful step completion
-- source file remains in place after technical failure
-
-## 5. End-to-end scenario test
-
-### New integration test recommended
-
-- `CsvValidationRejectArchiveFlowTest`
-
-Expected assertions:
-
-- accepted output contains only valid rows
-- reject output contains only invalid rows
-- reject metadata columns exist
-- archive path contains the original source file after success
-- runtime counts are consistent with the sample file contents
-
-## Suggested implementation order
-
-1. config model additions in source and processor config classes
-2. config-loading validation in `ConfigLoader`
-3. validation-aware mapping / processor behavior
-4. reject output writing
-5. archive-on-success lifecycle behavior
-6. step/run evidence expansion
-7. preserved scenario creation
-8. end-to-end test and docs refresh
-
-## Review checkpoints before merging code
-
-Before implementation is considered ready, confirm:
-
-- current shipped scenarios still load unchanged
-- current docs/config pages remain accurate after code changes
-- one preserved realistic scenario demonstrates the full accepted/rejected/archived flow
-- expression-based mapping has not accidentally been pulled into this first slice
-- reject and archive semantics are visible in tests and runtime evidence
+- file-backed source behavior still stays behind the shared `FileSourceConfig` seam instead of reintroducing CSV-only or XML-only archive logic
+- relational-source configs are still excluded naturally from archive-on-success behavior
+- current preserved scenarios still load unchanged unless a deliberate config-contract change is being made
+- docs under `docs/config/` and `docs/architecture/` still describe archive behavior as a shared file-backed source concern
+- step and run evidence remain machine-readable and operator-visible
+- new behavior is proven by both focused tests and at least one preserved realistic scenario
 
 ## Related notes
 
 - [`file-ingestion-hardening.md`](file-ingestion-hardening.md)
 - [`runtime-flow.md`](runtime-flow.md)
+- [`validation-extension-architecture.md`](validation-extension-architecture.md)
 - [`transformation-capability-roadmap.md`](transformation-capability-roadmap.md)
 - [`../product/product-backlog.md`](../product/product-backlog.md)
 

@@ -9,7 +9,7 @@ targets:
         type: String
       - name: tagAgencyId
         type: String
-      - name: tagSerialNumber
+      - name: TagSerialNumber
         type: String
       - name: plateNumber
         type: String

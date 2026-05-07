@@ -1,16 +1,17 @@
 package com.etl.mapping;
 
-import com.etl.common.util.ReflectionUtils;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.processor.transform.TransformEvaluator;
 import com.etl.processor.validation.ValidationIssue;
 import com.etl.processor.validation.ValidationRuleEvaluator;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.core.scope.context.StepSynchronizationManager;
+import org.springframework.batch.item.ItemProcessor;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> {
@@ -22,9 +23,11 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 	private final ValidationRuleEvaluator validationRuleEvaluator;
 	private final FileIngestionRuntimeSupport fileIngestionRuntimeSupport;
 	private final boolean rejectHandlingEnabled;
+	private final MappedFieldValueResolver mappedFieldValueResolver;
 
 	public ValidationAwareDynamicMapping(ProcessorConfig.EntityMapping mapping,
 	                                   Class<O> targetClass,
+	                                   TransformEvaluator transformEvaluator,
 	                                   ValidationRuleEvaluator validationRuleEvaluator,
 	                                   FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
 	                                   boolean rejectHandlingEnabled) {
@@ -33,11 +36,22 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 		this.validationRuleEvaluator = validationRuleEvaluator;
 		this.fileIngestionRuntimeSupport = fileIngestionRuntimeSupport;
 		this.rejectHandlingEnabled = rejectHandlingEnabled;
+		this.mappedFieldValueResolver = new MappedFieldValueResolver(transformEvaluator);
+	}
+
+	public ValidationAwareDynamicMapping(ProcessorConfig.EntityMapping mapping,
+	                                   Class<O> targetClass,
+	                                   ValidationRuleEvaluator validationRuleEvaluator,
+	                                   FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
+	                                   boolean rejectHandlingEnabled) {
+		this(mapping, targetClass, new TransformEvaluator(), validationRuleEvaluator, fileIngestionRuntimeSupport, rejectHandlingEnabled);
 	}
 
 	@Override
 	public O process(I input) throws Exception {
-		List<ValidationIssue> issues = validationRuleEvaluator.evaluate(input, mapping);
+		Map<String, Object> resolvedValues = mappedFieldValueResolver.resolve(input, mapping);
+		Object validationInput = hasTransforms() ? resolvedValues : input;
+		List<ValidationIssue> issues = validationRuleEvaluator.evaluate(validationInput, mapping);
 		if (!issues.isEmpty()) {
 			String issueSummary = summarizeIssues(issues);
 			if (shouldFailStep(issues) || !rejectHandlingEnabled) {
@@ -67,12 +81,12 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 			return null;
 		}
 
-		O output = ReflectionUtils.createInstance(targetClass);
-		for (ProcessorConfig.FieldMapping fieldMapping : mapping.getFields()) {
-			Object value = ReflectionUtils.getFieldValue(input, fieldMapping.getFrom());
-			ReflectionUtils.setFieldValue(output, fieldMapping.getTo(), value);
-		}
-		return output;
+		return mappedFieldValueResolver.createOutput(targetClass, mapping, resolvedValues);
+	}
+
+	private boolean hasTransforms() {
+		return mapping.getFields() != null && mapping.getFields().stream()
+				.anyMatch(fieldMapping -> fieldMapping.getTransforms() != null && !fieldMapping.getTransforms().isEmpty());
 	}
 
 	private boolean shouldFailStep(List<ValidationIssue> issues) {
@@ -121,7 +135,7 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 
 	private String currentStepName() {
 		var context = StepSynchronizationManager.getContext();
-		if (context == null || context.getStepExecution() == null || context.getStepExecution().getStepName() == null) {
+		if (context == null) {
 			return "unknown-step";
 		}
 		return context.getStepExecution().getStepName();

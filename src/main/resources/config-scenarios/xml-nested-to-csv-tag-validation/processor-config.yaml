@@ -34,7 +34,6 @@ mappings:
         to: plateState
       - from: TVLAccountDetails.AccountNumber
         to: accountNumber
-        rules:
           - type: notNull
             onFailure: rejectRecord
 

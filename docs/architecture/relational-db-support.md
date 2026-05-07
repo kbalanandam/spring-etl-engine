@@ -4,6 +4,13 @@
 
 This document defines the relational database (RDBMS) architecture baseline for `spring-etl-engine` and now serves as both a design note and an implementation validation reference.
 
+## Status
+
+- Classification: **Current baseline + future evolution**
+- The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.
+
+If terms such as *scenario bundle*, *step*, *factory*, *resolver*, or *database dialect* are unfamiliar, start with the shared definitions in [`../README.md#core-terms`](../README.md#core-terms) and then return here.
+
 The goal is to make future implementation deliberate, reviewable, and extensible rather than letting JDBC-specific decisions spread across readers, writers, and orchestration code.
 
 It also serves as a retrospective validation reference: as relational source and target code evolves, it can be compared against the design expectations captured here.
@@ -22,6 +29,7 @@ The current phase-1 implementation now includes:
 - preserved scenario bundles for `csv-to-sqlserver` and `relational-to-relational`
 - H2-backed higher-volume relational source -> relational target validation
 - startup-time validation that rejects placeholder relational connection values in selected source/target configs before JDBC runtime
+- record-count behavior that uses `countQuery` when provided, returns `-1` for query-based relational sources, and therefore falls back to chunk mode when count is unknown
 
 Current support remains intentionally narrow:
 
@@ -58,7 +66,7 @@ The current product is a config-driven ETL engine with these characteristics:
 - source and target behavior are defined by YAML
 - source and target config types are polymorphic (`csv`, `xml`, future `relational`)
 - readers, processors, and writers are selected through dynamic factories
-- `BatchConfig` currently builds steps from explicit source-target references declared in `job-config.yaml`
+- `BatchConfig` currently builds steps from explicit source-target references declared in `job-config.yaml`, the run entry point inside a selected scenario bundle
 - model generation and runtime class resolution are centralized contracts
 
 This works well for file-based ETL, but RDBMS support introduces new concerns:
@@ -99,8 +107,8 @@ The RDBMS design should preserve the current product strengths while adding rela
 
 Use one shared relational connection object, then compose it into:
 
-- a relational source config
-- a relational target config
+- a relational source config, which describes where rows come from
+- a relational target config, which describes where transformed rows go
 
 This avoids duplication and keeps common connection details independent from read/write semantics.
 
@@ -204,6 +212,8 @@ Use:
 
 Then isolate vendor differences in a dialect abstraction.
 
+Here, a **database dialect** means the runtime abstraction that hides vendor-specific SQL behavior behind one shared `relational` format.
+
 ### Suggested runtime abstraction
 
 - `DatabaseDialect`
@@ -218,23 +228,35 @@ Dialect responsibilities may include:
 - vendor-specific validation rules
 - stored procedure naming and execution support later
 
-## Proposed runtime flow
+## Current runtime flow in the implemented phase-1 path
+
+This diagram shows the shipped relational runtime path in the implemented phase-1 baseline.
+
+Read `relational` here as a `format` choice in source/target config, with factories selecting the matching reader/writer path and resolvers selecting the step-specific metadata or vendor behavior needed inside that path.
 
 ```mermaid
 flowchart TD
     A[source-config.yaml / target-config.yaml] --> B[Polymorphic config binding]
     B --> C{format == relational?}
     C --> D[RelationalSourceConfig or RelationalTargetConfig]
-    D --> E[Resolve connection settings]
-    E --> F[Resolve vendor dialect]
-    F --> G[DynamicReaderFactory / DynamicWriterFactory]
-    G --> H[Relational reader / writer implementation]
-    H --> I[BatchConfig step creation]
-    I --> J[Chunk or tasklet execution]
-    J --> K[Database rows read / written]
+    D --> E[ConfigLoader validates selected relational config]
+    E --> F[BatchConfig resolves explicit step]
+    F --> G[Relational source getRecordCount]
+    G --> H{count known?}
+    H -- Yes --> I[Compare to chunk threshold]
+    H -- No --> J[Default to chunk mode]
+    I --> K[DynamicReaderFactory or DynamicWriterFactory]
+    J --> K
+    K --> L[Relational reader or writer implementation]
+    L --> M[Resolve vendor dialect inside relational path]
+    M --> N[Database rows read or written]
 ```
 
 ## Sequence view
+
+In this sequence, **resolver** means a runtime selector that chooses the correct step metadata or vendor-specific behavior, while **factory** means the component that creates the reader or writer implementation for the selected config type.
+
+This diagram shows the shipped phase-1 interaction flow for relational reader and writer setup.
 
 ```mermaid
 sequenceDiagram
@@ -244,10 +266,12 @@ sequenceDiagram
     participant ReaderF as DynamicReaderFactory
     participant WriterF as DynamicWriterFactory
     participant Dialect as DatabaseDialectResolver
-    participant Reader as RelationalReader
-    participant Writer as RelationalWriter
+    participant Reader as RelationalDynamicReader
+    participant Writer as RelationalDynamicWriter
 
+    Loader->>Loader: validate selected relational source/target config early
     Loader->>Batch: source + target config beans
+    Batch->>Batch: resolve explicit step and record count
     Batch->>Resolver: resolve model metadata
     Batch->>ReaderF: createReader(relational source)
     ReaderF->>Dialect: resolve vendor behavior
@@ -278,18 +302,24 @@ The enum already contains `RELATIONAL`, which is the correct long-term direction
 ### Reader factory
 `DynamicReaderFactory` now routes relational sources to a dedicated relational reader implementation rather than adding JDBC conditionals into unrelated readers.
 
+That relational reader resolves vendor-dialect behavior internally and builds a `JdbcCursorItemReader` with explicit SQL derived from either `query` or `table` + configured fields.
+
 ### Writer factory
 `DynamicWriterFactory` now routes relational targets to a dedicated relational writer implementation.
+
+That relational writer resolves vendor-dialect behavior internally and builds an insert-oriented `JdbcBatchItemWriter` for the configured target table.
 
 ### Processor layer
 No fundamental processor redesign is required for basic relational support. Processors should continue to transform source model objects into target model objects.
 
 ### `BatchConfig`
-`BatchConfig` should keep orchestrating steps, but relational support will stress some assumptions:
+`BatchConfig` keeps orchestrating steps, and the current relational implementation already exercises several of its assumptions:
 
 - how to determine record counts cheaply
 - how to stream very large result sets
 - how to define transactional chunk sizes for target writes
+
+Today, query-based relational sources return `-1` from `getRecordCount()`, which means `BatchConfig` treats the count as unknown and defaults that step to chunk mode.
 
 ## Key decisions
 

@@ -3,6 +3,7 @@ package com.etl.config.source.validation;
 import com.etl.config.ColumnConfig;
 import com.etl.config.exception.ConfigException;
 import com.etl.config.source.CsvSourceConfig;
+import com.etl.config.source.FileArchiveConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.enums.ModelFormat;
@@ -43,6 +44,27 @@ class SourceValidationServiceTest {
 		ConfigException exception = assertThrows(
 				ConfigException.class,
 				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("archive"));
+		assertTrue(exception.getMessage().contains("successPath"));
+	}
+
+	@Test
+	void failsFastForInvalidXmlArchiveConfigThroughSourceValidationSpi() throws IOException {
+		FileArchiveConfig archive = new FileArchiveConfig();
+		archive.setEnabled(true);
+
+		Path xmlFile = tempDir.resolve("events.xml");
+		Files.writeString(xmlFile, "<Events><Event><id>1</id></Event></Events>");
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		sourceConfig.setArchive(archive);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
 		);
 
 		assertTrue(exception.getMessage().contains("archive"));

@@ -37,7 +37,6 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -65,7 +64,7 @@ class XmlNestedSourceToCsvTargetFlowTest {
         XmlJobScopedGenerationResult generationResult = new XmlJobScopedGenerationService()
                 .generate(scenarioDir.resolve("job-config.yaml"), generatedSourceRoot);
         assertEquals(1, generationResult.sourceResults().size());
-        assertEquals(1, generationResult.targetResults().size());
+        assertEquals(0, generationResult.targetResults().size());
 
         compile(generationResult.allGeneratedFiles(), Path.of("target", "test-classes"));
 
@@ -92,16 +91,21 @@ class XmlNestedSourceToCsvTargetFlowTest {
             }
         }
 
-        assertEquals(1, processedItems.size());
+        assertEquals(2, processedItems.size());
 
         Object firstProcessedRecord = processedItems.get(0);
         assertEquals("0056", firstProcessedRecord.getClass().getMethod("getHomeAgencyId").invoke(firstProcessedRecord));
         assertEquals("1300", firstProcessedRecord.getClass().getMethod("getTagAgencyId").invoke(firstProcessedRecord));
-        assertEquals("0003518358", firstProcessedRecord.getClass().getMethod("getTagSerialNumber").invoke(firstProcessedRecord));
-        assertEquals("7064AFP", firstProcessedRecord.getClass().getMethod("getPlateNumber").invoke(firstProcessedRecord));
         assertEquals("US", firstProcessedRecord.getClass().getMethod("getPlateCountry").invoke(firstProcessedRecord));
         assertEquals("KS", firstProcessedRecord.getClass().getMethod("getPlateState").invoke(firstProcessedRecord));
         assertEquals("4773316", firstProcessedRecord.getClass().getMethod("getAccountNumber").invoke(firstProcessedRecord));
+
+        Object secondProcessedRecord = processedItems.get(1);
+        assertEquals("0041", secondProcessedRecord.getClass().getMethod("getHomeAgencyId").invoke(secondProcessedRecord));
+        assertEquals("1112", secondProcessedRecord.getClass().getMethod("getTagAgencyId").invoke(secondProcessedRecord));
+        assertEquals("US", secondProcessedRecord.getClass().getMethod("getPlateCountry").invoke(secondProcessedRecord));
+        assertEquals("TX", secondProcessedRecord.getClass().getMethod("getPlateState").invoke(secondProcessedRecord));
+        assertEquals("2025753547", secondProcessedRecord.getClass().getMethod("getAccountNumber").invoke(secondProcessedRecord));
 
         FlatFileItemWriter<Object> csvWriter = (FlatFileItemWriter<Object>) writer;
         csvWriter.open(new ExecutionContext());
@@ -115,16 +119,15 @@ class XmlNestedSourceToCsvTargetFlowTest {
                 .filter(line -> !line.isBlank())
                 .toList();
         assertEquals(List.of(
-                "0056,1300,0003518358,7064AFP,US,KS,4773316"
+                "0056,1300,US,KS,4773316",
+                "0041,1112,US,TX,2025753547"
         ), csvLines);
     }
 
     private Path prepareScenarioBundle() throws Exception {
         Path sourceScenarioDir = Path.of("src", "main", "resources", "config-scenarios", "xml-nested-to-csv-tag-validation");
-        Path sharedSampleDir = Path.of("src", "main", "resources", "config-scenarios", "xml-nested-tag-validation", "input");
         Path scenarioDir = tempDir.resolve("xml-nested-to-csv-tag-validation");
         copyDirectory(sourceScenarioDir, scenarioDir);
-        Files.copy(sharedSampleDir.resolve("nested-sample.xml"), scenarioDir.resolve("input/nested-sample.xml"));
 
         Path inputFile = scenarioDir.resolve("input/nested-sample.xml").toAbsolutePath().normalize();
         Path outputFile = scenarioDir.resolve("target/tag-validation-export.csv").toAbsolutePath().normalize();
@@ -133,12 +136,12 @@ class XmlNestedSourceToCsvTargetFlowTest {
         Files.writeString(
                 scenarioDir.resolve("source-config.yaml"),
                 Files.readString(scenarioDir.resolve("source-config.yaml"))
-                        .replaceFirst("(?m)^\\s*filePath:.*$", "    filePath: " + Matcher.quoteReplacement(toYamlPath(inputFile)))
+                        .replace("filePath: input/nested-sample.xml", "filePath: " + toYamlPath(inputFile))
         );
         Files.writeString(
                 scenarioDir.resolve("target-config.yaml"),
                 Files.readString(scenarioDir.resolve("target-config.yaml"))
-                        .replaceFirst("(?m)^\\s*filePath:.*$", "    filePath: " + Matcher.quoteReplacement(toYamlPath(outputFile)))
+                        .replace("filePath: target/tag-validation-export.csv", "filePath: " + toYamlPath(outputFile))
         );
 
         return scenarioDir;

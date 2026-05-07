@@ -24,10 +24,11 @@ The product already supports real transformation, but at an early maturity level
 - schema reshaping through `from` → `to` field mapping
 - generated-model-aware transformation flow
 - typed ETL contracts that align with source and target definitions
+- first shipped rule-based validation/reject behavior for file-backed scenarios through processor rules, controlled rejected-record output, and adjacent archive-on-success behavior, with the strongest preserved proof still centered on CSV
 
 This is best described as:
 
-> config-driven structural transformation
+> config-driven structural transformation with the first shipped rule-based validation slice
 
 That is valid ETL transformation, but it is not yet equal to the breadth of traditional ETL tools.
 
@@ -37,7 +38,7 @@ That is valid ETL transformation, but it is not yet equal to the breadth of trad
 
 ## Level 1 — Structural transformation foundation
 
-This is the current state.
+This remains the baseline every supported scenario still builds on.
 
 ### Capabilities
 
@@ -55,19 +56,19 @@ This is the current state.
 
 - expressions
 - conditions
-- validation/reject flow
 - lookups / enrichment
 - joins / aggregation
+- richer processor-side transform chains for cleanup / normalization
 
 ---
 
 ## Level 2 — Rule-based transformation
 
-This is the next practical maturity target.
+This is the active maturity track.
 
-The first implementation slices at this level should stay narrow: file-based validation rules, explicit rejected-record output, and operator-visible pass/fail behavior first, then discrete config-driven cleaning/normalization transforms on the active default-processor path before broader expression-based mapping work expands.
+The first implementation slices at this level are already shipped on the active runtime path: file-based validation rules, explicit rejected-record output, processor-side value cleanup through ordered `transforms[]`, and expression-based derived fields through the same processor transform seam. The next work inside this level is conditional transformation behavior on top of that shipped baseline.
 
-That first slice should be proven with at least one preserved realistic file scenario that shows accepted records, rejected records, and archived-original-file behavior together.
+That shipped slice is already proven by preserved realistic file scenarios that show accepted records, rejected records, and archived-original-file behavior together.
 
 ### Capabilities
 
@@ -77,7 +78,7 @@ That first slice should be proven with at least one preserved realistic file sce
 - future source-native transform/adaptation only when required by source structure or pre-flattening semantics
 - value mapping for coded fields
 - expression-based mapping for derived fields
-- conditional mapping rules
+- future conditional mapping rules
 - normalization / standardization rules
 
 ### Example outcomes
@@ -199,13 +200,13 @@ Focus on:
 
 Focus on:
 
-- validation and rejected-record output
-- first configurable field rules such as `notNull` and time-format checks
+- continue from the shipped validation and rejected-record-output baseline
+- continue from the first configurable field rules such as `notNull`, time-format, and duplicate checks
 - first processor-side field-cleaning / normalization transforms for coded values
 - optional-by-omission `transforms[]` chains so customers can have zero, one, or many ordered cleaner steps per field
 - source-transform YAML only when source-native adaptation is required, not as a parallel default home for generic cleanup
 - expression-based mapping
-- conditions after the expression contract is stable
+- conditional rules after the shipped expression contract remains stable in normal scenario use
 - lookup/enrichment patterns
 
 Adjacent file-ingestion hardening such as archiving processed source files should evolve with this phase, but it should remain a file lifecycle capability rather than being treated as a separate transformation maturity level.
@@ -240,13 +241,9 @@ When adding transformation features:
 
 The next meaningful transformation priorities are:
 
-1. field-level validation rules for file scenarios such as `notNull` and time-format checks
-2. validation and rejected-record output model with controlled rejected-record output
-3. first field-transform / cleaner support for config-driven normalization such as value mapping and country/status code standardization
-4. preserved realistic file-scenario proof for accepted, rejected, cleaned, and archived-original-file behavior
-5. expression-based mapping / derived field support
-6. conditional transformation rules
-7. lookup/enrichment design baseline
+1. conditional transformation rules on top of the shipped transform + expression baseline
+2. preserved realistic file-scenario proof for accepted, rejected, cleaned, derived-field, and archived-original-file behavior
+3. lookup/enrichment design baseline
 
 ---
 

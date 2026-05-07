@@ -72,7 +72,7 @@ sources:
 - `validation.fileNamePattern` checks only the file name portion, not the full path.
 - If `validation.onFailure=rejectFile`, a CSV file that fails file-level validation is moved to `validation.rejectPath` and the run still surfaces a validation error with the rejected-file location in the message/logs.
 - The current record count implementation counts file rows and subtracts one for the header.
-- Archive behavior currently applies only to CSV sources and only after successful step completion.
+- Archive behavior is part of the shared file-source contract and applies after successful step completion when enabled for the active source config.
 - If archive is enabled, `archive.successPath` is required.
 - The preserved first-slice example is `src/main/resources/config-scenarios/csv-validation-reject-archive/source-config.yaml`.
 
@@ -82,7 +82,7 @@ sources:
 - No per-column source alias support yet
 - No schema inference; fields must be declared explicitly
 - No alternate header mapping rules yet
-- No archive support yet for XML or relational sources
+- No archive support for non-file sources such as relational sources
 - No archive collision policy beyond the configured `namePattern` and replace-existing move behavior
 
 ## Related design note

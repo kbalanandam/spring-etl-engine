@@ -31,10 +31,10 @@ From that starting point, the product can continue maturing carefully over time 
 
 - **Explicit orchestration** — one selected `job-config.yaml` defines the source/target/processor set and the exact `steps` execution order for a run.
 - **Validation-aware processing** — the active runtime supports source validation, processor-side field rules, explicit rejected-record output, and archive-on-success for CSV file scenarios.
-- **Planned transform growth** — the next transform slice is documented as optional processor-side `transforms[]` chains for cleanup/normalization before validation rules, with source-transform YAML deferred to source-native cases.
+- **Transform-aware processing** — optional processor-side `transforms[]` chains now support cleanup/normalization plus expression-derived fields before validation rules, while source-transform YAML stays reserved for source-native cases.
 - **Format flexibility** — current runtime paths support CSV, XML, and phase-1 relational sources and targets.
 - **Config-driven extensibility** — dynamic readers, processors, writers, and validation SPIs keep new behavior on the active product path instead of hardcoded one-off flows.
-- **Operational visibility** — machine-readable run and step logging provides scenario-aware execution evidence for operators and verification workflows.
+- **Operational visibility** — machine-readable run, subflow, and step logging provides scenario-aware execution evidence for operators and verification workflows, including blocked-downstream explanations when an upstream subflow fails.
 
 ## Supported flows
 
@@ -81,12 +81,58 @@ The near-term product focus is to make these recurring concerns consistent acros
 - processed-file archive behavior
 - machine-readable run and step evidence
 
+## Current status
+
+### Shipped today
+
+- explicit `job-config.yaml`-driven scenario selection with ordered `steps`
+- CSV, XML, and phase-1 relational source/target paths
+- source validation plus processor-side validation rules
+- processor-side `valueMap` cleanup and `expression`-based derived fields through the active `transforms[]` contract
+- rejected-record output and archive-on-success for the current CSV-focused hardening slice
+- machine-readable run and step evidence for operators and verification
+- descriptor-backed main-flow/subflow planning evidence plus blocked-subflow summaries layered on top of the current flat ordered-step runtime
+
+### Deprecated path
+
+- `src/main/java/com/etl/validation/` and `src/main/resources/validation-config.yaml` are deprecated and are not part of the active runtime path
+
+### Future direction
+
+- broader processor-side transformation maturity beyond the shipped `valueMap` + `expression` transform baseline
+- richer fault tolerance, reconciliation, restartability, scheduling, and transport capabilities
+- deeper relational hardening and enterprise verification/reporting maturity
+
 ## Start here
 
-- **New to the project?** Start with [Quick Start](#quick-start).
-- **Running a real scenario?** Use [Explicit job-config mode](#explicit-job-config-mode).
-- **Exploring the architecture?** See [Architecture Docs](#architecture-docs).
-- **Looking for examples?** Check `src/main/resources/config-scenarios/`.
+Use this table as the recommended reading order by goal:
+
+| Goal | Start here | Then go to |
+|---|---|---|
+| First local run | [Quick Start](#quick-start) | [Run Modes](#run-modes) |
+| Run a real scenario | [Explicit job-config mode](#explicit-job-config-mode) | [`docs/config/job-config.md`](docs/config/job-config.md) |
+| Understand the config model | [`docs/config/README.md`](docs/config/README.md) | [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md) |
+| Explore architecture/runtime flow | [Architecture Docs](#architecture-docs) | [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md) |
+| Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
+| Assess current gaps to the reusable scenario model | [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md) | [`docs/architecture/hierarchical-flow-composition.md`](docs/architecture/hierarchical-flow-composition.md) |
+| See preserved runnable examples | `src/main/resources/config-scenarios/` | [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples) |
+| Understand what is shipped vs planned | [`docs/README.md`](docs/README.md) | [`docs/product/product-backlog.md`](docs/product/product-backlog.md) |
+
+## Documentation strategy
+
+Use the repository docs in this order:
+
+1. **`README.md`** — product landing page, run modes, and first navigation choices
+2. **`docs/README.md`** — docs portal, core terms, and architecture/product navigation
+3. **`docs/config/README.md`** — current supported config contracts and scenario-reading order
+4. **`src/main/resources/config-scenarios/`** — preserved runnable examples that should stay aligned with the docs
+
+Documentation intent is split deliberately:
+
+- `README.md` explains what the product is and where to start
+- `docs/config/` describes supported contracts **today**
+- `docs/architecture/` explains runtime design, extension seams, and future direction
+- `docs/product/` explains backlog, milestones, and execution priorities
 
 ## Architecture Docs
 
@@ -96,6 +142,8 @@ Start here:
 
 - [`docs/README.md`](docs/README.md)
 - [`docs/architecture/overview.md`](docs/architecture/overview.md)
+- [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md)
+- [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md)
 - [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md)
 - [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md)
 - [`docs/architecture/extension-points.md`](docs/architecture/extension-points.md)
