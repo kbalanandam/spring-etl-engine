@@ -2,7 +2,7 @@ package com.etl.job.listener;
 
 import com.etl.logging.RunLoggingContext;
 import com.etl.runtime.FileIngestionRuntimeSupport;
-import com.etl.runtime.scenario.ScenarioHierarchyLoggingSupport;
+import com.etl.runtime.job.JobHierarchyLoggingSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.ExitStatus;
@@ -33,14 +33,14 @@ public class StepLoggingContextListener implements StepExecutionListener {
             stringParameter(jobParameters, "recoveryPolicy"),
             stepExecution.getStepName(),
             stepExecution.getId(),
-            ScenarioHierarchyLoggingSupport.intValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_SUB_FLOW_ORDER_KEY, -1),
-            ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_DEPENDS_ON_SUB_FLOWS_KEY),
-            ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_CONSUMES_HANDOFFS_KEY),
-            ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_PRODUCES_HANDOFFS_KEY),
-            ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_UPSTREAM_STEPS_KEY),
-            ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_LINK_TYPES_KEY),
-            ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_LINK_CONTROL_SUMMARY_KEY),
-            ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_SUMMARY_KEY));
+            JobHierarchyLoggingSupport.intValue(executionContext, JobHierarchyLoggingSupport.STEP_SUB_FLOW_ORDER_KEY, -1),
+            JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_DEPENDS_ON_SUB_FLOWS_KEY),
+            JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_CONSUMES_HANDOFFS_KEY),
+            JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_PRODUCES_HANDOFFS_KEY),
+            JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_UPSTREAM_STEPS_KEY),
+            JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_LINK_TYPES_KEY),
+            JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_LINK_CONTROL_SUMMARY_KEY),
+            JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_SUMMARY_KEY));
     }
 
     @Override
@@ -66,21 +66,21 @@ public class StepLoggingContextListener implements StepExecutionListener {
 		rejectedCount,
 		rejectOutputPath,
     archivedSourcePath,
-    ScenarioHierarchyLoggingSupport.intValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_SUB_FLOW_ORDER_KEY, -1),
-    ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_DEPENDS_ON_SUB_FLOWS_KEY),
-    ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_CONSUMES_HANDOFFS_KEY),
-    ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_PRODUCES_HANDOFFS_KEY),
-    ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_UPSTREAM_STEPS_KEY),
-    ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_LINK_TYPES_KEY),
-    ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_LINK_CONTROL_SUMMARY_KEY),
-    ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_SUMMARY_KEY));
+    JobHierarchyLoggingSupport.intValue(executionContext, JobHierarchyLoggingSupport.STEP_SUB_FLOW_ORDER_KEY, -1),
+    JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_DEPENDS_ON_SUB_FLOWS_KEY),
+    JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_CONSUMES_HANDOFFS_KEY),
+    JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_PRODUCES_HANDOFFS_KEY),
+    JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_UPSTREAM_STEPS_KEY),
+    JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_LINK_TYPES_KEY),
+    JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_LINK_CONTROL_SUMMARY_KEY),
+    JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_SUMMARY_KEY));
         RunLoggingContext.put(RunLoggingContext.SUB_FLOW, stringParameter(jobParameters, "subFlow"));
         RunLoggingContext.clearStepScope();
         return stepExecution.getExitStatus();
     }
 
   private String resolvedSubFlow(JobParameters jobParameters, ExecutionContext executionContext) {
-    String stepSubFlow = ScenarioHierarchyLoggingSupport.stringValue(executionContext, ScenarioHierarchyLoggingSupport.STEP_SUB_FLOW_NAME_KEY);
+    String stepSubFlow = JobHierarchyLoggingSupport.stringValue(executionContext, JobHierarchyLoggingSupport.STEP_SUB_FLOW_NAME_KEY);
     return stepSubFlow.isBlank() ? stringParameter(jobParameters, "subFlow") : stepSubFlow;
   }
 

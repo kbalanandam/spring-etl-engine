@@ -1,9 +1,10 @@
 package com.etl.job.listener;
 
+import com.etl.exception.EtlExceptionDetails;
 import com.etl.logging.RunLoggingContext;
-import com.etl.runtime.scenario.ScenarioHierarchyLoggingSupport;
-import com.etl.runtime.scenario.ScenarioRuntimeDescriptor;
-import com.etl.runtime.scenario.ScenarioSubFlowDescriptor;
+import com.etl.runtime.job.JobHierarchyLoggingSupport;
+import com.etl.runtime.job.JobRuntimeDescriptor;
+import com.etl.runtime.job.JobSubFlowDescriptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -30,15 +31,15 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 	 */
 
 	private static final Logger logger = LoggerFactory.getLogger(JobCompletionNotificationListener.class);
-	private final ScenarioRuntimeDescriptor scenarioRuntimeDescriptor;
+	private final JobRuntimeDescriptor jobRuntimeDescriptor;
 
 	public JobCompletionNotificationListener() {
 		this(null);
 	}
 
 	@Autowired
-	public JobCompletionNotificationListener(@Nullable ScenarioRuntimeDescriptor scenarioRuntimeDescriptor) {
-		this.scenarioRuntimeDescriptor = scenarioRuntimeDescriptor;
+	public JobCompletionNotificationListener(@Nullable JobRuntimeDescriptor jobRuntimeDescriptor) {
+		this.jobRuntimeDescriptor = jobRuntimeDescriptor;
 	}
 
 	@Override
@@ -65,7 +66,7 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 				jobExecution.getStartTime(),
 				jobParameters.getString("runMode", ""),
 				jobParameters.getString("jobConfigPath", ""));
-		logScenarioHierarchyPlan(jobExecution, jobParameters);
+		logJobHierarchyPlan(jobExecution, jobParameters);
 	}
 
 	@Override
@@ -95,7 +96,17 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 			} else if (jobExecution.getStatus() == BatchStatus.FAILED) {
 				logger.error("Job failed after {} seconds.", durationSeconds == null ? "unknown" : durationSeconds);
 				jobExecution.getAllFailureExceptions().forEach(
-						failure -> logger.error("Job failure detail: {}", failure.getMessage(), failure)
+						failure -> logger.error(
+								"JOB_FAILURE event=job_failure scenario={} mainFlow={} subFlow={} recoveryPolicy={} failureCategory={} exceptionType={} rootCause={} message={}",
+								mdcValueOrDefault(RunLoggingContext.SCENARIO, "unknown-scenario"),
+								mdcValueOrDefault(RunLoggingContext.MAIN_FLOW, ""),
+								mdcValueOrDefault(RunLoggingContext.SUB_FLOW, ""),
+								mdcValueOrDefault(RunLoggingContext.RECOVERY_POLICY, ""),
+								EtlExceptionDetails.categoryValueOf(failure),
+								EtlExceptionDetails.exceptionType(failure),
+								EtlExceptionDetails.rootCauseMessage(failure),
+								failure.getMessage(),
+								failure)
 				);
 			} else {
 				logger.info("Job finished with status {} after {} seconds.", jobExecution.getStatus(), durationSeconds == null ? "unknown" : durationSeconds);
@@ -111,8 +122,8 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 		return value == null || value.isBlank() ? defaultValue : value;
 	}
 
-	private void logScenarioHierarchyPlan(JobExecution jobExecution, JobParameters jobParameters) {
-		if (scenarioRuntimeDescriptor == null) {
+	private void logJobHierarchyPlan(JobExecution jobExecution, JobParameters jobParameters) {
+		if (jobRuntimeDescriptor == null) {
 			return;
 		}
 		logger.info("MAIN_FLOW_PLAN event=main_flow_plan scenario={} mainFlow={} subFlow={} recoveryPolicy={} jobExecutionId={} plannedSubFlowCount={} plannedStepCount={} visibleSubFlows={} handoffAliases={} supportsCrossSubFlowHandshake={} supportsBlockingOnUpstreamFailure={} summary={}",
@@ -121,39 +132,39 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 				jobParameters.getString("subFlow", ""),
 				jobParameters.getString("recoveryPolicy", ""),
 				jobExecution.getId(),
-				scenarioRuntimeDescriptor.subFlowCount(),
-				scenarioRuntimeDescriptor.stepCount(),
-				ScenarioHierarchyLoggingSupport.formatList(scenarioRuntimeDescriptor.mainFlowContext().visibleSubFlowNames()),
-				ScenarioHierarchyLoggingSupport.formatList(scenarioRuntimeDescriptor.mainFlowContext().handoffAliases()),
-				scenarioRuntimeDescriptor.mainFlowContext().supportsCrossSubFlowHandshake(),
-				scenarioRuntimeDescriptor.mainFlowContext().supportsBlockingOnUpstreamFailure(),
-				scenarioRuntimeDescriptor.mainFlowContext().summary());
-		for (ScenarioSubFlowDescriptor subFlowDescriptor : scenarioRuntimeDescriptor.subFlows()) {
+				jobRuntimeDescriptor.subFlowCount(),
+				jobRuntimeDescriptor.stepCount(),
+				JobHierarchyLoggingSupport.formatList(jobRuntimeDescriptor.mainFlowContext().visibleSubFlowNames()),
+				JobHierarchyLoggingSupport.formatList(jobRuntimeDescriptor.mainFlowContext().handoffAliases()),
+				jobRuntimeDescriptor.mainFlowContext().supportsCrossSubFlowHandshake(),
+				jobRuntimeDescriptor.mainFlowContext().supportsBlockingOnUpstreamFailure(),
+				jobRuntimeDescriptor.mainFlowContext().summary());
+		for (JobSubFlowDescriptor subFlowDescriptor : jobRuntimeDescriptor.subFlows()) {
 			logger.info("SUBFLOW_PLAN event=subflow_plan scenario={} mainFlow={} subFlow={} subFlowOrder={} initialStatus={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} stepNames={} controlSummary={} summary={}",
 					jobParameters.getString("scenario", "unknown-scenario"),
 					jobParameters.getString("mainFlow", ""),
 					subFlowDescriptor.subFlowName(),
 					subFlowDescriptor.subFlowOrder(),
 					subFlowDescriptor.initialStatus(),
-					ScenarioHierarchyLoggingSupport.formatList(subFlowDescriptor.dependsOnSubFlowNames()),
-					ScenarioHierarchyLoggingSupport.formatList(subFlowDescriptor.consumesHandoffAliases()),
-					ScenarioHierarchyLoggingSupport.formatList(subFlowDescriptor.producesHandoffAliases()),
-					ScenarioHierarchyLoggingSupport.formatList(subFlowDescriptor.stepNames()),
+					JobHierarchyLoggingSupport.formatList(subFlowDescriptor.dependsOnSubFlowNames()),
+					JobHierarchyLoggingSupport.formatList(subFlowDescriptor.consumesHandoffAliases()),
+					JobHierarchyLoggingSupport.formatList(subFlowDescriptor.producesHandoffAliases()),
+					JobHierarchyLoggingSupport.formatList(subFlowDescriptor.stepNames()),
 					subFlowDescriptor.control().summary(),
 					subFlowDescriptor.summary());
 		}
 	}
 
 	private void logSubFlowEvidence(JobExecution jobExecution) {
-		if (scenarioRuntimeDescriptor == null) {
+		if (jobRuntimeDescriptor == null) {
 			return;
 		}
-		List<ScenarioHierarchyLoggingSupport.SubFlowStatusEvidence> evidence = ScenarioHierarchyLoggingSupport.evaluateSubFlowEvidence(
-				scenarioRuntimeDescriptor,
+		List<JobHierarchyLoggingSupport.SubFlowStatusEvidence> evidence = JobHierarchyLoggingSupport.evaluateSubFlowEvidence(
+				jobRuntimeDescriptor,
 				jobExecution.getStepExecutions(),
 				jobExecution.getStatus());
-		for (ScenarioHierarchyLoggingSupport.SubFlowStatusEvidence subFlowEvidence : evidence) {
-			ScenarioSubFlowDescriptor subFlowDescriptor = subFlowEvidence.subFlowDescriptor();
+		for (JobHierarchyLoggingSupport.SubFlowStatusEvidence subFlowEvidence : evidence) {
+			JobSubFlowDescriptor subFlowDescriptor = subFlowEvidence.subFlowDescriptor();
 			logger.info("SUBFLOW_SUMMARY event=subflow_summary scenario={} mainFlow={} subFlow={} recoveryPolicy={} jobExecutionId={} subFlowOrder={} initialStatus={} status={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} stepNames={} blockedReason={} controlSummary={} summary={}",
 					mdcValueOrDefault(RunLoggingContext.SCENARIO, "unknown-scenario"),
 					mdcValueOrDefault(RunLoggingContext.MAIN_FLOW, ""),
@@ -163,10 +174,10 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 					subFlowDescriptor.subFlowOrder(),
 					subFlowDescriptor.initialStatus(),
 					subFlowEvidence.observedStatus(),
-					ScenarioHierarchyLoggingSupport.formatList(subFlowDescriptor.dependsOnSubFlowNames()),
-					ScenarioHierarchyLoggingSupport.formatList(subFlowDescriptor.consumesHandoffAliases()),
-					ScenarioHierarchyLoggingSupport.formatList(subFlowDescriptor.producesHandoffAliases()),
-					ScenarioHierarchyLoggingSupport.formatList(subFlowDescriptor.stepNames()),
+					JobHierarchyLoggingSupport.formatList(subFlowDescriptor.dependsOnSubFlowNames()),
+					JobHierarchyLoggingSupport.formatList(subFlowDescriptor.consumesHandoffAliases()),
+					JobHierarchyLoggingSupport.formatList(subFlowDescriptor.producesHandoffAliases()),
+					JobHierarchyLoggingSupport.formatList(subFlowDescriptor.stepNames()),
 					subFlowEvidence.blockedReason().isBlank() ? "none" : subFlowEvidence.blockedReason(),
 					subFlowDescriptor.control().summary(),
 					subFlowDescriptor.summary());

@@ -29,7 +29,7 @@ public class LoggingAspect {
      */
     @Pointcut("execution(public * com.etl..*(..)) && " +
             "!execution(* com.etl.config.RunConfigurationMetadata.*(..)) && " +
-            "!execution(* com.etl.runtime.scenario..*(..)) && " +
+            "!execution(* com.etl.runtime.job..*(..)) && " +
             "!execution(* com.etl.reader..*(..)) && " +
             "!execution(* com.etl.writer..*(..)) && " +
             "!execution(* com.etl.processor..*(..)) && " +

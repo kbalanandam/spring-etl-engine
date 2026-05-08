@@ -17,11 +17,11 @@ import com.etl.processor.DynamicProcessorFactory;
 import com.etl.reader.DynamicReaderFactory;
 import com.etl.runtime.DuplicateResolverFactory;
 import com.etl.runtime.FileIngestionRuntimeSupport;
-import com.etl.runtime.scenario.ScenarioConfigPaths;
-import com.etl.runtime.scenario.ScenarioRecoveryPolicy;
-import com.etl.runtime.scenario.ScenarioRunMode;
-import com.etl.runtime.scenario.ScenarioRuntimeDescriptor;
-import com.etl.runtime.scenario.ScenarioRuntimeDescriptorAssembler;
+import com.etl.runtime.job.JobConfigPaths;
+import com.etl.runtime.job.JobRecoveryPolicy;
+import com.etl.runtime.job.JobRunMode;
+import com.etl.runtime.job.JobRuntimeDescriptor;
+import com.etl.runtime.job.JobRuntimeDescriptorAssembler;
 import com.etl.writer.DynamicWriterFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -75,7 +75,7 @@ class BatchConfigStepOrchestrationTest {
                 mapping("Customers", "Customers"),
                 mapping("Department", "Departments")
         );
-    ScenarioRuntimeDescriptor scenarioRuntimeDescriptor = scenarioRuntimeDescriptor(
+      JobRuntimeDescriptor jobRuntimeDescriptor = jobRuntimeDescriptor(
         "cust-dept-load",
         sourceWrapper,
         targetWrapper,
@@ -104,13 +104,13 @@ class BatchConfigStepOrchestrationTest {
                         false,
                         "cust-dept-load-main-flow",
                         "default-subflow",
-                        ScenarioRecoveryPolicy.RERUN_FROM_START,
+                        JobRecoveryPolicy.RERUN_FROM_START,
                         List.of(
                                 step("departments-step", "Department", "Departments"),
                                 step("customers-step", "Customers", "Customers")
                         )
                         ),
-						scenarioRuntimeDescriptor,
+            jobRuntimeDescriptor,
                         new FileIngestionRuntimeSupport(),
                         new DuplicateResolverFactory()
         );
@@ -152,7 +152,7 @@ class BatchConfigStepOrchestrationTest {
                         false,
                         "customer-load-main-flow",
                         "default-subflow",
-                        ScenarioRecoveryPolicy.RERUN_FROM_START,
+                        JobRecoveryPolicy.RERUN_FROM_START,
                         List.of(step("customers-step", "Customers", "Customers"))
                         ),
                         new FileIngestionRuntimeSupport(),
@@ -239,17 +239,17 @@ class BatchConfigStepOrchestrationTest {
     return appender;
   }
 
-  private ScenarioRuntimeDescriptor scenarioRuntimeDescriptor(String scenarioName,
+  private JobRuntimeDescriptor jobRuntimeDescriptor(String scenarioName,
                                                           SourceWrapper sourceWrapper,
                                                           TargetWrapper targetWrapper,
                                                           ProcessorConfig processorConfig,
                                                           List<JobConfig.JobStepConfig> steps) {
-    ScenarioRuntimeDescriptorAssembler assembler = new ScenarioRuntimeDescriptorAssembler();
+    JobRuntimeDescriptorAssembler assembler = new JobRuntimeDescriptorAssembler();
     return assembler.assemble(
         scenarioName,
         tempDir.resolve("job-config.yaml").toString(),
-        ScenarioRunMode.EXPLICIT_JOB,
-        new ScenarioConfigPaths("source-config.yaml", "target-config.yaml", "processor-config.yaml"),
+        JobRunMode.EXPLICIT_JOB,
+        new JobConfigPaths("source-config.yaml", "target-config.yaml", "processor-config.yaml"),
         steps,
         sourceWrapper,
         targetWrapper,

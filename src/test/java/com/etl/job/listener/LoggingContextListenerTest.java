@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.etl.common.util.ConfigBundlePathAliasResolver;
+import com.etl.config.exception.ConfigException;
 import com.etl.config.ColumnConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
@@ -11,11 +12,11 @@ import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.logging.RunLoggingContext;
-import com.etl.runtime.scenario.ScenarioConfigPaths;
-import com.etl.runtime.scenario.ScenarioHierarchyLoggingSupport;
-import com.etl.runtime.scenario.ScenarioRunMode;
-import com.etl.runtime.scenario.ScenarioRuntimeDescriptor;
-import com.etl.runtime.scenario.ScenarioRuntimeDescriptorAssembler;
+import com.etl.runtime.job.JobConfigPaths;
+import com.etl.runtime.job.JobHierarchyLoggingSupport;
+import com.etl.runtime.job.JobRunMode;
+import com.etl.runtime.job.JobRuntimeDescriptor;
+import com.etl.runtime.job.JobRuntimeDescriptorAssembler;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -113,15 +114,15 @@ class LoggingContextListenerTest {
                 .addString("recoveryPolicy", "rerun-from-start")
                 .toJobParameters();
         ExecutionContext executionContext = new ExecutionContext();
-        executionContext.putString(ScenarioHierarchyLoggingSupport.STEP_SUB_FLOW_NAME_KEY, "customers-step-subflow");
-        executionContext.putInt(ScenarioHierarchyLoggingSupport.STEP_SUB_FLOW_ORDER_KEY, 0);
-        executionContext.putString(ScenarioHierarchyLoggingSupport.STEP_DEPENDS_ON_SUB_FLOWS_KEY, "none");
-        executionContext.putString(ScenarioHierarchyLoggingSupport.STEP_CONSUMES_HANDOFFS_KEY, "none");
-        executionContext.putString(ScenarioHierarchyLoggingSupport.STEP_PRODUCES_HANDOFFS_KEY, "Customers");
-        executionContext.putString(ScenarioHierarchyLoggingSupport.STEP_UPSTREAM_STEPS_KEY, "none");
-        executionContext.putString(ScenarioHierarchyLoggingSupport.STEP_LINK_TYPES_KEY, "none");
-        executionContext.putString(ScenarioHierarchyLoggingSupport.STEP_LINK_CONTROL_SUMMARY_KEY, "none");
-        executionContext.putString(ScenarioHierarchyLoggingSupport.STEP_SUMMARY_KEY, "Customers step summary");
+        executionContext.putString(JobHierarchyLoggingSupport.STEP_SUB_FLOW_NAME_KEY, "customers-step-subflow");
+        executionContext.putInt(JobHierarchyLoggingSupport.STEP_SUB_FLOW_ORDER_KEY, 0);
+        executionContext.putString(JobHierarchyLoggingSupport.STEP_DEPENDS_ON_SUB_FLOWS_KEY, "none");
+        executionContext.putString(JobHierarchyLoggingSupport.STEP_CONSUMES_HANDOFFS_KEY, "none");
+        executionContext.putString(JobHierarchyLoggingSupport.STEP_PRODUCES_HANDOFFS_KEY, "Customers");
+        executionContext.putString(JobHierarchyLoggingSupport.STEP_UPSTREAM_STEPS_KEY, "none");
+        executionContext.putString(JobHierarchyLoggingSupport.STEP_LINK_TYPES_KEY, "none");
+        executionContext.putString(JobHierarchyLoggingSupport.STEP_LINK_CONTROL_SUMMARY_KEY, "none");
+        executionContext.putString(JobHierarchyLoggingSupport.STEP_SUMMARY_KEY, "Customers step summary");
         when(stepExecution.getStepName()).thenReturn("etlStep_0_Customers");
         when(stepExecution.getJobExecution()).thenReturn(jobExecution);
         when(jobExecution.getJobParameters()).thenReturn(jobParameters);
@@ -148,6 +149,7 @@ class LoggingContextListenerTest {
 
     @Test
     void failedJobKeepsScenarioContextWhileLoggingFailureDetails() {
+		ListAppender<ILoggingEvent> appender = attachAppender(jobListenerLogger);
         JobParameters jobParameters = new JobParametersBuilder()
                 .addString("scenario", "department-load")
                 .addString("scenarioLogKey", "2026-04-23/department-load")
@@ -166,7 +168,7 @@ class LoggingContextListenerTest {
         when(jobExecution.getStatus()).thenReturn(BatchStatus.FAILED);
         when(jobExecution.getStartTime()).thenReturn(LocalDateTime.now().minusSeconds(3));
         when(jobExecution.getEndTime()).thenReturn(LocalDateTime.now());
-        when(jobExecution.getAllFailureExceptions()).thenReturn(List.of(new IllegalStateException("boom")));
+        when(jobExecution.getAllFailureExceptions()).thenReturn(List.of(new ConfigException("boom")));
 
         jobCompletionNotificationListener.beforeJob(jobExecution);
         jobCompletionNotificationListener.afterJob(jobExecution);
@@ -177,11 +179,15 @@ class LoggingContextListenerTest {
         assertEquals("default-subflow", MDC.get(RunLoggingContext.SUB_FLOW));
         assertEquals("rerun-from-start", MDC.get(RunLoggingContext.RECOVERY_POLICY));
         assertNull(MDC.get(RunLoggingContext.JOB_EXECUTION_ID));
+		assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("JOB_FAILURE event=job_failure")
+				&& event.getFormattedMessage().contains("failureCategory=config")
+				&& event.getFormattedMessage().contains("exceptionType=ConfigException")
+				&& event.getFormattedMessage().contains("rootCause=boom")));
     }
 
   @Test
   void jobListenerLogsHierarchyPlanAndBlockedSubflowSummaryWhenUpstreamFails() {
-    ScenarioRuntimeDescriptor descriptor = ordersDescriptor();
+    JobRuntimeDescriptor descriptor = ordersDescriptor();
     JobCompletionNotificationListener listener = new JobCompletionNotificationListener(descriptor);
     ListAppender<ILoggingEvent> appender = attachAppender(jobListenerLogger);
 
@@ -232,7 +238,7 @@ class LoggingContextListenerTest {
     return appender;
   }
 
-  private ScenarioRuntimeDescriptor ordersDescriptor() {
+  private JobRuntimeDescriptor ordersDescriptor() {
     SourceWrapper sourceWrapper = new SourceWrapper();
     sourceWrapper.setSources(List.of(
         csvSource("OrdersIn", "com.etl.model.source.orders", "input/orders.csv"),
@@ -252,12 +258,12 @@ class LoggingContextListenerTest {
         mapping("OrdersValidated", "OrdersFinal")
     ));
 
-    ScenarioRuntimeDescriptorAssembler assembler = new ScenarioRuntimeDescriptorAssembler();
+    JobRuntimeDescriptorAssembler assembler = new JobRuntimeDescriptorAssembler();
     return assembler.assemble(
         "orders-flow",
         "C:/scenarios/orders/job-config.yaml",
-        ScenarioRunMode.EXPLICIT_JOB,
-        new ScenarioConfigPaths("source-config.yaml", "target-config.yaml", "processor-config.yaml"),
+        JobRunMode.EXPLICIT_JOB,
+        new JobConfigPaths("source-config.yaml", "target-config.yaml", "processor-config.yaml"),
         List.of(
             step("normalize-orders", "OrdersIn", "OrdersValidated"),
             step("publish-orders", "OrdersValidated", "OrdersFinal")

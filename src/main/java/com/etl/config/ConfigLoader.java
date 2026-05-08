@@ -18,10 +18,10 @@ import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.config.target.XmlTargetConfig;
-import com.etl.runtime.scenario.ScenarioConfigPaths;
-import com.etl.runtime.scenario.ScenarioRunMode;
-import com.etl.runtime.scenario.ScenarioRuntimeDescriptor;
-import com.etl.runtime.scenario.ScenarioRuntimeDescriptorAssembler;
+import com.etl.runtime.job.JobConfigPaths;
+import com.etl.runtime.job.JobRunMode;
+import com.etl.runtime.job.JobRuntimeDescriptor;
+import com.etl.runtime.job.JobRuntimeDescriptorAssembler;
 import com.etl.processor.transform.TransformEvaluator;
 import com.etl.processor.validation.ValidationRuleEvaluator;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -163,9 +163,9 @@ public class ConfigLoader {
 	}
 
 	@Bean
-	RunConfigurationMetadata runConfigurationMetadata(ScenarioRuntimeDescriptor scenarioRuntimeDescriptor) {
+	RunConfigurationMetadata runConfigurationMetadata(JobRuntimeDescriptor jobRuntimeDescriptor) {
 		try {
-			return RunConfigurationMetadata.fromScenarioRuntimeDescriptor(scenarioRuntimeDescriptor);
+			return RunConfigurationMetadata.fromJobRuntimeDescriptor(jobRuntimeDescriptor);
 		} catch (ConfigException e) {
 			throw e;
 		} catch (Exception e) {
@@ -175,32 +175,32 @@ public class ConfigLoader {
 
 	RunConfigurationMetadata runConfigurationMetadata() {
 		return runConfigurationMetadata(
-				scenarioRuntimeDescriptor(
+				jobRuntimeDescriptor(
 						sourceWrapper(),
 						targetWrapper(),
 						processorConfig(),
-						scenarioRuntimeDescriptorAssembler()
+						jobRuntimeDescriptorAssembler()
 				)
 		);
 	}
 
 	@Bean
-	ScenarioRuntimeDescriptorAssembler scenarioRuntimeDescriptorAssembler() {
-		return new ScenarioRuntimeDescriptorAssembler();
+	JobRuntimeDescriptorAssembler jobRuntimeDescriptorAssembler() {
+		return new JobRuntimeDescriptorAssembler();
 	}
 
 	@Bean
-	ScenarioRuntimeDescriptor scenarioRuntimeDescriptor(SourceWrapper sourceWrapper,
+	JobRuntimeDescriptor jobRuntimeDescriptor(SourceWrapper sourceWrapper,
 	                                                  TargetWrapper targetWrapper,
 	                                                  ProcessorConfig processorConfig,
-	                                                  ScenarioRuntimeDescriptorAssembler assembler) {
+	                                                  JobRuntimeDescriptorAssembler assembler) {
 		try {
 			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
 			return assembler.assemble(
 					runtimeConfig.scenarioName(),
 					runtimeConfig.jobConfigPath(),
-					runtimeConfig.demoFallbackMode() ? ScenarioRunMode.DEMO_FALLBACK : ScenarioRunMode.EXPLICIT_JOB,
-					new ScenarioConfigPaths(
+					runtimeConfig.demoFallbackMode() ? JobRunMode.DEMO_FALLBACK : JobRunMode.EXPLICIT_JOB,
+					new JobConfigPaths(
 							runtimeConfig.sourceConfigPath(),
 							runtimeConfig.targetConfigPath(),
 							runtimeConfig.processorConfigPath()
@@ -213,7 +213,7 @@ public class ConfigLoader {
 		} catch (ConfigException e) {
 			throw e;
 		} catch (Exception e) {
-			throw new ConfigException("Failed to assemble scenario runtime descriptor", e);
+			throw new ConfigException("Failed to assemble job runtime descriptor", e);
 		}
 	}
 

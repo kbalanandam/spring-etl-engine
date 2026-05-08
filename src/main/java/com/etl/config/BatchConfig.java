@@ -15,12 +15,12 @@ import com.etl.runtime.DuplicateResolution;
 import com.etl.runtime.DuplicateResolver;
 import com.etl.runtime.DuplicateResolverFactory;
 import com.etl.runtime.DuplicateRule;
-import com.etl.runtime.scenario.ScenarioHierarchyLoggingSupport;
-import com.etl.runtime.scenario.ScenarioRuntimeDescriptor;
-import com.etl.runtime.scenario.ScenarioStepLinkDescriptor;
-import com.etl.runtime.scenario.ScenarioStepDescriptor;
-import com.etl.runtime.scenario.ScenarioStepModelDescriptor;
-import com.etl.runtime.scenario.ScenarioSubFlowDescriptor;
+import com.etl.runtime.job.JobHierarchyLoggingSupport;
+import com.etl.runtime.job.JobRuntimeDescriptor;
+import com.etl.runtime.job.JobStepLinkDescriptor;
+import com.etl.runtime.job.JobStepDescriptor;
+import com.etl.runtime.job.JobStepModelDescriptor;
+import com.etl.runtime.job.JobSubFlowDescriptor;
 import com.etl.job.listener.FileIngestionHardeningStepListener;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.slf4j.Logger;
@@ -82,8 +82,8 @@ public class BatchConfig {
     private final JobCompletionNotificationListener listener;
     private final StepLoggingContextListener stepLoggingContextListener;
     private final ProcessorConfig processorConfig;
-    private final RunConfigurationMetadata runConfigurationMetadata;
-  private final ScenarioRuntimeDescriptor scenarioRuntimeDescriptor;
+      private final RunConfigurationMetadata runConfigurationMetadata;
+      private final JobRuntimeDescriptor jobRuntimeDescriptor;
 	private final FileIngestionRuntimeSupport fileIngestionRuntimeSupport;
 	private final DuplicateResolverFactory duplicateResolverFactory;
 
@@ -114,8 +114,8 @@ public class BatchConfig {
                        JobCompletionNotificationListener listener, DynamicProcessorFactory processorFactory,
                        ProcessorConfig processorConfig, TargetWrapper targetWrapper,
                        StepLoggingContextListener stepLoggingContextListener,
-					   RunConfigurationMetadata runConfigurationMetadata,
-             ScenarioRuntimeDescriptor scenarioRuntimeDescriptor,
+               RunConfigurationMetadata runConfigurationMetadata,
+                   JobRuntimeDescriptor jobRuntimeDescriptor,
              FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
              DuplicateResolverFactory duplicateResolverFactory) {
         this.sourceWrapper = sourceWrapper;
@@ -128,8 +128,8 @@ public class BatchConfig {
         this.listener = listener;
         this.stepLoggingContextListener = stepLoggingContextListener;
         this.processorConfig = processorConfig;
-        this.runConfigurationMetadata = runConfigurationMetadata;
-    this.scenarioRuntimeDescriptor = scenarioRuntimeDescriptor;
+            this.runConfigurationMetadata = runConfigurationMetadata;
+            this.jobRuntimeDescriptor = jobRuntimeDescriptor;
 		this.fileIngestionRuntimeSupport = fileIngestionRuntimeSupport;
     this.duplicateResolverFactory = duplicateResolverFactory;
 
@@ -197,9 +197,9 @@ public class BatchConfig {
         List<Step> steps = new ArrayList<>();
         List<? extends SourceConfig> sources = sourceWrapper.getSources();
         List<TargetConfig> targets = targetWrapper.getTargets();
-        List<JobConfig.JobStepConfig> configuredSteps = runConfigurationMetadata.steps();
-		List<ScenarioStepDescriptor> scenarioSteps = scenarioRuntimeDescriptor == null ? List.of() : scenarioRuntimeDescriptor.steps();
-		int resolvedStepCount = scenarioSteps.isEmpty() ? configuredSteps.size() : scenarioSteps.size();
+            List<JobConfig.JobStepConfig> configuredSteps = runConfigurationMetadata.steps();
+            List<JobStepDescriptor> jobSteps = jobRuntimeDescriptor == null ? List.of() : jobRuntimeDescriptor.steps();
+            int resolvedStepCount = jobSteps.isEmpty() ? configuredSteps.size() : jobSteps.size();
 
         if (sources == null || sources.isEmpty()) {
             throw new IllegalStateException("No source configurations found.");
@@ -221,19 +221,19 @@ public class BatchConfig {
         Map<String, SourceConfig> sourceByName = mapSourcesByName(sources);
         Map<String, TargetConfig> targetByName = mapTargetsByName(targets);
 
-            for (int i = 0; i < resolvedStepCount; i++) {
-              ScenarioStepDescriptor scenarioStep = scenarioSteps.size() > i ? scenarioSteps.get(i) : null;
+                for (int i = 0; i < resolvedStepCount; i++) {
+                  JobStepDescriptor jobStep = jobSteps.size() > i ? jobSteps.get(i) : null;
               JobConfig.JobStepConfig configuredStep = configuredSteps.size() > i ? configuredSteps.get(i) : null;
-            SourceConfig s = scenarioStep == null ? requireSource(configuredStep, sourceByName) : scenarioStep.sourceConfig();
-            TargetConfig t = scenarioStep == null ? requireTarget(configuredStep, targetByName) : scenarioStep.targetConfig();
-			ProcessorConfig.EntityMapping mapping = scenarioStep == null ? requireProcessorMapping(configuredStep) : scenarioStep.processorMapping();
+              SourceConfig s = jobStep == null ? requireSource(configuredStep, sourceByName) : jobStep.sourceConfig();
+              TargetConfig t = jobStep == null ? requireTarget(configuredStep, targetByName) : jobStep.targetConfig();
+              ProcessorConfig.EntityMapping mapping = jobStep == null ? requireProcessorMapping(configuredStep) : jobStep.processorMapping();
 
-            String stepName = scenarioStep == null ? configuredStep.getName() : scenarioStep.stepName();
-			int stepOrder = scenarioStep == null ? i : scenarioStep.stepOrder();
-			String sourceName = scenarioStep == null ? configuredStep.getSource() : scenarioStep.sourceName();
-			String targetName = scenarioStep == null ? configuredStep.getTarget() : scenarioStep.targetName();
-      ScenarioSubFlowDescriptor stepSubFlow = scenarioStep == null ? null : ScenarioHierarchyLoggingSupport.subFlowForStep(scenarioRuntimeDescriptor, stepName);
-      List<ScenarioStepLinkDescriptor> inboundLinks = scenarioStep == null ? List.of() : ScenarioHierarchyLoggingSupport.inboundLinks(scenarioRuntimeDescriptor, stepName);
+              String stepName = jobStep == null ? configuredStep.getName() : jobStep.stepName();
+              int stepOrder = jobStep == null ? i : jobStep.stepOrder();
+              String sourceName = jobStep == null ? configuredStep.getSource() : jobStep.sourceName();
+              String targetName = jobStep == null ? configuredStep.getTarget() : jobStep.targetName();
+                JobSubFlowDescriptor stepSubFlow = jobStep == null ? null : JobHierarchyLoggingSupport.subFlowForStep(jobRuntimeDescriptor, stepName);
+                List<JobStepLinkDescriptor> inboundLinks = jobStep == null ? List.of() : JobHierarchyLoggingSupport.inboundLinks(jobRuntimeDescriptor, stepName);
                 logger.info("STEP_PLAN event=step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} stepOrder={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={} stepSummary={}",
                       runConfigurationMetadata.mainFlowName(),
                         stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
@@ -243,13 +243,13 @@ public class BatchConfig {
                       targetName,
                         stepOrder,
             stepSubFlow == null ? -1 : stepSubFlow.subFlowOrder(),
-            ScenarioHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.dependsOnSubFlowNames()),
-            ScenarioHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.consumesHandoffAliases()),
-            ScenarioHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.producesHandoffAliases()),
-            ScenarioHierarchyLoggingSupport.formatList(inboundLinks.stream().map(ScenarioStepLinkDescriptor::fromStepName).toList()),
-            ScenarioHierarchyLoggingSupport.formatList(inboundLinks.stream().map(link -> link.linkType().name()).toList()),
-            ScenarioHierarchyLoggingSupport.formatList(inboundLinks.stream().map(link -> link.control().summary()).toList()),
-            scenarioStep == null ? "" : scenarioStep.flowSummary());
+            JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.dependsOnSubFlowNames()),
+            JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.consumesHandoffAliases()),
+            JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.producesHandoffAliases()),
+            JobHierarchyLoggingSupport.formatList(inboundLinks.stream().map(JobStepLinkDescriptor::fromStepName).toList()),
+            JobHierarchyLoggingSupport.formatList(inboundLinks.stream().map(link -> link.linkType().name()).toList()),
+            JobHierarchyLoggingSupport.formatList(inboundLinks.stream().map(link -> link.control().summary()).toList()),
+              jobStep == null ? "" : jobStep.flowSummary());
 
             boolean useChunk;
             int recordCount;
@@ -274,9 +274,9 @@ public class BatchConfig {
                     useChunk = false;
                   }
 
-            ResolvedModelMetadata metadata = scenarioStep == null
+              ResolvedModelMetadata metadata = jobStep == null
 					? GeneratedModelClassResolver.resolveMetadata(s, t)
-					: toResolvedModelMetadata(scenarioStep.modelDescriptor());
+          : toResolvedModelMetadata(jobStep.modelDescriptor());
             ItemReader<Object> reader = DynamicBatchUtils.getDynamicReader(readerFactory, s, metadata);
             Class<?> writerClass = metadata.isWrapperRequired() && useChunk
                     ? GeneratedModelClassResolver.resolveTargetProcessingClass(metadata)
@@ -288,13 +288,13 @@ public class BatchConfig {
 
             StepBuilder stepBuilder = new StepBuilder(stepName, jobRepository);
             Step step;
-            StepExecutionListener writerStepExecutionListener = asStepExecutionListener(writer);
-            StepExecutionListener scenarioHierarchyContextListener = scenarioHierarchyContextListener(scenarioStep);
+              StepExecutionListener writerStepExecutionListener = asStepExecutionListener(writer);
+              StepExecutionListener jobHierarchyContextListener = jobHierarchyContextListener(jobStep);
             if (useChunk) {
                 var chunkStepBuilder = stepBuilder
                         .chunk(chunkThreshold, transactionManager);
-                if (scenarioHierarchyContextListener != null) {
-                    chunkStepBuilder.listener(scenarioHierarchyContextListener);
+                  if (jobHierarchyContextListener != null) {
+                      chunkStepBuilder.listener(jobHierarchyContextListener);
                 }
                 chunkStepBuilder
                         .listener(stepLoggingContextListener)
@@ -313,8 +313,8 @@ public class BatchConfig {
                           stepName, s.getSourceName(), t.getTargetName(), recordCount, chunkThreshold);
             } else {
                 var taskletStepBuilder = stepBuilder;
-                if (scenarioHierarchyContextListener != null) {
-                    taskletStepBuilder.listener(scenarioHierarchyContextListener);
+                  if (jobHierarchyContextListener != null) {
+                      taskletStepBuilder.listener(jobHierarchyContextListener);
                 }
                 taskletStepBuilder
                         .listener(stepLoggingContextListener)
@@ -430,7 +430,7 @@ public class BatchConfig {
         return sourceByName;
     }
 
-  private ResolvedModelMetadata toResolvedModelMetadata(ScenarioStepModelDescriptor modelDescriptor) {
+  private ResolvedModelMetadata toResolvedModelMetadata(JobStepModelDescriptor modelDescriptor) {
     return new ResolvedModelMetadata(
         modelDescriptor.sourceClassName(),
         modelDescriptor.targetProcessingClassName(),
@@ -465,14 +465,14 @@ public class BatchConfig {
         return writer instanceof StepExecutionListener stepExecutionListener ? stepExecutionListener : null;
     }
 
-  private StepExecutionListener scenarioHierarchyContextListener(ScenarioStepDescriptor scenarioStep) {
-    if (scenarioRuntimeDescriptor == null || scenarioStep == null) {
+    private StepExecutionListener jobHierarchyContextListener(JobStepDescriptor jobStep) {
+      if (jobRuntimeDescriptor == null || jobStep == null) {
       return null;
     }
     return new StepExecutionListener() {
       @Override
       public void beforeStep(org.springframework.batch.core.StepExecution stepExecution) {
-        ScenarioHierarchyLoggingSupport.populateStepExecutionContext(stepExecution.getExecutionContext(), scenarioRuntimeDescriptor, scenarioStep);
+          JobHierarchyLoggingSupport.populateStepExecutionContext(stepExecution.getExecutionContext(), jobRuntimeDescriptor, jobStep);
       }
 
       @Override

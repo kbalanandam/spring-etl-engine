@@ -6,7 +6,7 @@ This page explains how one ETL run currently executes from startup to output.
 
 For the target next-direction runtime contract, where one selected scenario becomes the only normal execution boundary and model generation/resolution becomes scenario-scoped, continue in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
 
-For repository-provided preserved bundles, explicit runtime and build-time generation entry points now resolve directly against the checked-in `config-jobs/...` bundle tree, while legacy `config-scenarios/...` paths remain backward-compatible aliases.
+For repository-provided preserved bundles, explicit runtime and build-time generation entry points now resolve directly against the checked-in `config-jobs/...` bundle tree, while legacy `config-scenarios/...` paths remain temporarily available as deprecated backward-compatibility aliases.
 
 ## Status
 
@@ -95,7 +95,7 @@ This diagram shows the core shipped runtime assembly path for one selected scena
 flowchart LR
     subgraph ConfigAssembly[Config selection and descriptor]
         Loader[ConfigLoader]
-        Descriptor[ScenarioRuntimeDescriptor\n+ RunConfigurationMetadata]
+        Descriptor[JobRuntimeDescriptor\n+ RunConfigurationMetadata]
     end
 
     subgraph StepAssembly[Step assembly and execution]
@@ -127,7 +127,7 @@ flowchart LR
 Read this component view in four layers:
 
 1. `ConfigLoader` selects the effective scenario/config set for the run.
-2. `ScenarioRuntimeDescriptor` and `RunConfigurationMetadata` project that selected run into one self-explanatory runtime contract.
+2. `JobRuntimeDescriptor` and `RunConfigurationMetadata` project that selected run into one self-explanatory runtime contract.
 3. `BatchConfig` consumes that contract, resolves models plus reader/processor/writer services, and builds executable Spring Batch steps.
 4. the step plan produces accepted output, reject output, and lifecycle evidence for the run.
 
@@ -224,7 +224,7 @@ This diagram shows the bridge composition model that the product emits today: on
 ```mermaid
 flowchart TD
     Scenario[Selected Scenario]
-    Descriptor[ScenarioRuntimeDescriptor]
+    Descriptor[JobRuntimeDescriptor]
     MainFlow[MainFlow context]
 
     subgraph Composition[Hierarchical flow composition]
@@ -252,7 +252,7 @@ flowchart TD
 
 Read this composition view in three layers:
 
-1. one selected scenario resolves into one self-describing `ScenarioRuntimeDescriptor`
+1. one selected scenario resolves into one self-describing `JobRuntimeDescriptor`
 2. that descriptor projects a synthesized `MainFlow -> SubFlow -> Step` hierarchy for meaning, control intent, and evidence
 3. the current shipped runtime still compiles that hierarchy into one explicit ordered Spring Batch step plan
 
@@ -261,7 +261,7 @@ This split is intentional:
 - the **runtime assembly view** explains how the current engine is wired
 - the **flow composition view** explains the architecture style and evidence model
 
-Today, `ScenarioRuntimeDescriptorAssembler` synthesizes `MainFlow`, `SubFlow`, and step-link metadata from the flat `job-config.yaml` `steps` list, while `BatchConfig` still executes the resolved steps sequentially as one explicit Spring Batch plan. Lifecycle evidence such as `RUN_EVENT`, `MAIN_FLOW_PLAN`, `SUBFLOW_PLAN`, `STEP_EVENT`, `SUBFLOW_SUMMARY`, and `RUN_SUMMARY` is emitted around that bridge model, while `STEP_PLAN` and `STEP_READY` remain startup-time assembly evidence. The hierarchy is not yet a separate hierarchical scheduler.
+Today, `JobRuntimeDescriptorAssembler` synthesizes `MainFlow`, `SubFlow`, and step-link metadata from the flat `job-config.yaml` `steps` list, while `BatchConfig` still executes the resolved steps sequentially as one explicit Spring Batch plan. Lifecycle evidence such as `RUN_EVENT`, `MAIN_FLOW_PLAN`, `SUBFLOW_PLAN`, `STEP_EVENT`, `SUBFLOW_SUMMARY`, and `RUN_SUMMARY` is emitted around that bridge model, while `STEP_PLAN` and `STEP_READY` remain startup-time assembly evidence. The hierarchy is not yet a separate hierarchical scheduler.
 
 For the target direction where scenario descriptors and step links become the stronger long-term runtime contract, continue in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
 

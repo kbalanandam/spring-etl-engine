@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TagValidationList>
+  <TVLTagDetails>
+    <HomeAgencyID>1001</HomeAgencyID>
+    <TagAgencyID>2001</TagAgencyID>
+    <TagSerialNumber>SAMPLE-0001</TagSerialNumber>
+    <TVLPlateDetails>
+      <PlateCountry>US</PlateCountry>
+      <PlateState>CA</PlateState>
+      <PlateNumber>SAMPLE100</PlateNumber>
+    </TVLPlateDetails>
+    <TVLAccountDetails>
+      <AccountNumber>ACCT-1001</AccountNumber>
+      <FleetIndicator>N</FleetIndicator>
+    </TVLAccountDetails>
+  </TVLTagDetails>
+  <TVLTagDetails>
+    <HomeAgencyID>1002</HomeAgencyID>
+    <TagAgencyID>2002</TagAgencyID>
+    <TagSerialNumber>SAMPLE-0002</TagSerialNumber>
+    <TVLPlateDetails>
+      <PlateCountry>US</PlateCountry>
+      <PlateState>TX</PlateState>
+      <PlateNumber>SAMPLE200</PlateNumber>
+    </TVLPlateDetails>
+    <TVLAccountDetails>
+      <AccountNumber>ACCT-1002</AccountNumber>
+      <FleetIndicator>Y</FleetIndicator>
+    </TVLAccountDetails>
+  </TVLTagDetails>
+  <TVLTagDetails>
+    <HomeAgencyID>1003</HomeAgencyID>
+    <TagAgencyID>2003</TagAgencyID>
+    <TagSerialNumber>SAMPLE-0002</TagSerialNumber>
+    <TVLPlateDetails>
+      <PlateCountry>US</PlateCountry>
+      <PlateState>WA</PlateState>
+      <PlateNumber>SAMPLE300</PlateNumber>
+    </TVLPlateDetails>
+    <TVLAccountDetails>
+      <AccountNumber>ACCT-1003</AccountNumber>
+      <FleetIndicator>N</FleetIndicator>
+    </TVLAccountDetails>
+  </TVLTagDetails>
+</TagValidationList>
+

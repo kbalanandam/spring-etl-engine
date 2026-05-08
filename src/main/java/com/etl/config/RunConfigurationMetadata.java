@@ -1,10 +1,10 @@
 package com.etl.config;
 
 import com.etl.config.job.JobConfig;
-import com.etl.runtime.scenario.ScenarioRecoveryPolicy;
-import com.etl.runtime.scenario.ScenarioRunMode;
-import com.etl.runtime.scenario.ScenarioRuntimeDescriptor;
-import com.etl.runtime.scenario.ScenarioStepDescriptor;
+import com.etl.runtime.job.JobRecoveryPolicy;
+import com.etl.runtime.job.JobRunMode;
+import com.etl.runtime.job.JobRuntimeDescriptor;
+import com.etl.runtime.job.JobStepDescriptor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,18 +26,18 @@ public record RunConfigurationMetadata(
         boolean demoFallbackMode,
         String mainFlowName,
         String subFlowName,
-        ScenarioRecoveryPolicy recoveryPolicy,
+        JobRecoveryPolicy recoveryPolicy,
         List<JobConfig.JobStepConfig> steps
 ) {
 
-  public static RunConfigurationMetadata fromScenarioRuntimeDescriptor(ScenarioRuntimeDescriptor descriptor) {
+  public static RunConfigurationMetadata fromJobRuntimeDescriptor(JobRuntimeDescriptor descriptor) {
     if (descriptor == null) {
       throw new IllegalArgumentException("descriptor must not be null.");
     }
     return new RunConfigurationMetadata(
         descriptor.scenarioName(),
         descriptor.jobConfigPath(),
-        descriptor.runMode() == ScenarioRunMode.DEMO_FALLBACK,
+        descriptor.runMode() == JobRunMode.DEMO_FALLBACK,
         descriptor.mainFlowName(),
         descriptor.subFlowName(),
         descriptor.recoveryPolicy(),
@@ -45,12 +45,12 @@ public record RunConfigurationMetadata(
     );
   }
 
-  private static List<JobConfig.JobStepConfig> toJobSteps(List<ScenarioStepDescriptor> steps) {
+  private static List<JobConfig.JobStepConfig> toJobSteps(List<JobStepDescriptor> steps) {
     if (steps == null || steps.isEmpty()) {
       return List.of();
     }
     List<JobConfig.JobStepConfig> projected = new ArrayList<>();
-    for (ScenarioStepDescriptor step : steps) {
+    for (JobStepDescriptor step : steps) {
       JobConfig.JobStepConfig jobStep = new JobConfig.JobStepConfig();
       jobStep.setName(step.stepName());
       jobStep.setSource(step.sourceName());

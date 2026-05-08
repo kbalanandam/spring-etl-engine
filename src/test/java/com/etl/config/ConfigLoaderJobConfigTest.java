@@ -9,7 +9,7 @@ import com.etl.config.source.validation.SourceValidationService;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.TargetWrapper;
-import com.etl.runtime.scenario.ScenarioRuntimeDescriptor;
+import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.processor.validation.NotNullProcessorValidationRule;
 import com.etl.processor.validation.ProcessorValidationRule;
 import com.etl.processor.validation.TimeFormatProcessorValidationRule;
@@ -104,11 +104,11 @@ class ConfigLoaderJobConfigTest {
         SourceWrapper sourceWrapper = loader.sourceWrapper();
         TargetWrapper targetWrapper = loader.targetWrapper();
         ProcessorConfig loadedProcessorConfig = loader.processorConfig();
-        ScenarioRuntimeDescriptor scenarioRuntimeDescriptor = loader.scenarioRuntimeDescriptor(
+            JobRuntimeDescriptor jobRuntimeDescriptor = loader.jobRuntimeDescriptor(
                 sourceWrapper,
                 targetWrapper,
                 loadedProcessorConfig,
-                loader.scenarioRuntimeDescriptorAssembler()
+                loader.jobRuntimeDescriptorAssembler()
         );
 
 		assertEquals("csv-to-csv-test", runConfigurationMetadata.scenarioName());
@@ -118,9 +118,9 @@ class ConfigLoaderJobConfigTest {
     assertEquals("customers-step", runConfigurationMetadata.steps().get(0).getName());
     assertEquals("Customers", runConfigurationMetadata.steps().get(0).getSource());
     assertEquals("CustomersOut", runConfigurationMetadata.steps().get(0).getTarget());
-    assertEquals("csv-to-csv-test", scenarioRuntimeDescriptor.scenarioName());
-    assertEquals(runConfigurationMetadata.steps().size(), scenarioRuntimeDescriptor.steps().size());
-    assertEquals(runConfigurationMetadata.steps().get(0).getName(), scenarioRuntimeDescriptor.steps().get(0).stepName());
+    assertEquals("csv-to-csv-test", jobRuntimeDescriptor.scenarioName());
+    assertEquals(runConfigurationMetadata.steps().size(), jobRuntimeDescriptor.steps().size());
+    assertEquals(runConfigurationMetadata.steps().get(0).getName(), jobRuntimeDescriptor.steps().get(0).stepName());
 
         assertEquals(1, sourceWrapper.getSources().size());
         assertEquals("Customers", sourceWrapper.getSources().get(0).getSourceName());
