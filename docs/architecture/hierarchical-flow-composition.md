@@ -371,10 +371,10 @@ When discussing the longer-term model, it is acceptable to collapse `main flow` 
 
 ## Related docs
 
-- [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md)
-- [`flow-normalization-rules.md`](flow-normalization-rules.md)
-- [`runtime-flow.md`](runtime-flow.md)
-- [`job-history-and-operational-observability.md`](job-history-and-operational-observability.md)
-- [`../config/job-config.md`](../config/job-config.md)
+- [`Scenario-driven runtime direction`](scenario-driven-runtime-direction.md)
+- [`Flow normalization rules`](flow-normalization-rules.md)
+- [`Runtime flow`](runtime-flow.md)
+- [`Job history and operational observability`](job-history-and-operational-observability.md)
+- [`Job config reference`](../config/job-config.md)
 
 

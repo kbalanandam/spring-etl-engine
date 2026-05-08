@@ -287,8 +287,8 @@ Future contributors should follow this rule:
 
 ## Related docs
 
-- [`extension-points.md`](extension-points.md)
-- [`file-ingestion-hardening.md`](file-ingestion-hardening.md)
-- [`runtime-flow.md`](runtime-flow.md)
-- [`../config/processor/default-processor.md`](../config/processor/default-processor.md)
+- [`Extension points`](extension-points.md)
+- [`File ingestion hardening`](file-ingestion-hardening.md)
+- [`Runtime flow`](runtime-flow.md)
+- [`Default processor reference`](../config/processor/default-processor.md)
 

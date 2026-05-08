@@ -102,10 +102,10 @@ That means transform-then-reject is valid by design. For example, a transform ma
 
 ## Related
 
-- [`0006-separate-source-validation-and-processor-rule-spis.md`](0006-separate-source-validation-and-processor-rule-spis.md)
-- [`../architecture/extension-points.md`](../architecture/extension-points.md)
-- [`../architecture/transformation-capability-roadmap.md`](../architecture/transformation-capability-roadmap.md)
-- [`../config/processor/default-processor.md`](../config/processor/default-processor.md)
+- [`Separate source-validation and processor-rule SPIs`](0006-separate-source-validation-and-processor-rule-spis.md)
+- [`Extension points`](../architecture/extension-points.md)
+- [`Transformation capability roadmap`](../architecture/transformation-capability-roadmap.md)
+- [`Default processor reference`](../config/processor/default-processor.md)
 
 
 

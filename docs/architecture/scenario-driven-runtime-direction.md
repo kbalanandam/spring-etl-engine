@@ -106,7 +106,7 @@ flowchart TD
 
 The next runtime should introduce one scenario-scoped assembly object, for example:
 
-- `ScenarioRuntimeDescriptor`
+- `JobRuntimeDescriptor`
 - or `ScenarioExecutionPlan`
 
 Its job is to carry only the assets required for one selected run, such as:
@@ -131,20 +131,20 @@ This class diagram is intentionally narrow. It does **not** try to show every co
 
 ```mermaid
 classDiagram
-    class ScenarioRuntimeDescriptor {
+    class JobRuntimeDescriptor {
         +String scenarioName
         +String displayName
-        +ScenarioMainFlowContextDescriptor mainFlowContext
+        +JobMainFlowContextDescriptor mainFlowContext
         +String flowSummary
         +String jobConfigPath
         +int stepCount()
         +boolean hasStep(String)
-        +ScenarioStepDescriptor firstStep()
-        +ScenarioStepDescriptor finalStep()
+        +JobStepDescriptor firstStep()
+        +JobStepDescriptor finalStep()
         +List~String~ orderedStepNames()
     }
 
-    class ScenarioMainFlowContextDescriptor {
+    class JobMainFlowContextDescriptor {
         +boolean sharedLoggingContext
         +boolean sharedRecoveryContext
         +boolean supportsCrossSubFlowHandshake
@@ -152,14 +152,14 @@ classDiagram
         +String summary
     }
 
-    class ScenarioConfigPaths {
+    class JobConfigPaths {
         +String sourceConfigPath
         +String targetConfigPath
         +String processorConfigPath
         +String summary()
     }
 
-    class ScenarioValidationSummary {
+    class JobValidationSummary {
         +boolean sourceValidated
         +boolean targetValidated
         +boolean processorValidated
@@ -170,7 +170,7 @@ classDiagram
         +boolean passed()
     }
 
-    class ScenarioStepDescriptor {
+    class JobStepDescriptor {
         +String stepName
         +int stepOrder
         +String sourceName
@@ -181,8 +181,8 @@ classDiagram
         +boolean emitsFinalScenarioOutput()
     }
 
-    class ScenarioStepInputDescriptor {
-        +ScenarioStepInputType type
+    class JobStepInputDescriptor {
+        +JobStepInputType type
         +String sourceName
         +String upstreamStepName
         +String inputAlias
@@ -190,8 +190,8 @@ classDiagram
         +String summary
     }
 
-    class ScenarioStepOutputDescriptor {
-        +ScenarioStepOutputType type
+    class JobStepOutputDescriptor {
+        +JobStepOutputType type
         +String targetName
         +String outputAlias
         +boolean finalScenarioOutput
@@ -199,17 +199,17 @@ classDiagram
         +String summary
     }
 
-    class ScenarioStepModelDescriptor {
+    class JobStepModelDescriptor {
         +String sourceClassName
         +String targetProcessingClassName
         +String targetWriteClassName
         +boolean wrapperRequired
         +String wrapperFieldName
-        +ScenarioModelResolutionMode resolutionMode
+        +JobModelResolutionMode resolutionMode
         +String summary
     }
 
-    class ScenarioStepValidationSummary {
+    class JobStepValidationSummary {
         +boolean mappingValidated
         +boolean sourceValidated
         +boolean targetValidated
@@ -220,43 +220,43 @@ classDiagram
         +boolean passed()
     }
 
-    class ScenarioStepLinkDescriptor {
+    class JobStepLinkDescriptor {
         +String fromStepName
         +String toStepName
-        +ScenarioStepLinkType linkType
+        +JobStepLinkType linkType
         +String outputAlias
         +String inputAlias
-        +ScenarioStepLinkControlDescriptor control
+        +JobStepLinkControlDescriptor control
         +String summary
     }
 
-    class ScenarioSubFlowDescriptor {
+    class JobSubFlowDescriptor {
         +String subFlowName
         +int subFlowOrder
         +List~String~ stepNames
-        +ScenarioSubFlowExecutionStatus initialStatus
-        +ScenarioSubFlowControlDescriptor control
+        +JobSubFlowExecutionStatus initialStatus
+        +JobSubFlowControlDescriptor control
         +List~String~ dependsOnSubFlowNames
         +List~String~ consumesHandoffAliases
         +List~String~ producesHandoffAliases
         +String summary
     }
 
-    class ScenarioSubFlowControlDescriptor {
-        +List~ScenarioSubFlowExecutionStatus~ startAfterStatuses
-        +List~ScenarioSubFlowExecutionStatus~ blockOnStatuses
+    class JobSubFlowControlDescriptor {
+        +List~JobSubFlowExecutionStatus~ startAfterStatuses
+        +List~JobSubFlowExecutionStatus~ blockOnStatuses
         +boolean requiresHandoffReady
         +String summary
     }
 
-    class ScenarioStepLinkControlDescriptor {
-        +List~ScenarioSubFlowExecutionStatus~ requiredUpstreamStatuses
-        +List~ScenarioSubFlowExecutionStatus~ blockingUpstreamStatuses
+    class JobStepLinkControlDescriptor {
+        +List~JobSubFlowExecutionStatus~ requiredUpstreamStatuses
+        +List~JobSubFlowExecutionStatus~ blockingUpstreamStatuses
         +boolean requiresHandoffReady
         +String summary
     }
 
-    class ScenarioSubFlowExecutionStatus {
+    class JobSubFlowExecutionStatus {
         <<enumeration>>
         NOT_STARTED
         READY
@@ -267,68 +267,68 @@ classDiagram
         SKIPPED
     }
 
-    class ScenarioRunMode {
+    class JobRunMode {
         <<enumeration>>
         EXPLICIT_JOB
         DEMO_FALLBACK
     }
 
-    class ScenarioStepInputType {
+    class JobStepInputType {
         <<enumeration>>
         CONFIG_SOURCE
         UPSTREAM_STEP_OUTPUT
         NAMED_INTERMEDIATE
     }
 
-    class ScenarioStepOutputType {
+    class JobStepOutputType {
         <<enumeration>>
         CONFIG_TARGET
         INTERMEDIATE_DATASET
         FINAL_OUTPUT
     }
 
-    class ScenarioModelResolutionMode {
+    class JobModelResolutionMode {
         <<enumeration>>
         PREGENERATED
         SCENARIO_GENERATED
         LEGACY_BRIDGE
     }
 
-    class ScenarioStepLinkType {
+    class JobStepLinkType {
         <<enumeration>>
         ORDER_ONLY
         DATA_HANDOFF
         NAMED_INTERMEDIATE
     }
 
-    ScenarioRuntimeDescriptor *-- "1" ScenarioConfigPaths
-    ScenarioRuntimeDescriptor *-- "1" ScenarioMainFlowContextDescriptor
-    ScenarioRuntimeDescriptor *-- "0..*" ScenarioSubFlowDescriptor
-    ScenarioRuntimeDescriptor *-- "0..*" ScenarioStepDescriptor
-    ScenarioRuntimeDescriptor *-- "0..*" ScenarioStepLinkDescriptor
-    ScenarioRuntimeDescriptor *-- "1" ScenarioValidationSummary
-    ScenarioRuntimeDescriptor --> ScenarioRunMode
+    JobRuntimeDescriptor *-- "1" JobConfigPaths
+    JobRuntimeDescriptor *-- "1" JobMainFlowContextDescriptor
+    JobRuntimeDescriptor *-- "0..*" JobSubFlowDescriptor
+    JobRuntimeDescriptor *-- "0..*" JobStepDescriptor
+    JobRuntimeDescriptor *-- "0..*" JobStepLinkDescriptor
+    JobRuntimeDescriptor *-- "1" JobValidationSummary
+    JobRuntimeDescriptor --> JobRunMode
 
-    ScenarioStepDescriptor *-- "1" ScenarioStepInputDescriptor
-    ScenarioStepDescriptor *-- "1" ScenarioStepOutputDescriptor
-    ScenarioStepDescriptor *-- "1" ScenarioStepModelDescriptor
-    ScenarioStepDescriptor *-- "1" ScenarioStepValidationSummary
+    JobStepDescriptor *-- "1" JobStepInputDescriptor
+    JobStepDescriptor *-- "1" JobStepOutputDescriptor
+    JobStepDescriptor *-- "1" JobStepModelDescriptor
+    JobStepDescriptor *-- "1" JobStepValidationSummary
 
-    ScenarioStepInputDescriptor --> ScenarioStepInputType
-    ScenarioStepOutputDescriptor --> ScenarioStepOutputType
-    ScenarioStepModelDescriptor --> ScenarioModelResolutionMode
-    ScenarioStepLinkDescriptor --> ScenarioStepLinkType
-    ScenarioStepLinkDescriptor *-- "1" ScenarioStepLinkControlDescriptor
-    ScenarioSubFlowDescriptor *-- "1" ScenarioSubFlowControlDescriptor
-    ScenarioSubFlowDescriptor --> ScenarioSubFlowExecutionStatus
+    JobStepInputDescriptor --> JobStepInputType
+    JobStepOutputDescriptor --> JobStepOutputType
+    JobStepModelDescriptor --> JobModelResolutionMode
+    JobStepLinkDescriptor --> JobStepLinkType
+    JobStepLinkDescriptor *-- "1" JobStepLinkControlDescriptor
+    JobSubFlowDescriptor *-- "1" JobSubFlowControlDescriptor
+    JobSubFlowDescriptor --> JobSubFlowExecutionStatus
 ```
 
 Read this diagram from top to bottom:
 
-1. `ScenarioRuntimeDescriptor` describes one full selected run.
-2. each `ScenarioStepDescriptor` describes one executable unit inside that run.
+1. `JobRuntimeDescriptor` describes one full selected run.
+2. each `JobStepDescriptor` describes one executable unit inside that run.
 3. input, output, model, validation, and step-link descriptors make the scenario self-explanatory enough for runtime assembly, diagnostics, logging, and later UI projection.
-4. enums such as `ScenarioStepLinkType` and `ScenarioModelResolutionMode` keep step relationships and model expectations explicit instead of hidden in runtime assumptions.
+4. enums such as `JobStepLinkType` and `JobModelResolutionMode` keep step relationships and model expectations explicit instead of hidden in runtime assumptions.
 
 ## Hierarchical composition direction
 
@@ -533,12 +533,12 @@ Those capabilities should layer on top of the same scenario contract rather than
 
 - [`overview.md`](overview.md)
 - [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md)
-- [`flow-normalization-rules.md`](flow-normalization-rules.md)
-- [`runtime-flow.md`](runtime-flow.md)
-- [`1-4-to-next-architecture-classification.md`](1-4-to-next-architecture-classification.md)
-- [`etl-product-evolution-roadmap.md`](etl-product-evolution-roadmap.md)
-- [`transformation-capability-roadmap.md`](transformation-capability-roadmap.md)
-- [`../adr/0004-use-explicit-job-config-for-business-scenario-selection.md`](../adr/0004-use-explicit-job-config-for-business-scenario-selection.md)
+- [`Flow normalization rules`](flow-normalization-rules.md)
+- [`Runtime flow`](runtime-flow.md)
+- [`1.4-to-next architecture classification`](1-4-to-next-architecture-classification.md)
+- [`ETL product evolution roadmap`](etl-product-evolution-roadmap.md)
+- [`Transformation capability roadmap`](transformation-capability-roadmap.md)
+- [`Use explicit job-config for business-scenario selection`](../adr/0004-use-explicit-job-config-for-business-scenario-selection.md)
 
 
 

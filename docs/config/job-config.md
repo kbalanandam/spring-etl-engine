@@ -6,7 +6,7 @@
 
 It chooses exactly one source config file, one target config file, and one processor config file for a run, and it defines the explicit ETL step order for that run.
 
-This is the config contract that now anchors the preserved scenario bundles checked in under `src/main/resources/config-jobs/`.
+This is the config contract that now anchors the preserved reference bundles checked in under `src/main/resources/config-jobs/` and the private deployable bundles you may keep under [`private-jobs/`](../../private-jobs/README.md).
 
 Today this remains the shipped flat execution baseline. The frozen architecture direction may later group those ordered steps into subflows inside one selected main flow, but the runtime boundary still remains one selected scenario and one selected `job-config.yaml`.
 
@@ -83,7 +83,7 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - Current descriptor assembly synthesizes named subflow/status metadata from the flat ordered `steps` list for observability, so startup/job logs can emit `MAIN_FLOW_PLAN`, `SUBFLOW_PLAN`, and `SUBFLOW_SUMMARY` evidence even though execution still follows the flat `steps` list.
 - When an upstream step/subflow fails, downstream descriptor-derived subflows can now be logged as `BLOCKED` with explicit dependency and handoff reasons, but `job-config.yaml` still does not require explicit authored subflow blocks.
 - Relative `sourceConfigPath`, `targetConfigPath`, and `processorConfigPath` values are resolved from the `job-config.yaml` file's folder.
-- Explicit job selection accepts either `config-jobs/...` or the preserved `config-scenarios/...` bundle path when pointing at repository examples.
+- Checked-in reference bundles should use `config-jobs/...`. Private deployable bundles should prefer [`private-jobs/...`](../../private-jobs/README.md). Legacy `config-scenarios/...` bundle paths still resolve for backward compatibility, but that alias path is now deprecated.
 - The runtime does not scan scenario folders automatically; one run explicitly chooses one `job-config.yaml`.
 - `name` is still the selected bundle identity shown in logs and metadata. When the selected source or target config omits `packageName`, explicit job runs also derive default packages as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`.
 - During explicit startup, the selected source and target configs are validated first, then the selected processor config is validated before generated-model class checks run.
@@ -97,13 +97,13 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - The selected processor config must contain a matching mapping for each source/target pair used by the selected steps.
 - A multi-step scenario can reuse one processor config file with multiple mappings; runtime picks the mapping by `source` and `target` names, not by list position.
 - If the selected processor config is malformed, explicit startup now fails before generated-model class validation so processor issues are not masked by unrelated missing generated classes.
-- Use `etl.config.job` as the normal production-style entry point. Direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides are intended for demo/fallback cases only.
+- Use `etl.config.job` as the normal production-style entry point whether the selected `job-config.yaml` lives under `src/main/resources/config-jobs/` or a git-ignored private bundle such as `private-jobs/`. Direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides are intended for demo/fallback cases only.
 - Archive-on-success remains part of the selected file-backed source config (for example CSV or XML), not `job-config.yaml`.
 - Rejected-record output and field-level validation rules remain part of the selected processor config, not `job-config.yaml`.
 
 ## Related design note
 
-The broader file-ingestion hardening direction beyond the first preserved CSV proof slice and the current shared file-source archive contract is documented in [`../architecture/file-ingestion-hardening.md`](../architecture/file-ingestion-hardening.md).
+The broader file-ingestion hardening direction beyond the first preserved CSV proof slice and the current shared file-source archive contract is documented in [`File ingestion hardening`](../architecture/file-ingestion-hardening.md).
 
 ## Preserved examples
 
@@ -117,11 +117,33 @@ The broader file-ingestion hardening direction beyond the first preserved CSV pr
 - `src/main/resources/config-jobs/department-load/job-config.yaml`
 - `src/main/resources/config-jobs/cust-dept-load/job-config.yaml`
 
+## Private deployable bundle pattern
+
+For private production-like runs, prefer a grouped collection under `private-jobs/` so one collection can be deleted as a single purge unit, and gather the runnable YAML under a `config/` subfolder, for example:
+
+```text
+private-jobs/
+  acme-prod/
+    partner-orders-daily/
+      config/
+        job-config.yaml
+        source-config.yaml
+        target-config.yaml
+        processor-config.yaml
+      input/
+      output/
+      archive/
+```
+
+Run it with `etl.config.job=private-jobs/acme-prod/partner-orders-daily/config/job-config.yaml` so the relative config paths still resolve from that config folder.
+
+Single-level private bundles such as `private-jobs/partner-orders/` still work, but grouped collections are the preferred pattern for new private workspaces.
+
 ## Related docs
 
-- [`README.md`](README.md)
-- [`processor/default-processor.md`](processor/default-processor.md)
-- [`../architecture/hierarchical-flow-composition.md`](../architecture/hierarchical-flow-composition.md)
-- [`../architecture/flow-normalization-rules.md`](../architecture/flow-normalization-rules.md)
-- [`../architecture/runtime-flow.md`](../architecture/runtime-flow.md)
+- [`Config docs overview`](README.md)
+- [`Default processor reference`](processor/default-processor.md)
+- [`Hierarchical flow composition`](../architecture/hierarchical-flow-composition.md)
+- [`Flow normalization rules`](../architecture/flow-normalization-rules.md)
+- [`Runtime flow`](../architecture/runtime-flow.md)
 

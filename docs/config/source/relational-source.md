@@ -158,9 +158,9 @@ sources:
 
 ## Related docs
 
-- [`csv-source.md`](csv-source.md)
-- [`../target/relational-target.md`](../target/relational-target.md)
-- [`../../architecture/relational-db-support.md`](../../architecture/relational-db-support.md)
+- [`CSV source reference`](csv-source.md)
+- [`Relational target reference`](../target/relational-target.md)
+- [`Relational DB support`](../../architecture/relational-db-support.md)
 
 
 

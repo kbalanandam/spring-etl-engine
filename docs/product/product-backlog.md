@@ -8,7 +8,7 @@ It is the single product roadmap and execution backlog for the product at this s
 
 It is intentionally different from the architecture roadmap:
 
-- `docs/architecture/etl-product-evolution-roadmap.md` explains **direction and phases**
+- [`ETL product evolution roadmap`](../architecture/etl-product-evolution-roadmap.md) explains **direction and phases**
 - this backlog explains **what to do next, why it matters, and how to know when it is done**
 
 Use this file to keep the team aligned when implementation pressure, feature requests, or uncertainty create drift.
@@ -161,6 +161,7 @@ This table is the day-to-day execution view for the current product stage.
 |---|---|---|---|---|---|---|---|
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
+| A3 | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Ready | M1 | A2 | Future `job-config.yaml isActive` contract should fail fast in `ConfigLoader` with job-aware startup errors; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
 | T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | T2 | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
@@ -237,9 +238,9 @@ Current proof anchors:
 
 Architecture anchors:
 
-- `docs/architecture/validation-extension-architecture.md`
-- `docs/architecture/file-ingestion-hardening.md`
-- `docs/config/processor/default-processor.md`
+- [`Validation extension architecture`](../architecture/validation-extension-architecture.md)
+- [`File ingestion hardening`](../architecture/file-ingestion-hardening.md)
+- [`Default processor reference`](../config/processor/default-processor.md)
 
 Latest completed implementation step:
 
@@ -297,6 +298,7 @@ Make each run explicit, predictable, and less fragile.
 ### Backlog
 - [x] Replace positional source-target pairing with explicit step pairing or step definitions
 - [x] Validate scenario completeness before job start
+- [ ] Add job-level activation guardrail so `isActive: false` blocks the selected job before wiring
 - [ ] Add stronger config validation error messages for operators
 - [ ] Make step definitions more business-meaningful and less index-driven
 - [ ] Document supported orchestration patterns and limitations
@@ -304,6 +306,7 @@ Make each run explicit, predictable, and less fragile.
 ### Done criteria
 - source-to-target pairing is unambiguous
 - config failures are fast, operator-friendly, and test-covered
+- inactive selected jobs fail early and never reach `BatchConfig` step assembly
 - supported step orchestration patterns are documented
 
 ---

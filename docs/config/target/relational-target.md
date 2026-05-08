@@ -134,8 +134,8 @@ Phase-1 relational target support is intentionally narrow.
 
 ## Related docs
 
-- [`../source/csv-source.md`](../source/csv-source.md)
-- [`../processor/default-processor.md`](../processor/default-processor.md)
-- [`../../architecture/relational-db-support.md`](../../architecture/relational-db-support.md)
+- [`CSV source reference`](../source/csv-source.md)
+- [`Default processor reference`](../processor/default-processor.md)
+- [`Relational DB support`](../../architecture/relational-db-support.md)
 
 

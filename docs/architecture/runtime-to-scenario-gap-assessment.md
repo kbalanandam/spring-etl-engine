@@ -34,7 +34,7 @@ The shipped runtime currently provides:
 - one selected `job-config.yaml` as the normal execution entry point
 - one explicit flat `steps` list as the executable composition baseline
 - strict scenario-aware config validation on the active startup path
-- descriptor-backed scenario assembly through `ScenarioRuntimeDescriptor`
+- descriptor-backed scenario assembly through `JobRuntimeDescriptor`
 - early main-flow identity, recovery metadata, and descriptor-level subflow/shared-context registry support, with richer runtime handshake behavior still evolving
 - shared factories for readers, processors, and writers
 - shared source-validation and processor-rule validation seams
@@ -75,7 +75,7 @@ toward:
 | Scenario selection | One selected `job-config.yaml` already drives normal execution | Scenario remains the explicit execution boundary | Strong | Short-name registry/catalog and richer scenario binding are still future work |
 | Config contracts | Source, target, and processor configs are reusable and stable enough to serve as shared contracts | Config remains reusable, but should bind reusable flows/subflows as well as steps | Strong | No first-class reusable flow/subflow definition model yet |
 | Step composition | Explicit flat ordered `steps` list works today | Steps should remain executable units inside reusable subflows and main flows | Moderate | Flat step list is real, but hierarchy is still only a documented target |
-| Runtime descriptor | `ScenarioRuntimeDescriptor` and assembler already exist | Descriptor should grow to represent main flow, subflows, main-flow shared context, named subflow status/control metadata, explicit blocking/handoff rules, richer links, and hierarchical evidence | Moderate | Descriptor is still essentially step-centric and only beginning to expose main-flow shared-context / handshake metadata |
+| Runtime descriptor | `JobRuntimeDescriptor` and assembler already exist | Descriptor should grow to represent main flow, subflows, main-flow shared context, named subflow status/control metadata, explicit blocking/handoff rules, richer links, and hierarchical evidence | Moderate | Descriptor is still essentially step-centric and only beginning to expose main-flow shared-context / handshake metadata |
 | Reader/processor/writer seams | Shared factories already provide strong technical reuse | These should remain the shared execution seams under the richer model | Strong | Main gap is not reuse of seams but composition above them |
 | Validation/runtime support | Source validation, processor rules, duplicate handling, reject/archive support are reusable | These should remain reusable platform concerns at any hierarchy level | Strong | Need cleaner attachment to subflow/main-flow roll-up identity |
 | Model generation and resolution | Job-scoped XML generation is strong; CSV/relational parity is less mature; legacy bridge assumptions remain | Generation/resolution should become fully scenario-scoped and consistent across supported formats | Moderate | Legacy and bridge assumptions still leak into the active architecture |
@@ -104,8 +104,8 @@ These form the current reusable technical substrate.
 
 ### Reusable today, but still transitional
 
-- `ScenarioRuntimeDescriptor`
-- `ScenarioRuntimeDescriptorAssembler`
+- `JobRuntimeDescriptor`
+- `JobRuntimeDescriptorAssembler`
 - `ConfigLoader`
 - `BatchConfig`
 - `GeneratedModelClassResolver`
@@ -291,12 +291,12 @@ The best summary is:
 ## Related docs
 
 - [`overview.md`](overview.md)
-- [`runtime-flow.md`](runtime-flow.md)
-- [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md)
-- [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md)
-- [`1-4-to-next-architecture-classification.md`](1-4-to-next-architecture-classification.md)
-- [`extension-points.md`](extension-points.md)
-- [`etl-product-evolution-roadmap.md`](etl-product-evolution-roadmap.md)
-- [`../product/product-backlog.md`](../product/product-backlog.md)
+- [`Runtime flow`](runtime-flow.md)
+- [`Scenario-driven runtime direction`](scenario-driven-runtime-direction.md)
+- [`Hierarchical flow composition`](hierarchical-flow-composition.md)
+- [`1.4-to-next architecture classification`](1-4-to-next-architecture-classification.md)
+- [`Extension points`](extension-points.md)
+- [`ETL product evolution roadmap`](etl-product-evolution-roadmap.md)
+- [`Product backlog`](../product/product-backlog.md)
 
 

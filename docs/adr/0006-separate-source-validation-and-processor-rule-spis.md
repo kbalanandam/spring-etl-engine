@@ -52,7 +52,7 @@ The product will not revive `validation-config.yaml` or the deprecated `com.etl.
 
 ## Related
 
-- [`../architecture/validation-extension-architecture.md`](../architecture/validation-extension-architecture.md)
-- [`../architecture/file-ingestion-hardening.md`](../architecture/file-ingestion-hardening.md)
-- [`0004-use-explicit-job-config-for-business-scenario-selection.md`](0004-use-explicit-job-config-for-business-scenario-selection.md)
+- [`Validation extension architecture`](../architecture/validation-extension-architecture.md)
+- [`File ingestion hardening`](../architecture/file-ingestion-hardening.md)
+- [`Use explicit job-config for business-scenario selection`](0004-use-explicit-job-config-for-business-scenario-selection.md)
 

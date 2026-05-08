@@ -89,11 +89,11 @@ sources:
 
 ## Related design note
 
-The broader file-ingestion hardening direction, including future expansion beyond the current CSV slice, is documented in [`../../architecture/file-ingestion-hardening.md`](../../architecture/file-ingestion-hardening.md).
+The broader file-ingestion hardening direction, including future expansion beyond the current CSV slice, is documented in [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md).
 
 ## Related docs
 
-- [`../processor/default-processor.md`](../processor/default-processor.md)
-- [`../target/relational-target.md`](../target/relational-target.md)
+- [`Default processor reference`](../processor/default-processor.md)
+- [`Relational target reference`](../target/relational-target.md)
 
 

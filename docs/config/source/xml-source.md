@@ -237,9 +237,9 @@ When that profile is enabled:
 
 ## Related docs
 
-- [`csv-source.md`](csv-source.md)
-- [`../processor/default-processor.md`](../processor/default-processor.md)
-- [`../../architecture/file-ingestion-hardening.md`](../../architecture/file-ingestion-hardening.md)
+- [`CSV source reference`](csv-source.md)
+- [`Default processor reference`](../processor/default-processor.md)
+- [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md)
 
 
 

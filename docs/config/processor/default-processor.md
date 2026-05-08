@@ -314,17 +314,17 @@ That separation keeps shipped behavior readable today and leaves room for future
 
 This page documents the shipped processor contract. For future-only design direction such as broader transformation maturity, source-transform ownership, and expression/conditional roadmap items, continue in:
 
-- [`../../architecture/transformation-capability-roadmap.md`](../../architecture/transformation-capability-roadmap.md)
-- [`../../architecture/extension-points.md`](../../architecture/extension-points.md)
+- [`Transformation capability roadmap`](../../architecture/transformation-capability-roadmap.md)
+- [`Extension points`](../../architecture/extension-points.md)
 
 ## Related design note
 
-The broader file-ingestion hardening direction, including future expansion beyond the current CSV slice, is documented in [`../../architecture/file-ingestion-hardening.md`](../../architecture/file-ingestion-hardening.md).
+The broader file-ingestion hardening direction, including future expansion beyond the current CSV slice, is documented in [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md).
 
 ## Related docs
 
-- [`../source/csv-source.md`](../source/csv-source.md)
-- [`../target/relational-target.md`](../target/relational-target.md)
+- [`CSV source reference`](../source/csv-source.md)
+- [`Relational target reference`](../target/relational-target.md)
 
 
 

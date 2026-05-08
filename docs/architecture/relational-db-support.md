@@ -9,7 +9,7 @@ This document defines the relational database (RDBMS) architecture baseline for 
 - Classification: **Current baseline + future evolution**
 - The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.
 
-If terms such as *scenario bundle*, *step*, *factory*, *resolver*, or *database dialect* are unfamiliar, start with the shared definitions in [`../README.md#core-terms`](../README.md#core-terms) and then return here.
+If terms such as *scenario bundle*, *step*, *factory*, *resolver*, or *database dialect* are unfamiliar, start with the shared definitions in [`core terms`](../README.md#core-terms) and then return here.
 
 The goal is to make future implementation deliberate, reviewable, and extensible rather than letting JDBC-specific decisions spread across readers, writers, and orchestration code.
 

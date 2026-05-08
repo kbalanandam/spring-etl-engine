@@ -264,8 +264,8 @@ It explains how future hierarchy-aware runtime assembly should normalize simple 
 
 ## Related docs
 
-- [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md)
-- [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md)
-- [`runtime-to-scenario-gap-assessment.md`](runtime-to-scenario-gap-assessment.md)
-- [`../config/job-config.md`](../config/job-config.md)
+- [`Scenario-driven runtime direction`](scenario-driven-runtime-direction.md)
+- [`Hierarchical flow composition`](hierarchical-flow-composition.md)
+- [`Runtime-to-scenario gap assessment`](runtime-to-scenario-gap-assessment.md)
+- [`Job config reference`](../config/job-config.md)
 

@@ -1,4 +1,4 @@
-﻿# File Ingestion Hardening Checklist
+# File Ingestion Hardening Checklist
 
 ## Purpose
 
@@ -67,7 +67,7 @@ The following items are still not part of the shipped hardening contract:
 - `src/main/java/com/etl/runtime/FileIngestionRuntimeSupport.java` â€” step-scoped reject handling, duplicate tracking, and archive-on-success lifecycle support
 - `src/main/java/com/etl/job/listener/FileIngestionHardeningStepListener.java` â€” initializes and completes the hardening runtime state around each step
 - `src/main/java/com/etl/job/listener/StepLoggingContextListener.java` â€” publishes `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath` in machine-readable step-finished logs
-- `src/main/java/com/etl/runtime/scenario/ScenarioRuntimeDescriptorAssembler.java` â€” exposes archive/reject-related execution hints into descriptor metadata
+- `src/main/java/com/etl/runtime/job/JobRuntimeDescriptorAssembler.java` â€” exposes archive/reject-related execution hints into descriptor metadata
 
 ## Preserved proof scenarios
 
@@ -76,7 +76,7 @@ Use these preserved bundles when reviewing or extending the hardening slice:
 - `src/main/resources/config-jobs/csv-validation-reject-archive/`
   - first preserved proof for processor rules, rejected-record output, and archive-on-success
 - `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/`
-  - preserved proof that the shared processor rule and reject-handling contract also applies on a file-backed XML flow after XML flattening
+  - preserved proof that the shared processor rule plus reject/archive file-ingestion contracts also apply on a file-backed XML flow after XML flattening
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/`
   - preserved proof that XML sources now participate in archive-on-success and emit `archivedSourcePath` evidence after step completion
 
@@ -114,10 +114,10 @@ Before considering additional hardening changes complete, confirm:
 
 ## Related notes
 
-- [`file-ingestion-hardening.md`](file-ingestion-hardening.md)
-- [`runtime-flow.md`](runtime-flow.md)
-- [`validation-extension-architecture.md`](validation-extension-architecture.md)
-- [`transformation-capability-roadmap.md`](transformation-capability-roadmap.md)
-- [`../product/product-backlog.md`](../product/product-backlog.md)
+- [`File ingestion hardening`](file-ingestion-hardening.md)
+- [`Runtime flow`](runtime-flow.md)
+- [`Validation extension architecture`](validation-extension-architecture.md)
+- [`Transformation capability roadmap`](transformation-capability-roadmap.md)
+- [`Product backlog`](../product/product-backlog.md)
 
 

@@ -19,7 +19,7 @@ As features grow, the goal is to keep architectural intent in the repository ins
 
 Use these short definitions as the shared vocabulary for the rest of the docs:
 
-- **scenario bundle** — one runnable config folder for one use case. The checked-in bundle root is `src/main/resources/config-jobs/`, while legacy `config-scenarios/...` paths remain backward-compatible aliases.
+- **job bundle** — one runnable config folder for one use case. The checked-in preserved bundle root is `src/main/resources/config-jobs/`. Private deployable bundles should live under the git-ignored repo-root [`private-jobs/`](../private-jobs/README.md), preferably grouped as `private-jobs/<collection>/<job-bundle>/`. Legacy `config-scenarios/...` paths remain temporarily available as deprecated compatibility aliases.
 - **`job-config.yaml`** — the run entry point that selects config files and ordered steps for one scenario; see [`config/job-config.md`](config/job-config.md)
 - **main flow** — the top-level reusable business flow executed inside one selected scenario; see [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md)
 - **subflow** — a reusable grouped phase inside one main flow, containing one or more ordered steps; see [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md)
@@ -38,7 +38,7 @@ Start with the path that matches your goal:
 
 | If you want to... | Start here | Then go to |
 |---|---|---|
-| run or configure one scenario | [`config/README.md`](config/README.md) | [`config/job-config.md`](config/job-config.md) and one preserved job/scenario bundle |
+| run or configure one scenario | [`config/README.md`](config/README.md) | [`config/job-config.md`](config/job-config.md) and one preserved or private job bundle |
 | understand the shipped runtime flow | [`architecture/runtime-flow.md`](architecture/runtime-flow.md) | [`architecture/runtime-flow-walkthrough.html`](architecture/runtime-flow-walkthrough.html) for the hierarchy-aware product-flow walkthrough, and [`architecture/overview.md`](architecture/overview.md) |
 | understand the next runtime architecture target | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) | [`architecture/1-4-to-next-architecture-classification.md`](architecture/1-4-to-next-architecture-classification.md) |
 | understand main flow / subflow composition | [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) and [`config/job-config.md`](config/job-config.md) |
@@ -76,6 +76,7 @@ For every significant enhancement, add or update:
 - [`architecture/1-4-to-next-architecture-classification.md`](architecture/1-4-to-next-architecture-classification.md) — transition map for classifying current 1.4.x code into reuse, bridge, legacy, and remove buckets during the next architecture shift
 - [`architecture/runtime-flow.md`](architecture/runtime-flow.md) — end-to-end ETL runtime flow
 - [`architecture/runtime-flow-walkthrough.html`](architecture/runtime-flow-walkthrough.html) — lightweight animated HTML walkthrough of the shipped runtime path with `MainFlow -> SubFlow -> Step` product-flow context
+- [`architecture/job-level-activation-and-startup-guardrails.md`](architecture/job-level-activation-and-startup-guardrails.md) — future job-level `isActive` contract and fail-fast startup guardrail for inactive selected jobs
 - [`architecture/extension-points.md`](architecture/extension-points.md) — where new formats, processors, and future capabilities plug in
 - [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md) — top architectural risks to watch during roadmap execution
 - [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase, future enterprise integration direction, and the high-level guide for what belongs now vs later
@@ -126,7 +127,7 @@ For every significant enhancement, add or update:
 - `src/main/resources/config-jobs/department-load/` — preferred entry path for the department-only ETL example
 - `src/main/resources/config-jobs/cust-dept-load/` — preferred entry path for the multi-step customer + department ETL example
 
-Those `config-jobs` paths now point at the checked-in preserved bundles directly. Older `config-scenarios/...` references remain supported as compatibility aliases.
+Those `config-jobs` paths now point at the checked-in preserved bundles directly. Use repo-root [`private-jobs/`](../private-jobs/README.md) for private deployable bundles that must not be committed. Older `config-scenarios/...` references remain temporarily supported as deprecated compatibility aliases.
 
 ## Maintenance rules
 
