@@ -5,6 +5,7 @@ import com.etl.config.source.FileArchiveConfig;
 import com.etl.config.source.FileSourceConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.SourceConfig;
+import com.etl.exception.RuntimeEtlException;
 import com.etl.processor.validation.ValidationIssue;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
@@ -90,7 +91,7 @@ public class FileIngestionRuntimeSupport {
 			stepExecution.getExecutionContext().putInt(REJECTED_COUNT_KEY, currentRejectedCount + 1);
 			return true;
 		} catch (IOException e) {
-			throw new IllegalStateException("Failed to write reject output for step '" + stepExecution.getStepName() + "'.", e);
+			throw new RuntimeEtlException("Failed to write reject output for step '" + stepExecution.getStepName() + "'.", e);
 		}
 	}
 
@@ -101,7 +102,7 @@ public class FileIngestionRuntimeSupport {
 			try {
 				rejectFileState.close();
 			} catch (IOException e) {
-				throw new IllegalStateException("Failed to close reject output for step '" + stepExecution.getStepName() + "'.", e);
+				throw new RuntimeEtlException("Failed to close reject output for step '" + stepExecution.getStepName() + "'.", e);
 			}
 		}
 
@@ -161,7 +162,7 @@ public class FileIngestionRuntimeSupport {
 			Files.move(sourcePath, archivedPath, StandardCopyOption.REPLACE_EXISTING);
 			stepExecution.getExecutionContext().putString(ARCHIVED_SOURCE_PATH_KEY, archivedPath.toString());
 		} catch (IOException e) {
-			throw new IllegalStateException("Failed to archive source file '" + sourcePath + "' for step '" + stepExecution.getStepName() + "'.", e);
+			throw new RuntimeEtlException("Failed to archive source file '" + sourcePath + "' for step '" + stepExecution.getStepName() + "'.", e);
 		}
 	}
 

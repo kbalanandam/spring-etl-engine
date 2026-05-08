@@ -5,6 +5,7 @@ import com.etl.config.FieldDefinition;
 import com.etl.config.relational.RelationalDataSourceFactory;
 import com.etl.config.source.RelationalSourceConfig;
 import com.etl.config.source.SourceConfig;
+import com.etl.exception.RelationalException;
 import com.etl.enums.ModelFormat;
 import com.etl.reader.DynamicReader;
 import com.etl.relational.dialect.DatabaseDialect;
@@ -27,28 +28,37 @@ public class RelationalDynamicReader<T> implements DynamicReader<T> {
 
     @Override
     public ItemReader<T> getReader(SourceConfig config, Class<T> clazz) throws Exception {
-        if (config == null || clazz == null) {
-            throw new IllegalArgumentException("SourceConfig and target class must not be null.");
-        }
+        try {
+            if (config == null || clazz == null) {
+                throw new RelationalException("SourceConfig and target class must not be null.");
+            }
 
-        RelationalSourceConfig relationalConfig = (RelationalSourceConfig) config;
-        relationalConfig.validate();
+            RelationalSourceConfig relationalConfig = (RelationalSourceConfig) config;
+            relationalConfig.validate();
 
-        DatabaseDialect dialect = DatabaseDialectResolver.resolve(relationalConfig.getConnection().getResolvedVendor());
+            DatabaseDialect dialect = DatabaseDialectResolver.resolve(relationalConfig.getConnection().getResolvedVendor());
 
-        JdbcCursorItemReader<T> reader = new JdbcCursorItemReader<>();
-        reader.setDataSource(RelationalDataSourceFactory.buildDataSource(relationalConfig.getConnection()));
-        reader.setSql(resolveReadSql(relationalConfig, dialect));
-        reader.setVerifyCursorPosition(false);
-        if (relationalConfig.getFetchSize() != null && relationalConfig.getFetchSize() > 0) {
-            reader.setFetchSize(relationalConfig.getFetchSize());
+            JdbcCursorItemReader<T> reader = new JdbcCursorItemReader<>();
+            reader.setDataSource(RelationalDataSourceFactory.buildDataSource(relationalConfig.getConnection()));
+            reader.setSql(resolveReadSql(relationalConfig, dialect));
+            reader.setVerifyCursorPosition(false);
+            if (relationalConfig.getFetchSize() != null && relationalConfig.getFetchSize() > 0) {
+                reader.setFetchSize(relationalConfig.getFetchSize());
+            }
+            if (relationalConfig.getMaxRows() != null && relationalConfig.getMaxRows() > 0) {
+                reader.setMaxRows(relationalConfig.getMaxRows());
+            }
+            reader.setRowMapper(buildRowMapper(relationalConfig, clazz));
+            reader.afterPropertiesSet();
+            return reader;
+        } catch (RelationalException e) {
+            throw e;
+        } catch (IllegalArgumentException e) {
+            throw new RelationalException("Invalid relational source configuration: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new RelationalException("Failed to initialize relational reader for source '"
+                    + (config == null ? "unnamed" : config.getSourceName()) + "'.", e);
         }
-        if (relationalConfig.getMaxRows() != null && relationalConfig.getMaxRows() > 0) {
-            reader.setMaxRows(relationalConfig.getMaxRows());
-        }
-        reader.setRowMapper(buildRowMapper(relationalConfig, clazz));
-        reader.afterPropertiesSet();
-        return reader;
     }
 
     private String resolveReadSql(RelationalSourceConfig config, DatabaseDialect dialect) {

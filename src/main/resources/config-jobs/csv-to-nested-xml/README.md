@@ -43,5 +43,5 @@ mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/
 java "-Detl.config.job=src/main/resources/config-jobs/csv-to-nested-xml/job-config.yaml" -jar target/spring-etl-engine-1.3.0.jar
 ```
 
-The checked-in bundle root is now `config-jobs`. The runtime still accepts legacy `config-scenarios/...` paths for backward compatibility.
+The checked-in bundle root is now `config-jobs`. The runtime still accepts legacy `config-scenarios/...` paths temporarily for backward compatibility, but that alias path is now deprecated.
 

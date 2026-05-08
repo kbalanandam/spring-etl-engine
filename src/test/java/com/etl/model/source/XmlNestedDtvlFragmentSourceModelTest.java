@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class XmlNestedDtvlFragmentSourceModelTest {
@@ -24,14 +23,14 @@ class XmlNestedDtvlFragmentSourceModelTest {
     Path tempDir;
 
     @Test
-    void unmarshalsRealDtvlFragmentsIntoFullNestedSourceRecords() throws Exception {
+    void unmarshalsSampleDtvlFragmentsIntoFullNestedSourceRecords() throws Exception {
         try (GeneratedScenarioModelSupport.CompiledGeneratedModels compiledModels = GeneratedScenarioModelSupport.compileJobScopedModels(
                 Path.of("src", "main", "resources", "config-jobs", "xml-nested-to-csv-tag-validation", "job-config.yaml"),
                 tempDir
         )) {
             Class<?> recordClass = compiledModels.loadClass("com.etl.generated.job.xmlnestedtocsvtagvalidation.source.TVLTagDetails");
             List<Object> records = readRecords(
-                    Path.of("src", "main", "resources", "config-jobs", "xml-nested-to-csv-tag-validation", "input", "9002_9002_20260427070109.DTVL"),
+                    Path.of("src", "main", "resources", "config-jobs", "xml-nested-to-csv-tag-validation", "input", "tag-validation-sample.xml"),
                     recordClass,
                     2
             );
@@ -39,24 +38,24 @@ class XmlNestedDtvlFragmentSourceModelTest {
             assertEquals(2, records.size());
 
             Object first = records.get(0);
-            assertEquals("0056", getString(first, "getHomeAgencyID"));
-            assertEquals("1300", getString(first, "getTagAgencyID"));
-            assertEquals("0003518358", getString(first, "getTagSerialNumber"));
+            assertEquals("1001", getString(first, "getHomeAgencyID"));
+            assertEquals("2001", getString(first, "getTagAgencyID"));
+            assertEquals("SAMPLE-0001", getString(first, "getTagSerialNumber"));
             Object firstPlate = first.getClass().getMethod("getTVLPlateDetails").invoke(first);
             assertNotNull(firstPlate);
             assertEquals("US", getString(firstPlate, "getPlateCountry"));
-            assertEquals("KS", getString(firstPlate, "getPlateState"));
-            assertEquals("7064AFP", getString(firstPlate, "getPlateNumber"));
+            assertEquals("CA", getString(firstPlate, "getPlateState"));
+            assertEquals("SAMPLE100", getString(firstPlate, "getPlateNumber"));
             Object firstAccount = first.getClass().getMethod("getTVLAccountDetails").invoke(first);
             assertNotNull(firstAccount);
-            assertEquals("4773316", getString(firstAccount, "getAccountNumber"));
+            assertEquals("ACCT-1001", getString(firstAccount, "getAccountNumber"));
 
             Object second = records.get(1);
-            assertEquals("0056", getString(second, "getHomeAgencyID"));
-            assertEquals("1300", getString(second, "getTagAgencyID"));
-            assertFalse(getString(second, "getTagSerialNumber").isBlank());
+            assertEquals("1002", getString(second, "getHomeAgencyID"));
+            assertEquals("2002", getString(second, "getTagAgencyID"));
+            assertEquals("SAMPLE-0002", getString(second, "getTagSerialNumber"));
             Object secondAccount = second.getClass().getMethod("getTVLAccountDetails").invoke(second);
-            assertFalse(getString(secondAccount, "getAccountNumber").isBlank());
+            assertEquals("ACCT-1002", getString(secondAccount, "getAccountNumber"));
         }
     }
 

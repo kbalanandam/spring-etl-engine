@@ -12,9 +12,15 @@ import java.util.List;
  * <p>
  * The checked-in runnable bundles now live under {@code config-jobs}, while explicit
  * runtime and generation entry points still accept legacy {@code config-scenarios}
- * paths for backward compatibility.
+ * paths for backward compatibility during the transition away from the old folder
+ * name.
  * </p>
+ *
+ * @deprecated Use canonical {@code config-jobs/...} paths directly for all new
+ * commands, docs, tests, and generated examples. This bridge remains only to keep
+ * older {@code config-scenarios/...} invocations working temporarily.
  */
+@Deprecated
 public final class ConfigBundlePathAliasResolver {
 
     public static final String PREFERRED_BUNDLE_FOLDER = "config-jobs";

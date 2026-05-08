@@ -14,6 +14,7 @@ import com.etl.processor.DynamicProcessorFactory;
 import com.etl.processor.impl.DefaultDynamicProcessor;
 import com.etl.reader.DynamicReaderFactory;
 import com.etl.reader.impl.XmlDynamicReader;
+import com.etl.runtime.FileIngestionRuntimeSupport;
 import com.etl.writer.DynamicWriterFactory;
 import com.etl.writer.impl.CsvDynamicWriter;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -21,12 +22,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.file.FlatFileItemWriter;
+import org.springframework.batch.test.MetaDataInstanceFactory;
 
 import javax.tools.JavaCompiler;
 import javax.tools.JavaFileObject;
@@ -39,7 +42,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class XmlNestedSourceToCsvTargetFlowTest {
 
@@ -126,6 +131,15 @@ class XmlNestedSourceToCsvTargetFlowTest {
                 "0056,1300,0003518358,7064AFP,US,KS,4773316",
                 "0041,1112,0009990001,ABC1234,US,TX,2025753547"
         ), csvLines);
+
+        var stepExecution = MetaDataInstanceFactory.createStepExecution();
+        stepExecution.setExitStatus(ExitStatus.COMPLETED);
+        new FileIngestionRuntimeSupport().completeStep(stepExecution, sourceConfig);
+
+        String archivedPath = stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.ARCHIVED_SOURCE_PATH_KEY);
+        assertFalse(archivedPath.isBlank());
+        assertTrue(Files.exists(Path.of(archivedPath)));
+        assertFalse(Files.exists(Path.of(sourceConfig.getFilePath())));
     }
 
     private Path prepareScenarioBundle() throws Exception {
@@ -135,7 +149,9 @@ class XmlNestedSourceToCsvTargetFlowTest {
 
         Path inputFile = scenarioDir.resolve("input/nested-sample.xml").toAbsolutePath().normalize();
         Path outputFile = scenarioDir.resolve("output/tag-validation-export.csv").toAbsolutePath().normalize();
+        Path archiveDir = scenarioDir.resolve("output/archive/success").toAbsolutePath().normalize();
         Files.createDirectories(outputFile.getParent());
+        Files.createDirectories(archiveDir);
         Files.createDirectories(inputFile.getParent());
         Files.writeString(inputFile, """
                 <?xml version="1.0" encoding="UTF-8"?>
@@ -175,6 +191,8 @@ class XmlNestedSourceToCsvTargetFlowTest {
                 scenarioDir.resolve("source-config.yaml"),
                 Files.readString(scenarioDir.resolve("source-config.yaml"))
                         .replaceFirst("(?m)^\\s*filePath: .*$", "    filePath: " + toYamlPath(inputFile))
+                        .replaceFirst("(?m)^\\s*enabled: .*$", "      enabled: true")
+                        .replaceFirst("(?m)^\\s*successPath: .*$", "      successPath: " + toYamlPath(archiveDir))
         );
         Files.writeString(
                 scenarioDir.resolve("target-config.yaml"),

@@ -1,5 +1,6 @@
 package com.etl.config.relational;
 
+import com.etl.exception.RelationalException;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import javax.sql.DataSource;
@@ -13,40 +14,60 @@ public final class RelationalDataSourceFactory {
     }
 
     public static DataSource buildDataSource(RelationalConnectionConfig connection) {
-        connection.validate();
-        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setDriverClassName(resolveDriverClassName(connection));
-        dataSource.setUrl(resolveJdbcUrl(connection));
-        dataSource.setUsername(connection.getUsername());
-        dataSource.setPassword(connection.getPassword());
-        return dataSource;
+        try {
+            connection.validate();
+            DriverManagerDataSource dataSource = new DriverManagerDataSource();
+            dataSource.setDriverClassName(resolveDriverClassName(connection));
+            dataSource.setUrl(resolveJdbcUrl(connection));
+            dataSource.setUsername(connection.getUsername());
+            dataSource.setPassword(connection.getPassword());
+            return dataSource;
+        } catch (RelationalException e) {
+            throw e;
+        } catch (IllegalArgumentException e) {
+            throw new RelationalException("Invalid relational connection configuration: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new RelationalException("Failed to build relational data source.", e);
+        }
     }
 
     public static String resolveDriverClassName(RelationalConnectionConfig connection) {
-        connection.validate();
-        if (connection.getDriverClassName() != null && !connection.getDriverClassName().isBlank()) {
-            return connection.getDriverClassName();
-        }
+        try {
+            connection.validate();
+            if (connection.getDriverClassName() != null && !connection.getDriverClassName().isBlank()) {
+                return connection.getDriverClassName();
+            }
 
-        return switch (connection.getResolvedVendor()) {
-            case SQLSERVER -> "com.microsoft.sqlserver.jdbc.SQLServerDriver";
-            case H2 -> "org.h2.Driver";
-        };
+            return switch (connection.getResolvedVendor()) {
+                case SQLSERVER -> "com.microsoft.sqlserver.jdbc.SQLServerDriver";
+                case H2 -> "org.h2.Driver";
+            };
+        } catch (RelationalException e) {
+            throw e;
+        } catch (IllegalArgumentException e) {
+            throw new RelationalException("Invalid relational connection configuration: " + e.getMessage(), e);
+        }
     }
 
     public static String resolveJdbcUrl(RelationalConnectionConfig connection) {
-        connection.validate();
-        if (connection.getJdbcUrl() != null && !connection.getJdbcUrl().isBlank()) {
-            return connection.getJdbcUrl();
-        }
+        try {
+            connection.validate();
+            if (connection.getJdbcUrl() != null && !connection.getJdbcUrl().isBlank()) {
+                return connection.getJdbcUrl();
+            }
 
-        DatabaseVendor vendor = connection.getResolvedVendor();
-        return switch (vendor) {
-            case SQLSERVER -> "jdbc:sqlserver://" + connection.getHost() + ":" + defaultPort(connection.getPort())
-                    + ";databaseName=" + connection.getDatabase()
-                    + ";encrypt=true;trustServerCertificate=true";
-            case H2 -> "jdbc:h2:mem:relational_runtime;MODE=MSSQLServer;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false";
-        };
+            DatabaseVendor vendor = connection.getResolvedVendor();
+            return switch (vendor) {
+                case SQLSERVER -> "jdbc:sqlserver://" + connection.getHost() + ":" + defaultPort(connection.getPort())
+                        + ";databaseName=" + connection.getDatabase()
+                        + ";encrypt=true;trustServerCertificate=true";
+                case H2 -> "jdbc:h2:mem:relational_runtime;MODE=MSSQLServer;DB_CLOSE_DELAY=-1;DATABASE_TO_UPPER=false";
+            };
+        } catch (RelationalException e) {
+            throw e;
+        } catch (IllegalArgumentException e) {
+            throw new RelationalException("Invalid relational connection configuration: " + e.getMessage(), e);
+        }
     }
 
     private static int defaultPort(Integer configuredPort) {

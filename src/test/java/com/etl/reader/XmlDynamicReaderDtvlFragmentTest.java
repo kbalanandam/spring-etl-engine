@@ -21,7 +21,7 @@ class XmlDynamicReaderDtvlFragmentTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void flattensRealDtvlFragmentRecordsIntoFullMaps() throws Exception {
+    void flattensSampleDtvlFragmentRecordsIntoFullMaps() throws Exception {
         try (GeneratedScenarioModelSupport.CompiledGeneratedModels compiledModels = GeneratedScenarioModelSupport.compileJobScopedModels(
                 Path.of("src", "main", "resources", "config-jobs", "xml-nested-to-csv-tag-validation", "job-config.yaml"),
                 tempDir

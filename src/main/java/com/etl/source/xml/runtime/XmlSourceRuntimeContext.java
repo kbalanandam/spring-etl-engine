@@ -1,5 +1,6 @@
 package com.etl.source.xml.runtime;
 
+import com.etl.config.exception.ConfigException;
 import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.source.xml.strategy.XmlFlatteningStrategyNames;
@@ -106,7 +107,7 @@ public final class XmlSourceRuntimeContext {
                 return configured;
             }
         }
-        throw new IllegalStateException("No job-specific XML strategy bean configured for source '" + sourceName + "'.");
+        throw new ConfigException("No job-specific XML strategy bean configured for source '" + sourceName + "'.");
     }
 
     public static final class Builder {

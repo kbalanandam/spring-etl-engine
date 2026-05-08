@@ -2,7 +2,11 @@ sources:
   - format: xml
     sourceName: TagValidationSource
     packageName: com.etl.generated.job.xmlnestedtocsvtagvalidation.source
-    filePath: input/9002_9002_20260427070109.DTVL
+    filePath: input/tag-validation-sample.xml
+    archive:
+      enabled: false
+      successPath: output/archive/success/
+      namePattern: "{originalName}-{timestamp}"
     rootElement: TagValidationList
     recordElement: TVLTagDetails
     flatteningStrategy: NestedXml

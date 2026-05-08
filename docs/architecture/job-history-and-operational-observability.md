@@ -25,6 +25,7 @@ The current codebase already implements a meaningful first observability slice:
 - daily scenario log files in the form `logs/<yyyy-MM-dd>/<scenario>.log`
 - machine-readable lifecycle events such as `RUN_EVENT`, `RUN_SUMMARY`, `STEP_PLAN`, `STEP_READY`, and `STEP_EVENT`
 - run-level events for `run_requested`, `job_started`, `run_summary`, and `run_finished`
+- categorized failure evidence through `RUN_EVENT event=run_failed` and `JOB_FAILURE event=job_failure`, including `failureCategory`, `exceptionType`, and `rootCause`
 - step-finished evidence with `readCount`, `writeCount`, `filterCount`, `skipCount`, `rollbackCount`, `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath`
 - source-validation rejection evidence through `SOURCE_VALIDATION event=file_rejected` when configured file-level validation rejects an input artifact
 - local verification-report generation that keeps build/release validation logs distinct from runtime scenario logs

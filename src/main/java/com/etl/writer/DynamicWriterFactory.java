@@ -2,6 +2,8 @@ package com.etl.writer;
 
 import com.etl.config.target.TargetConfig;
 import com.etl.enums.ModelFormat;
+import com.etl.exception.EtlException;
+import com.etl.exception.FactoryException;
 import com.etl.writer.exception.NoWriterFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,12 +35,29 @@ public class DynamicWriterFactory {
     }
 
     public ItemWriter<Object> createWriter(TargetConfig config, Class<?> clazz) throws Exception {
+	    	if (config == null || clazz == null) {
+	    		throw new FactoryException("Target configuration and target class must not be null when creating a writer.");
+	    	}
         ModelFormat format = config.getFormat();
         DynamicWriter writer = writers.get(format);
         if (writer == null) {
 	        	logger.error("No writer found for format: {}", format);
 	            throw new NoWriterFoundException("No writer found for format: " + format);
         }
-        return writer.getWriter(config, clazz);
+          try {
+            return writer.getWriter(config, clazz);
+          } catch (EtlException e) {
+            throw e;
+          } catch (Exception e) {
+            throw new FactoryException(
+                "Failed to create writer for target '" + defaultName(config == null ? null : config.getTargetName())
+                    + "' using format '" + format + "'.",
+                e
+            );
+          }
     }
+
+  private String defaultName(String value) {
+    return value == null || value.isBlank() ? "unnamed" : value.trim();
+  }
 }

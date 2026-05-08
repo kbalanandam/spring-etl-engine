@@ -115,7 +115,8 @@ Use this table as the recommended reading order by goal:
 | Explore architecture/runtime flow | [Architecture Docs](#architecture-docs) | [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md) |
 | Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
 | Assess current gaps to the reusable scenario model | [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md) | [`docs/architecture/hierarchical-flow-composition.md`](docs/architecture/hierarchical-flow-composition.md) |
-| See preserved runnable examples | `src/main/resources/config-jobs/` (preferred alias) | [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples) |
+| See preserved runnable examples | `src/main/resources/config-jobs/` | [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples) |
+| Run a private deployable job bundle or collection | [`private-jobs/`](private-jobs/README.md) | [Explicit job-config mode](#explicit-job-config-mode) |
 | Understand what is shipped vs planned | [`docs/README.md`](docs/README.md) | [`docs/product/product-backlog.md`](docs/product/product-backlog.md) |
 
 ## Documentation strategy
@@ -125,7 +126,8 @@ Use the repository docs in this order:
 1. **`README.md`** — product landing page, run modes, and first navigation choices
 2. **`docs/README.md`** — docs portal, core terms, and architecture/product navigation
 3. **`docs/config/README.md`** — current supported config contracts and scenario-reading order
-4. **`src/main/resources/config-jobs/`** — preserved runnable example bundles and the canonical explicit job path
+4. **`src/main/resources/config-jobs/`** — preserved runnable example bundles checked in with the repository
+5. **[`private-jobs/`](private-jobs/README.md)** — repo-root private deployable job scaffold; only the guidance file is committed and the actual bundles stay git-ignored
 
 Documentation intent is split deliberately:
 
@@ -238,7 +240,14 @@ The referenced paths may be absolute or relative. Relative paths are resolved fr
 
 `job-config.yaml` now also defines the explicit ETL execution order through `steps`. Positional source-target pairing is no longer a supported orchestration contract for explicit job-config runs.
 
-This is the recommended product direction for preserved business scenarios such as:
+This is the recommended product direction for both checked-in reference bundles and private deployable bundles.
+
+Use the bundle root that matches your need:
+
+- `src/main/resources/config-jobs/` for preserved safe examples, docs-aligned proofs, and smoke/reference scenarios
+- `private-jobs/` for private environment-specific job collections, real input paths, customer-specific values, and pre-production or production-ready test bundles that must not be committed; private bundles now standardize their runnable YAML under a `config/` subfolder
+
+Preserved business-scenario examples include:
 
 - `customer-load`
 - `department-load`
@@ -253,7 +262,21 @@ Set-Location '<repo-root>'
 mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml" spring-boot:run
 ```
 
-`config-jobs` is now the canonical path for explicit job commands and the checked-in preserved bundles. The runtime still accepts legacy `config-scenarios/...` paths for backward compatibility.
+Private deployable bundle example:
+
+```powershell
+Set-Location '<repo-root>'
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=private-jobs/partner-orders/config/job-config.yaml" spring-boot:run
+```
+
+Grouped private collection example:
+
+```powershell
+Set-Location '<repo-root>'
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=private-jobs/acme-prod/partner-orders-daily/config/job-config.yaml" spring-boot:run
+```
+
+`config-jobs` remains the canonical checked-in preserved-bundle path. `private-jobs` is the preferred git-ignored area for private deployable bundles. Legacy `config-scenarios/...` path support remains available temporarily for backward compatibility, but it is now deprecated.
 
 In this mode, the app does **not** auto-discover other scenarios or sibling config sets. It only loads the three files referenced by the job config and executes the explicit `steps` in the order declared.
 

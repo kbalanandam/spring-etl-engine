@@ -1,5 +1,6 @@
 package com.etl.writer.impl;
 
+import com.etl.exception.RuntimeEtlException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.ExitStatus;
@@ -50,7 +51,7 @@ final class StagedFileLifecycle {
             }
             Files.deleteIfExists(stagingPath);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to prepare staged output path '" + stagingPath + "'.", e);
+            throw new RuntimeEtlException("Failed to prepare staged output path '" + stagingPath + "'.", e);
         }
     }
 
@@ -84,7 +85,7 @@ final class StagedFileLifecycle {
         try {
             Files.deleteIfExists(finalPath);
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to delete published output '" + finalPath + "'.", e);
+            throw new RuntimeEtlException("Failed to delete published output '" + finalPath + "'.", e);
         }
     }
 
@@ -103,7 +104,7 @@ final class StagedFileLifecycle {
                 Files.move(stagingPath, finalPath, StandardCopyOption.REPLACE_EXISTING);
             }
         } catch (IOException e) {
-            throw new IllegalStateException("Failed to promote staged output '" + stagingPath + "' to final output '" + finalPath + "'.", e);
+            throw new RuntimeEtlException("Failed to promote staged output '" + stagingPath + "' to final output '" + finalPath + "'.", e);
         }
     }
 

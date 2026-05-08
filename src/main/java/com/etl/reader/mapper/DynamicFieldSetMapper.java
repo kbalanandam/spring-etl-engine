@@ -2,6 +2,7 @@ package com.etl.reader.mapper;
 
 import com.etl.common.util.TypeConversionUtils;
 import com.etl.config.FieldDefinition;
+import com.etl.exception.RuntimeEtlException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.file.mapping.FieldSetMapper;
@@ -44,8 +45,8 @@ public class DynamicFieldSetMapper<T> implements FieldSetMapper<T> {
 			}
 			return instance;
 		} catch (Exception e) {
-			logger.error("Error mapping fieldSet for class: {}", clazz.getName(), e);
-			throw new RuntimeException("Error mapping fieldSet for class: " + clazz.getName(), e);
+			logger.error("READER_MAPPING_FAILURE category=runtime targetClass={} message={}", clazz.getName(), e.getMessage(), e);
+			throw new RuntimeEtlException("Failed to map input record to class '" + clazz.getName() + "'.", e);
 		}
 	}
 

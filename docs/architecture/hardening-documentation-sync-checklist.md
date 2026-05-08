@@ -17,7 +17,7 @@ These documentation fixes are already applied because they match the checked-in 
 
 Those files now correctly describe that:
 
-- `xml-nested-to-csv-tag-validation` keeps the preserved `9002_9002_20260427070109.DTVL` payload
+- `xml-nested-to-csv-tag-validation` now uses a sanitized scenario-local XML sample payload
 - tiny sample-based nested XML examples should reuse `xml-nested-tag-validation/input/nested-sample.xml`
 
 The checked-in baseline now contains the hardening behavior and matching documentation updates for:
@@ -25,7 +25,7 @@ The checked-in baseline now contains the hardening behavior and matching documen
 - processor config validation runs before generated-model validation for explicit `etl.config.job` scenarios
 - processor config failures are surfaced with scenario-aware context
 - `NestedXml` source validation requires the generated record class, but does not always require the XML source root class
-- nested XML verification notes consistently distinguish between the shared tiny sample and the larger preserved DTVL payload
+- nested XML verification notes consistently distinguish between the shared tiny sample and the sanitized scenario-local tag-validation sample
 
 ## Runtime/code checkpoints
 

@@ -22,6 +22,9 @@ and this project adheres to **Semantic Versioning**.
 ### Changed
 - Refreshed architecture, config, scenario, and product-tracking documentation so archive-on-success is now described consistently as a shared file-backed source concern instead of CSV-only wording, and preserved XML archive proof guidance is now included in the active docs set.
 
+### Deprecated
+- Deprecated legacy `config-scenarios/...` bundle-path compatibility in favor of canonical `config-jobs/...` paths. The runtime and build-time generation entry points still resolve old paths temporarily through `ConfigBundlePathAliasResolver`, but new commands, docs, and examples should use `config-jobs/...` only.
+
 ---
 
 ## [1.4.0] - 2026-04-28

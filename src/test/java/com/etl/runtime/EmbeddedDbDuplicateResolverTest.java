@@ -3,10 +3,14 @@ package com.etl.runtime;
 import com.etl.processor.validation.DuplicateProcessorValidationRule;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Field;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -109,6 +113,81 @@ class EmbeddedDbDuplicateResolverTest {
 			assertEquals("4000000", discarded.get("TVLAccountDetails.AccountNumber"));
 			assertEquals("1300", discarded.get("TagAgencyID"));
 		}
+	}
+
+	@Test
+	void matchesInMemoryDiscardOrderingAcrossDuplicateKeys() {
+		DuplicateRule rule = new DuplicateRule(
+				"id",
+				List.of("id"),
+				List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true))
+		);
+		List<EventBean> events = List.of(
+				event("Z-KEY", "08:00:00", "z-loser", 1),
+				event("A-KEY", "08:05:00", "a-loser", 1),
+				event("Z-KEY", "09:00:00", "z-winner", 2),
+				event("A-KEY", "09:05:00", "a-winner", 2)
+		);
+
+		DuplicateResolution embeddedResolution;
+		try (EmbeddedDbDuplicateResolver embeddedResolver = new EmbeddedDbDuplicateResolver(rule)) {
+			events.forEach(embeddedResolver::accept);
+			embeddedResolution = embeddedResolver.complete();
+		}
+
+		DuplicateResolution inMemoryResolution;
+		try (InMemoryDuplicateResolver inMemoryResolver = new InMemoryDuplicateResolver(rule)) {
+			events.forEach(inMemoryResolver::accept);
+			inMemoryResolution = inMemoryResolver.complete();
+		}
+
+		assertEquals(
+				inMemoryResolution.discardedRecords().stream()
+						.map(discard -> ((EventBean) discard.discardedRecord()).getDescription())
+						.toList(),
+				embeddedResolution.discardedRecords().stream()
+						.map(discard -> ((EventBean) discard.discardedRecord()).getDescription())
+						.toList()
+		);
+		assertEquals(
+				inMemoryResolution.retainedRecords().stream()
+						.map(record -> ((EventBean) record).getDescription())
+						.toList(),
+				embeddedResolution.retainedRecords().stream()
+						.map(record -> ((EventBean) record).getDescription())
+						.toList()
+		);
+	}
+
+	@Test
+	void deletesTemporaryDatabaseFilesOnClose() throws Exception {
+		EmbeddedDbDuplicateResolver resolver = new EmbeddedDbDuplicateResolver(
+				new DuplicateRule(
+						"id",
+						List.of("id"),
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true))
+				)
+		);
+		Path databaseBasePath = resolverPathField(resolver, "databaseBasePath");
+		Path databaseDirectory = resolverPathField(resolver, "databaseDirectory");
+		try {
+			resolver.accept(event("EVT-1001", "08:30:00", "first", 1));
+			resolver.complete();
+			assertTrue(Files.exists(Path.of(databaseBasePath + ".mv.db")));
+		} finally {
+			resolver.close();
+		}
+
+		assertFalse(Files.exists(Path.of(databaseBasePath + ".mv.db")));
+		assertFalse(Files.exists(Path.of(databaseBasePath + ".trace.db")));
+		assertFalse(Files.exists(Path.of(databaseBasePath + ".lock.db")));
+		assertFalse(Files.exists(databaseDirectory));
+	}
+
+	private Path resolverPathField(EmbeddedDbDuplicateResolver resolver, String fieldName) throws Exception {
+		Field field = EmbeddedDbDuplicateResolver.class.getDeclaredField(fieldName);
+		field.setAccessible(true);
+		return (Path) field.get(resolver);
 	}
 
 	private EventBean event(String id, String eventTime, String description, Integer sequenceNo) {

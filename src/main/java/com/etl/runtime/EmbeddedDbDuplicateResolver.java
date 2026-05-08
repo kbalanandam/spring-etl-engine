@@ -1,5 +1,6 @@
 package com.etl.runtime;
 
+import com.etl.exception.RuntimeEtlException;
 import com.etl.processor.validation.ValidationIssue;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -19,7 +20,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * Resolves ordered duplicate winner-selection by staging candidates in an embedded H2 database.
@@ -42,24 +42,63 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 	private static final String CLASSIFICATION_RANKED = "RANKED";
 	private static final String CLASSIFICATION_PASS_THROUGH = "PASS_THROUGH";
 	private static final String CLASSIFICATION_INVALID = "INVALID";
+	private static final String CREATE_STAGED_DUPLICATES_TABLE = """
+			CREATE TABLE staged_duplicates (
+				arrival_sequence BIGINT PRIMARY KEY,
+				classification VARCHAR(32) NOT NULL,
+				key_value CLOB,
+				payload_class VARCHAR(500) NOT NULL,
+				payload_json CLOB NOT NULL,
+				issue_message CLOB,
+				invalid_ordering BOOLEAN NOT NULL
+			)
+			""";
+	private static final String INSERT_STAGED_DUPLICATE =
+			"INSERT INTO staged_duplicates (arrival_sequence, classification, key_value, payload_class, payload_json, issue_message, invalid_ordering) VALUES (?, ?, ?, ?, ?, ?, ?)";
+	private static final String SELECT_INVALID_RECORDS =
+			"SELECT payload_class, payload_json, issue_message, invalid_ordering FROM staged_duplicates WHERE classification = ? ORDER BY arrival_sequence";
+	private static final String SELECT_RANKED_RECORDS_BY_FIRST_ARRIVAL = """
+			SELECT staged.arrival_sequence, staged.key_value, staged.payload_class, staged.payload_json
+			FROM staged_duplicates staged
+			JOIN (
+				SELECT key_value, MIN(arrival_sequence) AS first_arrival_sequence
+				FROM staged_duplicates
+				WHERE classification = ?
+				GROUP BY key_value
+			) ranked_groups ON ranked_groups.key_value = staged.key_value
+			WHERE staged.classification = ?
+			ORDER BY ranked_groups.first_arrival_sequence, staged.arrival_sequence
+			""";
+	private static final String SELECT_ORDERED_RECORDS_BY_CLASSIFICATION =
+			"SELECT arrival_sequence, payload_class, payload_json FROM staged_duplicates WHERE classification = ? ORDER BY arrival_sequence";
+	private static final String H2_FILE_SUFFIX = ".mv.db";
+	private static final String H2_TRACE_SUFFIX = ".trace.db";
+	private static final String H2_LOCK_SUFFIX = ".lock.db";
 
 	private final DuplicateRule rule;
 	private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+	private final Path databaseDirectory;
 	private final Path databaseBasePath;
-	private final String jdbcUrl;
 	private final Connection connection;
 	private long sequence;
 
 	public EmbeddedDbDuplicateResolver(DuplicateRule rule) {
 		this.rule = Objects.requireNonNull(rule, "rule");
+		Path tempDirectory = null;
+		Path tempDatabaseBasePath = null;
+		Connection tempConnection = null;
 		try {
-			this.databaseBasePath = Files.createTempFile("ordered-duplicate-", UUID.randomUUID().toString());
-			Files.deleteIfExists(databaseBasePath);
-			this.jdbcUrl = "jdbc:h2:file:" + databaseBasePath.toAbsolutePath() + ";DB_CLOSE_DELAY=-1;AUTO_SERVER=FALSE";
-			this.connection = DriverManager.getConnection(jdbcUrl);
+			tempDirectory = Files.createTempDirectory("ordered-duplicate-");
+			tempDatabaseBasePath = tempDirectory.resolve("resolver-db");
+			tempConnection = DriverManager.getConnection(toJdbcUrl(tempDatabaseBasePath));
+			this.databaseDirectory = tempDirectory;
+			this.databaseBasePath = tempDatabaseBasePath;
+			this.connection = tempConnection;
 			initializeSchema();
 		} catch (IOException | SQLException exception) {
-			throw new IllegalStateException("Failed to initialize embedded duplicate resolver.", exception);
+			closeQuietly(tempConnection);
+			cleanupDatabaseFiles(tempDirectory, tempDatabaseBasePath);
+			throw new RuntimeEtlException("Failed to initialize embedded duplicate resolver.", exception);
 		}
 	}
 
@@ -102,14 +141,54 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 
 	@Override
 	public void close() {
+		shutdownDatabase();
+		closeQuietly(connection);
+		cleanupDatabaseFiles(databaseDirectory, databaseBasePath);
+	}
+
+	private static String toJdbcUrl(Path databaseBasePath) {
+		return "jdbc:h2:file:" + databaseBasePath.toAbsolutePath().toString().replace('\\', '/')
+				+ ";DB_CLOSE_DELAY=0;DB_CLOSE_ON_EXIT=FALSE;AUTO_SERVER=FALSE";
+	}
+
+	private void shutdownDatabase() {
+		try {
+			if (connection.isClosed()) {
+				return;
+			}
+			try (Statement statement = connection.createStatement()) {
+				statement.execute("SHUTDOWN");
+			}
+		} catch (SQLException ignored) {
+			// best effort cleanup
+		}
+	}
+
+	private static void closeQuietly(Connection connection) {
+		if (connection == null) {
+			return;
+		}
 		try {
 			connection.close();
 		} catch (SQLException ignored) {
 			// best effort cleanup
 		}
+	}
+
+	private static void cleanupDatabaseFiles(Path databaseDirectory, Path databaseBasePath) {
+		if (databaseBasePath != null) {
+			deleteQuietly(Path.of(databaseBasePath + H2_FILE_SUFFIX));
+			deleteQuietly(Path.of(databaseBasePath + H2_TRACE_SUFFIX));
+			deleteQuietly(Path.of(databaseBasePath + H2_LOCK_SUFFIX));
+		}
+		if (databaseDirectory != null) {
+			deleteQuietly(databaseDirectory);
+		}
+	}
+
+	private static void deleteQuietly(Path path) {
 		try {
-			Files.deleteIfExists(Path.of(databaseBasePath + ".mv.db"));
-			Files.deleteIfExists(Path.of(databaseBasePath + ".trace.db"));
+			Files.deleteIfExists(path);
 		} catch (IOException ignored) {
 			// best effort cleanup
 		}
@@ -117,17 +196,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 
 	private void initializeSchema() throws SQLException {
 		try (Statement statement = connection.createStatement()) {
-			statement.execute("""
-					CREATE TABLE staged_duplicates (
-						arrival_sequence BIGINT PRIMARY KEY,
-						classification VARCHAR(32) NOT NULL,
-						key_value CLOB,
-						payload_class VARCHAR(500) NOT NULL,
-						payload_json CLOB NOT NULL,
-						issue_message CLOB,
-						invalid_ordering BOOLEAN NOT NULL
-					)
-					""");
+			statement.execute(CREATE_STAGED_DUPLICATES_TABLE);
 		}
 	}
 
@@ -140,7 +209,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 		Object serializablePayload = normalizePayloadForStaging(payload);
 		String payloadClassName = serializablePayload instanceof Map<?, ?> ? Map.class.getName() : serializablePayload.getClass().getName();
 		try (PreparedStatement statement = connection.prepareStatement(
-				"INSERT INTO staged_duplicates (arrival_sequence, classification, key_value, payload_class, payload_json, issue_message, invalid_ordering) VALUES (?, ?, ?, ?, ?, ?, ?)")
+				INSERT_STAGED_DUPLICATE)
 		) {
 			statement.setLong(1, arrivalSequence);
 			statement.setString(2, classification);
@@ -151,7 +220,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 			statement.setBoolean(7, invalidOrderingValue);
 			statement.executeUpdate();
 		} catch (SQLException | IOException exception) {
-			throw new IllegalStateException("Failed to stage ordered duplicate record in embedded database.", exception);
+			throw new RuntimeEtlException("Failed to stage ordered duplicate record in embedded database.", exception);
 		}
 	}
 
@@ -169,7 +238,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 	private List<DuplicateDiscard> loadInvalidRecords() {
 		List<DuplicateDiscard> discards = new ArrayList<>();
 		try (PreparedStatement statement = connection.prepareStatement(
-				"SELECT payload_class, payload_json, issue_message, invalid_ordering FROM staged_duplicates WHERE classification = ? ORDER BY arrival_sequence")) {
+				SELECT_INVALID_RECORDS)) {
 			statement.setString(1, CLASSIFICATION_INVALID);
 			try (ResultSet resultSet = statement.executeQuery()) {
 				while (resultSet.next()) {
@@ -182,7 +251,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 				}
 			}
 		} catch (SQLException exception) {
-			throw new IllegalStateException("Failed to load invalid ordered duplicate records.", exception);
+			throw new RuntimeEtlException("Failed to load invalid ordered duplicate records.", exception);
 		}
 		return discards;
 	}
@@ -192,8 +261,9 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 		List<DbCandidate> currentGroup = new ArrayList<>();
 		String currentKey = null;
 		try (PreparedStatement statement = connection.prepareStatement(
-				"SELECT arrival_sequence, key_value, payload_class, payload_json FROM staged_duplicates WHERE classification = ? ORDER BY key_value, arrival_sequence")) {
+				SELECT_RANKED_RECORDS_BY_FIRST_ARRIVAL)) {
 			statement.setString(1, CLASSIFICATION_RANKED);
+			statement.setString(2, CLASSIFICATION_RANKED);
 			try (ResultSet resultSet = statement.executeQuery()) {
 				while (resultSet.next()) {
 					String rowKey = resultSet.getString("key_value");
@@ -218,7 +288,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 				}
 			}
 		} catch (SQLException exception) {
-			throw new IllegalStateException("Failed to resolve ranked duplicate groups from embedded database.", exception);
+			throw new RuntimeEtlException("Failed to resolve ranked duplicate groups from embedded database.", exception);
 		}
 		if (!currentGroup.isEmpty()) {
 			retained.addAll(resolveGroup(currentGroup, discardedRecords));
@@ -261,7 +331,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 	private List<OrderedRecord> loadOrderedRecordsByClassification(String classification) {
 		List<OrderedRecord> records = new ArrayList<>();
 		try (PreparedStatement statement = connection.prepareStatement(
-				"SELECT arrival_sequence, payload_class, payload_json FROM staged_duplicates WHERE classification = ? ORDER BY arrival_sequence")) {
+				SELECT_ORDERED_RECORDS_BY_CLASSIFICATION)) {
 			statement.setString(1, classification);
 			try (ResultSet resultSet = statement.executeQuery()) {
 				while (resultSet.next()) {
@@ -272,7 +342,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 				}
 			}
 		} catch (SQLException exception) {
-			throw new IllegalStateException("Failed to load staged ordered duplicate records.", exception);
+			throw new RuntimeEtlException("Failed to load staged ordered duplicate records.", exception);
 		}
 		return records;
 	}
@@ -285,7 +355,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 			Class<?> payloadClass = Class.forName(className);
 			return objectMapper.readValue(payloadJson, payloadClass);
 		} catch (IOException | ClassNotFoundException exception) {
-			throw new IllegalStateException("Failed to deserialize staged ordered duplicate payload.", exception);
+			throw new RuntimeEtlException("Failed to deserialize staged ordered duplicate payload.", exception);
 		}
 	}
 

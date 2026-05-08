@@ -1,6 +1,7 @@
 package com.etl.runner;
 
 import com.etl.config.RunConfigurationMetadata;
+import com.etl.exception.EtlExceptionDetails;
 import com.etl.logging.RunLoggingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -94,7 +95,21 @@ public class EtlJobRunner implements CommandLineRunner {
 	                    runMode,
 	                    runConfigurationMetadata.steps().size());
         } catch (Exception e) {
-            throw new JobExecutionException("ETL Job failed for date: " + jobParameters.getDate("runDate"), e);
+	            logger.error("RUN_EVENT event=run_failed scenario={} mainFlow={} subFlow={} recoveryPolicy={} runMode={} failureCategory={} exceptionType={} rootCause={}",
+	                    runConfigurationMetadata.scenarioName(),
+	                    defaultString(runConfigurationMetadata.mainFlowName()),
+	                    defaultString(runConfigurationMetadata.subFlowName()),
+	                    runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+	                    runMode,
+	                    EtlExceptionDetails.categoryValueOf(e),
+	                    EtlExceptionDetails.exceptionType(e),
+	                    EtlExceptionDetails.rootCauseMessage(e),
+	                    e);
+	            throw new JobExecutionException(
+	                    "ETL job launch failed failureCategory=" + EtlExceptionDetails.categoryValueOf(e)
+	                            + " runDate=" + jobParameters.getDate("runDate"),
+	                    e
+	            );
 		} finally {
 			RunLoggingContext.clearAll();
         }
