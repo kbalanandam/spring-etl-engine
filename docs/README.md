@@ -112,6 +112,7 @@ For every significant enhancement, add or update:
 
 ### Product tracking
 - [`product/product-backlog.md`](product/product-backlog.md) — step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including scheduler/orchestration work inside the same single product roadmap
+- `product/backlog-items/` — lightweight per-item drill-down pages linked from execution-board entries when an item needs fuller scope, acceptance criteria, and implementation notes
 - [`product/github-promotion.md`](product/github-promotion.md) — approved GitHub-facing About text, tagline, topic guidance, and positioning guardrails for OneFlow
 
 ### Scenario examples

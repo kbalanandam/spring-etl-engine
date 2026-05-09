@@ -151,6 +151,15 @@ Use the execution board to answer:
 - **Done** — completed to the expected operational level
 - **Deferred** — intentionally postponed to a later milestone
 
+### Board detail pages
+
+The execution board stays intentionally compact. When an item needs fuller context, scope, acceptance criteria, or implementation notes, add a drill-down page under `docs/product/backlog-items/` and link it from the board.
+
+Use this maintenance rule:
+
+- the execution board is the canonical place for changing `Priority`, `Status`, `Milestone`, and `Dependency`
+- the backlog item page is the place for fuller detail, scope, acceptance criteria, and working notes
+
 ---
 
 ## Current Execution Board
@@ -161,33 +170,33 @@ This table is the day-to-day execution view for the current product stage.
 |---|---|---|---|---|---|---|---|
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
-| A3 | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Ready | M1 | A2 | Future `job-config.yaml isActive` contract should fail fast in `ConfigLoader` with job-aware startup errors; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
+| [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Ready | M1 | A2 | Future `job-config.yaml isActive` contract should fail fast in `ConfigLoader` with job-aware startup errors; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
 | T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | T2 | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
 | T3 | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T2 | Best introduced after expression contract is stable |
-| T4 | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Follow-on hardening beyond the shipped CSV slice: broader quarantine, selectable duplicate storage mode, and XML-native duplicate identity |
+| [T4](backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Follow-on hardening beyond the shipped CSV slice: broader quarantine, selectable duplicate storage mode, and XML-native duplicate identity |
 | T5 | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Bridges toward more classic ETL transformation patterns |
 | B1 | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | B2 | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
 | B3 | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
 | C1 | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Done | M1 | none | `RUN_EVENT` / `RUN_SUMMARY` and step lifecycle evidence are now emitted for selected runs |
-| C2 | Complete run-level source / written / rejected count rollup | Epic C | P1 | In Progress | M1 | C1 | Step-level counts are shipped; run-level rollup and reconciliation remain in progress |
-| D1 | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
+| [C2](backlog-items/C2-run-level-count-rollup-and-reconciliation.md) | Complete run-level source / written / rejected count rollup | Epic C | P1 | In Progress | M1 | C1 | Step-level counts are shipped; run-level rollup and reconciliation remain in progress |
+| [D1](backlog-items/D1-stable-error-taxonomy-and-categories.md) | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
 | E1 | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
 | E2 | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Ready | M1 | E1 | Important next portability step |
 | F1 | Define restart semantics per execution mode | Epic F | P1 | Deferred | M2 | A1, C1 | Needs clearer orchestration and run evidence first |
-| X1 | Define SFTP transport contract and deployment boundary | Epic X | P1 | Ready | M2 | E1, C1, G1 | Define staged inbound scope, native-vs-MFT modes, and deployment boundaries before implementation |
+| [X1](backlog-items/X1-sftp-transport-contract-and-deployment-boundary.md) | Define SFTP transport contract and deployment boundary | Epic X | P1 | Ready | M2 | E1, C1, G1 | Define staged inbound scope, native-vs-MFT modes, and deployment boundaries before implementation |
 | X2 | Add first inbound SFTP staged pull capability | Epic X | P1 | Deferred | M2 | X1, B2, C2 | First slice should stage remote files locally and emit transfer evidence |
 | X3 | Add remote post-success file handling and failure categorization for SFTP | Epic X | P1 | Deferred | M2 | X2, D1 | Add remote move/rename/archive semantics only after the first inbound pull slice is stable |
 | X4 | Define partner-facing transport security rules and optional isolated worker deployment | Epic X | P1 | Deferred | M3 | X1, G1 | Preserve optional external MFT or isolated transport-worker deployment for stronger partner-facing isolation |
-| S1 | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Deferred | M2 | A1, C1 | Keep scheduler work inside the main product roadmap; establish scope before implementation |
+| [S1](backlog-items/S1-schedule-model-and-trigger-contract.md) | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Deferred | M2 | A1, C1 | Keep scheduler work inside the main product roadmap; establish scope before implementation |
 | S2 | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Deferred | M2 | S1 | First practical scheduler slice after run-state and audit direction are clearer |
 | S3 | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
 | G1 | Support secret injection via environment or secure config source | Epic G | P1 | Deferred | M3 | C1 | Important for enterprise readiness, but not first delivery blocker |
 | V1 | Define enterprise verification evidence model and report categories | Epic V | P1 | Done | M3 | C1, C2 | Shared evidence model and phase-1 report categories are defined in the report generator and ADRs |
 | V2 | Generate Markdown verification reports from the shared evidence model | Epic V | P1 | Done | M3 | V1 | Markdown reporting now renders from the shared evidence model |
-| V3 | Generate HTML verification reports with drill-down enterprise views | Epic V | P1 | Deferred | M3 | V1, V2 | Add richer navigation and drill-down from the same evidence model |
+| [V3](backlog-items/V3-html-verification-reports-with-drill-down-enterprise-views.md) | Generate HTML verification reports with drill-down enterprise views | Epic V | P1 | Deferred | M3 | V1, V2 | Add richer navigation and drill-down from the same evidence model |
 | V4 | Define verification-report retention, provenance, and release gating rules | Epic V | P2 | Deferred | M3 | V1, V2 | Make verification evidence auditable and usable for milestone and release decisions |
 
 ### Current working focus
