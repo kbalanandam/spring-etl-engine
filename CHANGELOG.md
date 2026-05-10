@@ -6,6 +6,18 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Added
+- Added a flat JSON target format plus staged JSON-array writing so preserved and custom scenarios can convert XML sources into JSON output through the existing factory-driven runtime path.
+- Added a preserved `xml-to-json-events` scenario bundle and focused JSON writer / XML-to-JSON flow coverage.
+
+### Changed
+- Source and target `packageName` values can now be omitted across the active config-loading path, with job-scoped defaults still derived from the selected job identity for compatibility.
+- CSV targets now default `delimiter` to `,` when omitted or blank, while still honoring user-provided alternate separators at runtime.
+- Architecture, config, README, and product-tracking docs now describe the shipped optional-`packageName` bridge baseline and the current JSON/CSV target behavior more consistently.
+
+### Fixed
+- JSON staged-array writing now categorizes open/write/update/close failures as runtime errors and cleans failed staged artifacts without masking the original serialization or stream-state failure.
+
 ---
 
 ## [1.5.0] - 2026-05-10

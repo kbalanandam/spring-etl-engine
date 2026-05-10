@@ -54,7 +54,7 @@ Use this reading order when authoring or reviewing one scenario:
 
 1. [`Job config reference`](job-config.md) — start here; this is the primary entry point for one selected run
 2. one source reference such as [`CSV source reference`](source/csv-source.md), [`XML source reference`](source/xml-source.md), or [`Relational source reference`](source/relational-source.md)
-3. one target reference such as [`CSV target reference`](target/csv-target.md), [`XML target reference`](target/xml-target.md), or [`Relational target reference`](target/relational-target.md)
+3. one target reference such as [`CSV target reference`](target/csv-target.md), [`JSON target reference`](target/json-target.md), [`XML target reference`](target/xml-target.md), or [`Relational target reference`](target/relational-target.md)
 4. [`Default processor reference`](processor/default-processor.md) — define field mappings, transforms, and rules
 5. [Scenario examples](#scenario-examples) — compare with a preserved runnable bundle closest to your use case
 
@@ -138,6 +138,7 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 | Source | XML | Supported | Existing runtime path |
 | Source | Relational | Supported (phase 1) | Table/query reads with current field name == column name assumption |
 | Target | CSV | Supported | Existing runtime path |
+| Target | JSON | Supported | Flat staged JSON array output |
 | Target | XML | Supported | Existing runtime path |
 | Target | Relational | Supported (phase 1) | Insert-only target path with current field name == column name assumption |
 | Processor | Default | Supported | Field-to-field mapping plus first-slice CSV validation and rejected-record output |
@@ -151,6 +152,7 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 
 ### Target
 - [`target/csv-target.md`](target/csv-target.md)
+- [`target/json-target.md`](target/json-target.md)
 - [`target/xml-target.md`](target/xml-target.md)
 - [`target/relational-target.md`](target/relational-target.md)
 
@@ -171,6 +173,7 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 | `src/main/resources/config-jobs/csv-to-sqlserver/` | CSV -> relational SQL Server target | Preferred entry path for the preserved placeholder SQL Server scenario |
 | `src/main/resources/config-jobs/relational-to-relational/` | relational source -> relational target | Preferred entry path for the preserved larger-volume relational testing bundle |
 | `src/main/resources/config-jobs/xml-to-csv-events/` | XML -> CSV | Preferred entry path for the preserved realistic flat XML baseline |
+| `src/main/resources/config-jobs/xml-to-json-events/` | XML -> JSON | Preferred entry path for the preserved production-style flat XML to JSON baseline |
 | `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/` | nested XML -> CSV | Preferred entry path for the preserved nested XML flattening example |
 | `src/main/resources/config-jobs/xml-nested-tag-validation/` | nested XML -> XML | Preferred entry path for the preserved nested XML to XML example |
 | `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/` | nested XML -> CSV -> nested XML | Preferred entry path for the preserved explicit multi-step roundtrip bundle |
@@ -186,10 +189,12 @@ Those scenarios together demonstrate:
 - existing XML source
 - default processor mapping
 - CSV target output
+- JSON target output
 - XML target output
 - relational SQL Server target
 - direct relational source to relational target flow
 - flat XML source to CSV target flow
+- flat XML source to JSON target flow
 - nested XML source to CSV target flow through the shared flattening path
 - nested XML source to XML target flow through the next-direction XML generation and flattening path
 - one selected multi-step scenario that hands nested XML -> CSV -> nested XML through an intermediate file inside the same job

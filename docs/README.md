@@ -77,7 +77,7 @@ For every significant enhancement, add or update:
 - [`architecture/runtime-flow.md`](architecture/runtime-flow.md) — end-to-end ETL runtime flow
 - [`architecture/runtime-flow-walkthrough.html`](architecture/runtime-flow-walkthrough.html) — lightweight animated HTML walkthrough of the shipped runtime path with `MainFlow -> SubFlow -> Step` product-flow context
 - [`architecture/job-level-activation-and-startup-guardrails.md`](architecture/job-level-activation-and-startup-guardrails.md) — future job-level `isActive` contract and fail-fast startup guardrail for inactive selected jobs
-- [`architecture/generated-model-naming-standard.md`](architecture/generated-model-naming-standard.md) — future naming formula for OneFlow-generated models, package-free source/target config direction, and the validation rules needed before removing authored `packageName`
+- [`architecture/generated-model-naming-standard.md`](architecture/generated-model-naming-standard.md) — shipped bridge baseline for optional explicit-job `packageName` derivation plus the remaining future naming formula, package-free source/target config direction, and validation rules needed before removing authored `packageName`
 - [`architecture/extension-points.md`](architecture/extension-points.md) — where new formats, processors, and future capabilities plug in
 - [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md) — top architectural risks to watch during roadmap execution
 - [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase, future enterprise integration direction, and the high-level guide for what belongs now vs later

@@ -78,6 +78,58 @@ class CsvDynamicWriterTest {
     }
 
     @Test
+    void defaultsDelimiterToCommaWhenOmitted(@TempDir Path tempDir) throws Exception {
+        Path outputFile = tempDir.resolve("customers-default-delimiter.csv");
+        CsvTargetConfig config = new CsvTargetConfig(
+                "TagValidationCsvIntermediate",
+                "com.etl.generated.job.xmlnestedcsvroundtrip.target",
+                List.of(column("id"), column("email"), column("city"), column("country")),
+                outputFile.toString(),
+                null,
+                true
+        );
+
+        ItemWriter<Object> writer = factory.createWriter(config, CustomerCsvRow.class);
+        FlatFileItemWriter<Object> csvWriter = (FlatFileItemWriter<Object>) writer;
+        csvWriter.open(new ExecutionContext());
+        try {
+            csvWriter.write(new Chunk<>(List.of(new CustomerCsvRow("1001", "alice@example.com", "Chennai", "IN"))));
+        } finally {
+            csvWriter.close();
+        }
+
+        String csv = Files.readString(outputFile);
+        assertTrue(csv.contains("id,email,city,country"));
+        assertTrue(csv.contains("1001,alice@example.com,Chennai,IN"));
+    }
+
+    @Test
+    void writesConfiguredAlternateDelimiter(@TempDir Path tempDir) throws Exception {
+        Path outputFile = tempDir.resolve("customers-pipe.csv");
+        CsvTargetConfig config = new CsvTargetConfig(
+                "TagValidationCsvIntermediate",
+                "com.etl.generated.job.xmlnestedcsvroundtrip.target",
+                List.of(column("id"), column("email"), column("city"), column("country")),
+                outputFile.toString(),
+                "|",
+                true
+        );
+
+        ItemWriter<Object> writer = factory.createWriter(config, CustomerCsvRow.class);
+        FlatFileItemWriter<Object> csvWriter = (FlatFileItemWriter<Object>) writer;
+        csvWriter.open(new ExecutionContext());
+        try {
+            csvWriter.write(new Chunk<>(List.of(new CustomerCsvRow("1001", "alice@example.com", "Chennai", "IN"))));
+        } finally {
+            csvWriter.close();
+        }
+
+        String csv = Files.readString(outputFile);
+        assertTrue(csv.contains("id|email|city|country"));
+        assertTrue(csv.contains("1001|alice@example.com|Chennai|IN"));
+    }
+
+    @Test
     void replacesExistingFinalFileOnSuccessfulStandaloneWrite(@TempDir Path tempDir) throws Exception {
         Path outputFile = tempDir.resolve("customers-replace.csv");
         Files.writeString(outputFile, "stale,data\nold,row\n");

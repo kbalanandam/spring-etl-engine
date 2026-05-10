@@ -8,6 +8,7 @@ import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.target.CsvTargetConfig;
+import com.etl.config.target.JsonTargetConfig;
 import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
@@ -180,6 +181,15 @@ public class XmlJobScopedGenerationService {
             );
         }
 
+        if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
+            return new JsonTargetConfig(
+                    jsonTargetConfig.getTargetName(),
+                    defaultTargetPackage,
+                    copyColumns(jsonTargetConfig.getFields()),
+                    jsonTargetConfig.getFilePath()
+            );
+        }
+
         if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
             return new RelationalTargetConfig(
                     relationalTargetConfig.getTargetName(),
@@ -233,6 +243,7 @@ public class XmlJobScopedGenerationService {
     private boolean supportsBuildTimeTargetGeneration(TargetConfig config) {
         return config instanceof XmlTargetConfig
                 || config.getFormat() == com.etl.enums.ModelFormat.CSV
+                || config.getFormat() == com.etl.enums.ModelFormat.JSON
                 || config.getFormat() == com.etl.enums.ModelFormat.RELATIONAL;
     }
 

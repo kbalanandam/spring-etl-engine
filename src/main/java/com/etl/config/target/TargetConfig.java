@@ -16,6 +16,7 @@ import java.util.List;
 )
 @JsonSubTypes({
 		@JsonSubTypes.Type(value = CsvTargetConfig.class, name = "csv"),
+		@JsonSubTypes.Type(value = JsonTargetConfig.class, name = "json"),
 		@JsonSubTypes.Type(value = XmlTargetConfig.class, name = "xml"),
 		@JsonSubTypes.Type(value = RelationalTargetConfig.class, name = "relational")
 		// future: db, kafka, etc.

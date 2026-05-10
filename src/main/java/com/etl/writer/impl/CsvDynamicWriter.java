@@ -45,14 +45,15 @@ public class CsvDynamicWriter implements DynamicWriter {
                 .stream()
                 .map(FieldDefinition::getName)
                 .toArray(String[]::new);
+        String delimiter = csvConfig.getDelimiter();
 
         DelimitedLineAggregator<Object> aggregator = new DelimitedLineAggregator<>();
-        aggregator.setDelimiter(",");
+        aggregator.setDelimiter(delimiter);
         aggregator.setFieldExtractor(extractor);
 
         writer.setLineAggregator(aggregator);
         if (csvConfig.isIncludeHeader()) {
-            writer.setHeaderCallback(headerWriter -> headerWriter.write(String.join(",", Arrays.asList(fieldNames))));
+            writer.setHeaderCallback(headerWriter -> headerWriter.write(String.join(delimiter, Arrays.asList(fieldNames))));
         }
         writer.afterPropertiesSet();
 

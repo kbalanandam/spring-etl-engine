@@ -32,7 +32,7 @@ From that starting point, the product can continue maturing carefully over time 
 - **Explicit orchestration** — one selected `job-config.yaml` defines the source/target/processor set and the exact `steps` execution order for a run.
 - **Validation-aware processing** — the active runtime supports source validation, processor-side field rules, explicit rejected-record output, and archive-on-success for CSV file scenarios.
 - **Transform-aware processing** — optional processor-side `transforms[]` chains now support cleanup/normalization plus expression-derived fields before validation rules, while source-transform YAML stays reserved for source-native cases.
-- **Format flexibility** — current runtime paths support CSV, XML, and phase-1 relational sources and targets.
+- **Format flexibility** — current runtime paths support CSV, XML, and phase-1 relational sources plus CSV, JSON, XML, and phase-1 relational targets.
 - **Config-driven extensibility** — dynamic readers, processors, writers, and validation SPIs keep new behavior on the active product path instead of hardcoded one-off flows.
 - **Operational visibility** — machine-readable run, subflow, and step logging provides scenario-aware execution evidence for operators and verification workflows, including blocked-downstream explanations when an upstream subflow fails.
 
@@ -41,6 +41,7 @@ From that starting point, the product can continue maturing carefully over time 
 - CSV → XML
 - CSV → relational target
 - XML → CSV
+- XML → JSON
 - relational → relational
 - multi-step scenario execution through explicit `steps`
 
@@ -86,9 +87,10 @@ The near-term product focus is to make these recurring concerns consistent acros
 ### Shipped today
 
 - explicit `job-config.yaml`-driven scenario selection with ordered `steps`
-- CSV, XML, and phase-1 relational source/target paths
+- CSV, XML, and phase-1 relational source paths plus CSV, JSON, XML, and phase-1 relational target paths
 - source validation plus processor-side validation rules
 - processor-side `valueMap` cleanup and `expression`-based derived fields through the active `transforms[]` contract
+- optional job-scoped generated package derivation when source or target configs omit `packageName`
 - rejected-record output and archive-on-success for the current CSV-focused hardening slice
 - machine-readable run and step evidence for operators and verification
 - descriptor-backed main-flow/subflow planning evidence plus blocked-subflow summaries layered on top of the current flat ordered-step runtime

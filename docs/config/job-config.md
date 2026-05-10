@@ -130,6 +130,7 @@ The broader file-ingestion hardening direction beyond the first preserved CSV pr
 - `src/main/resources/config-jobs/csv-validation-reject-archive/job-config.yaml`
 - `src/main/resources/config-jobs/relational-to-relational/job-config.yaml`
 - `src/main/resources/config-jobs/xml-to-csv-events/job-config.yaml`
+- `src/main/resources/config-jobs/xml-to-json-events/job-config.yaml`
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml`
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load/job-config.yaml`

@@ -170,6 +170,7 @@ The important normalization point is that both simple and nested XML targets now
 ## Related docs
 
 - [`CSV target reference`](csv-target.md)
+- [`JSON target reference`](json-target.md)
 - [`Relational target reference`](relational-target.md)
 - [`CSV source reference`](../source/csv-source.md)
 - [`Default processor reference`](../processor/default-processor.md)

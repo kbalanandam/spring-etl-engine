@@ -8,7 +8,7 @@ Define one shared naming contract for generated model packages, class names, and
 
 - Epic: **Epic A**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **In Progress**
 - Milestone: **M2**
 - Dependency: **A2**
 
@@ -105,7 +105,8 @@ A developer-local multi-step TVL-style example in `private-jobs/<collection>/xml
 
 ## Status notes
 
-Drafted after the architecture note for generated-model naming was added so the execution board can link to concrete scope, acceptance criteria, and migration rules before implementation begins.
+- Updated to **In Progress** because the active runtime and build-time bridge now ship default source/target package derivation for explicit `job-config.yaml` runs when `packageName` is omitted.
+- Remaining A4 scope is still open: standardized class naming, stronger drift/collision validation, stricter legacy `packageName` handling, and the broader package-free authored-config direction documented in the architecture note.
 
 
 

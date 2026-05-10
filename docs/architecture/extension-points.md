@@ -59,6 +59,12 @@ Validation and field-level processing behavior now use both shipped and planned 
 4. handle any special write-class / wrapper contract explicitly
 5. add tests and docs
 
+Current shipped target formats now include flat CSV, flat JSON, XML, and phase-1 relational targets. Flat JSON follows the same non-wrapper generated-model contract as other flat targets, while XML remains the only shipped target format with distinct processing-vs-write classes.
+
+For the current file-based target writers, keep publication semantics aligned to the shared staged-file lifecycle: write to a sibling `.part` artifact first, promote to the configured final path only after successful step completion, and clean failed staged artifacts before they can be mistaken for published output.
+
+When a selected explicit job omits `packageName` on source or target configs, keep the runtime aligned to the shared job-scoped derivation contract through `JobScopedPackageNameResolver` instead of reintroducing per-format handwritten package requirements.
+
 ## How to add a new processor type
 
 1. implement `DynamicProcessor`

@@ -14,6 +14,7 @@ import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.config.source.validation.SourceValidationContext;
 import com.etl.config.source.validation.SourceValidationService;
 import com.etl.config.target.CsvTargetConfig;
+import com.etl.config.target.JsonTargetConfig;
 import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
@@ -115,7 +116,9 @@ public class ConfigLoader {
 				applyDefaultSourcePackages(sourceWrapper, runtimeConfig.scenarioName());
 				return sourceWrapper;
 			}
-			return loadYamlConfig(runtimeConfig.sourceConfigPath(), "source-config.yaml", SourceWrapper.class);
+			SourceWrapper sourceWrapper = loadYamlConfig(runtimeConfig.sourceConfigPath(), "source-config.yaml", SourceWrapper.class);
+			applyDefaultSourcePackages(sourceWrapper, runtimeConfig.scenarioName());
+			return sourceWrapper;
 		} catch (ConfigException e) {
 			throw e;
 		} catch (Exception e) {
@@ -133,7 +136,9 @@ public class ConfigLoader {
 				applyDefaultTargetPackages(targetWrapper, runtimeConfig.scenarioName());
 				return targetWrapper;
 			}
-			return loadYamlConfig(runtimeConfig.targetConfigPath(), "target-config.yaml", TargetWrapper.class);
+			TargetWrapper targetWrapper = loadYamlConfig(runtimeConfig.targetConfigPath(), "target-config.yaml", TargetWrapper.class);
+			applyDefaultTargetPackages(targetWrapper, runtimeConfig.scenarioName());
+			return targetWrapper;
 		} catch (ConfigException e) {
 			throw e;
 		} catch (Exception e) {
@@ -590,6 +595,14 @@ public class ConfigLoader {
 					csvTargetConfig.isIncludeHeader()
 			);
 		}
+		if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
+			return new JsonTargetConfig(
+					jsonTargetConfig.getTargetName(),
+					defaultTargetPackage,
+					copyColumns(jsonTargetConfig.getFields()),
+					jsonTargetConfig.getFilePath()
+			);
+		}
 		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
 			return new XmlTargetConfig(
 					xmlTargetConfig.getTargetName(),
@@ -680,6 +693,14 @@ public class ConfigLoader {
 					resolveScenarioPath(configDirectory, csvTargetConfig.getFilePath()),
 					csvTargetConfig.getDelimiter(),
 					csvTargetConfig.isIncludeHeader()
+			);
+		}
+		if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
+			return new JsonTargetConfig(
+					jsonTargetConfig.getTargetName(),
+					jsonTargetConfig.getPackageName(),
+					copyColumns(jsonTargetConfig.getFields()),
+					resolveScenarioPath(configDirectory, jsonTargetConfig.getFilePath())
 			);
 		}
 		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {

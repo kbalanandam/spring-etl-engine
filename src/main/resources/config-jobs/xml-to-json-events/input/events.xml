@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Events>
+  <Event>
+    <eventCode>LOGIN</eventCode>
+    <eventTime>2026-05-10T08:00:00</eventTime>
+    <description>User logged in</description>
+    <sourceSystem>IAM</sourceSystem>
+  </Event>
+  <Event>
+    <eventCode>ORDER_POSTED</eventCode>
+    <eventTime>2026-05-10T08:05:00</eventTime>
+    <description>Order posted</description>
+    <sourceSystem>ERP</sourceSystem>
+  </Event>
+</Events>
+

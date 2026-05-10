@@ -190,6 +190,67 @@ class XmlJobScopedGenerationServiceTest {
     }
 
     @Test
+    void generatesFlatJsonTargetAndDerivesPackagesWhenSelectedJobOmitsPackageNames() throws Exception {
+        Path scenarioDir = tempDir.resolve("xml-to-json-events-job");
+        Files.createDirectories(scenarioDir.resolve("input"));
+
+        Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+                name: xml-to-json-events
+                sourceConfigPath: source-config.yaml
+                targetConfigPath: target-config.yaml
+                processorConfigPath: processor-config.yaml
+                steps:
+                  - name: events-step
+                    source: Events
+                    target: EventsJson
+                """);
+        Files.writeString(scenarioDir.resolve("processor-config.yaml"), "type: default\n");
+        Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+                sources:
+                  - format: xml
+                    sourceName: Events
+                    filePath: input/events.xml
+                    rootElement: Events
+                    recordElement: Event
+                    fields:
+                      - name: eventCode
+                        type: String
+                      - name: eventTime
+                        type: String
+                """);
+        Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+                targets:
+                  - format: json
+                    targetName: EventsJson
+                    filePath: output/events.json
+                    fields:
+                      - name: eventCode
+                        type: String
+                      - name: eventTime
+                        type: String
+                """);
+
+        Path outputRoot = tempDir.resolve("generated-json-output");
+        XmlJobScopedGenerationResult result = new XmlJobScopedGenerationService()
+                .generate(scenarioDir.resolve("job-config.yaml"), outputRoot);
+
+        assertEquals("xml-to-json-events", result.jobName());
+        assertEquals(1, result.sourceResults().size());
+        assertEquals(1, result.targetResults().size());
+        assertTrue(Files.exists(outputRoot.resolve("source/com/etl/generated/job/xmltojsonevents/source/Event.java")));
+        assertTrue(Files.exists(outputRoot.resolve("source/com/etl/generated/job/xmltojsonevents/source/Events.java")));
+        assertTrue(Files.exists(outputRoot.resolve("target/com/etl/generated/job/xmltojsonevents/target/EventsJson.java")));
+
+        Path classesDir = tempDir.resolve("generated-json-compiled");
+        compile(result.allGeneratedFiles(), classesDir);
+        try (URLClassLoader classLoader = new URLClassLoader(new URL[]{classesDir.toUri().toURL()}, getClass().getClassLoader())) {
+            assertNotNull(classLoader.loadClass("com.etl.generated.job.xmltojsonevents.source.Event"));
+            assertNotNull(classLoader.loadClass("com.etl.generated.job.xmltojsonevents.source.Events"));
+            assertNotNull(classLoader.loadClass("com.etl.generated.job.xmltojsonevents.target.EventsJson"));
+        }
+    }
+
+    @Test
     void generatesSelectedFlatCsvAndRelationalSourceAndTargetModels() throws Exception {
         Path scenarioDir = tempDir.resolve("flat-job");
         Files.createDirectories(scenarioDir);

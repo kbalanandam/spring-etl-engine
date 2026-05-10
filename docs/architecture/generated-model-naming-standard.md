@@ -1,15 +1,15 @@
 # Generated model naming standard and package-free config direction
 
-- Status: Future direction
-- Last updated: 2026-05-09
+- Status: Future direction with shipped bridge baseline
+- Last updated: 2026-05-10
 
 ## Purpose
 
-This note freezes the preferred naming logic to implement before `packageName` is removed from source and target configs.
+This note freezes the preferred naming logic to implement after the first shipped bridge that made `packageName` optional in the active explicit-job path.
 
 The goal is to make generated model identity deterministic from the selected job bundle and logical config names, not from Java-specific YAML fields.
 
-It is a design-first conclusion document for the next implementation slice. It does **not** change the shipped runtime contract yet.
+It remains a design-first conclusion document for the remaining naming-standard slice. The active runtime and build-time bridge already derive default source and target packages for explicit `job-config.yaml` runs when `packageName` is omitted, but the broader naming, validation, and legacy-bridge tightening described here is not fully shipped yet.
 
 ## Why this needs a standard first
 
@@ -288,6 +288,14 @@ The implementation should add or tighten these validations as part of the same s
 
 ### Phase 1: bridge without silent drift
 
+Shipped baseline today:
+
+- explicit `job-config.yaml` runs can already omit source and target `packageName`
+- runtime config loading and build-time generation already derive canonical packages as `...source` and `...target`
+- preserved examples can now demonstrate package-free authored config on the active path
+
+Remaining work in this phase:
+
 - keep reading `packageName` for compatibility
 - derive the canonical package anyway
 - warn when `packageName` is present but redundant
@@ -312,7 +320,7 @@ This note does **not** choose:
 
 ## Decision summary
 
-Before coding starts, the preferred logic to implement is:
+For the remaining work beyond the shipped bridge, the preferred logic to implement is:
 
 1. require explicit job bundles to provide `job-config.yaml -> name`
 2. make `packageName` a deprecated bridge field and then remove it from authored source/target configs

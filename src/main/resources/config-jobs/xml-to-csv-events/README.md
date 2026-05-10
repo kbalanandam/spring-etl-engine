@@ -95,7 +95,7 @@ targets:
 - `targetName: EventsCsv` is the logical target identity used by the job step and processor mapping.
 - `packageName` points to the scenario-scoped generated CSV target package.
 - `filePath` is the output CSV artifact path.
-- `delimiter` documents the intended CSV separator.
+- `delimiter` controls the CSV separator and defaults to `,` when omitted.
 - `fields` lists the output columns in write order.
 
 ## `processor-config.yaml`

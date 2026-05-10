@@ -5,6 +5,7 @@ import com.etl.config.source.CsvSourceConfig;
 import com.etl.config.source.RelationalSourceConfig;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.target.CsvTargetConfig;
+import com.etl.config.target.JsonTargetConfig;
 import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.XmlTargetConfig;
 import com.etl.config.relational.RelationalConnectionConfig;
@@ -117,6 +118,33 @@ class GeneratedModelClassResolverTest {
         assertEquals("com.etl.model.source.Customers", metadata.getSourceClassName());
         assertEquals("com.etl.model.target.Customers", metadata.getTargetProcessingClassName());
         assertEquals("com.etl.model.target.Customers", metadata.getTargetWriteClassName());
+        assertFalse(metadata.isWrapperRequired());
+        assertNull(metadata.getWrapperFieldName());
+    }
+
+    @Test
+    void resolvesJsonTargetToTargetNameForBothPhases() {
+        CsvSourceConfig sourceConfig = new CsvSourceConfig(
+                "Customers",
+                "com.etl.model.source",
+                List.of(column("id", "int")),
+                "target/customers.csv",
+                ","
+        );
+        JsonTargetConfig config = new JsonTargetConfig(
+                "CustomersOut",
+                "com.etl.model.target",
+                List.of(column("id", "int")),
+                "target/customers.json"
+        );
+
+        assertEquals("com.etl.model.target.CustomersOut", GeneratedModelClassResolver.resolveTargetWriteClassName(config));
+        assertEquals("com.etl.model.target.CustomersOut", GeneratedModelClassResolver.resolveTargetProcessingClassName(config));
+
+        ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(sourceConfig, config);
+        assertEquals("com.etl.model.source.Customers", metadata.getSourceClassName());
+        assertEquals("com.etl.model.target.CustomersOut", metadata.getTargetProcessingClassName());
+        assertEquals("com.etl.model.target.CustomersOut", metadata.getTargetWriteClassName());
         assertFalse(metadata.isWrapperRequired());
         assertNull(metadata.getWrapperFieldName());
     }

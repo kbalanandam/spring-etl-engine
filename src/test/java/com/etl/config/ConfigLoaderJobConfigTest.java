@@ -8,7 +8,9 @@ import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.source.validation.SourceValidationService;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.CsvTargetConfig;
+import com.etl.config.target.JsonTargetConfig;
 import com.etl.config.target.TargetWrapper;
+import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.processor.validation.NotNullProcessorValidationRule;
 import com.etl.processor.validation.ProcessorValidationRule;
@@ -209,6 +211,86 @@ class ConfigLoaderJobConfigTest {
         assertEquals(scenarioDir.resolve("input/customers.csv").toAbsolutePath().normalize().toString(), sourceConfig.getFilePath());
         assertEquals(scenarioDir.resolve("output/customers.csv").toAbsolutePath().normalize().toString(), targetConfig.getFilePath());
         assertEquals(scenarioDir.resolve("rejects").toAbsolutePath().normalize().toString(), processorConfig.getRejectHandling().getOutputPath());
+    }
+
+    @Test
+    void derivesDefaultPackagesWhenExplicitJobOmitsSourceAndJsonTargetPackageNames() throws IOException {
+        Path scenarioDir = tempDir.resolve("xml-to-json-events");
+        Files.createDirectories(scenarioDir.resolve("input"));
+
+        Files.writeString(scenarioDir.resolve("input/events.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <Events>
+                  <Event>
+                    <eventCode>LOGIN</eventCode>
+                    <eventTime>2026-05-10T08:00:00</eventTime>
+                  </Event>
+                </Events>
+                """);
+
+        Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+                sources:
+                  - format: xml
+                    sourceName: Events
+                    filePath: input/events.xml
+                    rootElement: Events
+                    recordElement: Event
+                    fields:
+                      - name: eventCode
+                        type: String
+                      - name: eventTime
+                        type: String
+                """);
+
+        Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+                targets:
+                  - format: json
+                    targetName: EventsJson
+                    filePath: output/events.json
+                    fields:
+                      - name: eventCode
+                        type: String
+                      - name: eventTime
+                        type: String
+                """);
+
+        Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+                type: default
+                mappings:
+                  - source: Events
+                    target: EventsJson
+                    fields:
+                      - from: eventCode
+                        to: eventCode
+                      - from: eventTime
+                        to: eventTime
+                """);
+
+        Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+                name: xml-to-json-events
+                sourceConfigPath: source-config.yaml
+                targetConfigPath: target-config.yaml
+                processorConfigPath: processor-config.yaml
+                steps:
+                  - name: events-xml-to-json-step
+                    source: Events
+                    target: EventsJson
+                """);
+
+        ConfigLoader loader = new ConfigLoader();
+        ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+        ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+        SourceWrapper sourceWrapper = loader.sourceWrapper();
+        TargetWrapper targetWrapper = loader.targetWrapper();
+
+        XmlSourceConfig sourceConfig = (XmlSourceConfig) sourceWrapper.getSources().get(0);
+        JsonTargetConfig targetConfig = (JsonTargetConfig) targetWrapper.getTargets().get(0);
+
+        assertEquals(JobScopedPackageNameResolver.resolveSourcePackage("xml-to-json-events"), sourceConfig.getPackageName());
+        assertEquals(JobScopedPackageNameResolver.resolveTargetPackage("xml-to-json-events"), targetConfig.getPackageName());
+        assertEquals(scenarioDir.resolve("input/events.xml").toAbsolutePath().normalize().toString(), sourceConfig.getFilePath());
+        assertEquals(scenarioDir.resolve("output/events.json").toAbsolutePath().normalize().toString(), targetConfig.getFilePath());
     }
 
     @Test
