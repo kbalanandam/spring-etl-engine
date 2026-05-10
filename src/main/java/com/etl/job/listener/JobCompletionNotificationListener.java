@@ -3,6 +3,7 @@ package com.etl.job.listener;
 import com.etl.exception.EtlExceptionDetails;
 import com.etl.logging.RunLoggingContext;
 import com.etl.runtime.job.JobHierarchyLoggingSupport;
+import com.etl.runtime.job.JobRunCountRollup;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.runtime.job.JobSubFlowDescriptor;
 import org.slf4j.Logger;
@@ -77,7 +78,8 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 			Long durationSeconds = startTime != null && endTime != null
 					? Duration.between(startTime, endTime).getSeconds()
 					: null;
-			logger.info("RUN_SUMMARY event=run_summary scenario={} mainFlow={} subFlow={} recoveryPolicy={} jobName={} jobExecutionId={} status={} startTime={} endTime={} durationSeconds={} failureCount={}",
+			JobRunCountRollup countRollup = JobRunCountRollup.calculate(jobExecution, jobRuntimeDescriptor);
+			logger.info("RUN_SUMMARY event=run_summary scenario={} mainFlow={} subFlow={} recoveryPolicy={} jobName={} jobExecutionId={} status={} startTime={} endTime={} durationSeconds={} sourceCount={} writtenCount={} rejectedCount={} handoffReadCount={} handoffWriteCount={} executedStepCount={} rollupMode={} failureCount={}",
 					mdcValueOrDefault(RunLoggingContext.SCENARIO, "unknown-scenario"),
 					mdcValueOrDefault(RunLoggingContext.MAIN_FLOW, ""),
 					mdcValueOrDefault(RunLoggingContext.SUB_FLOW, ""),
@@ -88,6 +90,13 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 					startTime,
 					endTime,
 					durationSeconds == null ? "unknown" : durationSeconds,
+					countRollup.sourceCount(),
+					countRollup.writtenCount(),
+					countRollup.rejectedCount(),
+					countRollup.handoffReadCount(),
+					countRollup.handoffWriteCount(),
+					countRollup.executedStepCount(),
+					countRollup.rollupMode(),
 					jobExecution.getAllFailureExceptions().size());
 			logSubFlowEvidence(jobExecution);
 

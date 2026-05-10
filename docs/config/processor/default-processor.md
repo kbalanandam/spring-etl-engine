@@ -50,6 +50,16 @@ mappings:
         to: lastName
 ```
 
+### Smallest valid shape walkthrough
+
+- `type: default` selects the shipped processor implementation.
+- `mappings` is the list of source-to-target mapping contracts available in this processor file.
+- `mappings[].source` must match a configured `sourceName` from the selected source config and the `steps[].source` value chosen by `job-config.yaml`.
+- `mappings[].target` must match a configured `targetName` from the selected target config and the `steps[].target` value chosen by `job-config.yaml`.
+- `mappings[].fields` is the ordered list of field mappings applied for that source/target pair.
+- `mappings[].fields[].from` is the input property read from the runtime source record.
+- `mappings[].fields[].to` is the output property written onto the runtime target record.
+
 This is still the best place to begin. Everything else on this page is additive.
 
 ## Supported fields today
@@ -135,6 +145,17 @@ mappings:
           - type: timeFormat
             pattern: HH:mm:ss
 ```
+
+#### Validation-aware example walkthrough
+
+- `rejectHandling` configures where rejected records go when validation rules fail.
+- `rejectHandling.enabled: true` turns rejected-record output on.
+- `rejectHandling.outputPath` is the reject artifact location.
+- `rejectHandling.includeReasonColumns: true` appends rejection metadata columns to the reject output.
+- `rules` adds validation to one mapped field.
+- `rules[].type: notNull` rejects or fails when the field is missing.
+- `rules[].onFailure: failStep` overrides the default outcome and stops the step immediately for that rule.
+- `rules[].type: timeFormat` validates the rewritten value against the supplied `pattern`.
 
 ### 3. Transform-aware and duplicate-aware mapping
 
@@ -309,6 +330,7 @@ That separation keeps shipped behavior readable today and leaves room for future
 - Reject handling is now exercised by preserved file-backed scenarios, with the strongest first proof still centered on CSV and additional nested XML proof through the same processor contract
 - No nested field alias or database-column alias support yet
 - No per-target write behavior inside the processor config
+- Database-backed reference-set validation and broader lookup/enrichment behavior are future `T5` work, not part of the shipped processor rule contract today
 
 ## Future direction kept outside this page
 
@@ -316,6 +338,7 @@ This page documents the shipped processor contract. For future-only design direc
 
 - [`Transformation capability roadmap`](../../architecture/transformation-capability-roadmap.md)
 - [`Extension points`](../../architecture/extension-points.md)
+- [`Reference-set validation and enrichment`](../../architecture/reference-set-validation-and-enrichment.md)
 
 ## Related design note
 

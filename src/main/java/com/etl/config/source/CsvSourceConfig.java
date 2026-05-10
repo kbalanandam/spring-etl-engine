@@ -25,6 +25,9 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
     /** Delimiter used in the CSV file. */
     private String delimiter;
 
+  /** Whether the runtime should treat the first CSV line as a header row and skip it. */
+  private boolean skipHeader = true;
+
 	private ArchiveConfig archive;
 
     private ValidationConfig validation;
@@ -43,6 +46,14 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
 
   public void setDelimiter(String delimiter) {
     this.delimiter = delimiter;
+  }
+
+  public boolean isSkipHeader() {
+    return skipHeader;
+  }
+
+  public void setSkipHeader(boolean skipHeader) {
+    this.skipHeader = skipHeader;
   }
 
   public ArchiveConfig getArchive() {
@@ -86,9 +97,9 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
             @JsonProperty("packageName") String packageName,
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("filePath") String filePath,
-            @JsonProperty("delimiter") String delimiter
+      @JsonProperty("delimiter") String delimiter
     ) {
-        this(sourceName, packageName, fields, filePath, delimiter, null);
+    this(sourceName, packageName, fields, filePath, delimiter, null, null, true);
     }
 
     public CsvSourceConfig(
@@ -99,7 +110,7 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
             String delimiter,
             ArchiveConfig archive
     ) {
-    this(sourceName, packageName, fields, filePath, delimiter, archive, null);
+		this(sourceName, packageName, fields, filePath, delimiter, archive, null, true);
   }
 
   public CsvSourceConfig(
@@ -111,11 +122,25 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
       ArchiveConfig archive,
       ValidationConfig validation
   ) {
+    this(sourceName, packageName, fields, filePath, delimiter, archive, validation, true);
+  }
+
+  public CsvSourceConfig(
+      String sourceName,
+      String packageName,
+      List<ColumnConfig> fields,
+      String filePath,
+      String delimiter,
+      ArchiveConfig archive,
+      ValidationConfig validation,
+      boolean skipHeader
+  ) {
         super(sourceName, packageName, fields);
         this.filePath = filePath;
         this.delimiter = delimiter;
 		this.archive = archive;
     this.validation = validation;
+    this.skipHeader = skipHeader;
     }
 
     /**
@@ -152,8 +177,7 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
                 count++;
             }
         }
-        // Optionally subtract 1 if header is present
-        return count > 0 ? count - 1 : 0;
+		return skipHeader && count > 0 ? count - 1 : count;
     }
 
   public static class ArchiveConfig extends FileArchiveConfig {

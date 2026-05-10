@@ -231,6 +231,44 @@ class SourceValidationServiceTest {
 	}
 
 	@Test
+	void passesWhenHeaderlessCsvDisablesHeaderSkipping() throws IOException {
+		Path csvFile = tempDir.resolve("events-no-header.csv");
+		Files.writeString(csvFile, "EVT-1,08:30:00\nEVT-2,09:15:00\n");
+
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setAllowEmpty(false);
+
+		CsvSourceConfig sourceConfig = csvSource(csvFile);
+		sourceConfig.setSkipHeader(false);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		assertDoesNotThrow(() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml")));
+	}
+
+	@Test
+	void failsFastWhenHeaderMatchValidationIsRequestedForHeaderlessCsv() throws IOException {
+		Path csvFile = tempDir.resolve("events-no-header.csv");
+		Files.writeString(csvFile, "EVT-1,08:30:00\n");
+
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setAllowEmpty(false);
+		validation.setRequireHeaderMatch(true);
+
+		CsvSourceConfig sourceConfig = csvSource(csvFile);
+		sourceConfig.setSkipHeader(false);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("skipHeader=true"));
+	}
+
+	@Test
 	void invokesCustomSourceValidatorExtensions() {
 		AtomicBoolean validated = new AtomicBoolean(false);
 		SourceValidationService service = new SourceValidationService(List.of(new SourceValidator() {

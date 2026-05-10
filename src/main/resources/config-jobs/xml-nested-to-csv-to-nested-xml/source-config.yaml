@@ -12,6 +12,7 @@ sources:
     packageName: com.etl.generated.job.xmlnestedcsvroundtrip.source
     filePath: output/intermediate/tag-validation-intermediate.csv
     delimiter: ","
+    skipHeader: true
     fields:
       - name: homeAgencyId
         type: String

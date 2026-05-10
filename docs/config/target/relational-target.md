@@ -83,6 +83,29 @@ targets:
         type: String
 ```
 
+## Example walkthrough
+
+Read the example in target-contract order:
+
+- `targets:` is the required root for target config files.
+- `format: relational` selects the JDBC writer path.
+- `targetName` is the logical identity matched by processor mappings and job steps.
+- `packageName` is the generated target model package; in explicit job mode it may be omitted to use the job-scoped default package.
+- `schema` optionally overrides the database schema for the target table.
+- `table` is the relational table written by the step.
+- `writeMode: insert` selects the only shipped relational write mode today.
+- `batchSize` is the intended relational write-grouping hint.
+- `connection` groups the JDBC settings for this target.
+- `connection.vendor` selects the relational dialect family.
+- `connection.jdbcUrl` is the preferred explicit connection string.
+- `connection.schema` is the connection-level schema fallback when top-level `schema` is omitted.
+- `connection.username`, `connection.password`, and `connection.driverClassName` provide the remaining JDBC details.
+- `fields` lists the target object properties and database columns written in phase 1.
+- `fields[].name` is both the generated target property name and the current assumed database column name.
+- `fields[].type` is the logical type stored in the generated target model contract.
+
+This example intentionally uses placeholder SQL Server values because committed preserved bundles should remain safe templates. Replace those placeholders in private bundles or runtime overrides before execution.
+
 ## Runtime behavior today
 
 - The writer resolves a JDBC target through the relational connection settings.

@@ -136,6 +136,29 @@ sources:
         type: String
 ```
 
+## Example walkthrough
+
+Read the example in authoring order:
+
+- `sources:` is the required root for source config files.
+- `format: xml` selects the XML reader path.
+- `sourceName` is the logical source identity referenced by processor mappings and job steps.
+- `packageName` is the generated source package that runtime validates during startup; in explicit job mode it may be omitted to use the job-scoped default package.
+- `filePath` points to the XML input file.
+- `rootElement` declares the expected document envelope.
+- `recordElement` declares the repeating XML fragment read as one runtime record.
+- `validation` is optional file-level validation.
+- `validation.fileNamePattern` constrains the input file name.
+- `validation.onFailure: rejectFile` means an invalid XML file is moved aside before the run fails.
+- `validation.rejectPath` is the destination for rejected source files.
+- `flatteningStrategy: DirectXml` keeps the standard record-object streaming path.
+- `modelDefinitionPath` points to the structural XML definition used by build-time generation.
+- `fields` documents the emitted record properties for this flat XML example.
+- `fields[].name` is the property name expected on the generated/read XML record.
+- `fields[].type` is the logical type recorded in the model contract.
+
+This example shows both `modelDefinitionPath` and `fields` because the preserved flat XML baseline keeps the contract very visible. For nested XML scenarios, keep the structural shape in the referenced model definition and omit `fields` when the external model is the authoritative contract.
+
 ## Runtime behavior today
 
 ### Runtime sequence: `DirectXml` vs `NestedXml`

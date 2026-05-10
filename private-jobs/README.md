@@ -1,11 +1,14 @@
 # Private Jobs
 
-Use `private-jobs/` for **private deployable job bundles** that must not be committed to GitHub.
+Use `private-jobs/` as a **developer-local placeholder workspace** for private deployable job bundles that must not be committed to GitHub.
 
 This folder is intentionally structured as a repo-root sibling of `src/` so real runtime bundles stay separate from the checked-in preserved reference bundles under `src/main/resources/config-jobs/`.
 
+Think of `private-jobs/` as the place where each developer or deployment team copies a preserved example, adapts it to their private environment, and keeps that adapted bundle out of source control.
+
 ## What belongs here
 
+- copies of preserved reference bundles that developers are adapting for local/private use
 - real customer or partner job bundles
 - environment-specific JDBC or filesystem paths
 - private production-like testing bundles
@@ -14,11 +17,14 @@ This folder is intentionally structured as a repo-root sibling of `src/` so real
 
 ## What does not belong here
 
+- committed repository examples that other contributors should rely on directly
 - preserved examples for docs, smoke verification, or regression reference
 - sanitized sample data that should stay visible in the repository
 - baseline demo fallback YAML under `src/main/resources/`
 
 Keep those checked-in reference bundles under `src/main/resources/config-jobs/`.
+
+If you need a starting point, copy one of those preserved bundles into `private-jobs/` and then replace the sample settings with your own private values.
 
 ## Bundle layout
 
@@ -77,7 +83,12 @@ Use this simple flow:
 
 ## Git behavior
 
-The repository tracks this `README.md` so the folder exists for all contributors.
+The repository tracks this `README.md` so the folder exists for all contributors and the intended pattern stays discoverable.
 
 All other contents under `private-jobs/` are ignored by Git.
+
+That means the expected repository state is:
+
+- this guidance file may be committed
+- developer-created bundles, copied configs, private data, logs, outputs, rejects, archives, and SQL files under `private-jobs/` should remain local-only
 

@@ -19,7 +19,7 @@ As features grow, the goal is to keep architectural intent in the repository ins
 
 Use these short definitions as the shared vocabulary for the rest of the docs:
 
-- **job bundle** — one runnable config folder for one use case. The checked-in preserved bundle root is `src/main/resources/config-jobs/`. Private deployable bundles should live under the git-ignored repo-root [`private-jobs/`](../private-jobs/README.md), preferably grouped as `private-jobs/<collection>/<job-bundle>/`. Legacy `config-scenarios/...` paths remain temporarily available as deprecated compatibility aliases.
+- **job bundle** — one runnable config folder for one use case. The checked-in preserved bundle root is `src/main/resources/config-jobs/`. Developer-local private bundles should be copied from those preserved examples into the git-ignored repo-root [`private-jobs/`](../private-jobs/README.md), preferably grouped as `private-jobs/<collection>/<job-bundle>/`. Legacy `config-scenarios/...` paths remain temporarily available as deprecated compatibility aliases.
 - **`job-config.yaml`** — the run entry point that selects config files and ordered steps for one scenario; see [`config/job-config.md`](config/job-config.md)
 - **main flow** — the top-level reusable business flow executed inside one selected scenario; see [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md)
 - **subflow** — a reusable grouped phase inside one main flow, containing one or more ordered steps; see [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md)
@@ -77,6 +77,7 @@ For every significant enhancement, add or update:
 - [`architecture/runtime-flow.md`](architecture/runtime-flow.md) — end-to-end ETL runtime flow
 - [`architecture/runtime-flow-walkthrough.html`](architecture/runtime-flow-walkthrough.html) — lightweight animated HTML walkthrough of the shipped runtime path with `MainFlow -> SubFlow -> Step` product-flow context
 - [`architecture/job-level-activation-and-startup-guardrails.md`](architecture/job-level-activation-and-startup-guardrails.md) — future job-level `isActive` contract and fail-fast startup guardrail for inactive selected jobs
+- [`architecture/generated-model-naming-standard.md`](architecture/generated-model-naming-standard.md) — future naming formula for OneFlow-generated models, package-free source/target config direction, and the validation rules needed before removing authored `packageName`
 - [`architecture/extension-points.md`](architecture/extension-points.md) — where new formats, processors, and future capabilities plug in
 - [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md) — top architectural risks to watch during roadmap execution
 - [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase, future enterprise integration direction, and the high-level guide for what belongs now vs later
@@ -87,6 +88,8 @@ For every significant enhancement, add or update:
 - [`architecture/validation-extension-architecture.md`](architecture/validation-extension-architecture.md) — future extension architecture for source-level validation and processor-rule validation without reviving the deprecated legacy validation framework
 - [`architecture/relational-db-support.md`](architecture/relational-db-support.md) — current relational support baseline, phase-1 implementation status, and future hardening direction
 - [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md) — phased transformation maturity roadmap and the high-level guide for what transformation behavior belongs now vs later
+- [`architecture/reference-set-validation-and-enrichment.md`](architecture/reference-set-validation-and-enrichment.md) — future processor-side direction for validating mapped values against runtime-loaded database reference sets and later enrichment growth
+- [`architecture/t6-shared-default-value-mapping-syntax-comparison.md`](architecture/t6-shared-default-value-mapping-syntax-comparison.md) — future-only comparison of config-shape options for shared audit/default field mapping under `T6`
 - [`architecture/job-history-and-operational-observability.md`](architecture/job-history-and-operational-observability.md) — current observability baseline plus future direction for retained run history, structured operational events, and diagnostics
 - [`architecture/ai-assisted-operations-intelligence.md`](architecture/ai-assisted-operations-intelligence.md) — future operator-assist roadmap for AI-grounded search and summarization over job history and logs
 - [`architecture/TEMPLATE.md`](architecture/TEMPLATE.md) — template for future design notes
@@ -128,7 +131,7 @@ For every significant enhancement, add or update:
 - `src/main/resources/config-jobs/department-load/` — preferred entry path for the department-only ETL example
 - `src/main/resources/config-jobs/cust-dept-load/` — preferred entry path for the multi-step customer + department ETL example
 
-Those `config-jobs` paths now point at the checked-in preserved bundles directly. Use repo-root [`private-jobs/`](../private-jobs/README.md) for private deployable bundles that must not be committed. Older `config-scenarios/...` references remain temporarily supported as deprecated compatibility aliases.
+Those `config-jobs` paths now point at the checked-in preserved bundles directly. Use repo-root [`private-jobs/`](../private-jobs/README.md) only as a developer-local git-ignored workspace for private bundles that must not be committed; in normal repository history, only the guidance file there should be visible. Older `config-scenarios/...` references remain temporarily supported as deprecated compatibility aliases.
 
 ## Maintenance rules
 

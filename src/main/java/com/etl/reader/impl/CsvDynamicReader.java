@@ -54,7 +54,7 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 
 		FlatFileItemReader<T> reader = new FlatFileItemReader<>();
 		reader.setResource(new FileSystemResource(csvConfig.getFilePath()));
-		reader.setLinesToSkip(1); // Skip header
+		reader.setLinesToSkip(csvConfig.isSkipHeader() ? 1 : 0);
 
 		// ------------------------------
 		// Build dynamic line mapper

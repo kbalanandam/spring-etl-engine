@@ -1,11 +1,12 @@
 targets:
   - format: xml
     targetName: CustomersNestedXml
+    packageName: com.etl.generated.job.csvtonestedxml.target
     filePath: output/customers-nested.xml
     rootElement: Customers
     recordElement: CustomerRecord
-    modelDefinitionPath: definitions/nested-target-model.yaml
     fields:
       - name: id
         type: String
+    modelDefinitionPath: definitions/nested-target-model.yaml
 

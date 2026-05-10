@@ -60,6 +60,12 @@ public class CsvSourceValidator implements SourceValidator {
 		if (csvSourceConfig.getDelimiter() == null || csvSourceConfig.getDelimiter().isBlank()) {
 			throw new IllegalArgumentException("validation requires a non-blank delimiter.");
 		}
+		if (!csvSourceConfig.isSkipHeader() && validation.isRequireHeaderMatch()) {
+			throw new IllegalArgumentException(
+					"validation.requireHeaderMatch=true requires skipHeader=true for CSV sources. "
+							+ "Disable header matching or enable header skipping before runtime."
+			);
+		}
 
 		validateRejectConfiguration(validation);
 
@@ -106,26 +112,29 @@ public class CsvSourceValidator implements SourceValidator {
 	                                 CsvSourceConfig.ValidationConfig validation,
 	                                 Path filePath) {
 		try (BufferedReader reader = Files.newBufferedReader(filePath)) {
-			String headerLine = reader.readLine();
-			if (headerLine == null || headerLine.isBlank()) {
-				if (validation.isRequireHeaderMatch()) {
+			String firstLine = reader.readLine();
+			if (firstLine == null || firstLine.isBlank()) {
+				if (csvSourceConfig.isSkipHeader() && validation.isRequireHeaderMatch()) {
 					handleValidationFailure(validation, filePath,
 							"CSV header row is required when validation.requireHeaderMatch=true.");
 				}
 				if (!validation.isAllowEmpty()) {
-					handleValidationFailure(validation, filePath,
-							"CSV file must contain at least one header row and one data row when validation.allowEmpty=false.");
+					handleValidationFailure(validation, filePath, csvSourceConfig.isSkipHeader()
+							? "CSV file must contain at least one header row and one data row when validation.allowEmpty=false."
+							: "CSV file must contain at least one data row when validation.allowEmpty=false.");
 				}
 				return;
 			}
 
-			if (validation.isRequireHeaderMatch()) {
-				validateHeader(csvSourceConfig, validation, filePath, headerLine);
-			}
+			if (csvSourceConfig.isSkipHeader()) {
+				if (validation.isRequireHeaderMatch()) {
+					validateHeader(csvSourceConfig, validation, filePath, firstLine);
+				}
 
-			if (!validation.isAllowEmpty() && !hasDataRows(reader)) {
-				handleValidationFailure(validation, filePath,
-						"CSV file must contain at least one data row when validation.allowEmpty=false.");
+				if (!validation.isAllowEmpty() && !hasDataRows(reader)) {
+					handleValidationFailure(validation, filePath,
+							"CSV file must contain at least one data row when validation.allowEmpty=false.");
+				}
 			}
 		} catch (IOException e) {
 			throw new IllegalArgumentException("Unable to read CSV file for validation: " + filePath, e);

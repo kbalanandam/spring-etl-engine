@@ -8,6 +8,7 @@ This note defines the preferred future direction for validating mapped record va
 
 - Classification: **Future direction**
 - The Mermaid diagrams in this document describe the preferred future direction, not a shipped runtime path today.
+- This note now also captures the frozen first-slice planning direction for `T5`, but that freeze is planning-only and does not mean the feature is implemented.
 
 ## Scope
 
@@ -124,12 +125,14 @@ Likely future runtime helpers:
 - cache/registry component for loaded sets in step or job scope
 - `ReferenceSetProcessorValidationRule`
 
-## Decisions
+## Frozen planning decisions
 
 - keep DB-backed allow-list checks in the processor-rule extension point, not source validation
 - start with validation-only reference sets before broader enrichment output behavior
 - use a named placeholder such as `referenceSet: agencyCodes` instead of embedding SQL in each field rule
 - load each reference set once per configured cache scope rather than querying the database for every record
+
+These decisions are intentionally frozen to keep backlog refinement aligned, but they remain future-only until code, tests, and shipped config docs are added.
 
 ## Tradeoffs
 
@@ -191,4 +194,5 @@ Build on this design in stages:
 - [`Extension points`](extension-points.md)
 - [`Relational database support`](relational-db-support.md)
 - [`Transformation capability roadmap`](transformation-capability-roadmap.md)
+
 

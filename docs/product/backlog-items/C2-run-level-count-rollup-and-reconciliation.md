@@ -8,7 +8,7 @@ Complete the run-level count model so operators can understand overall ETL outco
 
 - Epic: **Epic C**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M1**
 - Dependency: **C1**
 
@@ -55,8 +55,8 @@ The preferred near-term direction is:
 1. preserve the existing step-level evidence as the ground truth
 2. calculate run-level totals from the selected job's executed steps
 3. publish those totals in the run summary / run-finished evidence path
-4. document how totals should be interpreted for multi-step scenarios, especially where one step writes an intermediate artifact that becomes the next step's source
-5. keep the semantics operator-friendly and deterministic
+4. treat multi-step rollup as operator-oriented rather than raw sum-of-step writes
+5. count first-step external ingress as `sourceCount`, final scenario output writes as `writtenCount`, summed step rejects as `rejectedCount`, and keep intermediate handoff counts separate for diagnostics
 
 ## Operator / runtime impact
 
@@ -69,11 +69,11 @@ Expected impact when this item ships:
 
 ## Acceptance criteria
 
-- [ ] run-level source / written / rejected totals are emitted for the selected run
-- [ ] totals are documented clearly enough for operators to interpret them in multi-step scenarios
-- [ ] step-level evidence remains available and is not replaced by the rollup
-- [ ] tests cover at least one multi-step scenario and verify the expected run summary totals
-- [ ] related observability docs are updated in the same change
+- [x] run-level source / written / rejected totals are emitted for the selected run
+- [x] totals are documented clearly enough for operators to interpret them in multi-step scenarios
+- [x] step-level evidence remains available and is not replaced by the rollup
+- [x] tests cover at least one multi-step scenario and verify the expected run summary totals
+- [x] related observability docs are updated in the same change
 
 ## Related docs
 
@@ -83,14 +83,18 @@ Expected impact when this item ships:
 
 ## Implementation notes
 
+The shipped rollup is intentionally operator-oriented rather than a raw sum of all step counts.
+
 Be explicit about whether run-level totals are:
 
 - raw sum-of-step counts, or
 - operator-oriented rollups that distinguish intermediate handoff steps from final published-output steps
 
+The current shipped answer is the second option.
+
 That distinction matters most for multi-step jobs where a CSV or XML artifact is both an output of one step and an input to another.
 
 ## Status notes
 
-The board already marks this item as `In Progress`. This page exists so the reconciliation rules and intended rollup semantics can be reviewed without expanding the execution board row.
+Completed by emitting `sourceCount`, `writtenCount`, and `rejectedCount` in `RUN_SUMMARY`, keeping `STEP_EVENT event=step_finished` counts as the step-level ground truth, and documenting that intermediate handoff counts remain diagnostic rather than being treated as final published output.
 

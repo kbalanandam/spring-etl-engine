@@ -4,7 +4,7 @@ This section documents the configuration contracts supported by `spring-etl-engi
 
 It should be read together with the preserved scenario YAML bundles under `src/main/resources/config-jobs/`. Those checked-in executable examples should stay aligned with the field references in `docs/config/`.
 
-For private environment-specific runs, keep separate private bundles under [`private-jobs/`](../../private-jobs/README.md) at the repository root. Prefer grouped private collections such as `private-jobs/<collection>/<job-bundle>/` so one collection can be purged cleanly later.
+For private environment-specific runs, copy a preserved bundle into the developer-local git-ignored [`private-jobs/`](../../private-jobs/README.md) area at the repository root. Prefer grouped private collections such as `private-jobs/<collection>/<job-bundle>/` so one collection can be purged cleanly later.
 
 The goal is to keep the baseline resource YAML files stable while providing:
 
@@ -19,7 +19,27 @@ Legacy `validation-config.yaml`-style validation under `src/main/java/com/etl/va
 Use these docs in two ways:
 
 1. as a reference for what each config type supports today
-2. as a guide when creating scenario-specific YAML files under `src/main/resources/config-jobs/` or private deployable bundles under `private-jobs/`
+2. as a guide when creating scenario-specific YAML files under `src/main/resources/config-jobs/` or developer-local private bundles under `private-jobs/`
+
+## YAML example maintenance contract
+
+Treat the YAML examples in this section as part of the active config contract, not as decorative snippets.
+
+Each config page under `docs/config/` should preserve the same documentation shape:
+
+1. show one runnable or directly-derived YAML example from a preserved bundle under `src/main/resources/config-jobs/`
+2. explain the example fields in the same top-to-bottom order they appear in the YAML
+3. call out which blocks are optional, conditional, or omitted from the example
+4. link back to the preserved scenario bundle that should be updated with the same change
+
+When a config field is added, removed, renamed, or its meaning changes:
+
+- update the matching `docs/config/*` page in the same change
+- refresh the example YAML on that page so it still mirrors a real preserved bundle
+- update at least one preserved scenario bundle under `src/main/resources/config-jobs/` when the runtime contract changed
+- prefer adding short field-by-field walkthrough bullets immediately below the YAML example instead of relying only on a reference table
+
+This keeps the docs readable for new authors while still keeping them executable-reference friendly for maintainers.
 
 ## Status legend
 
@@ -73,6 +93,13 @@ These preserved job bundles are the closest thing to living reference YAMLs in t
 
 ### 3. Private deployable jobs
 These should live under a git-ignored repo-root folder such as `private-jobs/`.
+
+Treat that folder as a developer-local placeholder workspace, not as a second committed example root.
+
+- start from a preserved reference bundle under `src/main/resources/config-jobs/`
+- copy it into `private-jobs/<collection>/<job-bundle>/`
+- replace sample values with local, customer, partner, or environment-specific settings
+- do not commit those copied bundles, private data files, or generated outputs to GitHub
 
 Use that area for:
 
@@ -201,7 +228,7 @@ Treat `etl.config.job` and its selected `job-config.yaml` as the normal reader e
 Recommended bundle locations:
 
 - `src/main/resources/config-jobs/...` for checked-in preserved reference jobs
-- [`private-jobs/...`](../../private-jobs/README.md) for git-ignored private deployable jobs
+- [`private-jobs/...`](../../private-jobs/README.md) for developer-local git-ignored private jobs copied from preserved examples
 
 Example job config:
 
@@ -226,7 +253,7 @@ For the full job-config field reference, including multi-step examples such as `
 
 The engine should not auto-discover all scenario folders and execute them. One run should explicitly select one scenario/config set through `etl.config.job`.
 
-The canonical checked-in preserved bundle path is `config-jobs`, and the runtime still accepts legacy `config-scenarios/...` references temporarily for backward compatibility, but that alias path is now deprecated. Private deployable bundles should now prefer `private-jobs/...` instead of adding real data or environment-specific settings under `src/main/resources/`.
+The canonical checked-in preserved bundle path is `config-jobs`, and the runtime still accepts legacy `config-scenarios/...` references temporarily for backward compatibility, but that alias path is now deprecated. Developer-local private bundles should now prefer `private-jobs/...` instead of adding real data or environment-specific settings under `src/main/resources/`, and those private bundles should remain uncommitted.
 
 `JobConfig.name` is currently the selected scenario/job identity used in logs and metadata. It is still not a separate lookup registry key, but it now also seeds the default generated package path when the selected source or target config omits `packageName`.
 

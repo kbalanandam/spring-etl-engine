@@ -87,6 +87,23 @@ sources:
         type: String
 ```
 
+#### Table source walkthrough
+
+- `sources:` is the required root for source config bundles.
+- `format: relational` selects the JDBC reader path.
+- `sourceName` is the logical identity matched by processor mappings and job steps.
+- `packageName` is the generated source model package; in explicit job mode it may be omitted to use the job-scoped default package.
+- `table` chooses direct table-based reads.
+- `schema` optionally overrides the schema for that table.
+- `fetchSize` provides a JDBC streaming hint for larger reads.
+- `connection` groups the database connection settings.
+- `connection.vendor` selects the relational dialect family.
+- `connection.jdbcUrl` is the preferred fully explicit connection string.
+- `connection.username`, `connection.password`, and `connection.driverClassName` provide the remaining JDBC details.
+- `fields` lists the columns selected into the generated source model.
+- `fields[].name` is both the current source column name and the generated property name in phase 1.
+- `fields[].type` is the logical type used by the generated model contract.
+
 ### Query source
 
 ```yaml
@@ -111,6 +128,13 @@ sources:
       - name: email
         type: String
 ```
+
+#### Query source walkthrough
+
+- `query` replaces `table` when the source must be expressed as a custom SQL select.
+- `countQuery` is optional but recommended when the runtime should know the source count for step planning and reporting.
+- The remaining fields keep the same meaning as the table example above.
+- In phase 1, keep selected SQL column names aligned with `fields[].name` because the shipped relational source contract still assumes field name == selected column name.
 
 ## Runtime behavior today
 

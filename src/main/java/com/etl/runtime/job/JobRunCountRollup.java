@@ -23,11 +23,11 @@ import java.util.Objects;
  * published output so the run summary does not become a misleading raw sum of all writes.</p>
  */
 public record JobRunCountRollup(
-		int sourceCount,
-		int writtenCount,
-		int rejectedCount,
-		int handoffReadCount,
-		int handoffWriteCount,
+		long sourceCount,
+		long writtenCount,
+		long rejectedCount,
+		long handoffReadCount,
+		long handoffWriteCount,
 		int executedStepCount,
 		String rollupMode,
 		String summary
@@ -57,11 +57,11 @@ public record JobRunCountRollup(
 			}
 		}
 
-		int sourceCount = 0;
-		int writtenCount = 0;
-		int rejectedCount = 0;
-		int handoffReadCount = 0;
-		int handoffWriteCount = 0;
+		long sourceCount = 0;
+		long writtenCount = 0;
+		long rejectedCount = 0;
+		long handoffReadCount = 0;
+		long handoffWriteCount = 0;
 		int executedStepCount = 0;
 
 		for (JobStepDescriptor stepDescriptor : descriptor.steps()) {
@@ -110,11 +110,11 @@ public record JobRunCountRollup(
 			return new JobRunCountRollup(0, 0, 0, 0, 0, 0, FALLBACK_MODE, null);
 		}
 
-		int rejectedCount = ordered.stream().mapToInt(JobRunCountRollup::rejectedCount).sum();
-		int sourceCount = ordered.get(0).getReadCount();
-		int writtenCount = ordered.get(ordered.size() - 1).getWriteCount();
-		int handoffWriteCount = ordered.size() <= 1 ? 0 : ordered.subList(0, ordered.size() - 1).stream().mapToInt(StepExecution::getWriteCount).sum();
-		int handoffReadCount = ordered.size() <= 1 ? 0 : ordered.subList(1, ordered.size()).stream().mapToInt(StepExecution::getReadCount).sum();
+		long rejectedCount = ordered.stream().mapToLong(JobRunCountRollup::rejectedCount).sum();
+		long sourceCount = ordered.get(0).getReadCount();
+		long writtenCount = ordered.get(ordered.size() - 1).getWriteCount();
+		long handoffWriteCount = ordered.size() <= 1 ? 0 : ordered.subList(0, ordered.size() - 1).stream().mapToLong(StepExecution::getWriteCount).sum();
+		long handoffReadCount = ordered.size() <= 1 ? 0 : ordered.subList(1, ordered.size()).stream().mapToLong(StepExecution::getReadCount).sum();
 
 		return new JobRunCountRollup(
 				sourceCount,
@@ -128,7 +128,7 @@ public record JobRunCountRollup(
 		);
 	}
 
-	private static int rejectedCount(StepExecution stepExecution) {
+	private static long rejectedCount(StepExecution stepExecution) {
 		ExecutionContext executionContext = stepExecution == null ? null : stepExecution.getExecutionContext();
 		return executionContext == null ? 0 : executionContext.getInt(FileIngestionRuntimeSupport.REJECTED_COUNT_KEY, 0);
 	}
@@ -137,11 +137,11 @@ public record JobRunCountRollup(
 		return stepExecution == null || stepExecution.getStartTime() == null ? LocalDateTime.MIN : stepExecution.getStartTime();
 	}
 
-	private static String buildSummary(int sourceCount,
-	                                   int writtenCount,
-	                                   int rejectedCount,
-	                                   int handoffReadCount,
-	                                   int handoffWriteCount,
+	private static String buildSummary(long sourceCount,
+	                                   long writtenCount,
+	                                   long rejectedCount,
+	                                   long handoffReadCount,
+	                                   long handoffWriteCount,
 	                                   int executedStepCount,
 	                                   String rollupMode) {
 		return "rollupMode=" + rollupMode
@@ -157,4 +157,5 @@ public record JobRunCountRollup(
 		return value == null || value.isBlank() ? Objects.requireNonNull(fallback) : value.trim();
 	}
 }
+
 

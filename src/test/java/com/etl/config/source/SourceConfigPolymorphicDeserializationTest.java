@@ -52,45 +52,47 @@ class SourceConfigPolymorphicDeserializationTest {
         assertEquals("h2", relationalSource.getConnection().getVendor());
     }
 
-  @Test
-  void deserializesCsvSourceArchiveConfigFromYaml() throws Exception {
-    String yaml = """
-    sources:
-      - format: csv
-        sourceName: Events
-        packageName: com.etl.model.source
-        filePath: input/events.csv
-        delimiter: ","
-        archive:
-          enabled: true
-          successPath: target/archive/success/
-          namePattern: "{originalName}-{timestamp}"
-        validation:
-          allowEmpty: false
-          requireHeaderMatch: true
-        fields:
-          - name: id
-            type: String
-          - name: eventTime
-            type: String
-    """;
+    @Test
+    void deserializesCsvSourceArchiveConfigFromYaml() throws Exception {
+        String yaml = """
+        sources:
+          - format: csv
+            sourceName: Events
+            packageName: com.etl.model.source
+            filePath: input/events.csv
+            delimiter: ","
+            skipHeader: false
+            archive:
+              enabled: true
+              successPath: target/archive/success/
+              namePattern: "{originalName}-{timestamp}"
+            validation:
+              allowEmpty: false
+              requireHeaderMatch: true
+            fields:
+              - name: id
+                type: String
+              - name: eventTime
+                type: String
+        """;
 
-    ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-    mapper.findAndRegisterModules();
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        mapper.findAndRegisterModules();
 
-    SourceWrapper wrapper = mapper.readValue(yaml, SourceWrapper.class);
-    CsvSourceConfig csvSource = assertInstanceOf(CsvSourceConfig.class, wrapper.getSources().get(0));
+        SourceWrapper wrapper = mapper.readValue(yaml, SourceWrapper.class);
+        CsvSourceConfig csvSource = assertInstanceOf(CsvSourceConfig.class, wrapper.getSources().get(0));
 
-    assertEquals("Events", csvSource.getSourceName());
-    assertEquals("target/archive/success/", csvSource.getArchive().getSuccessPath());
-    assertEquals("{originalName}-{timestamp}", csvSource.getArchive().getNamePattern());
-    assertFalse(csvSource.getValidation().isAllowEmpty());
-    assertTrue(csvSource.getValidation().isRequireHeaderMatch());
-  }
+        assertEquals("Events", csvSource.getSourceName());
+        assertEquals("target/archive/success/", csvSource.getArchive().getSuccessPath());
+        assertEquals("{originalName}-{timestamp}", csvSource.getArchive().getNamePattern());
+        assertFalse(csvSource.isSkipHeader());
+        assertFalse(csvSource.getValidation().isAllowEmpty());
+        assertTrue(csvSource.getValidation().isRequireHeaderMatch());
+    }
 
-  @Test
-  void deserializesXmlSourceConfigFromYaml() throws Exception {
-    String yaml = """
+    @Test
+    void deserializesXmlSourceConfigFromYaml() throws Exception {
+        String yaml = """
         sources:
           - format: xml
             sourceName: CustomersXml
@@ -112,22 +114,21 @@ class SourceConfigPolymorphicDeserializationTest {
                 type: String
         """;
 
-    ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-    mapper.findAndRegisterModules();
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        mapper.findAndRegisterModules();
 
-    SourceWrapper wrapper = mapper.readValue(yaml, SourceWrapper.class);
-    XmlSourceConfig xmlSource = assertInstanceOf(XmlSourceConfig.class, wrapper.getSources().get(0));
+        SourceWrapper wrapper = mapper.readValue(yaml, SourceWrapper.class);
+        XmlSourceConfig xmlSource = assertInstanceOf(XmlSourceConfig.class, wrapper.getSources().get(0));
 
-    assertEquals("CustomersXml", xmlSource.getSourceName());
-    assertEquals("input/customers.xml", xmlSource.getFilePath());
-    assertEquals("Customers", xmlSource.getRootElement());
-    assertEquals("Customer", xmlSource.getRecordElement());
-    assertNotNull(xmlSource.getArchive());
-    assertTrue(xmlSource.getArchive().isEnabled());
-    assertEquals("target/archive/xml-success/", xmlSource.getArchive().getSuccessPath());
-    assertEquals("NestedXml", xmlSource.getFlatteningStrategy());
-    assertEquals("customerXmlSourceStrategy", xmlSource.getJobSpecificStrategyBean());
-    assertEquals("definitions/customer-source-model.yaml", xmlSource.getModelDefinitionPath());
-  }
+        assertEquals("CustomersXml", xmlSource.getSourceName());
+        assertEquals("input/customers.xml", xmlSource.getFilePath());
+        assertEquals("Customers", xmlSource.getRootElement());
+        assertEquals("Customer", xmlSource.getRecordElement());
+        assertNotNull(xmlSource.getArchive());
+        assertTrue(xmlSource.getArchive().isEnabled());
+        assertEquals("target/archive/xml-success/", xmlSource.getArchive().getSuccessPath());
+        assertEquals("NestedXml", xmlSource.getFlatteningStrategy());
+        assertEquals("customerXmlSourceStrategy", xmlSource.getJobSpecificStrategyBean());
+        assertEquals("definitions/customer-source-model.yaml", xmlSource.getModelDefinitionPath());
+    }
 }
-

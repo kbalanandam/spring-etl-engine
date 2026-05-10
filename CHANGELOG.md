@@ -6,6 +6,10 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+---
+
+## [1.5.0] - 2026-05-10
+
 ### Added
 - Added processor-side `expression` transforms on the active `transforms[]` seam so mappings can derive target fields from source data, including derived fields that omit `from` when `expression` is the first transform.
 - Added focused processor, mapping, validation-aware, and config-loader coverage proving expression-derived fields, resolved-value access, and fail-fast invalid-expression validation.
@@ -21,6 +25,7 @@ and this project adheres to **Semantic Versioning**.
 
 ### Changed
 - Refreshed architecture, config, scenario, and product-tracking documentation so archive-on-success is now described consistently as a shared file-backed source concern instead of CSV-only wording, and preserved XML archive proof guidance is now included in the active docs set.
+- Clarified the repository policy that `private-jobs/` is a developer-local git-ignored workspace derived from preserved examples, and aligned contributor-facing guidance in `.gitignore`, `.github/PULL_REQUEST_TEMPLATE.md`, `.github/CODEOWNERS`, `README.md`, and config/docs references so private bundles stay out of GitHub.
 
 ### Deprecated
 - Deprecated legacy `config-scenarios/...` bundle-path compatibility in favor of canonical `config-jobs/...` paths. The runtime and build-time generation entry points still resolve old paths temporarily through `ConfigBundlePathAliasResolver`, but new commands, docs, and examples should use `config-jobs/...` only.

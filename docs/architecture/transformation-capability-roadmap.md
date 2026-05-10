@@ -207,7 +207,8 @@ Focus on:
 - source-transform YAML only when source-native adaptation is required, not as a parallel default home for generic cleanup
 - expression-based mapping
 - conditional rules after the shipped expression contract remains stable in normal scenario use
-- lookup/enrichment patterns
+- deferred processor-side default/placeholder mapping for shared audit and operational fields so jobs do not need to repeat the same constant, job-name, or standard timestamp assignment field by field; track under [`T6 — Shared default-value and placeholder mapping`](../product/backlog-items/T6-shared-default-value-and-placeholder-mapping.md)
+- lookup/enrichment patterns, starting with runtime-loaded reference-set validation for reject/accept checks before broader enrichment joins
 
 Adjacent file-ingestion hardening such as archiving processed source files should evolve with this phase, but it should remain a file lifecycle capability rather than being treated as a separate transformation maturity level.
 
@@ -249,10 +250,13 @@ The next meaningful transformation priorities are:
 
 ## Related Notes
 
-- `docs/architecture/etl-product-evolution-roadmap.md`
-- `docs/architecture/file-ingestion-hardening.md`
-- `docs/architecture/runtime-flow.md`
-- `docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`
-- `docs/config/processor/default-processor.md`
-- `docs/product/product-backlog.md`
+- [`ETL product evolution roadmap`](etl-product-evolution-roadmap.md)
+- [`File ingestion hardening`](file-ingestion-hardening.md)
+- [`Runtime flow`](runtime-flow.md)
+- [`ADR 0007 — Add separate processor transform SPI for cleaning and normalization`](../adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
+- [`Default processor config`](../config/processor/default-processor.md)
+- [`Reference-set validation and enrichment`](reference-set-validation-and-enrichment.md)
+- [`Product backlog`](../product/product-backlog.md)
+- [`T6 — Shared default-value and placeholder mapping`](../product/backlog-items/T6-shared-default-value-and-placeholder-mapping.md)
+- [`T6 shared default-value mapping syntax comparison`](t6-shared-default-value-mapping-syntax-comparison.md)
 

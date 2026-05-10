@@ -48,6 +48,22 @@ targets:
         type: String
 ```
 
+## Example walkthrough
+
+Read the example in write order:
+
+- `targets:` is the required root for target config files.
+- `format: csv` selects the CSV writer path.
+- `targetName` is the logical target identity matched by processor mappings and job steps.
+- `packageName` is the generated target package; in explicit job mode it may be omitted to use the job-scoped default package.
+- `filePath` is the output artifact path or output directory.
+- `delimiter` documents the intended separator; today the shipped writer still emits comma-separated output only.
+- `fields` lists the target properties in output column order.
+- `fields[].name` becomes the property name read from the target object and, when headers are enabled, the header row value.
+- `fields[].type` is the logical type stored in the generated target model contract.
+
+This minimal example omits `includeHeader`. Add `includeHeader: true` when a downstream CSV source step or an external consumer expects a header row. When you do, pair it with `skipHeader: true` on the downstream CSV source that reads the handoff file.
+
 ## Runtime behavior today
 
 - The target config file root is `targets:`.

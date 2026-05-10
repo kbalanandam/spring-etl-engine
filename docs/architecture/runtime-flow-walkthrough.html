@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OneFlow Runtime Flow Walkthrough</title>
+    <title>OneFlow Knowledge Portal</title>
     <style>
         :root {
             color-scheme: light dark;
@@ -31,6 +31,10 @@
             font-family: Inter, Segoe UI, Arial, sans-serif;
         }
 
+        html {
+            font-size: 15px;
+        }
+
         * { box-sizing: border-box; }
 
         body {
@@ -41,12 +45,666 @@
                 radial-gradient(circle at top right, rgba(61,220,151,0.14), transparent 24%),
                 linear-gradient(180deg, #0b1020 0%, #111934 100%);
             color: var(--text);
+            font-size: 1rem;
+            overflow: auto;
         }
 
-        .page {
-            max-width: 1320px;
-            margin: 0 auto;
-            padding: 32px 20px 56px;
+        .portal-shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 0;
+            padding: 18px;
+        }
+
+        .nav-button {
+            width: auto;
+            justify-content: flex-start;
+            text-align: left;
+            padding: 12px 14px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.05);
+            color: var(--text);
+            border: 1px solid rgba(152, 176, 255, 0.14);
+            box-shadow: none;
+        }
+
+        .nav-button.active {
+            background: linear-gradient(180deg, rgba(153,194,255,0.28), rgba(120,166,255,0.18));
+            border-color: rgba(153,194,255,0.42);
+        }
+
+        .workspace {
+            min-width: 0;
+            min-height: 0;
+            display: grid;
+            grid-template-rows: auto minmax(0, 1fr);
+            gap: 18px;
+        }
+
+        .topbar-main {
+            display: grid;
+            gap: 14px;
+        }
+
+        .topbar-nav {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .topbar-nav .nav-button {
+            width: auto;
+            padding: 10px 14px;
+        }
+
+        .workspace-topbar {
+            padding: 20px 22px;
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.95fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .workspace-title {
+            margin: 0 0 10px;
+            font-size: 2rem;
+            line-height: 1.1;
+        }
+
+        .workspace-subtitle {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.65;
+            max-width: 70ch;
+        }
+
+        .topbar-status {
+            display: grid;
+            gap: 14px;
+        }
+
+        .view-stack {
+            min-height: 0;
+            position: relative;
+        }
+
+        .view {
+            display: none;
+            height: 100%;
+            overflow: auto;
+            padding-right: 4px;
+        }
+
+        .view.is-active {
+            display: block;
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .overview-column,
+        .overview-sidebar-column {
+            display: grid;
+            gap: 18px;
+        }
+
+        .overview-hero-card {
+            padding: 22px;
+        }
+
+        .overview-hero-layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+            gap: 18px;
+            align-items: start;
+        }
+
+        .hero-lead {
+            display: grid;
+            gap: 16px;
+        }
+
+        .hero-highlights {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .highlight-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(152, 176, 255, 0.12);
+            color: var(--text);
+            font-size: 13px;
+        }
+
+        .hero-learn-list {
+            margin: 0;
+            padding-left: 20px;
+            color: var(--text);
+            line-height: 1.65;
+            font-size: 14px;
+        }
+
+        .hero-learn-list li + li {
+            margin-top: 8px;
+        }
+
+        .reading-path {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .reading-step {
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(152, 176, 255, 0.1);
+        }
+
+        .reading-step strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 13px;
+            color: var(--text);
+        }
+
+        .reading-step span {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .overview-spotlight {
+            display: grid;
+            gap: 14px;
+            padding: 18px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(152, 176, 255, 0.1);
+        }
+
+        .overview-spotlight h3 {
+            margin: 0;
+            font-size: 1rem;
+        }
+
+        .overview-spotlight p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .spotlight-stats {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .spotlight-stat {
+            padding: 14px;
+            border-radius: 14px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(152, 176, 255, 0.1);
+        }
+
+        .spotlight-stat strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 1rem;
+            color: var(--text);
+        }
+
+        .spotlight-stat span {
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .overview-side-stack {
+            display: grid;
+            gap: 18px;
+        }
+
+        .side-note-list {
+            margin: 0;
+            padding-left: 18px;
+            color: var(--text);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .side-note-list li + li {
+            margin-top: 8px;
+        }
+
+        .chapter-card-grid,
+        .overview-summary-grid,
+        .overview-jump-grid {
+            display: grid;
+            gap: 14px;
+        }
+
+        .chapter-card-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .chapter-entry {
+            position: relative;
+            overflow: hidden;
+            padding-left: 20px;
+        }
+
+        .chapter-entry::before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 4px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.16);
+        }
+
+        .chapter-entry[data-chapter="Assembly"]::before {
+            background: linear-gradient(180deg, var(--chapter-assembly-start), var(--chapter-assembly-end));
+        }
+
+        .chapter-entry[data-chapter="Composition"]::before {
+            background: linear-gradient(180deg, var(--chapter-composition-start), var(--chapter-composition-end));
+        }
+
+        .chapter-entry[data-chapter="Execution"]::before {
+            background: linear-gradient(180deg, var(--chapter-execution-start), var(--chapter-execution-end));
+        }
+
+        .chapter-entry[data-chapter="Evidence"]::before {
+            background: linear-gradient(180deg, var(--chapter-evidence-start), var(--chapter-evidence-end));
+        }
+
+        .chapter-entry-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .chapter-icon {
+            width: 42px;
+            height: 42px;
+            display: inline-grid;
+            place-items: center;
+            border-radius: 14px;
+            background: linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.04));
+            border: 1px solid rgba(152, 176, 255, 0.14);
+            color: var(--text);
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            flex-shrink: 0;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+        }
+
+        .chapter-entry[data-chapter="Assembly"] .chapter-icon {
+            background: linear-gradient(180deg, rgba(153,194,255,0.3), rgba(216,231,255,0.16));
+            border-color: rgba(153,194,255,0.32);
+            color: #08111f;
+        }
+
+        .chapter-entry[data-chapter="Composition"] .chapter-icon {
+            background: linear-gradient(180deg, rgba(194,168,255,0.3), rgba(230,219,255,0.16));
+            border-color: rgba(194,168,255,0.32);
+            color: #0c0d1a;
+        }
+
+        .chapter-entry[data-chapter="Execution"] .chapter-icon {
+            background: linear-gradient(180deg, rgba(127,227,179,0.3), rgba(215,248,230,0.16));
+            border-color: rgba(127,227,179,0.32);
+            color: #06130f;
+        }
+
+        .chapter-entry[data-chapter="Evidence"] .chapter-icon {
+            background: linear-gradient(180deg, rgba(255,215,157,0.32), rgba(255,180,84,0.16));
+            border-color: rgba(255,215,157,0.34);
+            color: #1b1308;
+        }
+
+        .chapter-kicker {
+            display: inline-block;
+            margin-bottom: 4px;
+            color: var(--muted);
+            font-size: 11px;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .overview-summary-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .overview-jump-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .story-player {
+            grid-column: 1 / -1;
+            position: relative;
+            display: grid;
+            gap: 18px;
+            padding: 24px;
+            overflow: hidden;
+            background:
+                radial-gradient(circle at top left, rgba(120,166,255,0.16), transparent 34%),
+                radial-gradient(circle at top right, rgba(61,220,151,0.1), transparent 28%),
+                linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+        }
+
+        .story-player::before,
+        .story-player::after {
+            content: "";
+            position: absolute;
+            border-radius: 999px;
+            filter: blur(18px);
+            opacity: 0.45;
+            pointer-events: none;
+        }
+
+        .story-player::before {
+            width: 220px;
+            height: 220px;
+            top: -60px;
+            left: -40px;
+            background: rgba(120, 166, 255, 0.18);
+        }
+
+        .story-player::after {
+            width: 180px;
+            height: 180px;
+            right: -40px;
+            bottom: -30px;
+            background: rgba(61, 220, 151, 0.14);
+        }
+
+        .story-player > * {
+            position: relative;
+            z-index: 1;
+        }
+
+        .story-player-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: start;
+            gap: 14px;
+        }
+
+        .story-player-header h3 {
+            margin: 0 0 8px;
+            font-size: 1.05rem;
+        }
+
+        .story-player-header p,
+        .story-player-summary {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .story-player-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .story-player-stage {
+            display: grid;
+            gap: 16px;
+            padding: 22px;
+            border-radius: 22px;
+            background:
+                linear-gradient(180deg, rgba(17, 28, 58, 0.92), rgba(8, 15, 32, 0.9)),
+                rgba(6, 11, 24, 0.55);
+            border: 1px solid rgba(152, 176, 255, 0.12);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 18px 32px rgba(0,0,0,0.22);
+            transition: border-color 240ms ease, box-shadow 240ms ease;
+        }
+
+        .story-player-stage[data-chapter="Assembly"] {
+            border-color: rgba(153,194,255,0.28);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 18px 32px rgba(0,0,0,0.22), 0 0 0 1px rgba(153,194,255,0.08);
+        }
+
+        .story-player-stage[data-chapter="Composition"] {
+            border-color: rgba(194,168,255,0.28);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 18px 32px rgba(0,0,0,0.22), 0 0 0 1px rgba(194,168,255,0.08);
+        }
+
+        .story-player-stage[data-chapter="Execution"] {
+            border-color: rgba(127,227,179,0.28);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 18px 32px rgba(0,0,0,0.22), 0 0 0 1px rgba(127,227,179,0.08);
+        }
+
+        .story-player-stage[data-chapter="Evidence"] {
+            border-color: rgba(255,215,157,0.28);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.05), 0 18px 32px rgba(0,0,0,0.22), 0 0 0 1px rgba(255,215,157,0.08);
+        }
+
+        .story-player-progress {
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(255,255,255,0.08);
+            overflow: hidden;
+        }
+
+        .story-player-progress-bar {
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, var(--accent), var(--ok));
+            transition: width 380ms ease;
+        }
+
+        .story-player-track {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 14px;
+            align-items: center;
+        }
+
+        .story-player-track::before,
+        .story-player-track::after {
+            content: "";
+            position: absolute;
+            left: 4%;
+            right: 4%;
+            top: 50%;
+            height: 4px;
+            border-radius: 999px;
+            transform: translateY(-50%);
+            pointer-events: none;
+        }
+
+        .story-player-track::before {
+            background: linear-gradient(90deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+        }
+
+        .story-player-track::after {
+            background-size: 180px 100%;
+            animation: story-flow-pulse 4.8s linear infinite;
+            opacity: 0.85;
+        }
+
+        .story-player-stage[data-chapter="Assembly"] .story-player-track::after {
+            background-image: linear-gradient(90deg, transparent, rgba(153,194,255,0.1), rgba(153,194,255,0.5), transparent);
+        }
+
+        .story-player-stage[data-chapter="Composition"] .story-player-track::after {
+            background-image: linear-gradient(90deg, transparent, rgba(194,168,255,0.1), rgba(194,168,255,0.5), transparent);
+        }
+
+        .story-player-stage[data-chapter="Execution"] .story-player-track::after {
+            background-image: linear-gradient(90deg, transparent, rgba(127,227,179,0.1), rgba(127,227,179,0.5), transparent);
+        }
+
+        .story-player-stage[data-chapter="Evidence"] .story-player-track::after {
+            background-image: linear-gradient(90deg, transparent, rgba(255,215,157,0.12), rgba(255,215,157,0.52), transparent);
+        }
+
+        .story-player-node {
+            position: relative;
+            z-index: 1;
+            min-height: 88px;
+            padding: 14px 12px;
+            border-radius: 16px;
+            display: grid;
+            place-items: center;
+            text-align: center;
+            background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.03));
+            border: 1px solid rgba(152, 176, 255, 0.12);
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.4;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+            transition: transform 280ms ease, background 280ms ease, border-color 280ms ease, color 280ms ease, box-shadow 280ms ease;
+        }
+
+        .story-player-node.completed {
+            color: rgba(233, 238, 252, 0.92);
+            border-color: rgba(61,220,151,0.34);
+            background: rgba(15, 49, 38, 0.55);
+        }
+
+        .story-player-node.active {
+            color: #08111f;
+            border-color: rgba(153,194,255,0.92);
+            background: linear-gradient(180deg, var(--chapter-assembly-start), var(--chapter-execution-end));
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 12px 22px rgba(0,0,0,0.22), 0 0 0 1px rgba(153,194,255,0.18);
+        }
+
+        .story-player-caption {
+            display: grid;
+            gap: 12px;
+            padding: 18px 20px;
+            border-radius: 18px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(152, 176, 255, 0.1);
+            transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
+        }
+
+        .story-player-caption.is-transitioning {
+            opacity: 0;
+            transform: translateY(10px);
+            filter: blur(2px);
+        }
+
+        .story-player-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .story-player-title {
+            margin: 0;
+            font-size: 1.15rem;
+        }
+
+        .story-player-summary {
+            min-height: 3.2em;
+        }
+
+        .value-section {
+            display: grid;
+            gap: 16px;
+        }
+
+        .value-section-header {
+            display: grid;
+            gap: 8px;
+        }
+
+        .value-section-header h3 {
+            margin: 0;
+            font-size: 1.1rem;
+        }
+
+        .value-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .value-card {
+            padding: 18px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(152, 176, 255, 0.1);
+            display: grid;
+            gap: 10px;
+        }
+
+        .value-card strong {
+            display: block;
+            font-size: 1rem;
+            color: var(--text);
+        }
+
+        .value-card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .value-card .chapter-icon {
+            width: 38px;
+            height: 38px;
+        }
+
+        .portal-card {
+            padding: 18px;
+            border-radius: 16px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(152, 176, 255, 0.1);
+        }
+
+        .portal-card h3,
+        .portal-card h4 {
+            margin: 0 0 8px;
+            font-size: 1rem;
+        }
+
+        .portal-card p {
+            margin: 0;
+            color: var(--muted);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .portal-card .summary-value {
+            margin-top: 10px;
+        }
+
+        .view-stack > .view {
+            padding-top: 2px;
+        }
+
+        .explorer-grid {
+            display: grid;
+            grid-template-columns: minmax(0, 1.5fr) minmax(340px, 0.92fr);
+            gap: 18px;
+            align-items: start;
         }
 
         .hero {
@@ -145,55 +803,8 @@
 
         .status-grid {
             display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            grid-template-columns: 1fr;
             gap: 14px;
-        }
-
-        .chapter-badges {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 16px;
-        }
-
-        .chapter-badge {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 8px 12px;
-            border-radius: 999px;
-            border: 1px solid rgba(152, 176, 255, 0.12);
-            background: rgba(255,255,255,0.04);
-            color: var(--muted);
-            font-size: 12px;
-            letter-spacing: 0.05em;
-            text-transform: uppercase;
-            transition: background 220ms ease, color 220ms ease, border-color 220ms ease, transform 220ms ease;
-        }
-
-        .chapter-badge.active {
-            color: #09101f;
-            transform: translateY(-1px);
-        }
-
-        .chapter-badge[data-chapter="Assembly"].active {
-            background: linear-gradient(180deg, var(--chapter-assembly-start), var(--chapter-assembly-end));
-            border-color: rgba(153,194,255,0.95);
-        }
-
-        .chapter-badge[data-chapter="Composition"].active {
-            background: linear-gradient(180deg, var(--chapter-composition-start), var(--chapter-composition-end));
-            border-color: rgba(194,168,255,0.92);
-        }
-
-        .chapter-badge[data-chapter="Execution"].active {
-            background: linear-gradient(180deg, var(--chapter-execution-start), var(--chapter-execution-end));
-            border-color: rgba(127,227,179,0.92);
-        }
-
-        .chapter-badge[data-chapter="Evidence"].active {
-            background: linear-gradient(180deg, var(--chapter-evidence-start), var(--chapter-evidence-end));
-            border-color: rgba(255,180,84,0.92);
         }
 
         .metric {
@@ -319,6 +930,14 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
+        }
+
+        .explorer-toolbar {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 10px;
         }
 
         .deep-dive-copy {
@@ -487,6 +1106,34 @@
             padding: 26px;
             position: sticky;
             top: 18px;
+            transition: border-color 240ms ease, box-shadow 240ms ease;
+        }
+
+        body[data-active-chapter="Assembly"] .details-card {
+            border-color: rgba(153,194,255,0.3);
+            box-shadow: var(--shadow), 0 0 0 1px rgba(153,194,255,0.08);
+        }
+
+        body[data-active-chapter="Composition"] .details-card {
+            border-color: rgba(194,168,255,0.3);
+            box-shadow: var(--shadow), 0 0 0 1px rgba(194,168,255,0.08);
+        }
+
+        body[data-active-chapter="Execution"] .details-card {
+            border-color: rgba(127,227,179,0.3);
+            box-shadow: var(--shadow), 0 0 0 1px rgba(127,227,179,0.08);
+        }
+
+        body[data-active-chapter="Evidence"] .details-card {
+            border-color: rgba(255,215,157,0.3);
+            box-shadow: var(--shadow), 0 0 0 1px rgba(255,215,157,0.08);
+        }
+
+        .details-intro-note {
+            margin: 0 0 14px;
+            color: var(--muted);
+            line-height: 1.6;
+            font-size: 14px;
         }
 
         .step-pill {
@@ -795,171 +1442,400 @@
             line-height: 1.6;
         }
 
+        @keyframes story-flow-pulse {
+            0% {
+                background-position: -220px 0;
+            }
+            100% {
+                background-position: calc(100% + 220px) 0;
+            }
+        }
+
         @media (max-width: 1100px) {
-            .hero,
-            .walkthrough {
+            .portal-shell {
                 grid-template-columns: 1fr;
             }
 
-            .summary-grid,
-            .drill-grid {
-                grid-template-columns: repeat(2, minmax(0, 1fr));
+            .workspace-topbar,
+            .overview-grid,
+            .explorer-grid {
+                grid-template-columns: 1fr;
             }
 
-            .details-card {
-                position: static;
+            .overview-hero-layout {
+                grid-template-columns: 1fr;
+            }
+
+            .value-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
 
         @media (max-width: 860px) {
-            .page { padding: 22px 14px 40px; }
-            .diagram-card, .details-card, .hero-copy, .status-card { padding: 20px; }
+            .portal-shell {
+                padding: 12px;
+                gap: 12px;
+            }
+            .workspace-topbar,
+            .diagram-card,
+            .details-card,
+            .overview-hero-card,
+            .status-card { padding: 18px; }
+            .workspace-topbar { gap: 14px; }
             .flow {
                 min-height: 1120px;
             }
             .node { width: 82%; left: 9% !important; }
             .connector { display: none; }
             .lane-label { left: 22px; }
-            .summary-grid,
-            .drill-grid,
+            .overview-summary-grid,
+            .overview-jump-grid,
+            .chapter-card-grid,
+            .value-grid,
+            .status-grid,
             .hierarchy-grid { grid-template-columns: 1fr; }
+            .reading-path {
+                grid-template-columns: 1fr;
+            }
+            .spotlight-stats {
+                grid-template-columns: 1fr;
+            }
+            .story-player {
+                padding: 18px;
+            }
+            .story-player-stage {
+                padding: 18px;
+            }
+            .story-player-track {
+                grid-template-columns: repeat(7, minmax(110px, 1fr));
+                overflow-x: auto;
+                padding-bottom: 4px;
+            }
+            .story-player-node {
+                min-height: 76px;
+            }
+            .story-player-header,
+            .story-player-controls,
+            .explorer-toolbar {
+                justify-content: flex-start;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .story-player-progress-bar,
+            .story-player-node,
+            .story-player-caption {
+                transition: none;
+            }
+
+            .story-player-track::after {
+                animation: none;
+            }
         }
     </style>
 </head>
 <body>
-<div class="page">
-    <section class="hero">
-        <div class="panel hero-copy">
-            <div class="eyebrow">Animated walkthrough · Runtime + composition</div>
-            <h1>The GUI now explains three views: runtime assembly, flow composition, and compiled execution.</h1>
-            <p class="subtitle">
-                This walkthrough now mirrors <code>runtime-flow.md</code> more directly.
-                It first shows how the shipped engine is wired, then how one selected scenario is projected into
-                <code>MainFlow → SubFlow → Step</code> composition, and finally how that hierarchy still compiles into one explicit
-                ordered Spring Batch step plan with operational evidence.
-            </p>
-            <div class="hero-meta">
-                <span class="tag">Source of truth: <code>docs/architecture/runtime-flow.md</code></span>
-                <span class="tag">Architecture style: <code>scenario → main flow → subflow → step</code></span>
-                <span class="tag">Runtime shape: explicit ordered Spring Batch step plan</span>
+<div class="portal-shell">
+    <main class="workspace">
+        <header class="panel workspace-topbar">
+            <div class="topbar-main">
+                <div class="eyebrow">OneFlow knowledge portal</div>
+                <h1 class="workspace-title">Understand how OneFlow works, one scenario at a time.</h1>
+                <p class="workspace-subtitle" id="workspaceSubtitle">Use this site as a guided OneFlow knowledge experience: start with the product runtime model, then open Scene explorer when you want the detailed flow, evidence, and execution behavior.</p>
+                <div class="topbar-nav" aria-label="Primary site navigation">
+                    <button type="button" class="nav-button active" data-view-target="overview">Overview</button>
+                    <button type="button" class="nav-button" data-view-target="explorer">Scene explorer</button>
+                </div>
             </div>
-        </div>
-        <aside class="panel status-card">
-            <div>
-                <h2>Walkthrough status</h2>
-                <p class="details-copy">Use autoplay for a guided tour, or step manually when you want to inspect which chapter is active: Assembly, Composition, Execution, or Evidence.</p>
+
+            <div class="topbar-status">
                 <div class="progress" aria-label="Walkthrough progress">
                     <div class="progress-bar" id="progressBar"></div>
                 </div>
-                <div class="chapter-badges" id="chapterBadges" aria-label="Walkthrough chapters">
-                    <span class="chapter-badge active" data-chapter="Assembly">Assembly</span>
-                    <span class="chapter-badge" data-chapter="Composition">Composition</span>
-                    <span class="chapter-badge" data-chapter="Execution">Execution</span>
-                    <span class="chapter-badge" data-chapter="Evidence">Evidence</span>
-                </div>
-            </div>
-            <div class="status-grid">
-                <div class="metric">
-                    <span class="metric-label">Current scene</span>
-                    <span class="metric-value" id="metricStage">Startup</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Current view</span>
-                    <span class="metric-value" id="metricMode">Runtime assembly</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Current focus</span>
-                    <span class="metric-value" id="metricArtifact">Application bootstrap</span>
-                </div>
-                <div class="metric">
-                    <span class="metric-label">Animation</span>
-                    <span class="metric-value" id="metricPlayback">Autoplay on</span>
-                </div>
-            </div>
-            <div class="controls" aria-label="Animation controls">
-                <button id="prevBtn" class="secondary">◀ Previous</button>
-                <button id="playBtn">▶ Play</button>
-                <button id="pauseBtn" class="secondary">❚❚ Pause</button>
-                <button id="nextBtn" class="secondary">Next ▶</button>
-                <button id="restartBtn" class="secondary">↺ Restart</button>
-            </div>
-        </aside>
-    </section>
 
-    <section class="summary-section" aria-label="Summary and drill-through views">
-        <div class="summary-grid">
-            <article class="panel summary-card">
-                <h3>Scenario boundary</h3>
-                <p>One selected <code>job-config.yaml</code> remains the only normal runtime boundary for the run.</p>
-                <span class="summary-value">Selected scenario → MainFlow launch context</span>
-            </article>
-            <article class="panel summary-card">
-                <h3>MainFlow</h3>
-                <p>Represents the run-wide launch pad, shared recovery context, and top-level evidence boundary.</p>
-                <span class="summary-value">1 synthesized MainFlow per selected scenario</span>
-            </article>
-            <article class="panel summary-card">
-                <h3>SubFlows</h3>
-                <p>Currently synthesized from the flat step list to improve hierarchy meaning and evidence visibility.</p>
-                <span class="summary-value">Ordered synthesized phase view</span>
-            </article>
-            <article class="panel summary-card">
-                <h3>Execution</h3>
-                <p>The current engine still executes one explicit ordered Spring Batch step plan underneath the hierarchy.</p>
-                <span class="summary-value">Flat step execution today</span>
-            </article>
-            <article class="panel summary-card">
-                <h3>Evidence</h3>
-                <p>Logs and artifact paths expose run, subflow, and step evidence around the flat execution path.</p>
-                <span class="summary-value">Run + subflow + step evidence</span>
-            </article>
-        </div>
-
-        <div class="drill-grid">
-            <article class="panel drill-card">
-                <h3>Runtime assembly</h3>
-                <p>See how startup, config selection, validation, and runtime contract projection prepare one selected scenario for execution.</p>
-                <div class="drill-actions">
-                    <button type="button" class="inline-button" data-jump-scene="0">Open assembly view</button>
+                <div class="status-grid">
+                    <div class="metric">
+                        <span class="metric-label">Current scene</span>
+                        <span class="metric-value" id="metricStage">Startup</span>
+                    </div>
                 </div>
-            </article>
-            <article class="panel drill-card">
-                <h3>Flow composition</h3>
-                <p>Inspect how the descriptor synthesizes <code>MainFlow → SubFlow → Step</code> meaning from the flat authored step list.</p>
-                <div class="drill-actions">
-                    <button type="button" class="inline-button" data-jump-scene="3">Open composition view</button>
-                </div>
-            </article>
-            <article class="panel drill-card">
-                <h3>Execution path</h3>
-                <p>Follow how the hierarchy compiles into one explicit Spring Batch step plan and executes through reader/processor/writer services.</p>
-                <div class="drill-actions">
-                    <button type="button" class="inline-button" data-jump-scene="5">Open execution view</button>
-                </div>
-            </article>
-            <article class="panel drill-card">
-                <h3>Evidence</h3>
-                <p>Review accepted outputs, reject artifacts, and machine-readable lifecycle evidence for the run.</p>
-                <div class="drill-actions">
-                    <button type="button" class="inline-button" data-jump-scene="7">Open evidence view</button>
-                </div>
-            </article>
-        </div>
-    </section>
-
-    <section class="walkthrough" id="deepDiveSection">
-        <div class="panel diagram-card">
-            <div class="deep-dive-intro">
-                <div>
-                    <h2 class="diagram-title">Animated deep-dive map</h2>
-                    <p class="deep-dive-copy">
-                        Use this deeper map after the summary view when you want to inspect how one selected scenario moves from assembly,
-                        into synthesized composition, into flat step execution, and finally into operational evidence.
-                    </p>
-                </div>
-                <button type="button" class="secondary inline-button" data-jump-scene="0">Restart deep dive</button>
             </div>
-            <div class="flow" id="flowDiagram" aria-label="Animated ETL runtime flow diagram">
+        </header>
+
+        <div class="view-stack">
+            <section class="view is-active" id="view-overview" aria-label="Overview dashboard">
+                <div class="overview-grid">
+                    <article class="panel portal-card story-player">
+                        <div class="story-player-header">
+                            <div>
+                                <h3>Animated OneFlow story</h3>
+                                <p>Watch a cinematic embedded OneFlow animation move from config selection into validation, composition, execution, and evidence.</p>
+                            </div>
+                            <div class="story-player-controls" aria-label="Animated OneFlow story controls">
+                                <button id="storyPlayBtn">▶ Play story</button>
+                                <button id="storyPauseBtn" class="secondary">❚❚ Pause</button>
+                                <button id="storyRestartBtn" class="secondary">↺ Restart</button>
+                            </div>
+                        </div>
+
+                        <div class="story-player-stage" aria-label="Embedded OneFlow animation">
+                            <div class="story-player-progress">
+                                <div class="story-player-progress-bar" id="storyPlayerProgress"></div>
+                            </div>
+
+                            <div class="story-player-track">
+                                <div class="story-player-node active" data-player-step="0">Config</div>
+                                <div class="story-player-node" data-player-step="1">Validate</div>
+                                <div class="story-player-node" data-player-step="2">MainFlow</div>
+                                <div class="story-player-node" data-player-step="3">SubFlow</div>
+                                <div class="story-player-node" data-player-step="4">Step plan</div>
+                                <div class="story-player-node" data-player-step="5">Execute</div>
+                                <div class="story-player-node" data-player-step="6">Evidence</div>
+                            </div>
+                        </div>
+
+                        <div class="story-player-caption" id="storyPlayerCaption">
+                            <div class="story-player-meta">
+                                <span class="chapter-pill" id="storyPlayerChapter" data-chapter="Assembly">Assembly</span>
+                                <span class="tag" id="storyPlayerTag">Config selection</span>
+                            </div>
+                            <h4 class="story-player-title" id="storyPlayerTitle">ConfigLoader selects the scenario that becomes the runtime boundary</h4>
+                            <p class="story-player-summary" id="storyPlayerSummary">ConfigLoader reads the runtime entry property and resolves one selected job configuration. That selected job defines the scenario boundary from which both the composition model and the explicit execution plan will later be derived.</p>
+                            <div class="drill-actions">
+                                <button type="button" class="secondary" id="storyPlayerOpenBtn" data-jump-scene="1">Open this scene in explorer</button>
+                            </div>
+                        </div>
+                    </article>
+
+                    <div class="overview-column">
+                        <article class="panel overview-hero-card">
+                            <div class="overview-hero-layout">
+                                <div class="hero-lead">
+                                    <div>
+                                        <h2 class="diagram-title">OneFlow overview</h2>
+                                        <p class="deep-dive-copy">This landing view introduces the core OneFlow runtime story without forcing the browser through one long technical narrative. Pick the phase you care about, then switch into Scene explorer only when you want the animated diagram and per-scene drill-down.</p>
+                                    </div>
+
+                                    <div class="hero-highlights" aria-label="OneFlow learning highlights">
+                                        <span class="highlight-pill">1 selected scenario per run</span>
+                                        <span class="highlight-pill">MainFlow → SubFlow → Step visibility</span>
+                                        <span class="highlight-pill">Flat execution underneath</span>
+                                        <span class="highlight-pill">Evidence-rich lifecycle logs</span>
+                                    </div>
+
+                                        <div class="reading-path" aria-label="Recommended reading order">
+                                            <div class="reading-step">
+                                                <strong>1. Start with the overview</strong>
+                                                <span>Build the OneFlow mental model before going deeper.</span>
+                                            </div>
+                                            <div class="reading-step">
+                                                <strong>2. Watch the story</strong>
+                                                <span>See the end-to-end flow from config to evidence.</span>
+                                            </div>
+                                            <div class="reading-step">
+                                                <strong>3. Open a chapter</strong>
+                                                <span>Jump into the stage you care about most.</span>
+                                            </div>
+                                            <div class="reading-step">
+                                                <strong>4. Use the explorer</strong>
+                                                <span>Inspect the runtime behavior and supporting evidence.</span>
+                                            </div>
+                                        </div>
+
+                                    <ul class="hero-learn-list">
+                                        <li>See how OneFlow chooses a single runtime scenario from <code>job-config.yaml</code>.</li>
+                                        <li>Understand how product-facing flow meaning is layered over the current flat Spring Batch execution model.</li>
+                                        <li>Follow where operational evidence comes from when the run reaches execution and completion.</li>
+                                    </ul>
+                                </div>
+
+                                <aside class="overview-spotlight">
+                                    <h3>What this page helps you do</h3>
+                                    <p>Use this page like a product brief first and an architecture viewer second. The overview explains the language of OneFlow, while the explorer shows the live runtime story behind it.</p>
+
+                                    <div class="spotlight-stats">
+                                        <div class="spotlight-stat">
+                                            <strong>1 runtime boundary</strong>
+                                            <span>One selected scenario stays the normal boundary for a run.</span>
+                                        </div>
+                                        <div class="spotlight-stat">
+                                            <strong>4 learning lenses</strong>
+                                            <span>Assembly, composition, execution, and evidence.</span>
+                                        </div>
+                                        <div class="spotlight-stat">
+                                            <strong>7 story beats</strong>
+                                            <span>The cinematic preview moves from config to evidence.</span>
+                                        </div>
+                                        <div class="spotlight-stat">
+                                            <strong>1 deeper explorer</strong>
+                                            <span>Open the scene explorer when you want the runtime detail view.</span>
+                                        </div>
+                                    </div>
+                                </aside>
+                            </div>
+
+                            <div class="chapter-card-grid" style="margin-top: 18px;">
+                                <article class="portal-card chapter-entry" data-chapter="Assembly">
+                                    <div class="chapter-entry-header">
+                                        <span class="chapter-icon" aria-hidden="true">AS</span>
+                                        <div>
+                                            <span class="chapter-kicker">Chapter 1</span>
+                                            <h3>Assembly</h3>
+                                        </div>
+                                    </div>
+                                    <p>Learn how OneFlow starts, selects the scenario boundary, and validates the chosen contract before hierarchy is shown.</p>
+                                    <div class="drill-actions" style="margin-top: 12px;">
+                                        <button type="button" class="inline-button" data-jump-scene="0">Open explorer</button>
+                                    </div>
+                                </article>
+                                <article class="portal-card chapter-entry" data-chapter="Composition">
+                                    <div class="chapter-entry-header">
+                                        <span class="chapter-icon" aria-hidden="true">CO</span>
+                                        <div>
+                                            <span class="chapter-kicker">Chapter 2</span>
+                                            <h3>Composition</h3>
+                                        </div>
+                                    </div>
+                                    <p>See how OneFlow turns one selected scenario into MainFlow and SubFlow meaning before execution begins.</p>
+                                    <div class="drill-actions" style="margin-top: 12px;">
+                                        <button type="button" class="inline-button" data-jump-scene="3">Open explorer</button>
+                                    </div>
+                                </article>
+                                <article class="portal-card chapter-entry" data-chapter="Execution">
+                                    <div class="chapter-entry-header">
+                                        <span class="chapter-icon" aria-hidden="true">EX</span>
+                                        <div>
+                                            <span class="chapter-kicker">Chapter 3</span>
+                                            <h3>Execution</h3>
+                                        </div>
+                                    </div>
+                                    <p>Follow how the current engine compiles the hierarchy into an explicit step plan and executes the runtime path.</p>
+                                    <div class="drill-actions" style="margin-top: 12px;">
+                                        <button type="button" class="inline-button" data-jump-scene="5">Open explorer</button>
+                                    </div>
+                                </article>
+                                <article class="portal-card chapter-entry" data-chapter="Evidence">
+                                    <div class="chapter-entry-header">
+                                        <span class="chapter-icon" aria-hidden="true">EV</span>
+                                        <div>
+                                            <span class="chapter-kicker">Chapter 4</span>
+                                            <h3>Evidence</h3>
+                                        </div>
+                                    </div>
+                                    <p>Understand how outputs, summaries, and logs complete the OneFlow operator story after execution.</p>
+                                    <div class="drill-actions" style="margin-top: 12px;">
+                                        <button type="button" class="inline-button" data-jump-scene="7">Open explorer</button>
+                                    </div>
+                                </article>
+                            </div>
+                        </article>
+
+                        <div class="overview-summary-grid">
+                            <article class="panel portal-card">
+                                <h3>How OneFlow starts</h3>
+                                <p>OneFlow begins from one selected <code>job-config.yaml</code>, which remains the normal runtime boundary for the run.</p>
+                                <span class="summary-value">One selected scenario powers one launch context</span>
+                            </article>
+                            <article class="panel portal-card">
+                                <h3>How OneFlow frames the run</h3>
+                                <p>OneFlow presents each run through a top-level MainFlow that carries shared recovery context and run-wide evidence meaning.</p>
+                                <span class="summary-value">One synthesized MainFlow per selected scenario</span>
+                            </article>
+                            <article class="panel portal-card">
+                                <h3>How OneFlow shows phases</h3>
+                                <p>OneFlow groups the run into visible SubFlows so customers can understand ordered phases and evidence more easily than from a flat step list alone.</p>
+                                <span class="summary-value">Ordered phase view over the current flat plan</span>
+                            </article>
+                            <article class="panel portal-card">
+                                <h3>How OneFlow executes today</h3>
+                                <p>Under the product-facing hierarchy, the current engine still executes one explicit ordered Spring Batch step plan.</p>
+                                <span class="summary-value">Product hierarchy above flat step execution</span>
+                            </article>
+                        </div>
+
+                        <section class="value-section" aria-label="What OneFlow gives you">
+                            <div class="value-section-header">
+                                <h3>What OneFlow gives you</h3>
+                                <p class="deep-dive-copy">Beyond the runtime details, OneFlow gives operators and stakeholders a clearer way to understand the shape of a run, the path data takes, and the evidence left behind.</p>
+                            </div>
+
+                            <div class="value-grid">
+                                <article class="value-card">
+                                    <span class="chapter-icon" aria-hidden="true">CL</span>
+                                    <strong>Clear runtime boundary</strong>
+                                    <p>One selected scenario keeps the run focused, explainable, and easier to operate.</p>
+                                </article>
+                                <article class="value-card">
+                                    <span class="chapter-icon" aria-hidden="true">FL</span>
+                                    <strong>Flow meaning people can follow</strong>
+                                    <p>MainFlow and SubFlow help customers read the run like a product flow, not just a step list.</p>
+                                </article>
+                                <article class="value-card">
+                                    <span class="chapter-icon" aria-hidden="true">OP</span>
+                                    <strong>Operational evidence you can trust</strong>
+                                    <p>Logs, summaries, and artifact paths make it easier to explain what happened after execution.</p>
+                                </article>
+                                <article class="value-card">
+                                    <span class="chapter-icon" aria-hidden="true">KN</span>
+                                    <strong>Knowledge that scales</strong>
+                                    <p>This site turns the runtime model into a reusable learning surface for operators, reviewers, and new team members.</p>
+                                </article>
+                            </div>
+                        </section>
+
+                    </div>
+
+                    <div class="overview-sidebar-column">
+                        <article class="panel portal-card">
+                                <h3>Jump into the OneFlow story</h3>
+                            <p>Open the explorer on the exact runtime phase you care about when you want the deeper architecture and evidence view.</p>
+                            <div class="overview-jump-grid" style="margin-top: 14px;">
+                                <button type="button" data-jump-scene="0">Startup</button>
+                                <button type="button" data-jump-scene="2">Validation</button>
+                                <button type="button" data-jump-scene="3">MAIN_FLOW_PLAN</button>
+                                <button type="button" data-jump-scene="4">SUBFLOW_PLAN</button>
+                                <button type="button" data-jump-scene="5">STEP_PLAN</button>
+                                <button type="button" data-jump-scene="6">Runtime step</button>
+                                <button type="button" data-jump-scene="7">Evidence</button>
+                                <button type="button" class="secondary" data-view-target="explorer">Open explorer</button>
+                            </div>
+                        </article>
+
+                        <article class="panel portal-card">
+                            <h3>How to learn OneFlow here</h3>
+                            <p>Start with the OneFlow overview, pick the runtime phase you care about, then open Scene explorer when you want deeper execution and evidence detail. <code>docs/architecture/runtime-flow.md</code> remains the canonical note behind this website.</p>
+                        </article>
+
+                        <article class="panel portal-card">
+                            <h3>What to keep in mind</h3>
+                            <ul class="side-note-list">
+                                <li>OneFlow is presented as a product-facing flow, but the shipped engine still executes a flat ordered plan today.</li>
+                                <li>MainFlow and SubFlow improve understanding, visibility, and evidence without changing the current runtime boundary contract.</li>
+                                <li>The explorer is the best place to connect product language to concrete runtime behavior.</li>
+                            </ul>
+                        </article>
+                    </div>
+                </div>
+            </section>
+
+            <section class="view" id="view-explorer" aria-label="Scene explorer" >
+                <div class="explorer-grid" id="deepDiveSection">
+                    <div class="panel diagram-card">
+                        <div class="deep-dive-intro">
+                            <div>
+                                <h2 class="diagram-title">Explore the OneFlow runtime path</h2>
+                                <p class="deep-dive-copy">This focused workspace keeps the animated OneFlow runtime diagram and the live scene details together without the rest of the page competing for attention.</p>
+                            </div>
+                            <div class="explorer-toolbar" aria-label="Scene explorer controls">
+                                <span class="tag" id="metricPlayback">Autoplay off</span>
+                                <button id="prevBtn" class="secondary">◀ Previous</button>
+                                <button id="playBtn">▶ Play</button>
+                                <button id="pauseBtn" class="secondary">❚❚ Pause</button>
+                                <button id="nextBtn" class="secondary">Next ▶</button>
+                                <button id="restartBtn" class="secondary">↺ Restart</button>
+                            </div>
+                        </div>
+                        <div class="flow" id="flowDiagram" aria-label="Animated ETL runtime flow diagram">
                 <span class="lane-label lane-startup">Runtime assembly</span>
                 <span class="lane-label lane-config">Flow composition</span>
                 <span class="lane-label lane-runtime">Compiled flat execution</span>
@@ -1027,91 +1903,95 @@
                     <strong>Scenario log / RUN_EVENT / STEP_EVENT / RUN_SUMMARY</strong>
                     <small>Scenario-scoped lifecycle logs preserve composition context, recovery policy, counts, artifact paths, and rolled-up flow evidence after MDC is bound to the selected run.</small>
                 </article>
-            </div>
-        </div>
-
-        <aside class="panel details-card">
-            <h2 class="details-title">Narrated scene details</h2>
-            <p class="details-copy">This panel explains how the active scene maps to the runtime assembly view, the flow composition view, and the shipped evidence vocabulary, including the split between startup-time planning logs and scenario-scoped lifecycle logs.</p>
-            <div class="step-pill">
-                <span class="step-counter" id="stepCounter">Step 1 / 8</span>
-                <span id="stepTag">Startup</span>
-                <span class="chapter-pill" id="chapterPill" data-chapter="Assembly">Assembly</span>
-            </div>
-            <h3 class="detail-title" id="detailTitle">Application startup</h3>
-            <p class="detail-summary" id="detailSummary"></p>
-
-            <div class="hierarchy-grid" aria-label="Current walkthrough architecture snapshot">
-                <div class="hierarchy-card">
-                    <span class="metric-label">View lens</span>
-                    <strong id="hierarchyMainFlow">Runtime assembly</strong>
-                </div>
-                <div class="hierarchy-card">
-                    <span class="metric-label">Composition focus</span>
-                    <strong id="hierarchySubFlow">Application bootstrap</strong>
-                </div>
-                <div class="hierarchy-card">
-                    <span class="metric-label">Active execution</span>
-                    <strong id="hierarchyStep">No execution yet</strong>
-                </div>
-                <div class="hierarchy-card">
-                    <span class="metric-label">Control signal</span>
-                    <strong id="hierarchyControl">No scenario bound</strong>
-                </div>
-            </div>
-
-            <div class="callout-grid" id="calloutGrid"></div>
-
-            <section class="drilldown-card" aria-labelledby="drilldownTitle">
-                <div class="drilldown-header">
-                    <h4 class="drilldown-title" id="drilldownTitle">Phase drill-down</h4>
-                    <span class="drilldown-hint">Click a node or timeline stage to pause and inspect this phase.</span>
-                </div>
-
-                <div class="drilldown-grid">
-                    <div class="drilldown-block">
-                        <h5>Phase responsibility</h5>
-                        <p id="drilldownResponsibility"></p>
+                        </div>
                     </div>
-                    <div class="drilldown-block">
-                        <h5>Inputs into this phase</h5>
-                        <ul class="drilldown-list" id="drilldownInputs"></ul>
-                    </div>
-                    <div class="drilldown-block">
-                        <h5>Key runtime pieces</h5>
-                        <ul class="drilldown-list" id="drilldownRuntimePieces"></ul>
-                    </div>
-                    <div class="drilldown-block">
-                        <h5>Important decisions here</h5>
-                        <ul class="drilldown-list" id="drilldownDecisions"></ul>
-                    </div>
-                    <div class="drilldown-block">
-                        <h5>Outputs from this phase</h5>
-                        <ul class="drilldown-list" id="drilldownOutputs"></ul>
-                    </div>
-                    <div class="drilldown-block">
-                        <h5>Operational evidence</h5>
-                        <ul class="drilldown-list" id="drilldownEvidence"></ul>
-                    </div>
-                </div>
 
-                <div class="doc-links" id="docLinks"></div>
+                    <aside class="panel details-card">
+                        <h2 class="details-title">Understand this OneFlow step</h2>
+                        <p class="details-copy">This panel turns the current scene into plain-language guidance so you can connect product meaning, runtime behavior, and evidence without reading the full architecture note first.</p>
+                        <div class="step-pill">
+                            <span class="step-counter" id="stepCounter">Step 1 / 8</span>
+                            <span id="stepTag">Startup</span>
+                            <span class="chapter-pill" id="chapterPill" data-chapter="Assembly">Assembly</span>
+                        </div>
+                        <h3 class="detail-title" id="detailTitle">Application startup</h3>
+                        <p class="detail-summary" id="detailSummary"></p>
+                        <p class="details-intro-note">Use the snapshot below for the quick reading path, then scan the drill-down blocks when you want the deeper runtime explanation.</p>
+
+                        <div class="hierarchy-grid" aria-label="Current walkthrough architecture snapshot">
+                            <div class="hierarchy-card">
+                                <span class="metric-label">View lens</span>
+                                <strong id="hierarchyMainFlow">Runtime assembly</strong>
+                            </div>
+                            <div class="hierarchy-card">
+                                <span class="metric-label">Composition focus</span>
+                                <strong id="hierarchySubFlow">Application bootstrap</strong>
+                            </div>
+                            <div class="hierarchy-card">
+                                <span class="metric-label">Active execution</span>
+                                <strong id="hierarchyStep">No execution yet</strong>
+                            </div>
+                            <div class="hierarchy-card">
+                                <span class="metric-label">Control signal</span>
+                                <strong id="hierarchyControl">No scenario bound</strong>
+                            </div>
+                        </div>
+
+                        <div class="callout-grid" id="calloutGrid"></div>
+
+                        <section class="drilldown-card" aria-labelledby="drilldownTitle">
+                            <div class="drilldown-header">
+                                <h4 class="drilldown-title" id="drilldownTitle">Why this scene matters</h4>
+                                <span class="drilldown-hint">Click a node or timeline stage to pause and inspect this part of the OneFlow story.</span>
+                            </div>
+
+                            <div class="drilldown-grid">
+                                <div class="drilldown-block">
+                                    <h5>What this stage does</h5>
+                                    <p id="drilldownResponsibility"></p>
+                                </div>
+                                <div class="drilldown-block">
+                                    <h5>What comes into this stage</h5>
+                                    <ul class="drilldown-list" id="drilldownInputs"></ul>
+                                </div>
+                                <div class="drilldown-block">
+                                    <h5>Key OneFlow pieces</h5>
+                                    <ul class="drilldown-list" id="drilldownRuntimePieces"></ul>
+                                </div>
+                                <div class="drilldown-block">
+                                    <h5>Decisions made here</h5>
+                                    <ul class="drilldown-list" id="drilldownDecisions"></ul>
+                                </div>
+                                <div class="drilldown-block">
+                                    <h5>What comes out of this stage</h5>
+                                    <ul class="drilldown-list" id="drilldownOutputs"></ul>
+                                </div>
+                                <div class="drilldown-block">
+                                    <h5>Evidence you can look for</h5>
+                                    <ul class="drilldown-list" id="drilldownEvidence"></ul>
+                                </div>
+                            </div>
+
+                            <div class="doc-links" id="docLinks"></div>
+                        </section>
+
+                        <ul class="timeline" id="timeline"></ul>
+
+                        <div class="legend">
+                            <span><i class="legend-dot dot-blue"></i> active runtime stage</span>
+                            <span><i class="legend-dot dot-green"></i> accepted forward path</span>
+                            <span><i class="legend-dot dot-yellow"></i> composition summary / blocked-flow evidence</span>
+                        </div>
+
+                        <p class="footer-note">
+                            Keep <code>docs/architecture/runtime-flow.md</code> as the canonical explanation.
+                            This HTML page is now a portal-style OneFlow knowledge companion for the runtime assembly view, the flow composition view, and the shipped logging evidence.
+                        </p>
+                    </aside>
+                </div>
             </section>
-
-            <ul class="timeline" id="timeline"></ul>
-
-            <div class="legend">
-                <span><i class="legend-dot dot-blue"></i> active runtime stage</span>
-                <span><i class="legend-dot dot-green"></i> accepted forward path</span>
-                <span><i class="legend-dot dot-yellow"></i> composition summary / blocked-flow evidence</span>
-            </div>
-
-            <p class="footer-note">
-                Keep <code>docs/architecture/runtime-flow.md</code> as the canonical explanation.
-                This HTML page is a companion GUI-style walkthrough for the runtime assembly view, the flow composition view, and the shipped logging evidence.
-            </p>
-        </aside>
-    </section>
+        </div>
+    </main>
 </div>
 
 <script>
@@ -1501,22 +2381,32 @@
     ];
 
     const timelineLabels = [
-        'Assembly · application startup',
-        'Assembly · scenario selection',
-        'Assembly · fail-fast validation',
-        'Composition · MAIN_FLOW_PLAN',
-        'Composition · SUBFLOW_PLAN',
-        'Execution · STEP_PLAN / STEP_READY',
-        'Execution · active flat step runtime',
-        'Evidence · outputs and summaries'
+        'Start · application begins',
+        'Start · scenario selected',
+        'Start · validation gate',
+        'Design · MainFlow created',
+        'Design · SubFlows grouped',
+        'Run · step plan prepared',
+        'Run · data moves',
+        'Finish · outputs and evidence'
     ];
 
     const elements = {
+        workspaceSubtitle: document.getElementById('workspaceSubtitle'),
         progressBar: document.getElementById('progressBar'),
         metricStage: document.getElementById('metricStage'),
-        metricMode: document.getElementById('metricMode'),
-        metricArtifact: document.getElementById('metricArtifact'),
         metricPlayback: document.getElementById('metricPlayback'),
+        storyPlayerProgress: document.getElementById('storyPlayerProgress'),
+        storyPlayerStage: document.querySelector('.story-player-stage'),
+        storyPlayerCaption: document.getElementById('storyPlayerCaption'),
+        storyPlayerChapter: document.getElementById('storyPlayerChapter'),
+        storyPlayerTag: document.getElementById('storyPlayerTag'),
+        storyPlayerTitle: document.getElementById('storyPlayerTitle'),
+        storyPlayerSummary: document.getElementById('storyPlayerSummary'),
+        storyPlayerOpenBtn: document.getElementById('storyPlayerOpenBtn'),
+        storyPlayBtn: document.getElementById('storyPlayBtn'),
+        storyPauseBtn: document.getElementById('storyPauseBtn'),
+        storyRestartBtn: document.getElementById('storyRestartBtn'),
         stepCounter: document.getElementById('stepCounter'),
         stepTag: document.getElementById('stepTag'),
         chapterPill: document.getElementById('chapterPill'),
@@ -1543,8 +2433,21 @@
     };
 
     let currentIndex = 0;
+    let currentView = 'overview';
     let timer = null;
     const intervalMs = 2600;
+    const storySceneIndexes = [1, 2, 3, 4, 5, 6, 7];
+    let storyPointer = 0;
+    let storyTimer = null;
+    let storyCaptionTimer = null;
+    const storyIntervalMs = 2600;
+    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function setText(element, value) {
+        if (element) {
+            element.textContent = value;
+        }
+    }
 
     function renderTimeline(index) {
         elements.timeline.innerHTML = '';
@@ -1580,15 +2483,19 @@
         });
     }
 
-    function renderDocLinks(links) {
-        elements.docLinks.innerHTML = '';
+    function renderLinks(target, links) {
+        target.innerHTML = '';
         (links || []).forEach(link => {
             const anchor = document.createElement('a');
             anchor.className = 'doc-link';
             anchor.href = link.href;
             anchor.textContent = link.label;
-            elements.docLinks.appendChild(anchor);
+            target.appendChild(anchor);
         });
+    }
+
+    function renderDocLinks(links) {
+        renderLinks(elements.docLinks, links);
     }
 
     function renderDrilldown(scene) {
@@ -1599,6 +2506,74 @@
         renderList(elements.drilldownOutputs, scene.outputs);
         renderList(elements.drilldownEvidence, scene.evidence);
         renderDocLinks(scene.relatedDocs);
+    }
+
+    function applyStoryScene(scene, sceneIndex, pointer, progress) {
+        document.querySelectorAll('.story-player-node').forEach((node, index) => {
+            node.classList.toggle('completed', index < pointer);
+            node.classList.toggle('active', index === pointer);
+        });
+
+        if (elements.storyPlayerStage) {
+            elements.storyPlayerStage.dataset.chapter = scene.chapter || 'Assembly';
+        }
+
+        if (elements.storyPlayerProgress) {
+            elements.storyPlayerProgress.style.width = `${progress}%`;
+        }
+
+        setText(elements.storyPlayerChapter, scene.chapter || 'Assembly');
+        if (elements.storyPlayerChapter) {
+            elements.storyPlayerChapter.dataset.chapter = scene.chapter || 'Assembly';
+        }
+        setText(elements.storyPlayerTag, scene.tag);
+        setText(elements.storyPlayerTitle, scene.title);
+        setText(elements.storyPlayerSummary, scene.summary);
+        if (elements.storyPlayerOpenBtn) {
+            elements.storyPlayerOpenBtn.dataset.jumpScene = String(sceneIndex);
+        }
+    }
+
+    function updateStoryPlayer(pointer) {
+        storyPointer = pointer;
+        const sceneIndex = storySceneIndexes[pointer];
+        const scene = scenes[sceneIndex];
+        const progress = ((pointer + 1) / storySceneIndexes.length) * 100;
+
+        if (storyCaptionTimer) {
+            window.clearTimeout(storyCaptionTimer);
+            storyCaptionTimer = null;
+        }
+
+        if (prefersReducedMotion || !elements.storyPlayerCaption) {
+            applyStoryScene(scene, sceneIndex, pointer, progress);
+            return;
+        }
+
+        elements.storyPlayerCaption.classList.add('is-transitioning');
+        applyStoryScene(scene, sceneIndex, pointer, progress);
+        storyCaptionTimer = window.setTimeout(() => {
+            elements.storyPlayerCaption?.classList.remove('is-transitioning');
+            storyCaptionTimer = null;
+        }, 180);
+    }
+
+    function stopStoryPlayer() {
+        if (storyTimer) {
+            window.clearInterval(storyTimer);
+            storyTimer = null;
+        }
+        if (storyCaptionTimer) {
+            window.clearTimeout(storyCaptionTimer);
+            storyCaptionTimer = null;
+        }
+    }
+
+    function startStoryPlayer() {
+        stopStoryPlayer();
+        storyTimer = window.setInterval(() => {
+            updateStoryPlayer((storyPointer + 1) % storySceneIndexes.length);
+        }, storyIntervalMs);
     }
 
     function setupInteractiveNodes() {
@@ -1617,15 +2592,56 @@
         });
     }
 
-    function jumpToScene(index) {
-        stopAutoplay();
-        updateScene(index);
-        document.getElementById('deepDiveSection')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    function updatePortalSubtitle() {
+        const copy = {
+            overview: 'Use this overview to learn the OneFlow runtime model first, then open Scene explorer only when you want the animated diagram and runtime drill-down details.',
+            explorer: 'Scene explorer keeps the animated OneFlow runtime diagram and the narrated drill-down together in one focused workspace.'
+        };
+        elements.workspaceSubtitle.textContent = copy[currentView] || copy.overview;
     }
 
-    function setupDrillthroughButtons() {
-        document.querySelectorAll('[data-jump-scene]').forEach(button => {
+    function updateNavState() {
+        document.querySelectorAll('[data-view-target]').forEach(button => {
+            button.classList.toggle('active', button.dataset.viewTarget === currentView);
+        });
+    }
+
+    function setView(view) {
+        currentView = view;
+        document.querySelectorAll('.view').forEach(panel => {
+            panel.classList.toggle('is-active', panel.id === `view-${view}`);
+        });
+
+        if (view === 'overview') {
+            startStoryPlayer();
+        } else {
+            stopStoryPlayer();
+        }
+
+        updatePortalSubtitle();
+        updateNavState();
+    }
+
+    function jumpToScene(index) {
+        stopAutoplay();
+        setView('explorer');
+        updateScene(index);
+    }
+
+    function bindActionButtons(root = document) {
+        root.querySelectorAll('[data-jump-scene]').forEach(button => {
+            if (button.dataset.boundJump === 'true') return;
+            button.dataset.boundJump = 'true';
             button.addEventListener('click', () => jumpToScene(Number(button.dataset.jumpScene)));
+        });
+
+        root.querySelectorAll('[data-view-target]').forEach(button => {
+            if (button.dataset.boundView === 'true') return;
+            button.dataset.boundView = 'true';
+            button.addEventListener('click', () => {
+                stopAutoplay();
+                setView(button.dataset.viewTarget);
+            });
         });
     }
 
@@ -1633,6 +2649,8 @@
         currentIndex = index;
         const scene = scenes[index];
         const progress = ((index + 1) / scenes.length) * 100;
+
+        document.body.dataset.activeChapter = scene.chapter || 'Assembly';
 
         document.querySelectorAll('.node').forEach(node => {
             node.classList.remove('active', 'completed');
@@ -1658,22 +2676,19 @@
         });
 
         elements.progressBar.style.width = `${progress}%`;
-        elements.metricStage.textContent = scene.stage;
-        elements.metricMode.textContent = scene.mainFlow;
-        elements.metricArtifact.textContent = scene.subFlow;
-        elements.stepCounter.textContent = `Step ${index + 1} / ${scenes.length}`;
-        elements.stepTag.textContent = scene.tag;
-        elements.chapterPill.textContent = scene.chapter || 'Assembly';
-        elements.chapterPill.dataset.chapter = scene.chapter || 'Assembly';
-        elements.detailTitle.textContent = scene.title;
-        elements.detailSummary.textContent = scene.summary;
-        elements.hierarchyMainFlow.textContent = scene.mainFlow;
-        elements.hierarchySubFlow.textContent = scene.subFlow;
-        elements.hierarchyStep.textContent = scene.activeStep;
-        elements.hierarchyControl.textContent = scene.control;
-        document.querySelectorAll('.chapter-badge').forEach(badge => {
-            badge.classList.toggle('active', badge.dataset.chapter === scene.chapter);
-        });
+        setText(elements.metricStage, scene.stage);
+        setText(elements.stepCounter, `Step ${index + 1} / ${scenes.length}`);
+        setText(elements.stepTag, scene.tag);
+        setText(elements.chapterPill, scene.chapter || 'Assembly');
+        if (elements.chapterPill) {
+            elements.chapterPill.dataset.chapter = scene.chapter || 'Assembly';
+        }
+        setText(elements.detailTitle, scene.title);
+        setText(elements.detailSummary, scene.summary);
+        setText(elements.hierarchyMainFlow, scene.mainFlow);
+        setText(elements.hierarchySubFlow, scene.subFlow);
+        setText(elements.hierarchyStep, scene.activeStep);
+        setText(elements.hierarchyControl, scene.control);
         renderCallouts(scene.callouts);
         renderDrilldown(scene);
         renderTimeline(index);
@@ -1707,15 +2722,18 @@
 
     elements.prevBtn.addEventListener('click', () => {
         stopAutoplay();
+        setView('explorer');
         if (currentIndex > 0) updateScene(currentIndex - 1);
     });
 
     elements.nextBtn.addEventListener('click', () => {
         stopAutoplay();
+        setView('explorer');
         if (currentIndex < scenes.length - 1) updateScene(currentIndex + 1);
     });
 
     elements.playBtn.addEventListener('click', () => {
+        setView('explorer');
         startAutoplay();
     });
 
@@ -1725,14 +2743,30 @@
 
     elements.restartBtn.addEventListener('click', () => {
         stopAutoplay();
+        setView('explorer');
         updateScene(0);
         startAutoplay();
     });
 
+    elements.storyPlayBtn?.addEventListener('click', () => {
+        startStoryPlayer();
+    });
+
+    elements.storyPauseBtn?.addEventListener('click', () => {
+        stopStoryPlayer();
+    });
+
+    elements.storyRestartBtn?.addEventListener('click', () => {
+        updateStoryPlayer(0);
+        startStoryPlayer();
+    });
+
     setupInteractiveNodes();
-    setupDrillthroughButtons();
+    bindActionButtons();
     updateScene(0);
-    startAutoplay();
+    updateStoryPlayer(0);
+    setView('overview');
+    stopAutoplay();
 </script>
 </body>
 </html>

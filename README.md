@@ -116,7 +116,7 @@ Use this table as the recommended reading order by goal:
 | Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
 | Assess current gaps to the reusable scenario model | [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md) | [`docs/architecture/hierarchical-flow-composition.md`](docs/architecture/hierarchical-flow-composition.md) |
 | See preserved runnable examples | `src/main/resources/config-jobs/` | [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples) |
-| Run a private deployable job bundle or collection | [`private-jobs/`](private-jobs/README.md) | [Explicit job-config mode](#explicit-job-config-mode) |
+| Set up a developer-local private job bundle or collection | [`private-jobs/`](private-jobs/README.md) | [Explicit job-config mode](#explicit-job-config-mode) |
 | Understand what is shipped vs planned | [`docs/README.md`](docs/README.md) | [`docs/product/product-backlog.md`](docs/product/product-backlog.md) |
 
 ## Documentation strategy
@@ -127,7 +127,7 @@ Use the repository docs in this order:
 2. **`docs/README.md`** — docs portal, core terms, and architecture/product navigation
 3. **`docs/config/README.md`** — current supported config contracts and scenario-reading order
 4. **`src/main/resources/config-jobs/`** — preserved runnable example bundles checked in with the repository
-5. **[`private-jobs/`](private-jobs/README.md)** — repo-root private deployable job scaffold; only the guidance file is committed and the actual bundles stay git-ignored
+5. **[`private-jobs/`](private-jobs/README.md)** — repo-root developer-local placeholder area for private job bundles; copy preserved examples into it as needed, keep only the guidance file committed, and keep all real bundles git-ignored
 
 Documentation intent is split deliberately:
 
@@ -245,7 +245,7 @@ This is the recommended product direction for both checked-in reference bundles 
 Use the bundle root that matches your need:
 
 - `src/main/resources/config-jobs/` for preserved safe examples, docs-aligned proofs, and smoke/reference scenarios
-- `private-jobs/` for private environment-specific job collections, real input paths, customer-specific values, and pre-production or production-ready test bundles that must not be committed; private bundles now standardize their runnable YAML under a `config/` subfolder
+- `private-jobs/` for developer-local private job collections derived from preserved examples, real input paths, customer-specific values, and pre-production or production-ready test bundles that must not be committed; private bundles now standardize their runnable YAML under a `config/` subfolder
 
 Preserved business-scenario examples include:
 
@@ -276,7 +276,7 @@ Set-Location '<repo-root>'
 mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=private-jobs/acme-prod/partner-orders-daily/config/job-config.yaml" spring-boot:run
 ```
 
-`config-jobs` remains the canonical checked-in preserved-bundle path. `private-jobs` is the preferred git-ignored area for private deployable bundles. Legacy `config-scenarios/...` path support remains available temporarily for backward compatibility, but it is now deprecated.
+`config-jobs` remains the canonical checked-in preserved-bundle path. `private-jobs` is the preferred developer-local git-ignored area for private bundles that contributors create from those preserved examples, and nothing there except the guidance file should be committed to GitHub. Legacy `config-scenarios/...` path support remains available temporarily for backward compatibility, but it is now deprecated.
 
 In this mode, the app does **not** auto-discover other scenarios or sibling config sets. It only loads the three files referenced by the job config and executes the explicit `steps` in the order declared.
 

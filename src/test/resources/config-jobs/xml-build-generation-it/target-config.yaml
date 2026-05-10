@@ -5,8 +5,8 @@ targets:
     filePath: target/xml-build-generation-it.xml
     rootElement: TagValidationList
     recordElement: TVLTagDetails
-    modelDefinitionPath: definitions/nested-target-model.yaml
     fields:
       - name: HomeAgencyID
         type: String
+    modelDefinitionPath: definitions/nested-target-model.yaml
 

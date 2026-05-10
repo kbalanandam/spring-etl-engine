@@ -49,6 +49,7 @@ Today, the shipped config contract now supports a first file-ingestion hardening
 - duplicate handling for keep-first/reject-later semantics plus ordered winner selection across single-field and composite-key matching
 - explicit rejected-record output configuration in processor config
 - processed-source-file archive configuration in file-based source config
+- explicit CSV source header handling through `skipHeader` so header-bearing handoff files can keep the current default while headerless CSV sources can opt out of first-line skipping
 - staged file-target publication for CSV/XML outputs so partial rerun artifacts are not treated as final published outputs
 - accepted vs rejected record artifact semantics for the preserved CSV proof scenario
 

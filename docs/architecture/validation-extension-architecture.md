@@ -51,6 +51,7 @@ Future validation needs will expand in two different directions:
    - field rules such as `notNull`, `timeFormat`
    - future `regex`
    - future range and cross-field rules
+   - future database-backed allow-list/reference-set checks such as agency-code validation
    - future conditional and enrichment-aware validation
 
 Those are different extension points.
@@ -122,6 +123,7 @@ Examples:
 - future `regex`
 - future range / cross-field checks
 - future conditional business rules
+- future reference-set membership checks against runtime-loaded allowed values such as agency codes from a relational query
 
 For XML specifically, record-level rules should continue only after the selected source passes source validation. That means future XML duplicate handling, `notNull`, `timeFormat`, and similar business rules should stay in the processor-rule extension point, not inside XML/XSD source validation.
 
@@ -289,6 +291,7 @@ Future contributors should follow this rule:
 
 - [`Extension points`](extension-points.md)
 - [`File ingestion hardening`](file-ingestion-hardening.md)
+- [`Reference-set validation and enrichment`](reference-set-validation-and-enrichment.md)
 - [`Runtime flow`](runtime-flow.md)
 - [`Default processor reference`](../config/processor/default-processor.md)
 

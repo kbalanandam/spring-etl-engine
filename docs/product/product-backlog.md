@@ -171,17 +171,19 @@ This table is the day-to-day execution view for the current product stage.
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
 | [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Ready | M1 | A2 | Future `job-config.yaml isActive` contract should fail fast in `ConfigLoader` with job-aware startup errors; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
+| [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | Ready | M2 | A2 | Establish a single OneFlow-derived naming contract for generated models, add validation guardrails, and bridge away from authored `packageName`; see [`Generated model naming standard`](../architecture/generated-model-naming-standard.md) |
 | T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | T2 | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
 | T3 | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T2 | Best introduced after expression contract is stable |
 | [T4](backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Follow-on hardening beyond the shipped CSV slice: broader quarantine, selectable duplicate storage mode, and XML-native duplicate identity |
-| T5 | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Bridges toward more classic ETL transformation patterns |
+| [T5](backlog-items/T5-reference-set-validation-and-enrichment-baseline.md) | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Frozen first-slice direction: processor-side DB-backed reference-set validation such as agency-code allow-lists before broader enrichment joins |
+| [T6](backlog-items/T6-shared-default-value-and-placeholder-mapping.md) | Add shared default-value and placeholder mapping baseline | Epic T | P1 | Deferred | M2 | T2 | Capture audit-column defaults, provider-backed system date/date-time filling, job-name/constants, and formula-ready placeholders without repeating the same mapping logic in every job bundle |
 | B1 | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | B2 | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
 | B3 | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
 | C1 | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Done | M1 | none | `RUN_EVENT` / `RUN_SUMMARY` and step lifecycle evidence are now emitted for selected runs |
-| [C2](backlog-items/C2-run-level-count-rollup-and-reconciliation.md) | Complete run-level source / written / rejected count rollup | Epic C | P1 | In Progress | M1 | C1 | Step-level counts are shipped; run-level rollup and reconciliation remain in progress |
+| [C2](backlog-items/C2-run-level-count-rollup-and-reconciliation.md) | Complete run-level source / written / rejected count rollup | Epic C | P1 | Done | M1 | C1 | `RUN_SUMMARY` now emits operator-oriented run-level `sourceCount` / `writtenCount` / `rejectedCount`, with intermediate handoff counts kept separate for multi-step jobs |
 | [D1](backlog-items/D1-stable-error-taxonomy-and-categories.md) | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
 | E1 | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
 | E2 | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Ready | M1 | E1 | Important next portability step |
@@ -205,7 +207,7 @@ Use this section as the near-term sequencing view behind the execution board:
 
 1. `T3` next, now that expression-derived fields are shipped on the processor transform seam.
 2. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, not a redesign of the shipped duplicate baseline.
-3. Move next to `B1` / `B2` / `C2` / `D1` for skip/retry behavior, run-level count rollup, reconciliation, and error taxonomy.
+3. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
 4. Keep `E2` as the next portability/documentation step.
 5. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
 6. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
@@ -308,6 +310,7 @@ Make each run explicit, predictable, and less fragile.
 - [x] Replace positional source-target pairing with explicit step pairing or step definitions
 - [x] Validate scenario completeness before job start
 - [ ] Add job-level activation guardrail so `isActive: false` blocks the selected job before wiring
+- [ ] Standardize generated-model naming and package derivation so explicit jobs no longer depend on authored `packageName`
 - [ ] Add stronger config validation error messages for operators
 - [ ] Make step definitions more business-meaningful and less index-driven
 - [ ] Document supported orchestration patterns and limitations
@@ -316,6 +319,7 @@ Make each run explicit, predictable, and less fragile.
 - source-to-target pairing is unambiguous
 - config failures are fast, operator-friendly, and test-covered
 - inactive selected jobs fail early and never reach `BatchConfig` step assembly
+- generated-model package/class identity is deterministic from the selected job and logical config names
 - supported step orchestration patterns are documented
 
 ---
@@ -353,7 +357,8 @@ Grow the product from structural field mapping into richer transformation behavi
 - [ ] Add conditional transformation rule support
 - [x] Add validation-aware transformation behavior
 - [x] Add controlled rejected-record output for invalid records
-- [ ] Define lookup/enrichment processor baseline
+- [ ] Define lookup/enrichment processor baseline; frozen first slice is runtime-loaded reference-set validation for reject/accept checks before broader enrichment work
+- [ ] Add shared default-value mapping for audit columns, constants, and future formula-ready placeholders
 - [ ] Document transformation maturity levels and non-goals
 - [ ] Add guardrails against ambiguous generic value rewriting across future source and processor layers
 
@@ -642,7 +647,7 @@ Exit signal:
 Use this as the condensed near-term priority order:
 
 1. `T3` — conditional transformation rules
-2. `B1` / `B2` / `C2` / `D1` — fault tolerance and run-level evidence
+2. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
 3. `E2` — packaged-run guidance
 4. `X1` / `X2` — SFTP contract and first inbound slice
 5. `F1` / `S1` / `S2` — restartability and scheduler baseline

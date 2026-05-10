@@ -85,6 +85,7 @@ Use the most shared layer that can express the behavior correctly.
 - default home: processor transforms for field-scoped cleanup such as `1 -> Success`, `USA -> US`, null fallback, trim, case normalization, and similar business/value rewrites
 - reserved future home: source transforms only when the logic depends on source-native structure, parsing, selectors, or pre-flattening context such as XPath, namespaces, raw header/token cleanup, or other source-shape adaptation
 - processor rules remain the only place for accept/reject decisions
+- runtime-loaded allow-list/reference-set checks such as agency-code membership validation also belong to processor rules, not source validation
 
 Planned runtime precedence should stay explicit:
 
@@ -175,6 +176,7 @@ flowchart LR
 - relational reader/writer support
 - stored procedure tasklet / reader / writer support
 - additional source validators and processor rules described in [`validation-extension-architecture.md`](validation-extension-architecture.md)
+- reference-set validation and later lookup/enrichment growth described in [`reference-set-validation-and-enrichment.md`](reference-set-validation-and-enrichment.md)
 - field transforms / normalization cleaners such as value mapping and code standardization
 - multi-job flow configuration
 - dialect abstraction for platform-specific SQL behavior

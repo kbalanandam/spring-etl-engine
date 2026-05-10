@@ -14,6 +14,22 @@ Define the first lookup/enrichment slice on the active processor path, starting 
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
 
+## Frozen planning direction
+
+The first slice for `T5` is now intentionally frozen for backlog and architecture planning as:
+
+- processor-side reference-set validation
+- database-backed loading through a relational query
+- named placeholders such as `referenceSet: agencyCodes`
+- load-once, cache-and-reuse runtime behavior
+- reject/accept validation first, with broader enrichment deferred
+
+This freeze is for planning clarity only:
+
+- it does **not** change `Status: Deferred`
+- it is **not** a shipped config contract today
+- it is **not** part of the active runtime path yet
+
 ## Problem
 
 The product already supports processor-side transforms and record-level validation rules, but it still lacks a clean way to validate values against runtime reference data.
@@ -54,7 +70,7 @@ This item does not cover:
 
 ## Proposed approach
 
-The preferred first slice is:
+The frozen first slice is:
 
 1. keep this on the active processor-rule seam, not source validation
 2. add a future processor rule type such as `referenceSet`
@@ -65,7 +81,7 @@ The preferred first slice is:
 
 ### Illustrative future config shape (draft only)
 
-Illustrative example only — not a shipped contract yet:
+Illustrative example only — frozen for planning, not a shipped contract yet:
 
 ```yaml
 type: default
@@ -144,3 +160,4 @@ The first slice should stay narrow: validation against a loaded reference set, n
 ## Status notes
 
 Added to turn generic “lookup/enrichment” language into a concrete first delivery shape: reference-set validation before broader enrichment joins or derived lookup outputs.
+

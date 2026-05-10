@@ -25,6 +25,7 @@ The current codebase already implements a meaningful first observability slice:
 - daily scenario log files in the form `logs/<yyyy-MM-dd>/<scenario>.log`
 - machine-readable lifecycle events such as `RUN_EVENT`, `RUN_SUMMARY`, `STEP_PLAN`, `STEP_READY`, and `STEP_EVENT`
 - run-level events for `run_requested`, `job_started`, `run_summary`, and `run_finished`
+- operator-oriented run-level `RUN_SUMMARY` totals for `sourceCount`, `writtenCount`, and `rejectedCount`, with intermediate `handoffReadCount` / `handoffWriteCount` kept separate in multi-step jobs
 - categorized failure evidence through `RUN_EVENT event=run_failed` and `JOB_FAILURE event=job_failure`, including `failureCategory`, `exceptionType`, and `rootCause`
 - step-finished evidence with `readCount`, `writeCount`, `filterCount`, `skipCount`, `rollbackCount`, `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath`
 - source-validation rejection evidence through `SOURCE_VALIDATION event=file_rejected` when configured file-level validation rejects an input artifact
@@ -106,6 +107,7 @@ Each job run should eventually preserve at least:
 - execution mode
 - config identity or version where relevant
 - high-level read/write/skip/error counts
+- shipped operator-facing run totals that distinguish first ingress, final published output, and intermediate handoff movement
 
 ### 2. Step history
 Each step should preserve at least:
@@ -191,6 +193,13 @@ They should answer:
 - where is the evidence for this incident?
 
 Today, the shipped logging baseline groups by daily scenario file path (`logs/<yyyy-MM-dd>/<scenario>.log`) rather than by one file per run. The MDC fields and machine-readable run/step events keep the path job-run-aware even before a separate persisted history layer exists.
+
+The current shipped run-summary baseline also now distinguishes operator rollup counts from step-local counts:
+
+- `sourceCount` means records entering the selected job from configured ingress steps
+- `writtenCount` means records written to final scenario outputs, not raw sum-of-step intermediate writes
+- `rejectedCount` means records rejected across the executed steps in that run
+- `handoffReadCount` / `handoffWriteCount` remain diagnostic counts for intermediate step-to-step movement in multi-step jobs
 
 ### 3. Build, CI, and release logs
 These logs are still useful, but they are engineering artifacts rather than product runtime evidence.

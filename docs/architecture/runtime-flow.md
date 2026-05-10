@@ -215,6 +215,13 @@ The current observed scenario-log order for a successful run is:
 
 Treat that as the verified current baseline from the shipped runtime and sample run evidence, not as a broader compatibility guarantee for every future logging refinement.
 
+For the current shipped `RUN_SUMMARY`, multi-step jobs now use operator-oriented rollup semantics rather than raw sum-of-step writes:
+
+- `sourceCount` = records read from external/configured ingress steps
+- `writtenCount` = records written to final scenario outputs
+- `rejectedCount` = summed rejected records across executed steps
+- `handoffReadCount` / `handoffWriteCount` = intermediate step-to-step movement kept as diagnostics, not treated as final published output
+
 This split matches the current bridge architecture: startup-time assembly evidence is separated from scenario-scoped runtime and hierarchy evidence, while both still describe the same selected run.
 
 ## Flow composition view

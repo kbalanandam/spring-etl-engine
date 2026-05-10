@@ -26,8 +26,8 @@ targets:
     filePath: output/tag-validation-roundtrip.xml
     rootElement: TagValidationExports
     recordElement: TagValidationExport
-    modelDefinitionPath: definitions/nested-target-model.yaml
     fields:
       - name: homeAgencyId
         type: String
+    modelDefinitionPath: definitions/nested-target-model.yaml
 

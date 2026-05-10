@@ -58,7 +58,26 @@ public class JobRuntimeDescriptorAssembler {
 			TargetConfig targetConfig = required(targetsByName.get(targetName), "No target config found for step '" + stepName + "' and target '" + targetName + "'.");
 			ProcessorConfig.EntityMapping mapping = resolveProcessorMapping(processorConfig, stepName, sourceName, targetName);
 			ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(sourceConfig, targetConfig);
-			boolean finalOutput = i == configuredSteps.size() - 1;
+			boolean finalOutput = !hasDownstreamConsumer(configuredSteps, i, targetName);
+			boolean directHandoff = previousStep != null && previousStep.targetName().equals(sourceName);
+			JobStepInputDescriptor inputDescriptor = directHandoff
+					? new JobStepInputDescriptor(
+							JobStepInputType.UPSTREAM_STEP_OUTPUT,
+							sourceName,
+							previousStep.stepName(),
+							sourceName,
+							null,
+							null)
+					: JobStepInputDescriptor.fromConfiguredSource(sourceName);
+			JobStepOutputDescriptor outputDescriptor = finalOutput
+					? JobStepOutputDescriptor.configuredTarget(targetName, true)
+					: new JobStepOutputDescriptor(
+							JobStepOutputType.INTERMEDIATE_DATASET,
+							targetName,
+							targetName,
+							false,
+							null,
+							null);
 			JobStepDescriptor stepDescriptor = new JobStepDescriptor(
 					stepName,
 					i,
@@ -67,8 +86,8 @@ public class JobRuntimeDescriptorAssembler {
 					processorType,
 					stepName,
 					null,
-					JobStepInputDescriptor.fromConfiguredSource(sourceName),
-					JobStepOutputDescriptor.configuredTarget(targetName, finalOutput),
+					inputDescriptor,
+					outputDescriptor,
 					sourceConfig,
 					targetConfig,
 					mapping,
@@ -86,7 +105,7 @@ public class JobRuntimeDescriptorAssembler {
 					i == 0 ? JobSubFlowExecutionStatus.READY : JobSubFlowExecutionStatus.NOT_STARTED,
 					JobSubFlowControlDescriptor.defaultSequentialControl(requiresHandoffReady),
 					previousSubFlow == null ? List.of() : List.of(previousSubFlow.subFlowName()),
-					previousStep == null ? List.of() : List.of(stepDescriptor.input().inputAlias()),
+					previousStep == null ? List.of() : handoffAliases(stepDescriptor.input().inputAlias()),
 					List.of(stepDescriptor.output().outputAlias()),
 					null
 			);
@@ -96,7 +115,7 @@ public class JobRuntimeDescriptorAssembler {
 				stepLinks.add(new JobStepLinkDescriptor(
 						previousStep.stepName(),
 						stepDescriptor.stepName(),
-						JobStepLinkType.ORDER_ONLY,
+						directHandoff ? JobStepLinkType.DATA_HANDOFF : JobStepLinkType.ORDER_ONLY,
 						previousStep.output().outputAlias(),
 						stepDescriptor.input().inputAlias(),
 						JobStepLinkControlDescriptor.defaultSequentialControl(requiresHandoffReady),
@@ -227,6 +246,23 @@ public class JobRuntimeDescriptorAssembler {
 		return scenarioName.endsWith("-flow") || scenarioName.endsWith("Flow")
 				? scenarioName
 				: scenarioName + "-main-flow";
+	}
+
+	private boolean hasDownstreamConsumer(List<JobConfig.JobStepConfig> configuredSteps, int currentIndex, String targetName) {
+		if (configuredSteps == null || targetName == null || targetName.isBlank()) {
+			return false;
+		}
+		for (int i = currentIndex + 1; i < configuredSteps.size(); i++) {
+			JobConfig.JobStepConfig candidate = configuredSteps.get(i);
+			if (candidate != null && targetName.equals(candidate.getSource())) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private List<String> handoffAliases(String alias) {
+		return alias == null || alias.isBlank() ? List.of() : List.of(alias.trim());
 	}
 }
 

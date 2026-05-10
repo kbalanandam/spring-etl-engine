@@ -12,6 +12,7 @@ import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.logging.RunLoggingContext;
+import com.etl.runtime.FileIngestionRuntimeSupport;
 import com.etl.runtime.job.JobConfigPaths;
 import com.etl.runtime.job.JobHierarchyLoggingSupport;
 import com.etl.runtime.job.JobRunMode;
@@ -39,6 +40,7 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -228,6 +230,64 @@ class LoggingContextListenerTest {
         && event.getFormattedMessage().contains("status=BLOCKED")
         && event.getFormattedMessage().contains("normalize-orders-subflow")
         && event.getFormattedMessage().contains("FAILED")));
+  }
+
+  @Test
+  void runSummaryIncludesOperatorOrientedCountsForMultiStepScenario() {
+    JobRuntimeDescriptor descriptor = ordersDescriptor();
+    JobCompletionNotificationListener listener = new JobCompletionNotificationListener(descriptor);
+    ListAppender<ILoggingEvent> appender = attachAppender(jobListenerLogger);
+
+    JobParameters jobParameters = new JobParametersBuilder()
+        .addString("scenario", "orders-flow")
+        .addString("scenarioLogKey", "2026-05-05/orders-flow")
+        .addString("runCorrelationId", "20260505-111500-000")
+        .addString("mainFlow", "orders-flow")
+        .addString("subFlow", "default-subflow")
+        .addString("recoveryPolicy", "rerun-from-start")
+        .addString("runMode", "explicit-job")
+        .addString("jobConfigPath", "C:/scenarios/orders/job-config.yaml")
+        .toJobParameters();
+
+    StepExecution firstStep = mock(StepExecution.class);
+    ExecutionContext firstContext = new ExecutionContext();
+    firstContext.putInt(FileIngestionRuntimeSupport.REJECTED_COUNT_KEY, 2);
+    when(firstStep.getStepName()).thenReturn("normalize-orders");
+    doReturn(100L).when(firstStep).getReadCount();
+    doReturn(98L).when(firstStep).getWriteCount();
+    when(firstStep.getExecutionContext()).thenReturn(firstContext);
+
+    StepExecution secondStep = mock(StepExecution.class);
+    ExecutionContext secondContext = new ExecutionContext();
+    secondContext.putInt(FileIngestionRuntimeSupport.REJECTED_COUNT_KEY, 1);
+    when(secondStep.getStepName()).thenReturn("publish-orders");
+    doReturn(98L).when(secondStep).getReadCount();
+    doReturn(97L).when(secondStep).getWriteCount();
+    when(secondStep.getExecutionContext()).thenReturn(secondContext);
+
+    JobExecution jobExecution = mock(JobExecution.class);
+    JobInstance jobInstance = mock(JobInstance.class);
+    when(jobExecution.getJobParameters()).thenReturn(jobParameters);
+    when(jobExecution.getJobInstance()).thenReturn(jobInstance);
+    when(jobInstance.getJobName()).thenReturn("etlJob");
+    when(jobExecution.getId()).thenReturn(99L);
+    when(jobExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
+    when(jobExecution.getStartTime()).thenReturn(LocalDateTime.now().minusSeconds(6));
+    when(jobExecution.getEndTime()).thenReturn(LocalDateTime.now());
+    when(jobExecution.getAllFailureExceptions()).thenReturn(List.of());
+    when(jobExecution.getStepExecutions()).thenReturn(Set.of(firstStep, secondStep));
+
+    listener.beforeJob(jobExecution);
+    listener.afterJob(jobExecution);
+
+    assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("RUN_SUMMARY event=run_summary")
+        && event.getFormattedMessage().contains("sourceCount=100")
+        && event.getFormattedMessage().contains("writtenCount=97")
+        && event.getFormattedMessage().contains("rejectedCount=3")
+        && event.getFormattedMessage().contains("handoffReadCount=98")
+        && event.getFormattedMessage().contains("handoffWriteCount=98")
+        && event.getFormattedMessage().contains("executedStepCount=2")
+        && event.getFormattedMessage().contains("rollupMode=operator-oriented")));
   }
 
   private ListAppender<ILoggingEvent> attachAppender(Logger logger) {
