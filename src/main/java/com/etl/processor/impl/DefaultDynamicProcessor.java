@@ -9,6 +9,7 @@ import com.etl.config.target.TargetConfig;
 import com.etl.mapping.DynamicMapping;
 import com.etl.mapping.ValidationAwareDynamicMapping;
 import com.etl.processor.DynamicProcessor;
+import com.etl.processor.transform.TransformEvaluator;
 import com.etl.processor.validation.DuplicateProcessorValidationRule;
 import com.etl.processor.validation.NotNullProcessorValidationRule;
 import com.etl.processor.validation.ProcessorValidationRule;
@@ -75,6 +76,12 @@ import java.util.List;
  * configurations supplied to the step.
  * </p>
  *
+ * <p><strong>Transition status:</strong> REUSE.</p>
+ *
+ * <p>This is the current shared processor baseline and remains aligned with the next
+ * architecture direction. Prefer extending shared processor rules and transforms around
+ * this path instead of adding new scenario-specific processors by default.</p>
+ *
  * @author
  *   ETL Framework Auto-Mapper
  */
@@ -83,6 +90,7 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 
 	private static final Logger logger = LoggerFactory.getLogger(DefaultDynamicProcessor.class);
 	private final ValidationRuleEvaluator validationRuleEvaluator;
+	private final TransformEvaluator transformEvaluator;
 	private final FileIngestionRuntimeSupport fileIngestionRuntimeSupport;
 
 	public DefaultDynamicProcessor() {
@@ -90,13 +98,15 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 	}
 
 	private DefaultDynamicProcessor(FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
-		this(new ValidationRuleEvaluator(defaultRules(fileIngestionRuntimeSupport)), fileIngestionRuntimeSupport);
+		this(new ValidationRuleEvaluator(defaultRules(fileIngestionRuntimeSupport)), new TransformEvaluator(), fileIngestionRuntimeSupport);
 	}
 
 	@Autowired
 	public DefaultDynamicProcessor(ValidationRuleEvaluator validationRuleEvaluator,
+	                             TransformEvaluator transformEvaluator,
 	                             FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
 		this.validationRuleEvaluator = validationRuleEvaluator;
+		this.transformEvaluator = transformEvaluator;
 		this.fileIngestionRuntimeSupport = fileIngestionRuntimeSupport;
 	}
 
@@ -164,12 +174,13 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 			return new ValidationAwareDynamicMapping<>(
 					mapping,
 					targetClass,
+					transformEvaluator,
 					validationRuleEvaluator,
 					fileIngestionRuntimeSupport,
 					processorConfig.getRejectHandling() != null && processorConfig.getRejectHandling().isEnabled()
 			);
 		}
-		return new DynamicMapping<>(mapping, targetClass);
+		return new DynamicMapping<>(mapping, targetClass, transformEvaluator);
 	}
 
 	private boolean hasValidationRules(EntityMapping mapping) {

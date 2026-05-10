@@ -1,0 +1,16 @@
+﻿sources:
+  - format: csv
+    sourceName: CustomersCsv
+    filePath: src/main/resources/config-jobs/csv-to-nested-xml/input/customers.csv
+    delimiter: ","
+    fields:
+      - name: id
+        type: String
+      - name: email
+        type: String
+      - name: city
+        type: String
+      - name: country
+        type: String
+
+

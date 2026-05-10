@@ -1,0 +1,10 @@
+packageName: com.etl.generated.job.xmlmodelspike.simple.target
+rootElement: Customers
+recordElement: Customer
+fields:
+  - name: id
+    type: Integer
+  - name: name
+    type: String
+  - name: email
+    type: String

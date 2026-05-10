@@ -1,0 +1,9 @@
+name: xml-build-generation-it
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: xml-build-generation-step
+    source: BuildXmlSource
+    target: BuildXmlTarget
+

@@ -34,6 +34,13 @@ build/
 
 ### Local temporary verification / runtime artifacts ###
 tmp-test-config/
+# Developer-local private job workspace. Keep real bundles, private inputs,
+# and environment-specific values out of Git. Only private-jobs/README.md is
+# intentionally left visible so contributors can discover the pattern.
+/private-jobs/*
+!/private-jobs/README.md
 tmp-sqlserver-connect.txt
 logs/
+src/main/resources/config-jobs/**/output/
+src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/input/*.DTVL
 

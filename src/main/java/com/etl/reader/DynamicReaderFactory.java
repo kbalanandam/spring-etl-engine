@@ -7,11 +7,22 @@ import java.util.stream.Collectors;
 
 import com.etl.config.source.SourceConfig;
 import com.etl.enums.ModelFormat;
+import com.etl.exception.EtlException;
+import com.etl.exception.FactoryException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.stereotype.Component;
 
+/**
+ * Creates reader implementations for configured source formats.
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>This remains the active runtime dispatch seam for reader selection in 1.4.x.
+ * Keep it stable during migration, but avoid growing it into the design center of
+ * the next architecture while generator-first runtime paths are being introduced.</p>
+ */
 @Component
 public class DynamicReaderFactory {
 
@@ -34,15 +45,32 @@ public class DynamicReaderFactory {
 		DynamicReader<?> reader = readers.get(format);
 		if (reader == null) {
 			logger.error("No reader found for format: {}", format);
-			throw new IllegalArgumentException("No reader found for format: " + format);
+			throw new FactoryException("No reader found for format: " + format);
 		}
 		return reader;
 	}
 
 	@SuppressWarnings("unchecked")
 	public <T> ItemReader<T> createReader(SourceConfig config, Class<T> clazz) throws Exception {
+		if (config == null || clazz == null) {
+			throw new FactoryException("Source configuration and target class must not be null when creating a reader.");
+		}
 		ModelFormat format = config.getFormat();
 		DynamicReader<T> reader = (DynamicReader<T>) getReaderByFormat(format);
-		return reader.getReader(config, clazz);
+		try {
+			return reader.getReader(config, clazz);
+		} catch (EtlException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new FactoryException(
+					"Failed to create reader for source '" + defaultName(config == null ? null : config.getSourceName())
+							+ "' using format '" + format + "'.",
+					e
+			);
+		}
+	}
+
+	private String defaultName(String value) {
+		return value == null || value.isBlank() ? "unnamed" : value.trim();
 	}
 }

@@ -6,12 +6,11 @@ import com.etl.enums.ModelFormat;
 import com.etl.writer.DynamicWriter;
 import com.etl.writer.exception.MarshallerException;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.xml.StaxEventItemWriter;
-import org.springframework.core.io.FileSystemResource;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 import org.springframework.stereotype.Component;
 
 import java.io.File;
+import java.nio.file.Path;
 
 @Component("xmlWriter")
 public class XmlDynamicWriter implements DynamicWriter {
@@ -26,15 +25,11 @@ public class XmlDynamicWriter implements DynamicWriter {
 
 		XmlTargetConfig xmlConfig = (XmlTargetConfig) config;
 
-		String path = xmlConfig.getFilePath();
-		if (path.endsWith("/") || new File(path).isDirectory()) {
-			path += config.getTargetName().toLowerCase() + ".xml";
-		}
+		String path = resolveOutputPath(xmlConfig, config);
 		Jaxb2Marshaller marshaller = jaxbMarshaller(clazz);
 		if (clazz.getSimpleName().equals(xmlConfig.getRecordElement())) {
 			// Stream individual record elements for chunk-oriented XML writes.
-			StaxEventItemWriter<Object> writer = new StaxEventItemWriter<>();
-			writer.setResource(new FileSystemResource(path));
+			StagedStaxEventItemWriter<Object> writer = new StagedStaxEventItemWriter<>(path);
 			writer.setRootTagName(xmlConfig.getRootElement());
 			writer.setMarshaller(marshaller);
 			writer.afterPropertiesSet();
@@ -55,6 +50,20 @@ public class XmlDynamicWriter implements DynamicWriter {
 			throw new MarshallerException("Failed to initialize JAXB Marshaller", e);
 		}
 		return marshaller;
+	}
+
+	private String resolveOutputPath(XmlTargetConfig xmlConfig, TargetConfig config) {
+		String configuredPath = xmlConfig.getFilePath();
+		if (configuredPath == null || configuredPath.isBlank()) {
+			return configuredPath;
+		}
+
+		String trimmedPath = configuredPath.trim();
+		if (trimmedPath.endsWith("/") || trimmedPath.endsWith("\\") || new File(trimmedPath).isDirectory()) {
+			return Path.of(trimmedPath, config.getTargetName().toLowerCase() + ".xml")
+					.toString();
+		}
+		return trimmedPath;
 	}
 
 }

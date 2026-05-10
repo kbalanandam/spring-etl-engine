@@ -1,0 +1,19 @@
+packageName: ignored.by.service
+rootElement: Customers
+recordElement: CustomerRecord
+fields:
+  - name: id
+    type: String
+  - name: profile
+    className: Profile
+    fields:
+      - name: email
+        type: String
+  - name: address
+    className: Address
+    fields:
+      - name: city
+        type: String
+      - name: country
+        type: String
+

@@ -1,0 +1,16 @@
+targets:
+  - format: csv
+    targetName: EventsCsv
+    packageName: com.etl.generated.job.xmltocsvevents.target
+    filePath: output/events-output.csv
+    delimiter: ","
+    fields:
+      - name: eventCode
+        type: String
+      - name: eventTime
+        type: String
+      - name: description
+        type: String
+      - name: sourceSystem
+        type: String
+

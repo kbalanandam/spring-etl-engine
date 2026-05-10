@@ -1,0 +1,9 @@
+name: xml-nested-tag-validation
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: nested-tag-validation-step
+    source: TagValidationSource
+    target: TagValidationExport
+

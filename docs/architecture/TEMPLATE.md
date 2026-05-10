@@ -3,6 +3,13 @@
 ## Purpose
 Explain why this topic exists and what problem it solves.
 
+## Status
+- Classification: **<Current runtime | Current baseline + future evolution | Future direction>**
+- Use one of these standard sentences:
+  - `The Mermaid diagrams in this document describe the shipped runtime baseline.`
+  - `The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.`
+  - `The Mermaid diagrams in this document describe the preferred future direction, not a shipped runtime path today.`
+
 ## Scope
 List what is included in this document and what is intentionally out of scope.
 
@@ -10,6 +17,12 @@ List what is included in this document and what is intentionally out of scope.
 Describe the current architecture or business need that makes this topic relevant.
 
 ## Flow
+Use one short lead-in sentence immediately above the Mermaid block, for example:
+
+- `This diagram shows the shipped runtime path for this area.`
+- `Read this as current baseline + future evolution for this area.`
+- `Future-only, not shipped today: this diagram shows the intended target shape.`
+
 ```mermaid
 flowchart TD
     A[Start] --> B[Key step]

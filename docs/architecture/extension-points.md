@@ -4,6 +4,11 @@
 
 This document explains where new capabilities should be added so the architecture stays coherent as the product grows.
 
+## Status
+
+- Classification: **Current baseline + future evolution**
+- The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.
+
 ## Current extension model
 
 The engine is designed around three runtime extension points:
@@ -14,11 +19,11 @@ The engine is designed around three runtime extension points:
 
 These are selected dynamically based on config.
 
-Validation and field-level processing behavior are now implemented or planned as additional extension points on the active runtime path:
+Validation and field-level processing behavior now use both shipped and planned extension points around the active runtime path:
 
-- source-level validation extensions for source artifact / source contract checks
+- shipped source-level validation extensions for source artifact / source contract checks
 - future source-level transform extensions for source-native adaptation before normal runtime records exist
-- processor-rule validation extensions for record acceptance / rejection checks
+- shipped processor-rule validation extensions for record acceptance / rejection checks
 - processor-transform extensions for record cleaning / normalization before validation and write
 
 ## Current code anchors
@@ -33,6 +38,8 @@ Validation and field-level processing behavior are now implemented or planned as
 - Source validation dispatch: `src/main/java/com/etl/config/source/validation/SourceValidationService.java`
 - Processor rule SPI: `src/main/java/com/etl/processor/validation/ProcessorValidationRule.java`
 - Processor rule dispatch: `src/main/java/com/etl/processor/validation/ValidationRuleEvaluator.java`
+- Current built-in source validators: `CsvSourceValidator`, `XmlSourceValidator`, `RelationalSourceValidator`
+- Current built-in processor rules: `NotNullProcessorValidationRule`, `TimeFormatProcessorValidationRule`, `DuplicateProcessorValidationRule`
 - Planned processor transform extension point: keep it adjacent to `src/main/java/com/etl/config/processor/ProcessorConfig.java`, `src/main/java/com/etl/processor/impl/DefaultDynamicProcessor.java`, and the mapping path under `src/main/java/com/etl/mapping/`
 
 ## How to add a new source/target format
@@ -78,6 +85,7 @@ Use the most shared layer that can express the behavior correctly.
 - default home: processor transforms for field-scoped cleanup such as `1 -> Success`, `USA -> US`, null fallback, trim, case normalization, and similar business/value rewrites
 - reserved future home: source transforms only when the logic depends on source-native structure, parsing, selectors, or pre-flattening context such as XPath, namespaces, raw header/token cleanup, or other source-shape adaptation
 - processor rules remain the only place for accept/reject decisions
+- runtime-loaded allow-list/reference-set checks such as agency-code membership validation also belong to processor rules, not source validation
 
 Planned runtime precedence should stay explicit:
 
@@ -89,6 +97,8 @@ Planned runtime precedence should stay explicit:
 6. write accepted output / rejected-record output
 
 That means transform-then-reject is a valid and expected flow. For example, a country code may be normalized to `UNKNOWN` first and then rejected by a processor rule.
+
+Today, the shipped runtime already implements steps 1, 3, 5, and 6 on the active path. Steps 2 and 4 remain the intended future transform-extension seams.
 
 ## Config guardrails
 
@@ -143,6 +153,8 @@ Do not force stored procedures entirely into source/target classes. Treat them a
 
 ## Recommended future extension points
 
+Read this as current baseline + future evolution for how new runtime seams should be added.
+
 ```mermaid
 flowchart LR
     A[Config subtype] --> B[Factory registration]
@@ -164,6 +176,7 @@ flowchart LR
 - relational reader/writer support
 - stored procedure tasklet / reader / writer support
 - additional source validators and processor rules described in [`validation-extension-architecture.md`](validation-extension-architecture.md)
+- reference-set validation and later lookup/enrichment growth described in [`reference-set-validation-and-enrichment.md`](reference-set-validation-and-enrichment.md)
 - field transforms / normalization cleaners such as value mapping and code standardization
 - multi-job flow configuration
 - dialect abstraction for platform-specific SQL behavior

@@ -2,9 +2,12 @@ package com.etl.common.util;
 
 import com.etl.config.ColumnConfig;
 import com.etl.config.source.CsvSourceConfig;
+import com.etl.config.source.RelationalSourceConfig;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.target.CsvTargetConfig;
+import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.XmlTargetConfig;
+import com.etl.config.relational.RelationalConnectionConfig;
 import com.etl.model.target.Customer;
 import com.etl.model.target.Customers;
 import jakarta.xml.bind.annotation.XmlRootElement;
@@ -13,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -117,11 +121,82 @@ class GeneratedModelClassResolverTest {
         assertNull(metadata.getWrapperFieldName());
     }
 
+    @Test
+    void validatesGeneratedClassPresenceForNonXmlTargets() {
+        CsvTargetConfig config = new CsvTargetConfig(
+                "Customer",
+                "com.etl.model.target",
+                List.of(column("id", "int")),
+                "target/customer.csv",
+                ","
+        );
+
+        assertDoesNotThrow(() -> GeneratedModelClassResolver.requireTargetModelClassesAvailable(config));
+    }
+
+    @Test
+    void validatesGeneratedClassPresenceForNonXmlSources() {
+        CsvSourceConfig csvSourceConfig = new CsvSourceConfig(
+                "Customers",
+                "com.etl.model.source",
+                List.of(column("id", "int")),
+                "target/customers.csv",
+                ","
+        );
+
+        assertDoesNotThrow(() -> GeneratedModelClassResolver.requireSourceModelClassesAvailable(csvSourceConfig));
+    }
+
+    @Test
+    void validatesGeneratedClassPresenceForRelationalTargets() {
+        RelationalTargetConfig config = new RelationalTargetConfig(
+                "CustomersSql",
+                "com.etl.model.target",
+                List.of(column("id", "int")),
+                relationalConnection(),
+                "Customers",
+                "dbo",
+                "insert",
+                100
+        );
+
+        assertDoesNotThrow(() -> GeneratedModelClassResolver.requireTargetModelClassesAvailable(config));
+    }
+
+    @Test
+    void validatesGeneratedClassPresenceForRelationalSources() {
+        RelationalSourceConfig config = new RelationalSourceConfig(
+                "Customers",
+                "com.etl.model.source",
+                List.of(column("id", "int")),
+                relationalConnection(),
+                "Customers",
+                "dbo",
+                null,
+                null,
+                null,
+                null
+        );
+
+        assertDoesNotThrow(() -> GeneratedModelClassResolver.requireSourceModelClassesAvailable(config));
+    }
+
     private static ColumnConfig column(String name, String type) {
         ColumnConfig column = new ColumnConfig();
         column.setName(name);
         column.setType(type);
         return column;
+    }
+
+    private static RelationalConnectionConfig relationalConnection() {
+        RelationalConnectionConfig connection = new RelationalConnectionConfig();
+        connection.setVendor("sqlserver");
+        connection.setJdbcUrl("jdbc:sqlserver://localhost:1433;databaseName=test");
+        connection.setSchema("dbo");
+        connection.setUsername("user");
+        connection.setPassword("password");
+        connection.setDriverClassName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+        return connection;
     }
 }
 

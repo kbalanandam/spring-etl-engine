@@ -1,9 +1,11 @@
 package com.etl.runtime;
 
 import com.etl.common.util.ReflectionUtils;
+import com.etl.config.source.FileArchiveConfig;
+import com.etl.config.source.FileSourceConfig;
 import com.etl.config.processor.ProcessorConfig;
-import com.etl.config.source.CsvSourceConfig;
 import com.etl.config.source.SourceConfig;
+import com.etl.exception.RuntimeEtlException;
 import com.etl.processor.validation.ValidationIssue;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
@@ -28,14 +30,20 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Provides step-scoped runtime support for file-ingestion hardening concerns.
  *
- * <p>This component manages reject-file output, keep-first duplicate key tracking, and
- * success-only CSV source archiving for the active Spring Batch step. It also exposes execution
+	 * <p>This component manages reject-file output, keep-first duplicate key tracking, and
+	 * success-only file-source archiving for the active Spring Batch step. It also exposes execution
  * context keys used by listeners and reporting code to publish reject counts, reject output paths,
  * and archived source paths.</p>
  *
  * <p>Duplicate tracking in this class is the lightweight keep-first path used when a
  * {@code duplicate} rule does not request ordered winner selection. Ordered duplicate winner
  * selection uses separate duplicate resolver implementations.</p>
+ *
+ * <p><strong>Transition status:</strong> REUSE.</p>
+ *
+ * <p>This remains a shared runtime support component for reject handling, duplicate support,
+ * and file-ingestion hardening concerns. Reuse it where possible instead of copying these
+ * behaviors into job-specific flows.</p>
  */
 @Component
 public class FileIngestionRuntimeSupport {
@@ -83,7 +91,7 @@ public class FileIngestionRuntimeSupport {
 			stepExecution.getExecutionContext().putInt(REJECTED_COUNT_KEY, currentRejectedCount + 1);
 			return true;
 		} catch (IOException e) {
-			throw new IllegalStateException("Failed to write reject output for step '" + stepExecution.getStepName() + "'.", e);
+			throw new RuntimeEtlException("Failed to write reject output for step '" + stepExecution.getStepName() + "'.", e);
 		}
 	}
 
@@ -94,12 +102,12 @@ public class FileIngestionRuntimeSupport {
 			try {
 				rejectFileState.close();
 			} catch (IOException e) {
-				throw new IllegalStateException("Failed to close reject output for step '" + stepExecution.getStepName() + "'.", e);
+				throw new RuntimeEtlException("Failed to close reject output for step '" + stepExecution.getStepName() + "'.", e);
 			}
 		}
 
-		if (ExitStatus.COMPLETED.equals(stepExecution.getExitStatus()) && sourceConfig instanceof CsvSourceConfig csvSourceConfig) {
-			archiveSourceIfConfigured(stepExecution, csvSourceConfig);
+		if (ExitStatus.COMPLETED.equals(stepExecution.getExitStatus()) && sourceConfig instanceof FileSourceConfig fileSourceConfig) {
+			archiveSourceIfConfigured(stepExecution, fileSourceConfig);
 		}
 
 		return stepExecution.getExitStatus();
@@ -132,13 +140,13 @@ public class FileIngestionRuntimeSupport {
 		return !seenValues.add(normalizedValue);
 	}
 
-	private void archiveSourceIfConfigured(StepExecution stepExecution, CsvSourceConfig csvSourceConfig) {
-		CsvSourceConfig.ArchiveConfig archiveConfig = csvSourceConfig.getArchive();
+	private void archiveSourceIfConfigured(StepExecution stepExecution, FileSourceConfig fileSourceConfig) {
+		FileArchiveConfig archiveConfig = fileSourceConfig.getArchiveConfig();
 		if (archiveConfig == null || !archiveConfig.isEnabled()) {
 			return;
 		}
 
-		Path sourcePath = Path.of(csvSourceConfig.getFilePath());
+		Path sourcePath = Path.of(fileSourceConfig.getFilePath());
 		Path archiveDirectory = Path.of(archiveConfig.getSuccessPath());
 		String originalName = sourcePath.getFileName().toString();
 		String namePattern = archiveConfig.getNamePattern() == null || archiveConfig.getNamePattern().isBlank()
@@ -154,7 +162,7 @@ public class FileIngestionRuntimeSupport {
 			Files.move(sourcePath, archivedPath, StandardCopyOption.REPLACE_EXISTING);
 			stepExecution.getExecutionContext().putString(ARCHIVED_SOURCE_PATH_KEY, archivedPath.toString());
 		} catch (IOException e) {
-			throw new IllegalStateException("Failed to archive source file '" + sourcePath + "' for step '" + stepExecution.getStepName() + "'.", e);
+			throw new RuntimeEtlException("Failed to archive source file '" + sourcePath + "' for step '" + stepExecution.getStepName() + "'.", e);
 		}
 	}
 

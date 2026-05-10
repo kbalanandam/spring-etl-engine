@@ -1,6 +1,7 @@
 package com.etl.runner;
 
 import com.etl.config.RunConfigurationMetadata;
+import com.etl.exception.EtlExceptionDetails;
 import com.etl.logging.RunLoggingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,12 @@ import java.util.Date;
  * EtlJobRunner is responsible for executing the ETL job when the application
  * starts. It implements CommandLineRunner to run the job with specific
  * parameters.
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>Keep this class as the current launch entry while the next runtime path is
+ * introduced, but avoid building long-term architecture decisions directly into it.
+ * Prefer delegating future launch behavior to new generation-first runtime components.</p>
  */
 @Component
 public class EtlJobRunner implements CommandLineRunner {
@@ -52,6 +59,9 @@ public class EtlJobRunner implements CommandLineRunner {
 				.addString("scenario", runConfigurationMetadata.scenarioName())
 				.addString("scenarioLogKey", scenarioLogKey)
 				.addString("jobConfigPath", defaultString(runConfigurationMetadata.jobConfigPath()))
+				.addString("mainFlow", defaultString(runConfigurationMetadata.mainFlowName()))
+				.addString("subFlow", defaultString(runConfigurationMetadata.subFlowName()))
+				.addString("recoveryPolicy", runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue())
 				.addString("runCorrelationId", runCorrelationId)
 				.addString("runMode", runMode)
 				.toJobParameters();
@@ -61,21 +71,45 @@ public class EtlJobRunner implements CommandLineRunner {
 		RunLoggingContext.put(RunLoggingContext.RUN_CORRELATION_ID, runCorrelationId);
 		RunLoggingContext.put(RunLoggingContext.RUN_MODE, runMode);
 		RunLoggingContext.put(RunLoggingContext.JOB_CONFIG_PATH, defaultString(runConfigurationMetadata.jobConfigPath()));
+		RunLoggingContext.put(RunLoggingContext.MAIN_FLOW, defaultString(runConfigurationMetadata.mainFlowName()));
+		RunLoggingContext.put(RunLoggingContext.SUB_FLOW, defaultString(runConfigurationMetadata.subFlowName()));
+		RunLoggingContext.put(RunLoggingContext.RECOVERY_POLICY,
+				runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue());
 
         try {
-	            logger.info("RUN_EVENT event=run_requested scenario={} runMode={} jobConfigPath={} plannedStepCount={} plannedSteps={}",
+	            logger.info("RUN_EVENT event=run_requested scenario={} mainFlow={} subFlow={} recoveryPolicy={} runMode={} jobConfigPath={} plannedStepCount={} plannedSteps={}",
 	                    runConfigurationMetadata.scenarioName(),
+	                    defaultString(runConfigurationMetadata.mainFlowName()),
+	                    defaultString(runConfigurationMetadata.subFlowName()),
+	                    runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
 	                    runMode,
 	                    defaultString(runConfigurationMetadata.jobConfigPath()),
 	                    runConfigurationMetadata.steps().size(),
 	                    formatPlannedSteps(runConfigurationMetadata.steps()));
             jobLauncher.run(etlJob, jobParameters);
-	            logger.info("RUN_EVENT event=run_finished scenario={} runMode={} plannedStepCount={}",
+	            logger.info("RUN_EVENT event=run_finished scenario={} mainFlow={} subFlow={} recoveryPolicy={} runMode={} plannedStepCount={}",
 	                    runConfigurationMetadata.scenarioName(),
+	                    defaultString(runConfigurationMetadata.mainFlowName()),
+	                    defaultString(runConfigurationMetadata.subFlowName()),
+	                    runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
 	                    runMode,
 	                    runConfigurationMetadata.steps().size());
         } catch (Exception e) {
-            throw new JobExecutionException("ETL Job failed for date: " + jobParameters.getDate("runDate"), e);
+	            logger.error("RUN_EVENT event=run_failed scenario={} mainFlow={} subFlow={} recoveryPolicy={} runMode={} failureCategory={} exceptionType={} rootCause={}",
+	                    runConfigurationMetadata.scenarioName(),
+	                    defaultString(runConfigurationMetadata.mainFlowName()),
+	                    defaultString(runConfigurationMetadata.subFlowName()),
+	                    runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+	                    runMode,
+	                    EtlExceptionDetails.categoryValueOf(e),
+	                    EtlExceptionDetails.exceptionType(e),
+	                    EtlExceptionDetails.rootCauseMessage(e),
+	                    e);
+	            throw new JobExecutionException(
+	                    "ETL job launch failed failureCategory=" + EtlExceptionDetails.categoryValueOf(e)
+	                            + " runDate=" + jobParameters.getDate("runDate"),
+	                    e
+	            );
 		} finally {
 			RunLoggingContext.clearAll();
         }

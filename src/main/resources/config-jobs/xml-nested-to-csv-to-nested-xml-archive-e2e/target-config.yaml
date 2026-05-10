@@ -1,0 +1,33 @@
+targets:
+  - format: csv
+    targetName: TagValidationCsvIntermediate
+    packageName: com.etl.generated.job.xmlnestedcsvroundtrip.target
+    filePath: output/intermediate/tag-validation-intermediate.csv
+    delimiter: ","
+    includeHeader: true
+    fields:
+      - name: homeAgencyId
+        type: String
+      - name: tagAgencyId
+        type: String
+      - name: tagSerialNumber
+        type: String
+      - name: plateNumber
+        type: String
+      - name: plateCountry
+        type: String
+      - name: plateState
+        type: String
+      - name: accountNumber
+        type: String
+  - format: xml
+    targetName: TagValidationNestedXml
+    packageName: com.etl.generated.job.xmlnestedcsvroundtrip.target
+    filePath: output/tag-validation-roundtrip.xml
+    rootElement: TagValidationExports
+    recordElement: TagValidationExport
+    fields:
+      - name: homeAgencyId
+        type: String
+    modelDefinitionPath: definitions/nested-target-model.yaml
+

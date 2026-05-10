@@ -1,4 +1,4 @@
-# Relational Target Config
+﻿# Relational Target Config
 
 ## Purpose
 
@@ -26,7 +26,7 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `relational` |
 | `targetName` | yes | string | Logical target name used in processor mapping lookup |
-| `packageName` | yes | string | Package used for generated target model naming |
+| `packageName` | no in explicit job mode; otherwise yes | string | Package used for generated target model naming. When omitted for an explicit `job-config.yaml` run, the runtime and build-time generation path derive `com.etl.generated.job.<normalized-job-name>.target` |
 | `schema` | no | string | Optional schema override, e.g. `dbo` |
 | `table` | yes | string | Target table name |
 | `writeMode` | no | string | Currently only `insert` is supported |
@@ -56,13 +56,13 @@ Backed by:
 
 ## Recommended example
 
-This shape mirrors the preserved SQL Server target bundles under `src/main/resources/config-scenarios/csv-to-sqlserver/target-config.yaml` and `src/main/resources/config-scenarios/relational-to-relational/target-config.yaml`.
+This shape mirrors the preserved SQL Server target bundles under `src/main/resources/config-jobs/csv-to-sqlserver/target-config.yaml` and `src/main/resources/config-jobs/relational-to-relational/target-config.yaml`.
 
 ```yaml
 targets:
   - format: relational
     targetName: CustomersSql
-    packageName: com.etl.model.target
+    packageName: com.etl.generated.job.csvtosqlserver.target
     schema: dbo
     table: Customers
     writeMode: insert
@@ -82,6 +82,29 @@ targets:
       - name: email
         type: String
 ```
+
+## Example walkthrough
+
+Read the example in target-contract order:
+
+- `targets:` is the required root for target config files.
+- `format: relational` selects the JDBC writer path.
+- `targetName` is the logical identity matched by processor mappings and job steps.
+- `packageName` is the generated target model package; in explicit job mode it may be omitted to use the job-scoped default package.
+- `schema` optionally overrides the database schema for the target table.
+- `table` is the relational table written by the step.
+- `writeMode: insert` selects the only shipped relational write mode today.
+- `batchSize` is the intended relational write-grouping hint.
+- `connection` groups the JDBC settings for this target.
+- `connection.vendor` selects the relational dialect family.
+- `connection.jdbcUrl` is the preferred explicit connection string.
+- `connection.schema` is the connection-level schema fallback when top-level `schema` is omitted.
+- `connection.username`, `connection.password`, and `connection.driverClassName` provide the remaining JDBC details.
+- `fields` lists the target object properties and database columns written in phase 1.
+- `fields[].name` is both the generated target property name and the current assumed database column name.
+- `fields[].type` is the logical type stored in the generated target model contract.
+
+This example intentionally uses placeholder SQL Server values because committed preserved bundles should remain safe templates. Replace those placeholders in private bundles or runtime overrides before execution.
 
 ## Runtime behavior today
 
@@ -119,6 +142,7 @@ Phase-1 relational target support is intentionally narrow.
 ## Validation / usage notes
 
 - `targetName` must match `processor.mappings[].target`.
+- In explicit job mode, `packageName` may be omitted and defaults to `com.etl.generated.job.<normalized-job-name>.target`.
 - Use explicit `jdbcUrl` for the first live test when possible.
 - Keep DB column names aligned with configured field names during phase 1.
 - Keep credentials out of committed real environment configs where possible; use placeholders in committed scenario YAMLs.
@@ -128,12 +152,13 @@ Phase-1 relational target support is intentionally narrow.
 
 ## Preserved examples
 
-- `src/main/resources/config-scenarios/csv-to-sqlserver/target-config.yaml`
-- `src/main/resources/config-scenarios/relational-to-relational/target-config.yaml`
+- `src/main/resources/config-jobs/csv-to-sqlserver/target-config.yaml`
+- `src/main/resources/config-jobs/relational-to-relational/target-config.yaml`
 
 ## Related docs
 
-- [`../source/csv-source.md`](../source/csv-source.md)
-- [`../processor/default-processor.md`](../processor/default-processor.md)
-- [`../../architecture/relational-db-support.md`](../../architecture/relational-db-support.md)
+- [`CSV source reference`](../source/csv-source.md)
+- [`Default processor reference`](../processor/default-processor.md)
+- [`Relational DB support`](../../architecture/relational-db-support.md)
+
 

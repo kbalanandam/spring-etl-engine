@@ -1,0 +1,25 @@
+packageName: ignored.by.runtime.bundle
+rootElement: TagValidationExports
+recordElement: TagValidationExport
+fields:
+  - name: homeAgencyId
+    type: String
+  - name: tagAgencyId
+    type: String
+  - name: tagSerialNumber
+    type: String
+  - name: plateDetails
+    className: PlateDetails
+    fields:
+      - name: plateNumber
+        type: String
+      - name: plateCountry
+        type: String
+      - name: plateState
+        type: String
+  - name: accountDetails
+    className: AccountDetails
+    fields:
+      - name: accountNumber
+        type: String
+

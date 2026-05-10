@@ -1,4 +1,4 @@
-# Relational Source Config
+﻿# Relational Source Config
 
 ## Purpose
 
@@ -28,7 +28,7 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `relational` |
 | `sourceName` | yes | string | Logical source name used in processor mapping lookup |
-| `packageName` | yes | string | Package used for generated source model naming |
+| `packageName` | no in explicit job mode; otherwise yes | string | Package used for generated source model naming. When omitted for an explicit `job-config.yaml` run, the runtime and build-time generation path derive `com.etl.generated.job.<normalized-job-name>.source` |
 | `table` | conditional | string | Source table name when reading directly from a table |
 | `schema` | no | string | Optional schema override |
 | `query` | conditional | string | Explicit select query instead of table read |
@@ -62,13 +62,13 @@ Backed by:
 
 ### Table source
 
-This shape mirrors the preserved relational source bundle under `src/main/resources/config-scenarios/relational-to-relational/source-config.yaml`.
+This shape mirrors the preserved relational source bundle under `src/main/resources/config-jobs/relational-to-relational/source-config.yaml`.
 
 ```yaml
 sources:
   - format: relational
     sourceName: Customers
-    packageName: com.etl.model.source
+    packageName: com.etl.generated.job.relationaltorelational.source
     table: Customers
     schema: dbo
     fetchSize: 500
@@ -87,13 +87,30 @@ sources:
         type: String
 ```
 
+#### Table source walkthrough
+
+- `sources:` is the required root for source config bundles.
+- `format: relational` selects the JDBC reader path.
+- `sourceName` is the logical identity matched by processor mappings and job steps.
+- `packageName` is the generated source model package; in explicit job mode it may be omitted to use the job-scoped default package.
+- `table` chooses direct table-based reads.
+- `schema` optionally overrides the schema for that table.
+- `fetchSize` provides a JDBC streaming hint for larger reads.
+- `connection` groups the database connection settings.
+- `connection.vendor` selects the relational dialect family.
+- `connection.jdbcUrl` is the preferred fully explicit connection string.
+- `connection.username`, `connection.password`, and `connection.driverClassName` provide the remaining JDBC details.
+- `fields` lists the columns selected into the generated source model.
+- `fields[].name` is both the current source column name and the generated property name in phase 1.
+- `fields[].type` is the logical type used by the generated model contract.
+
 ### Query source
 
 ```yaml
 sources:
   - format: relational
     sourceName: Customers
-    packageName: com.etl.model.source
+    packageName: com.etl.generated.job.relationaltorelational.source
     query: SELECT id, name, email FROM dbo.Customers WHERE active = 1
     countQuery: SELECT COUNT(*) FROM dbo.Customers WHERE active = 1
     fetchSize: 500
@@ -112,6 +129,13 @@ sources:
         type: String
 ```
 
+#### Query source walkthrough
+
+- `query` replaces `table` when the source must be expressed as a custom SQL select.
+- `countQuery` is optional but recommended when the runtime should know the source count for step planning and reporting.
+- The remaining fields keep the same meaning as the table example above.
+- In phase 1, keep selected SQL column names aligned with `fields[].name` because the shipped relational source contract still assumes field name == selected column name.
+
 ## Runtime behavior today
 
 - Exactly one of `table` or `query` must be provided.
@@ -122,6 +146,7 @@ sources:
 - Field names are currently treated as both:
   - source column names
   - generated source model property names
+- For explicit job-config runs, `packageName` may be omitted and defaults to scenario/job-scoped generated classes such as `com.etl.generated.job.<normalized-job-name>.source`.
 
 ## Current limitations
 
@@ -153,12 +178,13 @@ sources:
 
 ## Preserved examples
 
-- `src/main/resources/config-scenarios/relational-to-relational/source-config.yaml`
+- `src/main/resources/config-jobs/relational-to-relational/source-config.yaml`
 
 ## Related docs
 
-- [`csv-source.md`](csv-source.md)
-- [`../target/relational-target.md`](../target/relational-target.md)
-- [`../../architecture/relational-db-support.md`](../../architecture/relational-db-support.md)
+- [`CSV source reference`](csv-source.md)
+- [`Relational target reference`](../target/relational-target.md)
+- [`Relational DB support`](../../architecture/relational-db-support.md)
+
 
 

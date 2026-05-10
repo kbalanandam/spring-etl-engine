@@ -1,6 +1,7 @@
 package com.etl.config.processor;
 
 import java.util.List;
+import java.util.Map;
 
 public class ProcessorConfig {
 
@@ -69,6 +70,7 @@ public class ProcessorConfig {
 
 		private String from;
 		private String to;
+		private List<FieldTransform> transforms;
 		private List<FieldRule> rules;
 
 		public String getFrom() {
@@ -87,12 +89,69 @@ public class ProcessorConfig {
 			this.to = to;
 		}
 
+		public List<FieldTransform> getTransforms() {
+			return transforms;
+		}
+
+		public void setTransforms(List<FieldTransform> transforms) {
+			this.transforms = transforms;
+		}
+
 		public List<FieldRule> getRules() {
 			return rules;
 		}
 
 		public void setRules(List<FieldRule> rules) {
 			this.rules = rules;
+		}
+	}
+
+	public static class FieldTransform {
+
+		private String type;
+		private String expression;
+		private Map<String, Object> mappings;
+		private Object defaultValue;
+		private Boolean caseSensitive;
+
+		public String getType() {
+			return type;
+		}
+
+		public void setType(String type) {
+			this.type = type;
+		}
+
+		public String getExpression() {
+			return expression;
+		}
+
+		public void setExpression(String expression) {
+			this.expression = expression;
+		}
+
+		public Map<String, Object> getMappings() {
+			return mappings;
+		}
+
+		public void setMappings(Map<String, Object> mappings) {
+			this.mappings = mappings;
+		}
+
+		public Object getDefaultValue() {
+			return defaultValue;
+		}
+
+		public void setDefaultValue(Object defaultValue) {
+			this.defaultValue = defaultValue;
+		}
+
+		public Boolean getCaseSensitive() {
+			return caseSensitive;
+		}
+
+		public void setCaseSensitive(Boolean caseSensitive) {
+			this.caseSensitive = caseSensitive;
 		}
 	}
 
@@ -130,6 +189,7 @@ public class ProcessorConfig {
 	public static class FieldRule {
 
 		private String type;
+		private String onFailure;
 		private String pattern;
 		private List<String> keyFields;
 		private List<OrderByField> orderBy;
@@ -140,6 +200,14 @@ public class ProcessorConfig {
 
 		public void setType(String type) {
 			this.type = type;
+		}
+
+		public String getOnFailure() {
+			return onFailure;
+		}
+
+		public void setOnFailure(String onFailure) {
+			this.onFailure = onFailure;
 		}
 
 		public String getPattern() {

@@ -6,6 +6,7 @@ import com.etl.config.relational.RelationalConnectionConfig;
 import com.etl.config.relational.RelationalDataSourceFactory;
 import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
+import com.etl.exception.RelationalException;
 import com.etl.enums.ModelFormat;
 import com.etl.relational.dialect.DatabaseDialect;
 import com.etl.relational.dialect.DatabaseDialectResolver;
@@ -29,27 +30,36 @@ public class RelationalDynamicWriter implements DynamicWriter {
 
     @Override
     public ItemWriter<Object> getWriter(TargetConfig config, Class<?> clazz) throws Exception {
-        RelationalTargetConfig relationalConfig = (RelationalTargetConfig) config;
-        relationalConfig.validate();
+        try {
+            RelationalTargetConfig relationalConfig = (RelationalTargetConfig) config;
+            relationalConfig.validate();
 
-        RelationalConnectionConfig connection = relationalConfig.getConnection();
-        DatabaseDialect dialect = DatabaseDialectResolver.resolve(connection.getResolvedVendor());
-        DataSource dataSource = RelationalDataSourceFactory.buildDataSource(connection);
+            RelationalConnectionConfig connection = relationalConfig.getConnection();
+            DatabaseDialect dialect = DatabaseDialectResolver.resolve(connection.getResolvedVendor());
+            DataSource dataSource = RelationalDataSourceFactory.buildDataSource(connection);
 
-        JdbcBatchItemWriter<Object> writer = new JdbcBatchItemWriterBuilder<Object>()
-                .dataSource(dataSource)
-                .sql(buildInsertSql(relationalConfig, dialect))
-                .itemSqlParameterSourceProvider(item -> {
-                    MapSqlParameterSource params = new MapSqlParameterSource();
-                    for (FieldDefinition field : relationalConfig.getFields()) {
-                        params.addValue(field.getName(), ReflectionUtils.getFieldValue(item, field.getName()));
-                    }
-                    return params;
-                })
-                .assertUpdates(false)
-                .build();
-        writer.afterPropertiesSet();
-        return writer;
+            JdbcBatchItemWriter<Object> writer = new JdbcBatchItemWriterBuilder<Object>()
+                    .dataSource(dataSource)
+                    .sql(buildInsertSql(relationalConfig, dialect))
+                    .itemSqlParameterSourceProvider(item -> {
+                        MapSqlParameterSource params = new MapSqlParameterSource();
+                        for (FieldDefinition field : relationalConfig.getFields()) {
+                            params.addValue(field.getName(), ReflectionUtils.getFieldValue(item, field.getName()));
+                        }
+                        return params;
+                    })
+                    .assertUpdates(false)
+                    .build();
+            writer.afterPropertiesSet();
+            return writer;
+        } catch (RelationalException e) {
+            throw e;
+        } catch (IllegalArgumentException e) {
+            throw new RelationalException("Invalid relational target configuration: " + e.getMessage(), e);
+        } catch (Exception e) {
+            throw new RelationalException("Failed to initialize relational writer for target '"
+                    + (config == null ? "unnamed" : config.getTargetName()) + "'.", e);
+        }
     }
 
 

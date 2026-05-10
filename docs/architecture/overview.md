@@ -4,6 +4,11 @@
 
 This document captures the current architectural baseline of `spring-etl-engine` so new features can evolve from a shared understanding.
 
+## Status
+
+- Classification: **Current runtime**
+- The Mermaid diagrams in this document describe the shipped runtime baseline.
+
 ## Current architectural style
 
 The engine is a **config-driven Spring Batch ETL runtime** with these core ideas:
@@ -12,10 +17,15 @@ The engine is a **config-driven Spring Batch ETL runtime** with these core ideas
 - one ETL run may be selected through a single business-scenario `job-config.yaml`
 - supported formats are represented as config subtypes
 - readers, processors, and writers are selected through factories
-- model classes are generated and resolved dynamically at runtime
-- the batch layer chooses between chunk and tasklet execution based on source size
+- source validation and processor-rule validation run on the active runtime path
+- generated model classes remain a central runtime contract, with explicit job runs resolving pre-generated/job-scoped model classes while legacy runtime generation is retained only as a bridge path
+- the batch layer chooses between chunk and tasklet execution based on source size, with explicit tasklet override for ordered duplicate winner selection
+
+For the target next-direction runtime contract, where one selected scenario becomes the only normal execution boundary, continue in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
 
 ## High-level view
+
+This diagram shows the shipped runtime path at a high level.
 
 ```mermaid
 flowchart TD
@@ -27,13 +37,16 @@ flowchart TD
     F -- No --> S[startup failure]
     F -- Yes --> H[direct source/target/processor paths]
 
-    E --> G[BatchConfig]
-    H --> G
+    E --> V[Source + target + processor validation]
+    H --> V
+
+    V --> G[BatchConfig]
 
     G --> I[GeneratedModelClassResolver]
     G --> J[DynamicReaderFactory]
     G --> K[DynamicProcessorFactory]
     G --> L[DynamicWriterFactory]
+    G --> W[Step logging + file-ingestion listeners]
 
     J --> M[Reader implementation]
     K --> N[Processor implementation]
@@ -65,12 +78,18 @@ Spring Boot starts the app, builds the context, and launches the ETL job through
 
 `BatchConfig` constructs the job from the selected config set and dynamically builds steps from the explicit `steps` declared in `job-config.yaml`. Each configured step resolves its named source and target, validates that a processor mapping exists, and then chooses chunk or tasklet execution depending on the record count threshold.
 
+When ordered duplicate winner selection is configured for a mapping, `BatchConfig` overrides normal chunk selection and uses tasklet execution so the final retained records can be resolved before the write phase.
+
 ### Dynamic extension points
 - `src/main/java/com/etl/reader/DynamicReaderFactory.java`
 - `src/main/java/com/etl/processor/DynamicProcessorFactory.java`
 - `src/main/java/com/etl/writer/DynamicWriterFactory.java`
+- `src/main/java/com/etl/config/source/validation/SourceValidationService.java`
+- `src/main/java/com/etl/processor/validation/ValidationRuleEvaluator.java`
 
 These factories isolate format-specific behavior and make the runtime extensible.
+
+The active source-validation and processor-rule SPIs extend that runtime without creating a separate legacy validation path.
 
 ### Dynamic model contract
 - `src/main/java/com/etl/common/util/GeneratedModelClassResolver.java`
@@ -83,9 +102,11 @@ This is the central contract between configuration, generated model classes, pro
 - explicit business-scenario selection without scenario auto-discovery
 - strict startup behavior with no implicit production fallback
 - fail-fast validation for placeholder relational connection settings in selected scenarios
+- fail-fast source validation for CSV, XML, and relational source contracts on the active startup path
 - pluggable reader/processor/writer model
 - dynamic support for multiple source and target formats
 - adaptive execution model for smaller vs larger workloads
+- machine-readable run and step lifecycle logging with reject/archive evidence on the active step path
 - repeatable local verification reporting with categorized Markdown evidence output
 - good base for future relational, API, or procedure-based extensions
 
@@ -102,6 +123,7 @@ This is the central contract between configuration, generated model classes, pro
 
 The next architecture topics that should extend this baseline rather than bypass it are:
 
+- code-transition classification from the current `1.4.x` baseline into `REUSE`, `BRIDGE`, `LEGACY`, and `REMOVE` buckets, captured in [`1-4-to-next-architecture-classification.md`](1-4-to-next-architecture-classification.md)
 - relational-source and relational-target hardening for larger data volumes
 - stored procedure execution as a first-class step type
 - multi-step and multi-job orchestration

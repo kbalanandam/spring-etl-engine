@@ -1,0 +1,37 @@
+type: default
+mappings:
+  - source: TagValidationSource
+    target: TagValidationCsvIntermediate
+    fields:
+      - from: HomeAgencyID
+        to: homeAgencyId
+      - from: TagAgencyID
+        to: tagAgencyId
+      - from: TagSerialNumber
+        to: tagSerialNumber
+      - from: TVLPlateDetails.PlateNumber
+        to: plateNumber
+      - from: TVLPlateDetails.PlateCountry
+        to: plateCountry
+      - from: TVLPlateDetails.PlateState
+        to: plateState
+      - from: TVLAccountDetails.AccountNumber
+        to: accountNumber
+  - source: TagValidationCsvIntermediate
+    target: TagValidationNestedXml
+    fields:
+      - from: homeAgencyId
+        to: homeAgencyId
+      - from: tagAgencyId
+        to: tagAgencyId
+      - from: tagSerialNumber
+        to: tagSerialNumber
+      - from: plateNumber
+        to: plateDetails.plateNumber
+      - from: plateCountry
+        to: plateDetails.plateCountry
+      - from: plateState
+        to: plateDetails.plateState
+      - from: accountNumber
+        to: accountDetails.accountNumber
+

@@ -1,0 +1,16 @@
+packageName: ignored.by.maven.profile
+rootElement: TagValidationList
+recordElement: TVLTagDetails
+fields:
+  - name: HomeAgencyID
+    type: String
+  - name: TagAgencyID
+    type: String
+  - name: TVLPlateDetails
+    className: TVLPlateDetails
+    fields:
+      - name: PlateCountry
+        type: String
+      - name: PlateState
+        type: String
+

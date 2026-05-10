@@ -4,6 +4,11 @@
 
 This note defines the target extension architecture for future validation growth in `spring-etl-engine`.
 
+## Status
+
+- Classification: **Current baseline + future evolution**
+- The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.
+
 Use it to answer four questions before adding more validations:
 
 1. where source-level validation should plug into the runtime
@@ -23,8 +28,10 @@ Today the active runtime already has two validation-related paths:
 The current shipped first slice supports:
 
 - CSV-focused processor field rules (`notNull`, `timeFormat`, and `duplicate` with single-field, composite-key, or ordered winner-selection behavior)
+- source-validation SPI dispatch for CSV, XML, and relational source validation concerns
+- optional source-file rejection on validation failure through `validation.onFailure=rejectFile`
 - rejected-record output through `processor-config.yaml`
-- archive-on-success through CSV source config
+- archive-on-success through the shared file-source config contract for file-backed sources such as CSV and XML
 
 The legacy standalone validation framework under `src/main/java/com/etl/validation/` and `src/main/resources/validation-config.yaml` is deprecated and is not part of the active runtime path.
 
@@ -44,6 +51,7 @@ Future validation needs will expand in two different directions:
    - field rules such as `notNull`, `timeFormat`
    - future `regex`
    - future range and cross-field rules
+   - future database-backed allow-list/reference-set checks such as agency-code validation
    - future conditional and enrichment-aware validation
 
 Those are different extension points.
@@ -115,6 +123,7 @@ Examples:
 - future `regex`
 - future range / cross-field checks
 - future conditional business rules
+- future reference-set membership checks against runtime-loaded allowed values such as agency codes from a relational query
 
 For XML specifically, record-level rules should continue only after the selected source passes source validation. That means future XML duplicate handling, `notNull`, `timeFormat`, and similar business rules should stay in the processor-rule extension point, not inside XML/XSD source validation.
 
@@ -252,6 +261,8 @@ This proposal does **not** mean:
 
 ## Runtime view
 
+Read this as current baseline + future evolution for the validation and transform-extension path.
+
 ```mermaid
 flowchart TD
     A[Selected source config] --> B[Source validation SPI]
@@ -278,8 +289,9 @@ Future contributors should follow this rule:
 
 ## Related docs
 
-- [`extension-points.md`](extension-points.md)
-- [`file-ingestion-hardening.md`](file-ingestion-hardening.md)
-- [`runtime-flow.md`](runtime-flow.md)
-- [`../config/processor/default-processor.md`](../config/processor/default-processor.md)
+- [`Extension points`](extension-points.md)
+- [`File ingestion hardening`](file-ingestion-hardening.md)
+- [`Reference-set validation and enrichment`](reference-set-validation-and-enrichment.md)
+- [`Runtime flow`](runtime-flow.md)
+- [`Default processor reference`](../config/processor/default-processor.md)
 

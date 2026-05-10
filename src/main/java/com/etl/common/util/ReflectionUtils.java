@@ -10,21 +10,6 @@ public final class ReflectionUtils {
 
     private ReflectionUtils() {}
 
-
-    /**
-     * Recursively find a field in the class + its superclasses.
-     */
- /*   private static Field findField(Class<?> clazz, String name) {
-        while (clazz != null && clazz != Object.class) {
-            try {
-                return clazz.getDeclaredField(name);
-            } catch (NoSuchFieldException ignored) {
-                clazz = clazz.getSuperclass();
-            }
-        }
-        return null;
-    } */
-
     /**
      * Create an instance of the given class.
      * If it's a Map, returns a HashMap.
@@ -47,6 +32,9 @@ public final class ReflectionUtils {
      */
     public static Object getFieldValue(Object obj, String fieldPath) {
         try {
+            if (obj instanceof Map<?, ?> map) {
+                return getMapValue(map, fieldPath);
+            }
             String[] parts = fieldPath.split("\\.");
             Object current = obj;
             for (String part : parts) {
@@ -59,6 +47,25 @@ public final class ReflectionUtils {
         } catch (Exception e) {
             throw new ReflectionAccessException("Failed to get field value: " + fieldPath, e);
         }
+    }
+
+    private static Object getMapValue(Map<?, ?> map, String fieldPath) {
+        if (map.containsKey(fieldPath)) {
+            return map.get(fieldPath);
+        }
+
+        String[] parts = fieldPath.split("\\.");
+        Object current = map;
+        for (String part : parts) {
+            if (!(current instanceof Map<?, ?> currentMap)) {
+                return null;
+            }
+            current = currentMap.get(part);
+            if (current == null) {
+                return null;
+            }
+        }
+        return current;
     }
 
     /**

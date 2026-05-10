@@ -12,6 +12,9 @@ public final class RunLoggingContext {
 	public static final String RUN_CORRELATION_ID = "runCorrelationId";
 	public static final String RUN_MODE = "runMode";
 	public static final String JOB_CONFIG_PATH = "jobConfigPath";
+	public static final String MAIN_FLOW = "mainFlow";
+	public static final String SUB_FLOW = "subFlow";
+	public static final String RECOVERY_POLICY = "recoveryPolicy";
 	public static final String JOB_NAME = "jobName";
 	public static final String JOB_EXECUTION_ID = "jobExecutionId";
 	public static final String STEP_NAME = "stepName";
@@ -42,6 +45,9 @@ public final class RunLoggingContext {
 		MDC.remove(RUN_CORRELATION_ID);
 		MDC.remove(RUN_MODE);
 		MDC.remove(JOB_CONFIG_PATH);
+		MDC.remove(MAIN_FLOW);
+		MDC.remove(SUB_FLOW);
+		MDC.remove(RECOVERY_POLICY);
 		clearJobScope();
 	}
 }

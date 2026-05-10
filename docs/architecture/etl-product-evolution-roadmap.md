@@ -4,9 +4,16 @@
 
 This document captures the intended product direction for `spring-etl-engine` so future design and implementation decisions can be evaluated in the right context.
 
+## Status
+
+- Classification: **Current baseline + future evolution**
+- The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.
+
 Use this note to answer three questions before starting or expanding a feature: what phase of product maturity are we in, does this feature belong in that phase, and are we introducing too much platform complexity too early. It is a direction-and-phases guide, not the execution backlog and not a connector-specific implementation spec.
 
 The product is currently in an ETL-first phase. The near-term goal is to make each supported source and target type operational, reliable, and consistent while becoming the default internal runtime for repeatable file-based integration scenarios. The longer-term goal is to evolve the product toward an enterprise integration foundation and, later, a secure enterprise integration mediation platform.
+
+The preferred next runtime contract for that evolution is documented in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md): one selected scenario should remain the only normal execution boundary, while scale policy, UI views, and richer transformation growth stay layered on top of that contract rather than creating a second runtime model.
 
 This note exists to prevent two common problems:
 
@@ -50,6 +57,8 @@ Today, the product is primarily focused on:
 The broader product vision is larger than ETL alone. Over time, the product may evolve from a config-driven ETL product into an enterprise integration foundation and then a controlled integration abstraction layer between enterprise systems and external third parties.
 
 ## Flow
+
+Read this as current baseline + future evolution for the product roadmap.
 
 ```mermaid
 flowchart LR

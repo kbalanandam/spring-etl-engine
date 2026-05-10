@@ -1,5 +1,8 @@
 package com.etl.config;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
@@ -14,9 +17,16 @@ import com.etl.processor.DynamicProcessorFactory;
 import com.etl.reader.DynamicReaderFactory;
 import com.etl.runtime.DuplicateResolverFactory;
 import com.etl.runtime.FileIngestionRuntimeSupport;
+import com.etl.runtime.job.JobConfigPaths;
+import com.etl.runtime.job.JobRecoveryPolicy;
+import com.etl.runtime.job.JobRunMode;
+import com.etl.runtime.job.JobRuntimeDescriptor;
+import com.etl.runtime.job.JobRuntimeDescriptorAssembler;
 import com.etl.writer.DynamicWriterFactory;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.item.ItemProcessor;
@@ -30,14 +40,22 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 class BatchConfigStepOrchestrationTest {
 
+  private final Logger batchConfigLogger = (Logger) LoggerFactory.getLogger(BatchConfig.class);
+
     @TempDir
     Path tempDir;
+
+  @AfterEach
+  void tearDown() {
+    batchConfigLogger.detachAndStopAllAppenders();
+  }
 
     @Test
     void buildStepsUsesExplicitStepOrderInsteadOfSourceTargetPosition() throws Exception {
@@ -57,6 +75,17 @@ class BatchConfigStepOrchestrationTest {
                 mapping("Customers", "Customers"),
                 mapping("Department", "Departments")
         );
+      JobRuntimeDescriptor jobRuntimeDescriptor = jobRuntimeDescriptor(
+        "cust-dept-load",
+        sourceWrapper,
+        targetWrapper,
+        processorConfig,
+        List.of(
+            step("departments-step", "Department", "Departments"),
+            step("customers-step", "Customers", "Customers")
+        )
+    );
+    ListAppender<ILoggingEvent> appender = attachAppender();
 
         BatchConfig batchConfig = new BatchConfig(
                 sourceWrapper,
@@ -73,11 +102,15 @@ class BatchConfigStepOrchestrationTest {
                         "cust-dept-load",
                         tempDir.resolve("job-config.yaml").toString(),
                         false,
+                        "cust-dept-load-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
                         List.of(
                                 step("departments-step", "Department", "Departments"),
                                 step("customers-step", "Customers", "Customers")
                         )
                         ),
+            jobRuntimeDescriptor,
                         new FileIngestionRuntimeSupport(),
                         new DuplicateResolverFactory()
         );
@@ -85,6 +118,11 @@ class BatchConfigStepOrchestrationTest {
         List<Step> steps = batchConfig.buildSteps();
 
         assertEquals(List.of("departments-step", "customers-step"), steps.stream().map(Step::getName).toList());
+    assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_PLAN event=step_plan")
+        && event.getFormattedMessage().contains("stepName=customers-step")
+        && event.getFormattedMessage().contains("subFlow=customers-step-subflow")
+        && event.getFormattedMessage().contains("dependsOnSubFlows=departments-step-subflow")
+        && event.getFormattedMessage().contains("upstreamSteps=departments-step")));
     }
 
     @Test
@@ -112,6 +150,9 @@ class BatchConfigStepOrchestrationTest {
                         "customer-load",
                         tempDir.resolve("job-config.yaml").toString(),
                         false,
+                        "customer-load-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
                         List.of(step("customers-step", "Customers", "Customers"))
                         ),
                         new FileIngestionRuntimeSupport(),
@@ -189,6 +230,32 @@ class BatchConfigStepOrchestrationTest {
         when(processorFactory.getProcessor(any(ProcessorConfig.class), any(SourceConfig.class), any(TargetConfig.class), any())).thenReturn(processor);
         return processorFactory;
     }
+
+  private ListAppender<ILoggingEvent> attachAppender() {
+    batchConfigLogger.detachAndStopAllAppenders();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    batchConfigLogger.addAppender(appender);
+    return appender;
+  }
+
+  private JobRuntimeDescriptor jobRuntimeDescriptor(String scenarioName,
+                                                          SourceWrapper sourceWrapper,
+                                                          TargetWrapper targetWrapper,
+                                                          ProcessorConfig processorConfig,
+                                                          List<JobConfig.JobStepConfig> steps) {
+    JobRuntimeDescriptorAssembler assembler = new JobRuntimeDescriptorAssembler();
+    return assembler.assemble(
+        scenarioName,
+        tempDir.resolve("job-config.yaml").toString(),
+        JobRunMode.EXPLICIT_JOB,
+        new JobConfigPaths("source-config.yaml", "target-config.yaml", "processor-config.yaml"),
+        steps,
+        sourceWrapper,
+        targetWrapper,
+        processorConfig
+    );
+  }
 
     private Path tempCsv(String fileName) throws Exception {
         Path file = tempDir.resolve(fileName);

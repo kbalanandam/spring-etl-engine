@@ -4,6 +4,11 @@
 
 This document preserves a future-state design direction for AI-assisted operational support in `spring-etl-engine`.
 
+## Status
+
+- Classification: **Future direction**
+- The Mermaid diagrams in this document describe the preferred future direction, not a shipped runtime path today.
+
 The intent is not to introduce AI into the current ETL-first phase. The intent is to record how AI could later help operators search job history, inspect retained logs, and understand repeated failures in a safe and evidence-grounded way.
 
 ## Scope
@@ -46,6 +51,8 @@ These are good future capabilities, but they should only be introduced after the
 - standard non-AI search and diagnostics workflows
 
 ## Flow
+
+Future-only, not shipped today: this diagram shows the intended target shape for AI-assisted operator support.
 
 ```mermaid
 flowchart TD

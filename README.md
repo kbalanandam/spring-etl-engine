@@ -31,10 +31,10 @@ From that starting point, the product can continue maturing carefully over time 
 
 - **Explicit orchestration** — one selected `job-config.yaml` defines the source/target/processor set and the exact `steps` execution order for a run.
 - **Validation-aware processing** — the active runtime supports source validation, processor-side field rules, explicit rejected-record output, and archive-on-success for CSV file scenarios.
-- **Planned transform growth** — the next transform slice is documented as optional processor-side `transforms[]` chains for cleanup/normalization before validation rules, with source-transform YAML deferred to source-native cases.
+- **Transform-aware processing** — optional processor-side `transforms[]` chains now support cleanup/normalization plus expression-derived fields before validation rules, while source-transform YAML stays reserved for source-native cases.
 - **Format flexibility** — current runtime paths support CSV, XML, and phase-1 relational sources and targets.
 - **Config-driven extensibility** — dynamic readers, processors, writers, and validation SPIs keep new behavior on the active product path instead of hardcoded one-off flows.
-- **Operational visibility** — machine-readable run and step logging provides scenario-aware execution evidence for operators and verification workflows.
+- **Operational visibility** — machine-readable run, subflow, and step logging provides scenario-aware execution evidence for operators and verification workflows, including blocked-downstream explanations when an upstream subflow fails.
 
 ## Supported flows
 
@@ -81,12 +81,60 @@ The near-term product focus is to make these recurring concerns consistent acros
 - processed-file archive behavior
 - machine-readable run and step evidence
 
+## Current status
+
+### Shipped today
+
+- explicit `job-config.yaml`-driven scenario selection with ordered `steps`
+- CSV, XML, and phase-1 relational source/target paths
+- source validation plus processor-side validation rules
+- processor-side `valueMap` cleanup and `expression`-based derived fields through the active `transforms[]` contract
+- rejected-record output and archive-on-success for the current CSV-focused hardening slice
+- machine-readable run and step evidence for operators and verification
+- descriptor-backed main-flow/subflow planning evidence plus blocked-subflow summaries layered on top of the current flat ordered-step runtime
+
+### Deprecated path
+
+- `src/main/java/com/etl/validation/` and `src/main/resources/validation-config.yaml` are deprecated and are not part of the active runtime path
+
+### Future direction
+
+- broader processor-side transformation maturity beyond the shipped `valueMap` + `expression` transform baseline
+- richer fault tolerance, reconciliation, restartability, scheduling, and transport capabilities
+- deeper relational hardening and enterprise verification/reporting maturity
+
 ## Start here
 
-- **New to the project?** Start with [Quick Start](#quick-start).
-- **Running a real scenario?** Use [Explicit job-config mode](#explicit-job-config-mode).
-- **Exploring the architecture?** See [Architecture Docs](#architecture-docs).
-- **Looking for examples?** Check `src/main/resources/config-scenarios/`.
+Use this table as the recommended reading order by goal:
+
+| Goal | Start here | Then go to |
+|---|---|---|
+| First local run | [Quick Start](#quick-start) | [Run Modes](#run-modes) |
+| Run a real scenario | [Explicit job-config mode](#explicit-job-config-mode) | [`docs/config/job-config.md`](docs/config/job-config.md) |
+| Understand the config model | [`docs/config/README.md`](docs/config/README.md) | [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md) |
+| Explore architecture/runtime flow | [Architecture Docs](#architecture-docs) | [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md) |
+| Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
+| Assess current gaps to the reusable scenario model | [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md) | [`docs/architecture/hierarchical-flow-composition.md`](docs/architecture/hierarchical-flow-composition.md) |
+| See preserved runnable examples | `src/main/resources/config-jobs/` | [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples) |
+| Set up a developer-local private job bundle or collection | [`private-jobs/`](private-jobs/README.md) | [Explicit job-config mode](#explicit-job-config-mode) |
+| Understand what is shipped vs planned | [`docs/README.md`](docs/README.md) | [`docs/product/product-backlog.md`](docs/product/product-backlog.md) |
+
+## Documentation strategy
+
+Use the repository docs in this order:
+
+1. **`README.md`** — product landing page, run modes, and first navigation choices
+2. **`docs/README.md`** — docs portal, core terms, and architecture/product navigation
+3. **`docs/config/README.md`** — current supported config contracts and scenario-reading order
+4. **`src/main/resources/config-jobs/`** — preserved runnable example bundles checked in with the repository
+5. **[`private-jobs/`](private-jobs/README.md)** — repo-root developer-local placeholder area for private job bundles; copy preserved examples into it as needed, keep only the guidance file committed, and keep all real bundles git-ignored
+
+Documentation intent is split deliberately:
+
+- `README.md` explains what the product is and where to start
+- `docs/config/` describes supported contracts **today**
+- `docs/architecture/` explains runtime design, extension seams, and future direction
+- `docs/product/` explains backlog, milestones, and execution priorities
 
 ## Architecture Docs
 
@@ -96,6 +144,9 @@ Start here:
 
 - [`docs/README.md`](docs/README.md)
 - [`docs/architecture/overview.md`](docs/architecture/overview.md)
+- [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md)
+- [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md)
+- [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md)
 - [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md)
 - [`docs/architecture/extension-points.md`](docs/architecture/extension-points.md)
 - [`docs/architecture/transformation-capability-roadmap.md`](docs/architecture/transformation-capability-roadmap.md)
@@ -189,7 +240,14 @@ The referenced paths may be absolute or relative. Relative paths are resolved fr
 
 `job-config.yaml` now also defines the explicit ETL execution order through `steps`. Positional source-target pairing is no longer a supported orchestration contract for explicit job-config runs.
 
-This is the recommended product direction for preserved business scenarios such as:
+This is the recommended product direction for both checked-in reference bundles and private deployable bundles.
+
+Use the bundle root that matches your need:
+
+- `src/main/resources/config-jobs/` for preserved safe examples, docs-aligned proofs, and smoke/reference scenarios
+- `private-jobs/` for developer-local private job collections derived from preserved examples, real input paths, customer-specific values, and pre-production or production-ready test bundles that must not be committed; private bundles now standardize their runnable YAML under a `config/` subfolder
+
+Preserved business-scenario examples include:
 
 - `customer-load`
 - `department-load`
@@ -201,12 +259,30 @@ Run with:
 
 ```powershell
 Set-Location '<repo-root>'
-mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml" spring-boot:run
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml" spring-boot:run
 ```
+
+Private deployable bundle example:
+
+```powershell
+Set-Location '<repo-root>'
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=private-jobs/partner-orders/config/job-config.yaml" spring-boot:run
+```
+
+Grouped private collection example:
+
+```powershell
+Set-Location '<repo-root>'
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=private-jobs/acme-prod/partner-orders-daily/config/job-config.yaml" spring-boot:run
+```
+
+`config-jobs` remains the canonical checked-in preserved-bundle path. `private-jobs` is the preferred developer-local git-ignored area for private bundles that contributors create from those preserved examples, and nothing there except the guidance file should be committed to GitHub. Legacy `config-scenarios/...` path support remains available temporarily for backward compatibility, but it is now deprecated.
 
 In this mode, the app does **not** auto-discover other scenarios or sibling config sets. It only loads the three files referenced by the job config and executes the explicit `steps` in the order declared.
 
 If `etl.config.job` is missing, unreadable, malformed, omits `steps`, or references missing source/target/processor artifacts, startup fails fast.
+
+For explicit `etl.config.job` runs, startup validates the selected source, target, and processor config before step execution begins. Processor config validation now runs before generated-model class checks, so malformed processor mappings or rule settings surface as scenario-aware configuration errors instead of being masked by unrelated generated-model failures.
 
 For relational scenarios selected through `etl.config.job`, startup also validates the chosen source/target connection settings early. Placeholder values such as `<SQLSERVER_HOST>` are rejected before batch execution begins so operators see a scenario-aware configuration error instead of a late JDBC connection failure.
 

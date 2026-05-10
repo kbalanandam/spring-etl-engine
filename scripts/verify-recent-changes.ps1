@@ -1,4 +1,4 @@
-<#
+﻿<#
     Runs a small end-to-end smoke verification after code changes.
 
     What it verifies:
@@ -9,7 +9,7 @@
     Main artifacts:
     - target/verify-customer-load.log
     - target/verify-csv-to-sqlserver.log
-    - target/customers.xml
+    - src/main/resources/config-jobs/customer-load/output/customers.xml
 
     Important behavior:
     - The second scenario is expected to fail.
@@ -22,6 +22,21 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Builds selected scenario-scoped generated classes for one explicit job config.
+function Invoke-ScenarioGeneration {
+    param(
+        [string]$ScenarioName,
+        [string]$JobConfigPath,
+        [string]$CaptureFile
+    )
+
+    & mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=$JobConfigPath" process-classes 2>&1 | Out-File -FilePath $CaptureFile -Encoding utf8 -Append
+    $exitCode = $LASTEXITCODE
+    if ($exitCode -ne 0) {
+        throw "$ScenarioName model generation failed unexpectedly. See $CaptureFile"
+    }
+}
 
 # Runs one Spring Boot scenario, captures its Maven console output, and enforces
 # whether that scenario is expected to succeed or fail.
@@ -41,9 +56,11 @@ function Invoke-MavenScenario {
             Remove-Item $CaptureFile -Force
         }
 
+        Invoke-ScenarioGeneration -ScenarioName $ScenarioName -JobConfigPath $JobConfigPath -CaptureFile $CaptureFile
+
         # Capture the full Maven/Spring Boot console transcript so later checks can
         # validate specific proof points from logs, not just process exit codes.
-        & mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=$jvmArgs" spring-boot:run 2>&1 | Out-File -FilePath $CaptureFile -Encoding utf8
+        & mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=$jvmArgs" spring-boot:run 2>&1 | Out-File -FilePath $CaptureFile -Encoding utf8 -Append
         $exitCode = $LASTEXITCODE
     }
     finally {
@@ -80,27 +97,56 @@ function Assert-FileContains {
     }
 }
 
+function Assert-FileContainsAll {
+    param(
+        [string]$Path,
+        [string[]]$ExpectedTexts,
+        [string]$Message
+    )
+
+    if (-not (Test-Path $Path)) {
+        throw "$Message File not found: $Path"
+    }
+
+    $content = Get-Content -Path $Path -Raw
+    foreach ($expectedText in $ExpectedTexts) {
+        if ($content -notmatch [regex]::Escape($expectedText)) {
+            throw "$Message Expected to find '$expectedText' in $Path"
+        }
+    }
+}
+
 $positiveCapture = Join-Path $RepoRoot 'target\verify-customer-load.log'
 $negativeCapture = Join-Path $RepoRoot 'target\verify-csv-to-sqlserver.log'
-$customerOutput = Join-Path $RepoRoot 'target\customers.xml'
+$customerOutputRoot = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output'
+$customerOutput = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output\customers.xml'
 
 Write-Host "[1/2] Verifying positive smoke run: customer-load"
-if (Test-Path $customerOutput) {
-    Remove-Item $customerOutput -Force
+if (Test-Path (Join-Path $RepoRoot 'targetcustomers.xml')) {
+    Remove-Item (Join-Path $RepoRoot 'targetcustomers.xml') -Force
+}
+if (Test-Path (Join-Path $RepoRoot 'target\customers.xml')) {
+    Remove-Item (Join-Path $RepoRoot 'target\customers.xml') -Force
+}
+Get-ChildItem (Join-Path $RepoRoot 'target\classes\config-jobs') -Recurse -Force -ErrorAction SilentlyContinue |
+    Where-Object { $_.Name -eq 'output' } |
+    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue
+if (Test-Path $customerOutputRoot) {
+    Remove-Item $customerOutputRoot -Recurse -Force
 }
 
 # Positive smoke: prove that one explicit scenario still runs end-to-end,
 # emits the expected run/step events, and writes its target output.
-Invoke-MavenScenario -ScenarioName 'customer-load' -JobConfigPath 'src/main/resources/config-scenarios/customer-load/job-config.yaml' -CaptureFile $positiveCapture -ExpectSuccess $true | Out-Null
+Invoke-MavenScenario -ScenarioName 'customer-load' -JobConfigPath 'src/main/resources/config-jobs/customer-load/job-config.yaml' -CaptureFile $positiveCapture -ExpectSuccess $true | Out-Null
 Assert-FileContains -Path $positiveCapture -ExpectedText 'RUN_SUMMARY event=run_summary scenario=customer-load' -Message 'customer-load did not emit expected run summary.'
 Assert-FileContains -Path $positiveCapture -ExpectedText 'status=COMPLETED' -Message 'customer-load did not complete successfully.'
-Assert-FileContains -Path $positiveCapture -ExpectedText 'STEP_EVENT event=step_finished stepName=customers-step' -Message 'customer-load did not finish the explicit step.'
+Assert-FileContainsAll -Path $positiveCapture -ExpectedTexts @('STEP_EVENT event=step_finished', 'stepName=customers-step') -Message 'customer-load did not finish the explicit step.'
 Assert-FileContains -Path $customerOutput -ExpectedText '<Customers>' -Message 'customer-load did not produce expected XML output.'
 
 Write-Host "[2/2] Verifying fail-fast smoke run: csv-to-sqlserver placeholder validation"
 # Negative smoke: prove that the preserved SQL Server scenario now fails early for
 # placeholder connection values instead of progressing to a late JDBC failure.
-Invoke-MavenScenario -ScenarioName 'csv-to-sqlserver' -JobConfigPath 'src/main/resources/config-scenarios/csv-to-sqlserver/job-config.yaml' -CaptureFile $negativeCapture -ExpectSuccess $false | Out-Null
+Invoke-MavenScenario -ScenarioName 'csv-to-sqlserver' -JobConfigPath 'src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml' -CaptureFile $negativeCapture -ExpectSuccess $false | Out-Null
 Assert-FileContains -Path $negativeCapture -ExpectedText "Invalid relational target configuration for scenario 'csv-to-sqlserver'" -Message 'csv-to-sqlserver did not fail with scenario-aware config validation.'
 Assert-FileContains -Path $negativeCapture -ExpectedText 'placeholder value' -Message 'csv-to-sqlserver did not report placeholder connection details.'
 Assert-FileContains -Path $negativeCapture -ExpectedText 'BUILD FAILURE' -Message 'csv-to-sqlserver did not fail the Maven run as expected.'
@@ -115,6 +161,7 @@ Write-Host "- Positive output: $customerOutput"
 # in the expected way and all smoke assertions passed.
 $global:LASTEXITCODE = 0
 exit 0
+
 
 
 

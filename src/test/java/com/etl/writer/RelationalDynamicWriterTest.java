@@ -3,6 +3,7 @@ package com.etl.writer;
 import com.etl.config.ColumnConfig;
 import com.etl.config.relational.RelationalConnectionConfig;
 import com.etl.config.target.RelationalTargetConfig;
+import com.etl.exception.RelationalException;
 import com.etl.model.target.CustomersSql;
 import com.etl.writer.impl.RelationalDynamicWriter;
 import org.junit.jupiter.api.Test;
@@ -86,13 +87,13 @@ class RelationalDynamicWriterTest {
         config.getConnection().setVendor("sqlserver");
         config.getConnection().setJdbcUrl(null);
 
-        IllegalArgumentException ex = assertThrows(
-                IllegalArgumentException.class,
+        RelationalException ex = assertThrows(
+				RelationalException.class,
                 () -> factory.createWriter(config, CustomersSql.class)
         );
 
         assertEquals(
-                "Relational connection host must be provided when jdbcUrl is not configured.",
+				"Invalid relational target configuration: Relational connection host must be provided when jdbcUrl is not configured.",
                 ex.getMessage()
         );
     }

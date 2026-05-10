@@ -4,6 +4,11 @@
 
 This document captures the main architectural risks that could derail the product roadmap if they are not actively watched.
 
+## Status
+
+- Classification: **Current baseline + future evolution**
+- The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.
+
 It complements `docs/architecture/etl-product-evolution-roadmap.md` by focusing on the most likely failure modes during implementation, connector growth, and future platform evolution.
 
 The goal is not to block delivery. The goal is to help future changes remain:
@@ -42,6 +47,8 @@ At the same time, the product direction leaves room for broader integration and 
 That combination creates a healthy roadmap, but also creates a risk: current decisions may either overfit the present or prematurely overfit the future.
 
 ## Flow
+
+Read this as current baseline + future evolution for architecture review and watchpoints.
 
 ```mermaid
 flowchart TD

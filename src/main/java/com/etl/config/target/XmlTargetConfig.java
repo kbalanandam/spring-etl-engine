@@ -13,6 +13,18 @@ public class XmlTargetConfig extends TargetConfig {
     private final String filePath;
     private final String rootElement;
     private final String recordElement;
+    private final String modelDefinitionPath;
+
+    public XmlTargetConfig(
+            String targetName,
+            String packageName,
+            List<ColumnConfig> fields,
+            String filePath,
+            String rootElement,
+            String recordElement
+    ) {
+        this(targetName, packageName, fields, filePath, rootElement, recordElement, null);
+    }
 
     @JsonCreator
     public XmlTargetConfig(
@@ -21,12 +33,14 @@ public class XmlTargetConfig extends TargetConfig {
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("filePath") String filePath,
             @JsonProperty("rootElement") String rootElement,
-            @JsonProperty("recordElement") String recordElement
+            @JsonProperty("recordElement") String recordElement,
+            @JsonProperty("modelDefinitionPath") String modelDefinitionPath
     ) {
         super(targetName, packageName, fields);
         this.filePath = filePath;
         this.rootElement = rootElement;
         this.recordElement = recordElement;
+        this.modelDefinitionPath = modelDefinitionPath;
     }
 
           public String getFilePath() {
@@ -39,6 +53,10 @@ public class XmlTargetConfig extends TargetConfig {
 
           public String getRecordElement() {
             return recordElement;
+          }
+
+          public String getModelDefinitionPath() {
+            return modelDefinitionPath;
           }
 
     @Override

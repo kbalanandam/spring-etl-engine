@@ -1,0 +1,13 @@
+targets:
+  - format: xml
+    targetName: Departments
+    packageName: com.etl.generated.job.departmentload.target
+    filePath: output/departments.xml
+    rootElement: Departments
+    recordElement: Department
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+

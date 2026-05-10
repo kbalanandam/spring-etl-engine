@@ -12,8 +12,8 @@ public class CsvTargetConfig extends TargetConfig {
 
     private final String filePath;
     private final String delimiter;
+    private final boolean includeHeader;
 
-    @JsonCreator
     public CsvTargetConfig(
             @JsonProperty("targetName") String targetName,
             @JsonProperty("packageName") String packageName,
@@ -21,9 +21,36 @@ public class CsvTargetConfig extends TargetConfig {
             @JsonProperty("filePath") String filePath,
             @JsonProperty("delimiter") String delimiter
     ) {
+        this(targetName, packageName, fields, filePath, delimiter, false);
+    }
+
+    public CsvTargetConfig(
+            String targetName,
+            String packageName,
+            List<ColumnConfig> fields,
+            String filePath,
+            String delimiter,
+            boolean includeHeader
+    ) {
         super(targetName, packageName, fields);
         this.filePath = filePath;
         this.delimiter = delimiter;
+        this.includeHeader = includeHeader;
+    }
+
+    @JsonCreator
+    public CsvTargetConfig(
+            @JsonProperty("targetName") String targetName,
+            @JsonProperty("packageName") String packageName,
+            @JsonProperty("fields") List<ColumnConfig> fields,
+            @JsonProperty("filePath") String filePath,
+            @JsonProperty("delimiter") String delimiter,
+            @JsonProperty("includeHeader") Boolean includeHeader
+    ) {
+        super(targetName, packageName, fields);
+        this.filePath = filePath;
+        this.delimiter = delimiter;
+        this.includeHeader = includeHeader != null && includeHeader;
     }
 
           public String getFilePath() {
@@ -32,6 +59,10 @@ public class CsvTargetConfig extends TargetConfig {
 
           public String getDelimiter() {
             return delimiter;
+          }
+
+          public boolean isIncludeHeader() {
+            return includeHeader;
           }
 
     @Override

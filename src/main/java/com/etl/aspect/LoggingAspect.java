@@ -9,8 +9,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * LoggingAspect provides AOP-based logging for method execution,
- * excluding all getter/setter style methods.
+ * LoggingAspect provides low-noise AOP logging around orchestration methods.
+ *
+ * <p>Generic entry/exit tracing stays at DEBUG so the normal INFO log stream is
+ * reserved for explicit lifecycle markers such as RUN_EVENT, STEP_EVENT,
+ * STEP_PLAN, and RUN_SUMMARY. Hot-path runtime packages are excluded because
+ * per-record interception can generate excessive log volume.</p>
  */
 @Aspect
 @Component
@@ -19,11 +23,19 @@ public class LoggingAspect {
     private static final Logger logger = LoggerFactory.getLogger(LoggingAspect.class);
 
     /**
-     * Pointcut for all public methods in com.etl package,
-     * EXCEPT getter and setter methods (getX(), setX(), isX()).
+     * Pointcut for public orchestration methods in com.etl,
+     * excluding record/data-carrier types, hot-path runtime packages,
+     * and getter/setter style methods.
      */
     @Pointcut("execution(public * com.etl..*(..)) && " +
             "!execution(* com.etl.config.RunConfigurationMetadata.*(..)) && " +
+            "!execution(* com.etl.runtime.job..*(..)) && " +
+            "!execution(* com.etl.reader..*(..)) && " +
+            "!execution(* com.etl.writer..*(..)) && " +
+            "!execution(* com.etl.processor..*(..)) && " +
+            "!execution(* com.etl.mapping..*(..)) && " +
+            "!execution(* com.etl.source..*(..)) && " +
+            "!execution(* com.etl.target..*(..)) && " +
             "!execution(* get*()) && " +
             "!execution(* is*()) && " +
             "!execution(* set*(..))")
@@ -36,21 +48,21 @@ public class LoggingAspect {
         String methodName = joinPoint.getSignature().getName();
         Object[] args = joinPoint.getArgs();
 
-        // ENTRY LOG
-        logger.info("Entering {}.{}() with arguments: {}", className, methodName, args);
+        if (logger.isDebugEnabled()) {
+            logger.debug("Entering {}.{}() with arguments: {}", className, methodName, args);
+        }
 
         long start = System.currentTimeMillis();
         Object result = joinPoint.proceed();
         long duration = System.currentTimeMillis() - start;
 
-        // Determine if slow
         boolean isSlow = duration > SLOW_THRESHOLD_MS;
 
-        String prefix = isSlow ? "SLOW :: " : "";
-
-        // EXIT LOG
-        logger.info("{}Exiting {}.{}(), execution time: {} ms",
-                prefix, className, methodName, duration);
+        if (isSlow) {
+            logger.info("SLOW_CALL class={} method={} executionTimeMs={}", className, methodName, duration);
+        } else if (logger.isDebugEnabled()) {
+            logger.debug("Exiting {}.{}(), execution time: {} ms", className, methodName, duration);
+        }
 
         return result;
     }

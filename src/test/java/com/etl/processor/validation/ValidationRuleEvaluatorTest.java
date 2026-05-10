@@ -59,6 +59,26 @@ class ValidationRuleEvaluatorTest {
             }
           }
 
+            @Test
+            void ignoresNullSingleKeyValuesForDuplicateChecks() {
+              FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+              ValidationRuleEvaluator duplicateEvaluator = new ValidationRuleEvaluator(List.of(
+                  new DuplicateProcessorValidationRule(runtimeSupport)
+              ));
+              ProcessorConfig.EntityMapping duplicateMapping = duplicateOnlyMapping();
+              StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+
+              runtimeSupport.initializeStep(stepExecution, sourceConfig(), new ProcessorConfig(), duplicateMapping);
+              StepSynchronizationManager.register(stepExecution);
+              try {
+                assertTrue(duplicateEvaluator.evaluate(new EventRecord(null, "08:30:00", "missing-id"), duplicateMapping).isEmpty());
+                assertTrue(duplicateEvaluator.evaluate(new EventRecord(null, "09:45:00", "missing-id-again"), duplicateMapping).isEmpty());
+              } finally {
+                StepSynchronizationManager.close();
+                runtimeSupport.completeStep(stepExecution, sourceConfig());
+              }
+            }
+
         @Test
         void returnsIssueForDuplicateCompositeKeyWithinCurrentStep() {
           FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();

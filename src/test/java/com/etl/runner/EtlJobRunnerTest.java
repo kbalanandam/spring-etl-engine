@@ -1,12 +1,16 @@
 package com.etl.runner;
 
+import com.etl.common.util.ConfigBundlePathAliasResolver;
 import com.etl.config.RunConfigurationMetadata;
+import com.etl.exception.FactoryException;
 import com.etl.logging.RunLoggingContext;
+import com.etl.runtime.job.JobRecoveryPolicy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.MDC;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.JobExecutionException;
 import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.launch.JobLauncher;
 
@@ -18,6 +22,9 @@ import java.util.Objects;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -45,6 +52,9 @@ class EtlJobRunnerTest {
                 "Customer Load",
                 CUSTOMER_LOAD_JOB_CONFIG,
                 false,
+                "customer-load-main-flow",
+                "default-subflow",
+                JobRecoveryPolicy.RERUN_FROM_START,
                 List.of(step("customers-step", "Customers", "Customers"))
         );
 
@@ -56,11 +66,41 @@ class EtlJobRunnerTest {
 
         assertEquals("Customer Load", jobParameters.getString("scenario"));
         assertEquals(LocalDate.now() + "/Customer_Load", jobParameters.getString("scenarioLogKey"));
+        assertEquals("customer-load-main-flow", jobParameters.getString("mainFlow"));
+        assertEquals("default-subflow", jobParameters.getString("subFlow"));
+        assertEquals("rerun-from-start", jobParameters.getString("recoveryPolicy"));
         assertEquals("explicit-job", jobParameters.getString("runMode"));
         assertNull(MDC.get(RunLoggingContext.SCENARIO));
         assertNull(MDC.get(RunLoggingContext.SCENARIO_LOG_KEY));
         assertNull(MDC.get(RunLoggingContext.RUN_CORRELATION_ID));
+        assertNull(MDC.get(RunLoggingContext.MAIN_FLOW));
+        assertNull(MDC.get(RunLoggingContext.SUB_FLOW));
+        assertNull(MDC.get(RunLoggingContext.RECOVERY_POLICY));
     }
+
+  @Test
+  void runWrapsLaunchFailuresWithFailureCategory() throws Exception {
+    JobLauncher jobLauncher = mock(JobLauncher.class);
+    Job etlJob = mock(Job.class);
+    FactoryException launchFailure = new FactoryException("reader factory failed");
+    when(jobLauncher.run(eq(etlJob), any(JobParameters.class))).thenThrow(launchFailure);
+
+    RunConfigurationMetadata metadata = new RunConfigurationMetadata(
+        "Customer Load",
+        CUSTOMER_LOAD_JOB_CONFIG,
+        false,
+        "customer-load-main-flow",
+        "default-subflow",
+        JobRecoveryPolicy.RERUN_FROM_START,
+        List.of(step("customers-step", "Customers", "Customers"))
+    );
+
+    EtlJobRunner runner = new EtlJobRunner(jobLauncher, etlJob, metadata);
+    JobExecutionException exception = assertThrows(JobExecutionException.class, runner::run);
+
+    assertTrue(exception.getMessage().contains("failureCategory=factory"));
+    assertSame(launchFailure, exception.getCause());
+  }
 
     private static com.etl.config.job.JobConfig.JobStepConfig step(String name, String source, String target) {
         com.etl.config.job.JobConfig.JobStepConfig step = new com.etl.config.job.JobConfig.JobStepConfig();
@@ -71,7 +111,10 @@ class EtlJobRunnerTest {
     }
 
     private static String customerLoadJobConfigPath() {
-        String resourceName = "config-scenarios/customer-load/job-config.yaml";
+        String resourceName = ConfigBundlePathAliasResolver.resolveExistingResourceName(
+                EtlJobRunnerTest.class.getClassLoader(),
+                "config-jobs/customer-load/job-config.yaml"
+        );
         try {
             return Path.of(Objects.requireNonNull(
                     EtlJobRunnerTest.class.getClassLoader().getResource(resourceName),

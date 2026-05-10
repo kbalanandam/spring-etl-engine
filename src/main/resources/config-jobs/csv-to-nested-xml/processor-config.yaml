@@ -1,0 +1,14 @@
+type: default
+mappings:
+  - source: CustomersCsv
+    target: CustomersNestedXml
+    fields:
+      - from: id
+        to: id
+      - from: email
+        to: profile.email
+      - from: city
+        to: address.city
+      - from: country
+        to: address.country
+

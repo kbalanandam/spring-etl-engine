@@ -1,7 +1,7 @@
 package com.etl.mapping;
 
-import com.etl.common.util.ReflectionUtils;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.processor.transform.TransformEvaluator;
 import org.springframework.batch.item.ItemProcessor;
 /**
  * DynamicMapping is a generic ItemProcessor that performs dynamic field
@@ -20,22 +20,20 @@ public class DynamicMapping<I, O> implements ItemProcessor<I, O> {
 
     private final ProcessorConfig.EntityMapping mapping;
     private final Class<O> targetClass;
+    private final MappedFieldValueResolver mappedFieldValueResolver;
 
     public DynamicMapping(ProcessorConfig.EntityMapping mapping, Class<O> targetClass) {
+        this(mapping, targetClass, new TransformEvaluator());
+    }
+
+    public DynamicMapping(ProcessorConfig.EntityMapping mapping, Class<O> targetClass, TransformEvaluator transformEvaluator) {
         this.mapping = mapping;
         this.targetClass = targetClass;
+        this.mappedFieldValueResolver = new MappedFieldValueResolver(transformEvaluator);
     }
 
     @Override
     public O process(I input) throws Exception {
-        O output = ReflectionUtils.createInstance(targetClass);
-
-        for (ProcessorConfig.FieldMapping fm : mapping.getFields()) {
-
-            Object value = ReflectionUtils.getFieldValue(input, fm.getFrom());
-            ReflectionUtils.setFieldValue(output, fm.getTo(), value);
-        }
-
-        return output;
+        return mappedFieldValueResolver.createOutput(targetClass, mapping, mappedFieldValueResolver.resolve(input, mapping));
     }
 }

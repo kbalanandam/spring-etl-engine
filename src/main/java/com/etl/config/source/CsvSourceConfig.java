@@ -17,13 +17,16 @@ import java.util.List;
  * Holds CSV-specific properties such as file path and delimiter.
  * The format for this config is always "csv".
  */
-public class CsvSourceConfig extends SourceConfig {
+public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
 
     /** Path to the CSV file. */
     private String filePath;
 
     /** Delimiter used in the CSV file. */
     private String delimiter;
+
+  /** Whether the runtime should treat the first CSV line as a header row and skip it. */
+  private boolean skipHeader = true;
 
 	private ArchiveConfig archive;
 
@@ -45,12 +48,25 @@ public class CsvSourceConfig extends SourceConfig {
     this.delimiter = delimiter;
   }
 
+  public boolean isSkipHeader() {
+    return skipHeader;
+  }
+
+  public void setSkipHeader(boolean skipHeader) {
+    this.skipHeader = skipHeader;
+  }
+
   public ArchiveConfig getArchive() {
     return archive;
   }
 
   public void setArchive(ArchiveConfig archive) {
     this.archive = archive;
+  }
+
+  @Override
+  public FileArchiveConfig getArchiveConfig() {
+    return archive;
   }
 
 	public ValidationConfig getValidation() {
@@ -81,9 +97,9 @@ public class CsvSourceConfig extends SourceConfig {
             @JsonProperty("packageName") String packageName,
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("filePath") String filePath,
-            @JsonProperty("delimiter") String delimiter
+      @JsonProperty("delimiter") String delimiter
     ) {
-        this(sourceName, packageName, fields, filePath, delimiter, null);
+    this(sourceName, packageName, fields, filePath, delimiter, null, null, true);
     }
 
     public CsvSourceConfig(
@@ -94,7 +110,7 @@ public class CsvSourceConfig extends SourceConfig {
             String delimiter,
             ArchiveConfig archive
     ) {
-    this(sourceName, packageName, fields, filePath, delimiter, archive, null);
+		this(sourceName, packageName, fields, filePath, delimiter, archive, null, true);
   }
 
   public CsvSourceConfig(
@@ -106,11 +122,25 @@ public class CsvSourceConfig extends SourceConfig {
       ArchiveConfig archive,
       ValidationConfig validation
   ) {
+    this(sourceName, packageName, fields, filePath, delimiter, archive, validation, true);
+  }
+
+  public CsvSourceConfig(
+      String sourceName,
+      String packageName,
+      List<ColumnConfig> fields,
+      String filePath,
+      String delimiter,
+      ArchiveConfig archive,
+      ValidationConfig validation,
+      boolean skipHeader
+  ) {
         super(sourceName, packageName, fields);
         this.filePath = filePath;
         this.delimiter = delimiter;
 		this.archive = archive;
     this.validation = validation;
+    this.skipHeader = skipHeader;
     }
 
     /**
@@ -147,45 +177,19 @@ public class CsvSourceConfig extends SourceConfig {
                 count++;
             }
         }
-        // Optionally subtract 1 if header is present
-        return count > 0 ? count - 1 : 0;
+		return skipHeader && count > 0 ? count - 1 : count;
     }
 
-  public static class ArchiveConfig {
-
-    private boolean enabled;
-    private String successPath;
-    private String namePattern;
-
-    public boolean isEnabled() {
-      return enabled;
-    }
-
-    public void setEnabled(boolean enabled) {
-      this.enabled = enabled;
-    }
-
-    public String getSuccessPath() {
-      return successPath;
-    }
-
-    public void setSuccessPath(String successPath) {
-      this.successPath = successPath;
-    }
-
-    public String getNamePattern() {
-      return namePattern;
-    }
-
-    public void setNamePattern(String namePattern) {
-      this.namePattern = namePattern;
-    }
+  public static class ArchiveConfig extends FileArchiveConfig {
   }
 
   public static class ValidationConfig {
 
     private boolean allowEmpty = true;
     private boolean requireHeaderMatch;
+    private String fileNamePattern;
+    private String onFailure;
+    private String rejectPath;
 
     public boolean isAllowEmpty() {
       return allowEmpty;
@@ -201,6 +205,30 @@ public class CsvSourceConfig extends SourceConfig {
 
     public void setRequireHeaderMatch(boolean requireHeaderMatch) {
       this.requireHeaderMatch = requireHeaderMatch;
+    }
+
+    public String getFileNamePattern() {
+      return fileNamePattern;
+    }
+
+    public void setFileNamePattern(String fileNamePattern) {
+      this.fileNamePattern = fileNamePattern;
+    }
+
+    public String getOnFailure() {
+      return onFailure;
+    }
+
+    public void setOnFailure(String onFailure) {
+      this.onFailure = onFailure;
+    }
+
+    public String getRejectPath() {
+      return rejectPath;
+    }
+
+    public void setRejectPath(String rejectPath) {
+      this.rejectPath = rejectPath;
     }
   }
 }

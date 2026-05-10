@@ -1,0 +1,302 @@
+# Runtime-to-Scenario Gap Assessment
+
+## Purpose
+
+This note assesses the current gap between the shipped runtime and the frozen target direction where reusable jobs and components evolve into scenario-driven execution.
+
+It is intended to answer one practical question:
+
+> how far is the product from treating everything meaningful as a reusable component that can be composed, selected, executed, tracked, and evidenced through one selected scenario?
+
+## Status
+
+- Classification: **Current baseline + future evolution**
+- This note compares the shipped baseline with the frozen target shape documented in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md) and [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md).
+
+## Executive summary
+
+The codebase already has a strong reusable technical substrate, but it does not yet have a full first-class reusable flow composition model.
+
+Today the product is strongest at:
+
+- reusable config contracts
+- reusable readers, processors, and writers
+- reusable validation and duplicate/runtime support
+- explicit scenario selection with ordered multi-step execution
+- run-level and step-level operational evidence
+
+The largest remaining gap is that reuse is still primarily expressed through shared technical seams and explicit step lists rather than through first-class reusable flow, subflow, and component definitions.
+
+## Current state
+
+The shipped runtime currently provides:
+
+- one selected `job-config.yaml` as the normal execution entry point
+- one explicit flat `steps` list as the executable composition baseline
+- strict scenario-aware config validation on the active startup path
+- descriptor-backed scenario assembly through `JobRuntimeDescriptor`
+- early main-flow identity, recovery metadata, and descriptor-level subflow/shared-context registry support, with richer runtime handshake behavior still evolving
+- shared factories for readers, processors, and writers
+- shared source-validation and processor-rule validation seams
+- reusable duplicate/reject/archive runtime support
+- run-level and step-level logs and summary evidence
+
+In practical terms, the shipped baseline is already beyond one-off single-step execution. Multi-step scenarios work today, but they still execute as one explicit flat ordered plan.
+
+## Target state
+
+The frozen target direction is:
+
+- reusable jobs and components remain reusable
+- one selected scenario executes one main flow
+- one main flow may contain multiple reusable subflows
+- each subflow may contain one or more ordered executable steps
+- logging and evidence roll up hierarchically from step to subflow to main flow
+- execution remains explicit and predictable even when the model becomes hierarchical
+
+That is the bounded first implementation slice.
+
+The longer-term direction goes further: reusable flow units should eventually be composable at any level, so a main flow in one composition can later be reused as a subflow in another composition without changing the single-scenario execution boundary.
+
+That means the target is not merely “more steps.”
+
+It is a shift from:
+
+- reusable technical seams plus flat ordered step execution
+
+toward:
+
+- reusable business-flow composition under one scenario-scoped execution model
+
+## Gap by layer
+
+| Layer | Shipped baseline today | Target direction | Current maturity | Main gap |
+|---|---|---|---|---|
+| Scenario selection | One selected `job-config.yaml` already drives normal execution | Scenario remains the explicit execution boundary | Strong | Short-name registry/catalog and richer scenario binding are still future work |
+| Config contracts | Source, target, and processor configs are reusable and stable enough to serve as shared contracts | Config remains reusable, but should bind reusable flows/subflows as well as steps | Strong | No first-class reusable flow/subflow definition model yet |
+| Step composition | Explicit flat ordered `steps` list works today | Steps should remain executable units inside reusable subflows and main flows | Moderate | Flat step list is real, but hierarchy is still only a documented target |
+| Runtime descriptor | `JobRuntimeDescriptor` and assembler already exist | Descriptor should grow to represent main flow, subflows, main-flow shared context, named subflow status/control metadata, explicit blocking/handoff rules, richer links, and hierarchical evidence | Moderate | Descriptor is still essentially step-centric and only beginning to expose main-flow shared-context / handshake metadata |
+| Reader/processor/writer seams | Shared factories already provide strong technical reuse | These should remain the shared execution seams under the richer model | Strong | Main gap is not reuse of seams but composition above them |
+| Validation/runtime support | Source validation, processor rules, duplicate handling, reject/archive support are reusable | These should remain reusable platform concerns at any hierarchy level | Strong | Need cleaner attachment to subflow/main-flow roll-up identity |
+| Model generation and resolution | Job-scoped XML generation is strong; CSV/relational parity is less mature; legacy bridge assumptions remain | Generation/resolution should become fully scenario-scoped and consistent across supported formats | Moderate | Legacy and bridge assumptions still leak into the active architecture |
+| Batch orchestration | `BatchConfig` executes explicit ordered steps successfully | Runtime should assemble from hierarchical reusable composition while staying explicit in execution | Early to moderate | Orchestration still centers on a flat list of executable steps |
+| Observability and evidence | Scenario/run and step-level evidence exists | Main-flow, subflow, and step evidence should roll up uniformly | Early | No first-class subflow/main-flow operational layer yet |
+| Reusable component identity | Reuse exists through config, factories, and shared runtime support | Reuse should become explicit through reusable block/flow/subflow identity | Early | No reusable block catalog/registry/versioning model yet |
+
+## What is already reusable
+
+### Reusable today with good confidence
+
+- `JobConfig`
+- source config contracts
+- target config contracts
+- processor config contracts
+- `DynamicReaderFactory`
+- `DynamicProcessorFactory`
+- `DynamicWriterFactory`
+- source-validation SPI and validators
+- processor-rule validation SPI and rules
+- duplicate resolver/runtime support
+- reject/archive file-ingestion support
+- scenario-aware run and step logging
+
+These form the current reusable technical substrate.
+
+### Reusable today, but still transitional
+
+- `JobRuntimeDescriptor`
+- `JobRuntimeDescriptorAssembler`
+- `ConfigLoader`
+- `BatchConfig`
+- `GeneratedModelClassResolver`
+- current reader and writer implementations where generated-model assumptions still leak through
+
+These are useful and active, but they still sit in the bridge zone between the shipped baseline and the target architecture.
+
+## What is only partially reusable today
+
+The platform already supports multi-step reuse operationally, but not yet as a first-class reusable composition model.
+
+Examples of partial reuse today:
+
+- one processor config can drive multiple steps
+- one scenario can execute multiple ordered steps
+- one scenario can hand off artifacts from one step to another
+- one runtime can reuse the same reader/writer/processor seams across different scenarios
+
+What is missing is the stronger domain model above those technical seams:
+
+- reusable step definitions
+- reusable subflow definitions
+- reusable main-flow definitions
+- explicit reusable component identity and lifecycle
+
+## Major gaps
+
+### 1. No first-class reusable flow-block model
+
+The runtime composes from config and step entries, not from explicit reusable flow-component definitions.
+
+### 2. No first-class main-flow / subflow runtime hierarchy
+
+The hierarchy is now frozen in architecture docs, but it is not yet a true runtime descriptor model.
+
+The longer-term gap is even larger than one fixed hierarchy layer: the runtime does not yet support a reusable flow model where one flow can play either a main-flow or subflow role depending on composition.
+
+### 3. Flat execution is stronger than hierarchical composition
+
+Execution is currently step-based and explicit, which is a good baseline, but it does not yet express reusable grouped flow composition as a first-class concept.
+
+### 4. Observability is not yet hierarchical
+
+Run-level and step-level evidence is real today.
+
+Main-flow and subflow evidence is still future architecture.
+
+### 5. Bridge-era generation assumptions still exist
+
+The codebase now supports build-time and scenario-scoped generation for XML plus selected flat CSV and relational source/target models. Explicit job runs can also derive default source/target package names from the selected `job-config.yaml` identity when `packageName` is omitted, which reduces repeated YAML package declarations. Cleanup is still incomplete because some checked-in bridge classes remain in the handwritten source tree and some preserved bundles still keep explicit package aliases for compatibility.
+
+### 6. No reusable component catalog or identity layer
+
+The system does not yet provide an explicit way to name, version, and reuse flow blocks or subflows across scenarios as first-class assets.
+
+That missing identity layer is also what prevents reuse at any flow level today.
+
+## Current maturity view
+
+The following ratings are directional, not contractual.
+
+| Area | Directional maturity |
+|---|---|
+| Reusable low-level runtime seams | ~70% |
+| Reusable multi-step scenario execution | ~50% |
+| Scenario runtime descriptor foundation | ~45% |
+| Scenario-scoped generation/resolution maturity | ~60% |
+| Reusable flow-block composition model | ~25% |
+| Main-flow / subflow runtime hierarchy | ~15% |
+| Hierarchical logging and evidence | ~20% |
+
+Overall, the architecture is best described as:
+
+> strong reusable substrate, real scenario-driven baseline, incomplete reusable composition model
+
+## Recommended implementation order
+
+### 1. Keep the current baseline stable
+
+Continue to preserve:
+
+- explicit `job-config.yaml`
+- explicit ordered `steps`
+- fail-fast scenario-aware startup
+- shared reader/processor/writer seams
+- scenario-aware run and step evidence
+
+### 2. Grow the runtime descriptor before adding a second orchestration model
+
+Prefer extending the descriptor model to carry:
+
+- main flow identity
+- subflow identity
+- main-flow shared-context and handshake metadata
+- named subflow status/control metadata consumed by later subflows
+- explicit start/block/handoff control descriptors for downstream orchestration
+- richer step grouping and linkage
+- hierarchical evidence metadata
+
+Avoid creating a parallel orchestration contract outside the selected scenario.
+
+### 3. Introduce first-class reusable composition definitions
+
+Add reusable domain-level definitions for:
+
+- flow blocks or steps
+- subflows
+- main flows
+
+Those should be reusable assets selected by scenarios rather than only implicit patterns inside flat config.
+
+Design those definitions so the longer-term model can collapse `main flow` and `subflow` into one reusable `flow` concept with different composition roles.
+
+### 4. Extend observability hierarchically
+
+Add:
+
+- main-flow events and summaries
+- subflow events and summaries
+- step-to-subflow-to-main-flow evidence roll-up
+
+### 5. Finish the scenario-scoped model-generation transition
+
+Keep moving away from:
+
+- legacy generation lifecycle assumptions
+- mixed handwritten/generated source-tree expectations
+- bridge-only runtime naming/layout assumptions
+
+### 6. Add reusable component identity later, after the descriptor model is stable
+
+Only after the descriptor and hierarchy are proven should the product grow a stronger catalog/registry idea for reusable flow components.
+
+That later identity model should support reuse at any flow level rather than only naming one fixed top-level flow class.
+
+## Execution roadmap matrix
+
+Use this matrix to connect the architectural gaps in this note to the current roadmap and backlog language.
+
+| Gap area | Primary execution goal | Likely milestone | Backlog / roadmap alignment | Practical next move |
+|---|---|---|---|---|
+| Flat step composition is stronger than reusable flow composition | Preserve explicit step execution while preparing grouping into richer reusable composition | M2 | Aligns with orchestration clarity under `Epic A` and the ETL-first runtime direction | Extend descriptor metadata first; do not introduce a second orchestration contract |
+| No first-class main-flow / subflow runtime hierarchy | Introduce hierarchical identity without breaking the shipped flat `steps` baseline | M2 | Aligns with the frozen `main flow -> subflow -> step` direction and future orchestration work in `Epic S` | Add main-flow and subflow identity to descriptor and logging model before adding new runtime launch modes |
+| Observability is not yet hierarchical | Roll step evidence up into subflow and main-flow summaries | M2 | Aligns with `Epic C`, `Epic D`, and the job-history / observability direction | Add subflow/main-flow event fields and roll-up summaries on top of existing run/step evidence |
+| No first-class reusable flow-block model | Move from reusable technical seams toward reusable business-flow composition | M2 to M3 | Aligns with the product goal of reusable jobs/components evolving into scenario-driven execution | Define flow-block, subflow, and main-flow definitions after descriptor grouping is stable |
+| No reuse-at-any-level flow identity | Allow one reusable flow to play either a top-level or nested role in different compositions | M3 | Aligns with later orchestration maturity, governance, and reusable-component identity work | Generalize the bounded hierarchy into a reusable flow identity model only after the first slice is proven |
+| Scenario-scoped generation/resolution is still transitional | Finish moving model generation and resolution under the selected scenario | M2 | Aligns with the classification note and scenario-driven runtime direction | Continue replacing bridge-era generation assumptions format by format |
+| No reusable component identity/catalog layer | Add explicit component naming, lifecycle, and reuse boundaries | M3 | Aligns with enterprise governance and product-maturity work rather than the first hierarchy slice | Introduce component identity only after flow/subflow runtime shape is proven |
+| Bridge-era orchestration remains central | Reduce dependence on `ConfigLoader` / `BatchConfig` as the long-term architecture center | M2 to M3 | Aligns with the classification note's `BRIDGE` guidance | Keep bridge classes stable while moving new assembly responsibility into descriptor-driven layers |
+
+Read the sequencing in this order:
+
+1. stabilize and extend the descriptor-driven shape
+2. add hierarchical observability and evidence roll-up
+3. introduce reusable flow/subflow/component definitions
+4. then generalize that bounded hierarchy into reusable flow identity at any composition level
+5. then add stronger identity, catalog, and governance concerns
+
+That order keeps the product aligned with the ETL-first roadmap instead of pulling platform-scale abstraction in too early.
+
+## Guardrail
+
+The gap should be closed without abandoning the current fixed principle:
+
+> reusable jobs and components evolve into scenario-driven execution
+
+That means scenario-driven execution is the explicit runtime context for reusable assets.
+
+It is not the replacement for reuse.
+
+## Conclusion
+
+The product is already well beyond one-off ETL code and already contains a meaningful reusable core.
+
+However, it has not yet reached the point where everything meaningful is a first-class reusable component that can be composed anywhere through a stable flow/subflow model.
+
+The best summary is:
+
+- reusable technical substrate: strong
+- scenario-driven execution baseline: real
+- reusable flow/subflow/component composition: still a substantial gap
+
+## Related docs
+
+- [`overview.md`](overview.md)
+- [`Runtime flow`](runtime-flow.md)
+- [`Scenario-driven runtime direction`](scenario-driven-runtime-direction.md)
+- [`Hierarchical flow composition`](hierarchical-flow-composition.md)
+- [`1.4-to-next architecture classification`](1-4-to-next-architecture-classification.md)
+- [`Extension points`](extension-points.md)
+- [`ETL product evolution roadmap`](etl-product-evolution-roadmap.md)
+- [`Product backlog`](../product/product-backlog.md)
+
+

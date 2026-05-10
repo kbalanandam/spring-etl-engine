@@ -4,6 +4,8 @@ import java.util.Map;
 
 import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.source.SourceConfig;
+import com.etl.exception.EtlException;
+import com.etl.exception.FactoryException;
 import com.etl.processor.exception.NoProcessorFoundException;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
@@ -11,6 +13,15 @@ import org.springframework.stereotype.Component;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.target.TargetConfig;
 
+/**
+ * Creates processor implementations for the active processor type.
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>This remains the current runtime dispatch seam for processor selection in 1.4.x.
+ * Keep it stable during migration, but avoid letting new architecture work depend on
+ * this class as the final processor orchestration model without an explicit design decision.</p>
+ */
 @Component
 public class DynamicProcessorFactory {
 
@@ -36,6 +47,9 @@ public class DynamicProcessorFactory {
 			SourceConfig sourceConfig,
 			TargetConfig targetConfig,
 			ResolvedModelMetadata metadata) throws Exception {
+		if (processorConfig == null) {
+			throw new FactoryException("Processor configuration must not be null when creating a processor.");
+		}
 
 		String type = processorConfig.getType();
 
@@ -45,6 +59,21 @@ public class DynamicProcessorFactory {
 			throw new NoProcessorFoundException("No processor found for type: " + type);
 		}
 
-		return dp.getProcessor(processorConfig, sourceConfig, targetConfig, metadata);
+		try {
+			return dp.getProcessor(processorConfig, sourceConfig, targetConfig, metadata);
+		} catch (EtlException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new FactoryException(
+					"Failed to create processor for type '" + type + "'"
+							+ " source='" + defaultName(sourceConfig == null ? null : sourceConfig.getSourceName()) + "'"
+							+ " target='" + defaultName(targetConfig == null ? null : targetConfig.getTargetName()) + "'.",
+					e
+			);
+		}
+	}
+
+	private String defaultName(String value) {
+		return value == null || value.isBlank() ? "unnamed" : value.trim();
 	}
 }

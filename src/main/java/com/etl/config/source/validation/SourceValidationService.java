@@ -15,6 +15,12 @@ import java.util.List;
  * It iterates through configured sources, invokes validators that support each source type, and
  * wraps validator {@link IllegalArgumentException} failures in scenario-aware {@link ConfigException}
  * messages so operators see which source config failed and why.</p>
+ *
+ * <p><strong>Transition status:</strong> REUSE.</p>
+ *
+ * <p>This remains a valid shared source-validation boundary for the next architecture.
+ * Reuse it for source-native validation concerns instead of moving those checks into
+ * processor rules or job-specific orchestration code.</p>
  */
 @Component
 public class SourceValidationService {

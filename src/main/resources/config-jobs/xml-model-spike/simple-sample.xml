@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Customers>
+  <Customer>
+    <id>1001</id>
+    <name>Alice</name>
+    <email>alice@example.com</email>
+  </Customer>
+</Customers>

@@ -3,6 +3,7 @@ package com.etl.config.source.validation;
 import com.etl.config.ColumnConfig;
 import com.etl.config.exception.ConfigException;
 import com.etl.config.source.CsvSourceConfig;
+import com.etl.config.source.FileArchiveConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.enums.ModelFormat;
@@ -17,6 +18,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SourceValidationServiceTest {
@@ -41,6 +44,27 @@ class SourceValidationServiceTest {
 		ConfigException exception = assertThrows(
 				ConfigException.class,
 				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("archive"));
+		assertTrue(exception.getMessage().contains("successPath"));
+	}
+
+	@Test
+	void failsFastForInvalidXmlArchiveConfigThroughSourceValidationSpi() throws IOException {
+		FileArchiveConfig archive = new FileArchiveConfig();
+		archive.setEnabled(true);
+
+		Path xmlFile = tempDir.resolve("events.xml");
+		Files.writeString(xmlFile, "<Events><Event><id>1</id></Event></Events>");
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		sourceConfig.setArchive(archive);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
 		);
 
 		assertTrue(exception.getMessage().contains("archive"));
@@ -107,6 +131,90 @@ class SourceValidationServiceTest {
 	}
 
 	@Test
+	void rejectsCsvFileWhenHeaderValidationFailsAndOnFailureIsRejectFile() throws IOException {
+		Path csvFile = tempDir.resolve("events-bad-header.csv");
+		Files.writeString(csvFile, "event_id,event_time\nEVT-1,08:30:00\n");
+		Path rejectDir = tempDir.resolve("rejects");
+
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setRequireHeaderMatch(true);
+		validation.setAllowEmpty(false);
+		validation.setOnFailure("rejectFile");
+		validation.setRejectPath(rejectDir.toString());
+
+		CsvSourceConfig sourceConfig = csvSource(csvFile);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("header"));
+		assertTrue(exception.getMessage().contains("moved to reject path"));
+		assertFalse(Files.exists(csvFile));
+		try (var rejectedFiles = Files.list(rejectDir)) {
+			Path rejected = rejectedFiles.findFirst().orElse(null);
+			assertNotNull(rejected);
+			assertTrue(rejected.getFileName().toString().endsWith("events-bad-header.csv"));
+		}
+	}
+
+	@Test
+	void rejectsXmlFileWhenFileNamePatternFailsAndOnFailureIsRejectFile() throws IOException {
+		Path xmlFile = tempDir.resolve("bad-name.xml");
+		Files.writeString(xmlFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<Customers>
+				  <Customer><id>1</id></Customer>
+				</Customers>
+				""");
+		Path rejectDir = tempDir.resolve("xml-rejects");
+
+		XmlSourceConfig.ValidationConfig validation = new XmlSourceConfig.ValidationConfig();
+		validation.setFileNamePattern("^customers-\\d+\\.xml$");
+		validation.setOnFailure("rejectFile");
+		validation.setRejectPath(rejectDir.toString());
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("fileNamePattern"));
+		assertTrue(exception.getMessage().contains("moved to reject path"));
+		assertFalse(Files.exists(xmlFile));
+		try (var rejectedFiles = Files.list(rejectDir)) {
+			Path rejected = rejectedFiles.findFirst().orElse(null);
+			assertNotNull(rejected);
+			assertTrue(rejected.getFileName().toString().endsWith("bad-name.xml"));
+		}
+	}
+
+	@Test
+	void failsFastWhenCsvRejectFileValidationOmitsRejectPath() {
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setFileNamePattern("^events-.*\\.csv$");
+		validation.setOnFailure("rejectFile");
+
+		CsvSourceConfig sourceConfig = csvSource(tempDir.resolve("events.csv"));
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("rejectPath"));
+	}
+
+	@Test
 	void passesWhenCsvValidationHeaderMatchesAndDataExists() throws IOException {
 		Path csvFile = tempDir.resolve("events-valid.csv");
 		Files.writeString(csvFile, "id,eventTime\nEVT-1,08:30:00\n");
@@ -120,6 +228,44 @@ class SourceValidationServiceTest {
 
 		SourceValidationService service = new SourceValidationService();
 		assertDoesNotThrow(() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml")));
+	}
+
+	@Test
+	void passesWhenHeaderlessCsvDisablesHeaderSkipping() throws IOException {
+		Path csvFile = tempDir.resolve("events-no-header.csv");
+		Files.writeString(csvFile, "EVT-1,08:30:00\nEVT-2,09:15:00\n");
+
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setAllowEmpty(false);
+
+		CsvSourceConfig sourceConfig = csvSource(csvFile);
+		sourceConfig.setSkipHeader(false);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		assertDoesNotThrow(() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml")));
+	}
+
+	@Test
+	void failsFastWhenHeaderMatchValidationIsRequestedForHeaderlessCsv() throws IOException {
+		Path csvFile = tempDir.resolve("events-no-header.csv");
+		Files.writeString(csvFile, "EVT-1,08:30:00\n");
+
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setAllowEmpty(false);
+		validation.setRequireHeaderMatch(true);
+
+		CsvSourceConfig sourceConfig = csvSource(csvFile);
+		sourceConfig.setSkipHeader(false);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("skipHeader=true"));
 	}
 
 	@Test

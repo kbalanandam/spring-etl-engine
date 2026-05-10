@@ -11,6 +11,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * Evaluates configured processor-side validation rules for a mapped runtime record.
+ *
+ * <p><strong>Transition status:</strong> REUSE.</p>
+ *
+ * <p>This class is part of the shared processor validation path and remains aligned
+ * with the next architecture direction. Prefer extending validation through the active
+ * processor-rule SPI rather than creating job-specific validation code paths.</p>
+ */
 @Component
 public class ValidationRuleEvaluator {
 
@@ -44,9 +53,10 @@ public class ValidationRuleEvaluator {
 				continue;
 			}
 
-			Object value = ReflectionUtils.getFieldValue(input, fieldMapping.getFrom());
+			String fieldName = resolveEvaluationFieldName(input, fieldMapping);
+			Object value = fieldName == null ? null : ReflectionUtils.getFieldValue(input, fieldName);
 			for (ProcessorConfig.FieldRule rule : fieldMapping.getRules()) {
-				ValidationIssue issue = evaluateRule(input, fieldMapping.getFrom(), value, rule);
+				ValidationIssue issue = evaluateRule(input, fieldName, value, rule);
 				if (issue != null) {
 					issues.add(issue);
 				}
@@ -75,6 +85,20 @@ public class ValidationRuleEvaluator {
 		return resolveRule(rule.getType()).evaluate(input, fieldName, value, rule);
 	}
 
+	private String resolveEvaluationFieldName(Object input, ProcessorConfig.FieldMapping fieldMapping) {
+		String fromField = normalize(fieldMapping == null ? null : fieldMapping.getFrom());
+		String toField = normalize(fieldMapping == null ? null : fieldMapping.getTo());
+		if (input instanceof Map<?, ?> map) {
+			if (fromField != null && map.containsKey(fromField)) {
+				return fromField;
+			}
+			if (toField != null && map.containsKey(toField)) {
+				return toField;
+			}
+		}
+		return fromField != null ? fromField : toField;
+	}
+
 	private ProcessorValidationRule resolveRule(String ruleType) {
 		String normalizedType = normalizeType(ruleType);
 		ProcessorValidationRule rule = rulesByType.get(normalizedType);
@@ -89,6 +113,10 @@ public class ValidationRuleEvaluator {
 			throw new IllegalArgumentException("Validation rule type must not be blank.");
 		}
 		return ruleType.trim();
+	}
+
+	private String normalize(String value) {
+		return value == null || value.isBlank() ? null : value.trim();
 	}
 
 	private static List<ProcessorValidationRule> defaultRules() {

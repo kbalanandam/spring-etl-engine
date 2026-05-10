@@ -20,10 +20,12 @@ Describe what changed and why.
 - [ ] I updated a Mermaid diagram if control flow changed materially
 - [ ] I added or updated an ADR if this PR introduced a meaningful design decision or tradeoff
 - [ ] I reviewed `docs/README.md` for the documentation standard when the change affected architecture
+- [ ] I did not commit developer-local `private-jobs/` contents; only `private-jobs/README.md` is allowed to stay visible in Git
 
 ## Helpful links
 
 - [`docs/README.md`](../docs/README.md)
 - [`docs/architecture/TEMPLATE.md`](../docs/architecture/TEMPLATE.md)
 - [`docs/adr/TEMPLATE.md`](../docs/adr/TEMPLATE.md)
+- [`private-jobs/README.md`](../private-jobs/README.md)
 

@@ -8,7 +8,7 @@ It is the single product roadmap and execution backlog for the product at this s
 
 It is intentionally different from the architecture roadmap:
 
-- `docs/architecture/etl-product-evolution-roadmap.md` explains **direction and phases**
+- [`ETL product evolution roadmap`](../architecture/etl-product-evolution-roadmap.md) explains **direction and phases**
 - this backlog explains **what to do next, why it matters, and how to know when it is done**
 
 Use this file to keep the team aligned when implementation pressure, feature requests, or uncertainty create drift.
@@ -151,6 +151,15 @@ Use the execution board to answer:
 - **Done** — completed to the expected operational level
 - **Deferred** — intentionally postponed to a later milestone
 
+### Board detail pages
+
+The execution board stays intentionally compact. When an item needs fuller context, scope, acceptance criteria, or implementation notes, add a drill-down page under `docs/product/backlog-items/` and link it from the board.
+
+Use this maintenance rule:
+
+- the execution board is the canonical place for changing `Priority`, `Status`, `Milestone`, and `Dependency`
+- the backlog item page is the place for fuller detail, scope, acceptance criteria, and working notes
+
 ---
 
 ## Current Execution Board
@@ -161,45 +170,47 @@ This table is the day-to-day execution view for the current product stage.
 |---|---|---|---|---|---|---|---|
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
-| T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped slice now supports CSV-backed `notNull` and time-format checks plus controlled rejected-record output |
-| T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Ready | M2 | T1 | Add optional ordered `transforms[]` chains in processor mappings, separate from validation rules, starting with value mapping for cases such as `1 -> Success`, `2 -> Fail`, default `Unknown`, and country-code normalization such as `USA -> US`; reserve source-transform YAML for later source-native adaptation cases |
-| T2 | Add expression-based derived field support | Epic T | P1 | Deferred | M2 | T1a | Restore the next explicit transformation step after the first validation/reject slice and first cleaner/normalization slice are stable |
+| [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Ready | M1 | A2 | Future `job-config.yaml isActive` contract should fail fast in `ConfigLoader` with job-aware startup errors; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
+| [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | Ready | M2 | A2 | Establish a single OneFlow-derived naming contract for generated models, add validation guardrails, and bridge away from authored `packageName`; see [`Generated model naming standard`](../architecture/generated-model-naming-standard.md) |
+| T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
+| T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
+| T2 | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
 | T3 | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T2 | Best introduced after expression contract is stable |
-| T4 | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Broaden beyond the first file-based validation slice into richer transformation behavior, including broader quarantine workflows, a future client-selectable memory vs disk duplicate-tracking mode, and deferred XML-native/source-level duplicate identity when flat mapped fields are not sufficient |
-| T5 | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Bridges toward more classic ETL transformation patterns |
+| [T4](backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Follow-on hardening beyond the shipped CSV slice: broader quarantine, selectable duplicate storage mode, and XML-native duplicate identity |
+| [T5](backlog-items/T5-reference-set-validation-and-enrichment-baseline.md) | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Frozen first-slice direction: processor-side DB-backed reference-set validation such as agency-code allow-lists before broader enrichment joins |
+| [T6](backlog-items/T6-shared-default-value-and-placeholder-mapping.md) | Add shared default-value and placeholder mapping baseline | Epic T | P1 | Deferred | M2 | T2 | Capture audit-column defaults, provider-backed system date/date-time filling, job-name/constants, and formula-ready placeholders without repeating the same mapping logic in every job bundle |
 | B1 | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | B2 | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
 | B3 | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
 | C1 | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Done | M1 | none | `RUN_EVENT` / `RUN_SUMMARY` and step lifecycle evidence are now emitted for selected runs |
-| C2 | Capture source count, written count, and rejected count | Epic C | P1 | In Progress | M1 | C1 | Step-finished evidence now includes read/write/filter/skip counts; run-level reconciliation rollup remains to be completed |
-| D1 | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
+| [C2](backlog-items/C2-run-level-count-rollup-and-reconciliation.md) | Complete run-level source / written / rejected count rollup | Epic C | P1 | Done | M1 | C1 | `RUN_SUMMARY` now emits operator-oriented run-level `sourceCount` / `writtenCount` / `rejectedCount`, with intermediate handoff counts kept separate for multi-step jobs |
+| [D1](backlog-items/D1-stable-error-taxonomy-and-categories.md) | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
 | E1 | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
 | E2 | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Ready | M1 | E1 | Important next portability step |
 | F1 | Define restart semantics per execution mode | Epic F | P1 | Deferred | M2 | A1, C1 | Needs clearer orchestration and run evidence first |
-| X1 | Define SFTP transport contract and deployment boundary | Epic X | P1 | Ready | M2 | E1, C1, G1 | Capture staged inbound SFTP scope, optional native-vs-MFT operating modes, and on/off deployment boundaries before implementation |
-| X2 | Add first inbound SFTP staged pull capability | Epic X | P1 | Deferred | M2 | X1, B2, C2 | First operational slice should pull remote files to controlled local staging with operator-visible transfer evidence |
-| X3 | Add remote post-success file handling and failure categorization for SFTP | Epic X | P1 | Deferred | M2 | X2, D1 | Include rename/move/archive semantics only after first inbound pull is stable |
-| X4 | Define partner-facing transport security rules and optional isolated worker deployment | Epic X | P1 | Deferred | M3 | X1, G1 | Preserve the option for external MFT edge products or separate partner-facing transport workers where clients require stronger isolation |
-| S1 | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Deferred | M2 | A1, C1 | Keep scheduler work inside the main product roadmap; establish scope before implementation |
+| [X1](backlog-items/X1-sftp-transport-contract-and-deployment-boundary.md) | Define SFTP transport contract and deployment boundary | Epic X | P1 | Ready | M2 | E1, C1, G1 | Define staged inbound scope, native-vs-MFT modes, and deployment boundaries before implementation |
+| X2 | Add first inbound SFTP staged pull capability | Epic X | P1 | Deferred | M2 | X1, B2, C2 | First slice should stage remote files locally and emit transfer evidence |
+| X3 | Add remote post-success file handling and failure categorization for SFTP | Epic X | P1 | Deferred | M2 | X2, D1 | Add remote move/rename/archive semantics only after the first inbound pull slice is stable |
+| X4 | Define partner-facing transport security rules and optional isolated worker deployment | Epic X | P1 | Deferred | M3 | X1, G1 | Preserve optional external MFT or isolated transport-worker deployment for stronger partner-facing isolation |
+| [S1](backlog-items/S1-schedule-model-and-trigger-contract.md) | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Deferred | M2 | A1, C1 | Keep scheduler work inside the main product roadmap; establish scope before implementation |
 | S2 | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Deferred | M2 | S1 | First practical scheduler slice after run-state and audit direction are clearer |
 | S3 | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
 | G1 | Support secret injection via environment or secure config source | Epic G | P1 | Deferred | M3 | C1 | Important for enterprise readiness, but not first delivery blocker |
-| V1 | Define enterprise verification evidence model and report categories | Epic V | P1 | Done | M3 | C1, C2 | Shared in-memory evidence model and phase-1 report categories are now defined in the report generator and ADRs |
-| V2 | Generate Markdown verification reports from the shared evidence model | Epic V | P1 | Done | M3 | V1 | Categorized Markdown verification reporting now renders from the shared evidence model |
-| V3 | Generate HTML verification reports with drill-down enterprise views | Epic V | P1 | Deferred | M3 | V1, V2 | Add richer navigation, drill-down, and audience-friendly release evidence presentation |
-| V4 | Define verification-report retention, provenance, and release gating rules | Epic V | P2 | Deferred | M3 | V1, V2 | Make verification evidence auditable and suitable for milestone/release decisions |
+| V1 | Define enterprise verification evidence model and report categories | Epic V | P1 | Done | M3 | C1, C2 | Shared evidence model and phase-1 report categories are defined in the report generator and ADRs |
+| V2 | Generate Markdown verification reports from the shared evidence model | Epic V | P1 | Done | M3 | V1 | Markdown reporting now renders from the shared evidence model |
+| [V3](backlog-items/V3-html-verification-reports-with-drill-down-enterprise-views.md) | Generate HTML verification reports with drill-down enterprise views | Epic V | P1 | Deferred | M3 | V1, V2 | Add richer navigation and drill-down from the same evidence model |
+| V4 | Define verification-report retention, provenance, and release gating rules | Epic V | P2 | Deferred | M3 | V1, V2 | Make verification evidence auditable and usable for milestone and release decisions |
 
 ### Current working focus
 
-The intended near-term focus order is:
+Use this section as the near-term sequencing view behind the execution board:
 
-1. `T1a` — processor-side transform SPI and first optional cleaner/normalization slice before broader expression work
-2. `T2` and `T3` — expression-based mapping and then conditional transformation rules after the first transform slice is stable
-3. duplicate-handling follow-on work under `T4` should preserve a client-selectable in-memory vs disk-backed tracking strategy for very large file scenarios while keeping the shipped duplicate rule shared across flat record-oriented sources
-4. `B1`, `B2`, `C2`, and `D1` — controlled skip/retry behavior plus richer counts, reconciliation, and stable error taxonomy
-5. `E2` — packaged-run guidance
-6. `X1` and then `X2` — SFTP transport contract first, then the first inbound staged pull slice for daily file-acquisition scenarios
-7. `V3` and `V4` — enterprise HTML reporting plus retention / release-gating rules
+1. `T3` next, now that expression-derived fields are shipped on the processor transform seam.
+2. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, not a redesign of the shipped duplicate baseline.
+3. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
+4. Keep `E2` as the next portability/documentation step.
+5. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
+6. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -238,9 +249,9 @@ Current proof anchors:
 
 Architecture anchors:
 
-- `docs/architecture/validation-extension-architecture.md`
-- `docs/architecture/file-ingestion-hardening.md`
-- `docs/config/processor/default-processor.md`
+- [`Validation extension architecture`](../architecture/validation-extension-architecture.md)
+- [`File ingestion hardening`](../architecture/file-ingestion-hardening.md)
+- [`Default processor reference`](../config/processor/default-processor.md)
 
 Latest completed implementation step:
 
@@ -282,6 +293,7 @@ These are not “finished forever,” but they represent meaningful product prog
 - [x] Improved path portability across tests and demo defaults
 - [x] Local verification reporting with smoke checks, categorized Markdown output, and retained report history
 - [x] First CSV-based file-ingestion hardening slice with field validation rules, rejected-record output, processed-file archiving, and step-level reject/archive evidence
+- [x] First processor-side transform/cleaner slice with optional ordered `transforms[]` chains and built-in `valueMap` normalization before validation rules
 
 ---
 
@@ -297,14 +309,18 @@ Make each run explicit, predictable, and less fragile.
 ### Backlog
 - [x] Replace positional source-target pairing with explicit step pairing or step definitions
 - [x] Validate scenario completeness before job start
+- [ ] Add job-level activation guardrail so `isActive: false` blocks the selected job before wiring
+- [ ] Standardize generated-model naming and package derivation so explicit jobs no longer depend on authored `packageName`
 - [ ] Add stronger config validation error messages for operators
 - [ ] Make step definitions more business-meaningful and less index-driven
 - [ ] Document supported orchestration patterns and limitations
 
 ### Done criteria
-- no ambiguous source-target pairing remains
-- config errors fail fast with operator-friendly messages
-- step orchestration is documented and test-covered
+- source-to-target pairing is unambiguous
+- config failures are fast, operator-friendly, and test-covered
+- inactive selected jobs fail early and never reach `BatchConfig` step assembly
+- generated-model package/class identity is deterministic from the selected job and logical config names
+- supported step orchestration patterns are documented
 
 ---
 
@@ -322,11 +338,10 @@ Handle bad data and transient failures in a controlled way.
 - [ ] Define fail-fast vs tolerate-and-report rules per scenario type
 
 ### Done criteria
-- operators can tell how invalid rows are handled
-- source-file lifecycle behavior is explicit for processed files
-- failure mode is explicit and testable
-- at least one scenario demonstrates controlled rejection behavior
-- at least one preserved realistic file scenario demonstrates accepted records, rejected records, and archived-original-file behavior together
+- invalid-row handling is explicit to operators
+- processed-source lifecycle behavior is explicit and documented
+- failure-mode choices are scenario-appropriate and testable
+- preserved file scenarios prove accepted, rejected, and archived outcomes together
 
 ---
 
@@ -336,24 +351,22 @@ Handle bad data and transient failures in a controlled way.
 Grow the product from structural field mapping into richer transformation behavior comparable to traditional ETL expectations, but in phased and controlled steps.
 
 ### Backlog
-- [x] Add field-level validation rule support such as `notNull` and time-format checks
-- [ ] Add processor-side field transforms as optional ordered `transforms[]` chains separate from validation rules
-- [ ] Add expression-based derived field support
+- [x] Add field-level validation rule support such as `notNull`, time-format, and first duplicate checks
+- [x] Add processor-side field transforms as optional ordered `transforms[]` chains, starting with built-in `valueMap` cleanup before validation
+- [x] Add expression-based derived field support
 - [ ] Add conditional transformation rule support
 - [x] Add validation-aware transformation behavior
 - [x] Add controlled rejected-record output for invalid records
-- [ ] Define lookup/enrichment processor baseline
+- [ ] Define lookup/enrichment processor baseline; frozen first slice is runtime-loaded reference-set validation for reject/accept checks before broader enrichment work
+- [ ] Add shared default-value mapping for audit columns, constants, and future formula-ready placeholders
 - [ ] Document transformation maturity levels and non-goals
-- [ ] Add guardrails so equivalent generic value rewriting is not configured ambiguously in both source and processor layers once source transforms exist
+- [ ] Add guardrails against ambiguous generic value rewriting across future source and processor layers
 
 ### Done criteria
-- transformation support goes beyond direct `from` → `to` mapping
-- first validation rules are explicit, configurable, and testable in preserved file scenarios
-- first cleaner/normalization transforms are explicit, optional by omission, ordered, and evaluated before validation rules
-- derived fields and conditions are explicit and testable
-- validation/reject behavior is operator-visible
-- at least one preserved realistic file scenario proves the first validation slice before broader expression work expands
-- transformation evolution is documented as part of product direction
+- transformation support extends beyond direct `from` → `to` mapping
+- shipped validation and cleaner slices are explicit, configurable, and testable
+- derived-field and conditional behavior are defined and testable before broader expansion
+- transformation and reject behavior are operator-visible and documented
 
 ---
 
@@ -364,15 +377,15 @@ Make each ETL run auditable beyond raw logs.
 
 ### Backlog
 - [x] Emit a run summary with start/end time, scenario, status, and duration
-- [ ] Capture source count, written count, and rejected count
+- [ ] Complete run-level source / written / rejected count rollup
 - [ ] Define a reconciliation model for input vs output records
 - [ ] Persist or export run summary metadata
 - [ ] Document operational evidence expectations
 
 ### Done criteria
-- every run has a machine-readable summary
-- operators can answer “what happened?” without reading the full log
-- reconciliation expectations are documented
+- every run emits a machine-readable summary
+- operators can reconstruct run outcomes without reading the full log
+- run-level rollup and reconciliation expectations are defined and documented
 
 ---
 
@@ -389,8 +402,8 @@ Make operations support practical for production-like usage.
 - [ ] Add health/readiness guidance for runtime operation
 
 ### Done criteria
-- operational investigation does not depend only on stack traces
-- job history and log evidence can be correlated by run ID and scenario
+- operational investigation does not rely on stack traces alone
+- run evidence and job history are correlatable by run ID and scenario
 - common failure classes are documented and searchable
 
 ---
@@ -408,8 +421,8 @@ Make local, CI, and deployment usage more consistent across environments.
 - [ ] Add smoke checks for packaged runtime paths where practical
 
 ### Done criteria
-- running from IDE, Maven, and packaged jar has clear documented expectations
-- demo mode does not depend on Windows-only assumptions
+- run expectations are documented for IDE, Maven, and packaged jar modes
+- demo and external-runtime behavior are clearly separated
 - scenario execution instructions are portable
 
 ---
@@ -421,17 +434,17 @@ Add a controlled near-term transport capability for repeated file pickup and del
 
 ### Backlog
 - [ ] Define the SFTP transport contract and deployment boundary
-- [ ] Support both external-MFT-managed mode and optional native product SFTP mode in the architecture direction
+- [ ] Support both external-MFT-managed mode and optional native product SFTP mode
 - [ ] Add the first inbound SFTP staged pull slice to land files in a controlled local folder
 - [ ] Emit operator-visible transfer evidence with counts, failure categories, and correlation-friendly logs
-- [ ] Add remote post-success handling such as move/rename/archive only after the first pull slice is stable
+- [ ] Add remote post-success handling such as move/rename/archive after the first pull slice is stable
 - [ ] Document when partner-facing transport should remain isolated behind MFT or a separate worker boundary
 
 ### Done criteria
-- SFTP is documented as a transport/staging capability, not mixed into transformation logic
-- the first supported inbound transfer slice is narrow, explicit, and operationally observable
-- native product SFTP remains optional where external MFT products are client-mandated
-- deployment/on-off scope for partner-facing transport is documented clearly enough for production planning
+- SFTP is treated as transport and staging, not transformation logic
+- the first inbound transfer slice is narrow, explicit, and operationally observable
+- native product SFTP remains optional where external MFT is client-mandated
+- partner-facing deployment boundaries are documented for production planning
 
 ---
 
@@ -452,8 +465,8 @@ Add controlled job-trigger capability as part of the ETL product itself, while k
 ### Done criteria
 - schedules are explicit, testable, and tied to scenario/job execution contracts
 - operators can tell why a scheduled run started, skipped, or was blocked
-- pause/resume and overlap behavior are documented and observable
-- scheduler work remains aligned to the main ETL product roadmap rather than drifting into a separate platform track prematurely
+- pause/resume, overlap, and missed-run behavior are documented and observable
+- scheduler scope stays aligned with the main ETL roadmap
 
 ---
 
@@ -474,9 +487,9 @@ Ensure production-safe reruns and recovery.
 - [ ] Test restart and rerun behavior explicitly
 
 ### Done criteria
-- rerun behavior is predictable and documented
+- rerun behavior is predictable, documented, and test-covered
 - target duplication risk is controlled
-- restartability is not left to operator guesswork
+- restart expectations are explicit to operators
 
 ---
 
@@ -493,9 +506,9 @@ Make runtime configuration safe for enterprise environments.
 - [ ] Document secure deployment expectations
 
 ### Done criteria
-- credentials are never expected in version-controlled config
+- version-controlled config never carries expected credentials
 - logs are safe by default for operational sharing
-- secure runtime configuration is documented
+- secure runtime configuration and redaction expectations are documented
 
 ---
 
@@ -512,9 +525,9 @@ Support enterprise audit, control, and change visibility.
 - [ ] Document governance boundaries and responsibilities
 
 ### Done criteria
-- runs can be tied back to config state and business scenario
+- runs can be traced back to config state and business scenario
 - retained evidence supports audit review
-- governance expectations are explicit
+- governance boundaries and responsibilities are documented
 
 ---
 
@@ -531,9 +544,9 @@ Make large-volume flows predictable and tunable.
 - [ ] Define scale test scenarios and thresholds
 
 ### Done criteria
-- large-volume behavior is measured, not assumed
+- large-volume behavior is measured rather than assumed
 - memory and throughput risks are documented
-- connector tuning guidance exists for operators and implementers
+- connector tuning guidance is available to operators and implementers
 
 ---
 
@@ -548,12 +561,12 @@ Make the product usable by operators, not just developers.
 - [ ] Add failure investigation checklist
 - [ ] Add example deployment configurations
 - [ ] Add release-readiness checklist per milestone
-- [ ] Add internal technical reference and developer learning material once runtime flow, validation behavior, and operator guidance are more stable
+- [ ] Add internal technical reference and developer learning material once runtime behavior and operator guidance are more stable
 
 ### Done criteria
 - a new operator can run and diagnose a scenario without deep code knowledge
-- operations guidance exists inside the repo
-- internal maintainers and new developers can learn the current production behavior from versioned in-repo reference material once the runtime contract is stable enough to document deeply
+- operator guidance and onboarding material are versioned in-repo
+- maintainers and new developers can learn the supported runtime behavior from current reference material
 
 ---
 
@@ -572,11 +585,10 @@ Turn local test output and scenario evidence into a structured verification-repo
 - [ ] Document which report sections are required before a milestone or release can be considered ready
 
 ### Done criteria
-- verification evidence is organized by category instead of being one undifferentiated test dump
+- verification evidence is organized by clear report categories
 - one shared evidence model drives both Markdown and HTML outputs
-- release stakeholders can distinguish change-focused proof from broader regression proof
-- verification reports retain enough provenance to support audit and release review
-- report generation and retention rules are documented as a product capability, not only as a local script detail
+- release stakeholders can distinguish change-focused proof from broader regression evidence
+- reports retain provenance and documented retention and gating rules
 
 ---
 
@@ -592,8 +604,8 @@ Focus:
 
 Current state:
 - substantially achieved by the 1.3.0 release through explicit `steps` orchestration, strict startup validation, machine-readable lifecycle logging, relational placeholder fail-fast validation, and local verification reporting
-- the first M1 hardening follow-up is now also shipped for CSV-backed scenarios through field validation rules, rejected-record output, processed-file archiving, and step-level reject/archive evidence
-- remaining M1-adjacent work is now mostly packaged-run guidance, richer count/reconciliation evidence, and broader fault-tolerance behavior
+- the first M1 hardening follow-up is now also shipped across file-backed scenarios through field validation rules, duplicate handling, rejected-record output, processed-file archiving, and step-level reject/archive evidence, with the strongest preserved proof still centered on CSV
+- remaining M1-adjacent work is now mostly packaged-run guidance, run-level count/reconciliation evidence, and broader fault-tolerance behavior
 
 Exit signal:
 - product is credible for repeated controlled ETL runs across supported file scenarios
@@ -630,17 +642,16 @@ Exit signal:
 
 ---
 
-## Current Top Priorities
+## Priority Snapshot
 
-If the team has to choose only a few next steps, prioritize these in order:
+Use this as the condensed near-term priority order:
 
-1. `T1a` — processor-side transform SPI with optional-by-omission ordered `transforms[]` chains and transform-then-reject behavior
-2. `T2` / `T3` — expression-based mapping and conditional transformation capability after the first transform slice is stable
-3. `B1` / `B2` / `C2` / `D1` — fault tolerance, richer count evidence, reconciliation output, and stable error taxonomy
-4. `E2` — packaged-run guidance for jar execution with scenario bundles
-5. `X1` / `X2` — SFTP transport contract first, then the first inbound staged pull slice for repeated daily file-acquisition scenarios
-6. `F1` / `S1` / `S2` — restartability plus scheduler trigger model and first operator controls
-7. `V3` / `V4` / `G1` — enterprise HTML verification reporting, release-gating rules, and secure configuration maturity
+1. `T3` — conditional transformation rules
+2. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
+3. `E2` — packaged-run guidance
+4. `X1` / `X2` — SFTP contract and first inbound slice
+5. `F1` / `S1` / `S2` — restartability and scheduler baseline
+6. `V3` / `V4` / `G1` — reporting, release gating, and secure config
 
 ---
 
@@ -682,7 +693,7 @@ Keep the backlog honest:
 - update status in the same PR where the underlying work changes materially
 - when an item becomes `Blocked`, add the blocking reason in the notes column
 - when an item becomes `Done`, ensure tests/docs/changelog reflect that completion level
-- if priorities change, update both the execution board and `Current Top Priorities`
+- if priorities change, update both the execution board and `Priority Snapshot`
 
 ---
 
