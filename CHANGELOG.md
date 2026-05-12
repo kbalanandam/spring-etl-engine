@@ -9,14 +9,23 @@ and this project adheres to **Semantic Versioning**.
 ### Added
 - Added a flat JSON target format plus staged JSON-array writing so preserved and custom scenarios can convert XML sources into JSON output through the existing factory-driven runtime path.
 - Added a preserved `xml-to-json-events` scenario bundle and focused JSON writer / XML-to-JSON flow coverage.
+- Added stricter XML source file validation with optional XSD/schema validation, reject-file-on-validation-failure behavior, and focused validation coverage for malformed XML, root/record mismatches, and schema failures.
+- Added reader-specific exception types plus a runtime-categorizing item-stream reader wrapper so reader open/read/update/close failures surface through clearer reader-oriented error boundaries.
+- Added a generalized `scripts/remove-job-bundle.ps1` cleanup utility so developers can remove a selected job bundle and its generated artifacts through one script instead of the older private-job-specific entry point.
 
 ### Changed
 - Source and target `packageName` values can now be omitted across the active config-loading path, with job-scoped defaults still derived from the selected job identity for compatibility.
 - CSV targets now default `delimiter` to `,` when omitted or blank, while still honoring user-provided alternate separators at runtime.
 - Architecture, config, README, and product-tracking docs now describe the shipped optional-`packageName` bridge baseline and the current JSON/CSV target behavior more consistently.
+- CSV reader parsing and mapping are now more defensive, including quote-character parsing support in config, fail-fast field writability checks, and refreshed reader-focused regression coverage.
+- Generated-model resolution and explicit job-config startup validation now handle job-scoped defaults, XML source contracts, and selected source/target class availability more consistently across preserved and private job bundles.
+- Writer staging lifecycle behavior is now aligned more consistently across flat-file, XML, and JSON target paths, with stronger staged-file promotion/cleanup expectations reflected in tests and docs.
+- Config, architecture, backlog, and private-job guidance docs now describe the current XML validation, reader hardening, generated-model naming bridge, and job-bundle cleanup workflow more accurately.
 
 ### Fixed
 - JSON staged-array writing now categorizes open/write/update/close failures as runtime errors and cleans failed staged artifacts without masking the original serialization or stream-state failure.
+- Fixed XML source validation gaps so configured schema paths, reject paths, archive paths, and job-relative XML definition paths are normalized and enforced more consistently during explicit job startup.
+- Fixed reader factory and mapper failure paths so unsupported readers and invalid CSV field mappings fail earlier with clearer operator-facing errors instead of surfacing as late generic runtime failures.
 
 ---
 
