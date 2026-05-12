@@ -1,6 +1,7 @@
 package com.etl.reader;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -11,15 +12,20 @@ import java.util.List;
 
 import com.etl.config.ColumnConfig;
 import com.etl.config.source.CsvSourceConfig;
+import com.etl.config.source.SourceConfig;
 import com.etl.config.source.XmlSourceConfig;
+import com.etl.enums.ModelFormat;
+import com.etl.exception.EtlErrorCategory;
+import com.etl.exception.EtlExceptionDetails;
+import com.etl.exception.FactoryException;
+import com.etl.reader.exception.NoReaderFoundException;
 import com.etl.model.source.Customers;
 import com.etl.model.target.Customer;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemReader;
-import org.springframework.batch.item.file.FlatFileItemReader;
-import org.springframework.batch.item.xml.StaxEventItemReader;
+import org.springframework.batch.item.ItemStream;
 
 import com.etl.reader.impl.CsvDynamicReader;
 import com.etl.reader.impl.XmlDynamicReader;
@@ -38,14 +44,13 @@ class DynamicReaderFactoryTest {
     ItemReader<Customers> reader = factory.createReader(config, Customers.class);
     assertNotNull(reader);
 
-    assertInstanceOf(FlatFileItemReader.class, reader);
-    FlatFileItemReader<Customers> flatReader = (FlatFileItemReader<Customers>) reader;
-    flatReader.afterPropertiesSet();
-    flatReader.open(new ExecutionContext());
+      assertInstanceOf(ItemStream.class, reader);
+      ItemStream flatReader = (ItemStream) reader;
+      flatReader.open(new ExecutionContext());
 
     List<Customers> records = new ArrayList<>();
     Customers record;
-    while ((record = flatReader.read()) != null) {
+      while ((record = reader.read()) != null) {
       records.add(record);
     }
     flatReader.close();
@@ -82,14 +87,14 @@ class DynamicReaderFactoryTest {
 
     ItemReader<Customer> reader = factory.createReader(config, Customer.class);
     assertNotNull(reader);
-    assertInstanceOf(StaxEventItemReader.class, reader);
+      assertInstanceOf(ItemStream.class, reader);
 
-    StaxEventItemReader<Customer> xmlReader = (StaxEventItemReader<Customer>) reader;
-    xmlReader.open(new ExecutionContext());
+      ItemStream xmlReader = (ItemStream) reader;
+      xmlReader.open(new ExecutionContext());
 
     List<Customer> records = new ArrayList<>();
     Customer record;
-    while ((record = xmlReader.read()) != null) {
+      while ((record = reader.read()) != null) {
       records.add(record);
     }
     xmlReader.close();
@@ -101,6 +106,99 @@ class DynamicReaderFactoryTest {
     assertEquals(2, records.get(1).getId());
     assertEquals("Jane Doe", records.get(1).getName());
     assertEquals("jane@example.com", records.get(1).getEmail());
+  }
+
+  @Test
+  void createsCsvReaderWhenCustomQuoteCharacterHandlesEmbeddedDelimitersAndEscapedQuotes(@TempDir Path tempDir) throws Exception {
+    Path inputFile = tempDir.resolve("customers-quoted.csv");
+    Files.writeString(inputFile, "id,name,email\n1,'Doe, John','obrien''s@example.com'\n");
+
+    CsvSourceConfig config = getCsvSourceConfig(inputFile);
+    CsvSourceConfig.ParserConfig parser = new CsvSourceConfig.ParserConfig();
+    parser.setQuoteCharacter("'");
+    config.setParser(parser);
+
+    ItemReader<Customers> reader = factory.createReader(config, Customers.class);
+    assertNotNull(reader);
+    assertInstanceOf(ItemStream.class, reader);
+
+    ItemStream flatReader = (ItemStream) reader;
+    flatReader.open(new ExecutionContext());
+    Customers record = reader.read();
+    flatReader.close();
+
+    assertNotNull(record);
+    assertEquals(1, record.getId());
+    assertEquals("Doe, John", record.getName());
+    assertEquals("obrien's@example.com", record.getEmail());
+  }
+
+  @Test
+  void failsFastWhenMultipleReadersRegisterSameFormat() {
+    FactoryException failure = assertThrows(FactoryException.class,
+        () -> new DynamicReaderFactory(List.of(new CsvDynamicReader<>(), new DuplicateCsvReader())));
+
+    assertEquals("Multiple readers registered for format: CSV", failure.getMessage());
+  }
+
+	@Test
+	void throwsReaderSpecificExceptionWhenFormatHasNoRegisteredReader() {
+		NoReaderFoundException failure = assertThrows(
+				NoReaderFoundException.class,
+				() -> factory.getReaderByFormat(ModelFormat.RELATIONAL)
+		);
+
+		assertEquals("No reader found for format: RELATIONAL", failure.getMessage());
+		assertEquals(EtlErrorCategory.FACTORY, EtlExceptionDetails.categoryOf(failure));
+	}
+
+  @Test
+  void csvReaderRejectsNullInputsBeforeCasting() {
+    CsvDynamicReader<Customers> reader = new CsvDynamicReader<>();
+
+    IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+        () -> reader.getReader(null, Customers.class));
+
+    assertEquals("SourceConfig and target class must not be null.", failure.getMessage());
+  }
+
+  @Test
+  void failsFastWhenCsvConfiguredFieldIsNotWritableOnTargetClass(@TempDir Path tempDir) {
+    Path inputFile = tempDir.resolve("customers.csv");
+    CsvSourceConfig config = getCsvSourceConfig(inputFile);
+
+    Exception failure = assertThrows(
+        Exception.class,
+        () -> factory.createReader(config, GetterOnlyCustomerRecord.class)
+    );
+
+    assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+    assertEquals(
+        "Configured field 'email' is not writable on class '" + GetterOnlyCustomerRecord.class.getName() + "'.",
+        failure.getMessage()
+    );
+  }
+
+  @Test
+  void categorizesCsvOpenFailureAsRuntime(@TempDir Path tempDir) throws Exception {
+    CsvSourceConfig config = getCsvSourceConfig(tempDir.resolve("missing-customers.csv"));
+    ItemReader<Customers> reader = factory.createReader(config, Customers.class);
+
+    Exception failure = assertThrows(Exception.class,
+        () -> ((ItemStream) reader).open(new ExecutionContext()));
+
+    assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+  }
+
+  @Test
+  void categorizesXmlOpenFailureAsRuntime(@TempDir Path tempDir) throws Exception {
+    XmlSourceConfig config = getXmlSourceConfig(tempDir.resolve("missing-customers.xml"));
+    ItemReader<Customer> reader = factory.createReader(config, Customer.class);
+
+    Exception failure = assertThrows(Exception.class,
+        () -> ((ItemStream) reader).open(new ExecutionContext()));
+
+    assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
   }
 
   private static CsvSourceConfig getCsvSourceConfig(Path inputFile) {
@@ -149,5 +247,43 @@ class DynamicReaderFactoryTest {
     config.setRootElement("Customers");
     config.setRecordElement("Customer");
     return config;
+  }
+
+  private static final class DuplicateCsvReader implements DynamicReader<Object> {
+    @Override
+    public ModelFormat getFormat() {
+      return ModelFormat.CSV;
+    }
+
+    @Override
+    public ItemReader<Object> getReader(SourceConfig config, Class<Object> clazz) {
+      return () -> null;
+    }
+  }
+
+  public static class GetterOnlyCustomerRecord {
+    private int id;
+    private String name;
+    private String email;
+
+    public int getId() {
+      return id;
+    }
+
+    public void setId(int id) {
+      this.id = id;
+    }
+
+    public String getName() {
+      return name;
+    }
+
+    public void setName(String name) {
+      this.name = name;
+    }
+
+    public String getEmail() {
+      return email;
+    }
   }
 }

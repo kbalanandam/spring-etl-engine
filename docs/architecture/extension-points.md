@@ -175,6 +175,11 @@ flowchart LR
 - prefer composition over vendor-specific config duplication
 - centralize runtime contracts instead of scattering conventions
 - add new behaviors through factories instead of conditionals spread across the codebase
+- fail fast when two runtime implementations try to register the same factory-dispatch key so extension wiring stays deterministic; the current bridge reader and writer factories both enforce this at registration time
+- keep reader/writer factory registration and construction failures categorized as `factory`; the current bridge factories may still expose format-specific missing-dispatch exceptions such as `NoReaderFoundException` and `NoWriterFoundException`, while stream/read/write lifecycle failures should surface through the runtime failure category used by operator-facing diagnostics
+- on the active reader path, CSV, XML, and relational readers currently share `RuntimeCategorizingItemStreamReader` so delegate `read` and optional `ItemStream` lifecycle failures are categorized consistently across source formats without duplicating that wrapper logic per reader
+- CSV field binding on the active reader path now fails during mapper initialization when a configured field does not match a writable property on the target class, instead of silently skipping that mismatch
+- reader-side adapters that implement Spring Batch contracts should preserve the framework nullability signature as part of the active runtime contract; for example, `FieldSetMapper.mapFieldSet` in `DynamicFieldSetMapper` should keep the package-level non-null return/parameter expectations exposed by Spring Batch
 - document every new runtime path when it is introduced
 
 ## Likely next extension areas

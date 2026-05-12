@@ -65,9 +65,6 @@ class XmlJobScopedGenerationServiceTest {
                     rootElement: TagValidationList
                     recordElement: TVLTagDetails
                     modelDefinitionPath: definitions/nested-target-model.yaml
-                    fields:
-                      - name: HomeAgencyID
-                        type: String
                   - format: csv
                     targetName: IgnoredCsvTarget
                     packageName: com.etl.generated.job.tagvalidation.ignored
@@ -193,6 +190,7 @@ class XmlJobScopedGenerationServiceTest {
     void generatesFlatJsonTargetAndDerivesPackagesWhenSelectedJobOmitsPackageNames() throws Exception {
         Path scenarioDir = tempDir.resolve("xml-to-json-events-job");
         Files.createDirectories(scenarioDir.resolve("input"));
+        Files.createDirectories(scenarioDir.resolve("definitions"));
 
         Files.writeString(scenarioDir.resolve("job-config.yaml"), """
                 name: xml-to-json-events
@@ -205,6 +203,16 @@ class XmlJobScopedGenerationServiceTest {
                     target: EventsJson
                 """);
         Files.writeString(scenarioDir.resolve("processor-config.yaml"), "type: default\n");
+        Files.writeString(scenarioDir.resolve("definitions/events-source-model.yaml"), """
+                packageName: ignored.by.runtime.bundle
+                rootElement: Events
+                recordElement: Event
+                fields:
+                  - name: eventCode
+                    type: String
+                  - name: eventTime
+                    type: String
+                """);
         Files.writeString(scenarioDir.resolve("source-config.yaml"), """
                 sources:
                   - format: xml
@@ -212,11 +220,8 @@ class XmlJobScopedGenerationServiceTest {
                     filePath: input/events.xml
                     rootElement: Events
                     recordElement: Event
-                    fields:
-                      - name: eventCode
-                        type: String
-                      - name: eventTime
-                        type: String
+                    flatteningStrategy: DirectXml
+                    modelDefinitionPath: definitions/events-source-model.yaml
                 """);
         Files.writeString(scenarioDir.resolve("target-config.yaml"), """
                 targets:
@@ -379,9 +384,6 @@ class XmlJobScopedGenerationServiceTest {
             rootElement: Customers
             recordElement: CustomerRecord
             modelDefinitionPath: definitions/nested-target-model.yaml
-            fields:
-              - name: id
-                type: String
         """);
     Files.writeString(scenarioDir.resolve("definitions/nested-target-model.yaml"), """
         packageName: ignored.by.service

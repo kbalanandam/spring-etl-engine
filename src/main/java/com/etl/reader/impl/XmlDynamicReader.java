@@ -16,8 +16,9 @@ import com.etl.source.xml.strategy.XmlSourceStrategyRegistry;
 import com.etl.source.xml.strategy.XmlSourceStrategySelector;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Unmarshaller;
-import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemStreamReader;
 import org.springframework.batch.item.xml.StaxEventItemReader;
 import org.springframework.context.support.StaticApplicationContext;
 import org.springframework.core.io.FileSystemResource;
@@ -25,7 +26,8 @@ import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.List;
 
@@ -58,49 +60,63 @@ public class XmlDynamicReader<T> implements DynamicReader<T> {
 		}
 
 		XmlSourceConfig xmlConfig = (XmlSourceConfig) config;
-		if (!XmlFlatteningStrategyNames.DIRECT_XML.equalsIgnoreCase(xmlConfig.getFlatteningStrategy())) {
-			return createFlatteningReader(xmlConfig, clazz);
+		if (XmlFlatteningStrategyNames.DIRECT_XML.equalsIgnoreCase(xmlConfig.getFlatteningStrategy())) {
+			return runtimeReader(createDirectRecordReader(xmlConfig, clazz), xmlConfig);
 		}
 
-		Jaxb2Marshaller unmarshaller = new Jaxb2Marshaller();
-		unmarshaller.setClassesToBeBound(clazz);
-		unmarshaller.afterPropertiesSet();
+		return runtimeReader(createFlatteningPathReader(xmlConfig, clazz), xmlConfig);
+	}
 
-		StaxEventItemReader<T> reader = new StaxEventItemReader<>();
-		reader.setResource(new FileSystemResource(xmlConfig.getFilePath()));
-		reader.setFragmentRootElementName(xmlConfig.getRecordElement());
-		reader.setUnmarshaller(unmarshaller);
-		reader.afterPropertiesSet();
+	private ItemReader<T> runtimeReader(ItemReader<T> reader, XmlSourceConfig xmlConfig) {
+		return new RuntimeCategorizingItemStreamReader<>(reader, xmlConfig.getSourceName());
+	}
 
-		return reader;
+	private ItemStreamReader<T> createDirectRecordReader(XmlSourceConfig xmlConfig, Class<T> clazz) throws Exception {
+		return createRecordFragmentReader(xmlConfig, clazz);
 	}
 
 	@SuppressWarnings("unchecked")
-	private ItemReader<T> createFlatteningReader(XmlSourceConfig xmlConfig, Class<T> clazz) throws Exception {
+	private ItemReader<T> createFlatteningPathReader(XmlSourceConfig xmlConfig, Class<T> clazz) throws Exception {
 		if (XmlFlatteningStrategyNames.NESTED_XML.equalsIgnoreCase(xmlConfig.getFlatteningStrategy())) {
-			return createNestedFragmentReader(xmlConfig, clazz);
+			return createNestedStreamingReader(xmlConfig, clazz);
 		}
 
+		return createRootFlatteningReader(xmlConfig, clazz);
+	}
+
+	@SuppressWarnings("unchecked")
+	private ItemReader<T> createRootFlatteningReader(XmlSourceConfig xmlConfig, Class<T> clazz) throws Exception {
 		ClassLoader classLoader = clazz.getClassLoader();
 		Class<?> rootClass = GeneratedModelClassResolver.resolveSourceRootClass(xmlConfig, classLoader);
 		Object xmlRoot = unmarshalRoot(xmlConfig, rootClass);
 
-		XmlSourceRuntimeContext context = XmlSourceRuntimeContext.builder()
+		XmlSourceRuntimeContext context = createRuntimeContext(xmlConfig, rootClass, clazz);
+
+		XmlSourceStrategy strategy = strategySelector.select(context);
+		XmlFlatteningResult result = strategy.flatten(context, xmlRoot);
+		return new PreFlattenedRowReader<>((List<T>) result.getRows());
+	}
+
+	@SuppressWarnings("unchecked")
+	private ItemReader<T> createNestedStreamingReader(XmlSourceConfig xmlConfig, Class<T> clazz) throws Exception {
+		XmlSourceRuntimeContext context = createRuntimeContext(xmlConfig, null, clazz);
+
+		XmlSourceStrategy strategy = strategySelector.select(context);
+		return new FragmentBufferingFlattenedXmlReader<>(createRecordFragmentReader(xmlConfig, clazz), context, strategy);
+	}
+
+	private XmlSourceRuntimeContext createRuntimeContext(XmlSourceConfig xmlConfig, Class<?> rootClass, Class<T> recordClass) {
+		return XmlSourceRuntimeContext.builder()
 				.sourceName(xmlConfig.getSourceName())
 				.flatteningStrategy(xmlConfig.getFlatteningStrategy())
 				.jobSpecificStrategyBean(xmlConfig.getJobSpecificStrategyBean())
 				.xmlSourceConfig(xmlConfig)
 				.rootClass(rootClass)
-				.recordClass(clazz)
+				.recordClass(recordClass)
 				.build();
-
-		XmlSourceStrategy strategy = strategySelector.select(context);
-		XmlFlatteningResult result = strategy.flatten(context, xmlRoot);
-		return new FlattenedXmlItemReader<>((List<T>) result.getRows());
 	}
 
-	@SuppressWarnings("unchecked")
-	private ItemReader<T> createNestedFragmentReader(XmlSourceConfig xmlConfig, Class<T> clazz) throws Exception {
+	private StaxEventItemReader<T> createRecordFragmentReader(XmlSourceConfig xmlConfig, Class<T> clazz) throws Exception {
 		Jaxb2Marshaller unmarshaller = new Jaxb2Marshaller();
 		unmarshaller.setClassesToBeBound(clazz);
 		unmarshaller.afterPropertiesSet();
@@ -110,28 +126,7 @@ public class XmlDynamicReader<T> implements DynamicReader<T> {
 		fragmentReader.setFragmentRootElementName(xmlConfig.getRecordElement());
 		fragmentReader.setUnmarshaller(unmarshaller);
 		fragmentReader.afterPropertiesSet();
-
-		List<Object> flattenedRows = new ArrayList<>();
-		fragmentReader.open(new ExecutionContext());
-		try {
-			XmlSourceRuntimeContext context = XmlSourceRuntimeContext.builder()
-					.sourceName(xmlConfig.getSourceName())
-					.flatteningStrategy(xmlConfig.getFlatteningStrategy())
-					.jobSpecificStrategyBean(xmlConfig.getJobSpecificStrategyBean())
-					.xmlSourceConfig(xmlConfig)
-					.recordClass(clazz)
-					.build();
-
-			XmlSourceStrategy strategy = strategySelector.select(context);
-			T fragment;
-			while ((fragment = fragmentReader.read()) != null) {
-				flattenedRows.addAll(strategy.flatten(context, fragment).getRows());
-			}
-		} finally {
-			fragmentReader.close();
-		}
-
-		return new FlattenedXmlItemReader<>((List<T>) flattenedRows);
+		return fragmentReader;
 	}
 
 	private Object unmarshalRoot(XmlSourceConfig xmlConfig, Class<?> rootClass) throws Exception {
@@ -146,17 +141,69 @@ public class XmlDynamicReader<T> implements DynamicReader<T> {
 		}
 	}
 
-	private static final class FlattenedXmlItemReader<T> implements ItemReader<T> {
+	private static final class PreFlattenedRowReader<T> implements ItemReader<T> {
 
 		private final Iterator<T> iterator;
 
-		private FlattenedXmlItemReader(List<T> items) {
+		private PreFlattenedRowReader(List<T> items) {
 			this.iterator = items.iterator();
 		}
 
 		@Override
 		public T read() {
 			return iterator.hasNext() ? iterator.next() : null;
+		}
+	}
+
+	private static final class FragmentBufferingFlattenedXmlReader<T> implements ItemStreamReader<T> {
+
+		private final ItemStreamReader<?> fragmentReader;
+		private final XmlSourceRuntimeContext context;
+		private final XmlSourceStrategy strategy;
+		private final Deque<T> bufferedRows = new ArrayDeque<>();
+
+		private FragmentBufferingFlattenedXmlReader(ItemStreamReader<?> fragmentReader,
+										   XmlSourceRuntimeContext context,
+										   XmlSourceStrategy strategy) {
+			this.fragmentReader = fragmentReader;
+			this.context = context;
+			this.strategy = strategy;
+		}
+
+		@Override
+		public T read() throws Exception {
+			while (bufferedRows.isEmpty()) {
+				Object fragment = fragmentReader.read();
+				if (fragment == null) {
+					return null;
+				}
+				bufferFlattenedRows(fragment);
+			}
+			return bufferedRows.removeFirst();
+		}
+
+		@Override
+		public void open(ExecutionContext executionContext) {
+			bufferedRows.clear();
+			fragmentReader.open(executionContext);
+		}
+
+		@Override
+		public void update(ExecutionContext executionContext) {
+			fragmentReader.update(executionContext);
+		}
+
+		@Override
+		public void close() {
+			bufferedRows.clear();
+			fragmentReader.close();
+		}
+
+		@SuppressWarnings("unchecked")
+		private void bufferFlattenedRows(Object fragment) {
+			for (Object row : strategy.flatten(context, fragment).getRows()) {
+				bufferedRows.addLast((T) row);
+			}
 		}
 	}
 }

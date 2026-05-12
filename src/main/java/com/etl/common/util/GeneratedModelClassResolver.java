@@ -17,19 +17,30 @@ import java.util.List;
  */
 public final class GeneratedModelClassResolver {
 
+  private static final String EXPLICIT_JOB_PACKAGE_HINT = " In explicit job mode this package should be derived during ConfigLoader package defaulting before model resolution.";
+
     private GeneratedModelClassResolver() {
     }
 
     public static String resolveSourceClassName(SourceConfig sourceConfig) {
 		if (sourceConfig instanceof XmlSourceConfig xmlSourceConfig) {
-			return xmlSourceConfig.getPackageName() + "." + xmlSourceConfig.getRecordElement();
+      return qualifyClassName(
+          validatedPackageName(xmlSourceConfig.getPackageName(), "packageName", "XML source", xmlSourceConfig.getSourceName()),
+          validatedTypeName(xmlSourceConfig.getRecordElement(), "recordElement", "XML source", xmlSourceConfig.getSourceName())
+      );
 		}
-        return sourceConfig.getPackageName() + "." + sourceConfig.getSourceName();
+    return qualifyClassName(
+        validatedPackageName(sourceConfig.getPackageName(), "packageName", "source", sourceConfig.getSourceName()),
+        validatedTypeName(sourceConfig.getSourceName(), "sourceName", "source", sourceConfig.getSourceName())
+    );
     }
 
     public static String resolveSourceRootClassName(SourceConfig sourceConfig) {
         if (sourceConfig instanceof XmlSourceConfig xmlSourceConfig) {
-            return xmlSourceConfig.getPackageName() + "." + xmlSourceConfig.getRootElement();
+      return qualifyClassName(
+          validatedPackageName(xmlSourceConfig.getPackageName(), "packageName", "XML source", xmlSourceConfig.getSourceName()),
+          validatedTypeName(xmlSourceConfig.getRootElement(), "rootElement", "XML source", xmlSourceConfig.getSourceName())
+      );
         }
         return resolveSourceClassName(sourceConfig);
     }
@@ -60,16 +71,28 @@ public final class GeneratedModelClassResolver {
 
     public static String resolveTargetWriteClassName(TargetConfig targetConfig) {
         if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
-            return xmlTargetConfig.getPackageName() + "." + xmlTargetConfig.getRootElement();
+      return qualifyClassName(
+          validatedPackageName(xmlTargetConfig.getPackageName(), "packageName", "XML target", xmlTargetConfig.getTargetName()),
+          validatedTypeName(xmlTargetConfig.getRootElement(), "rootElement", "XML target", xmlTargetConfig.getTargetName())
+      );
         }
-        return targetConfig.getPackageName() + "." + targetConfig.getTargetName();
+    return qualifyClassName(
+        validatedPackageName(targetConfig.getPackageName(), "packageName", "target", targetConfig.getTargetName()),
+        validatedTypeName(targetConfig.getTargetName(), "targetName", "target", targetConfig.getTargetName())
+    );
     }
 
     public static String resolveTargetProcessingClassName(TargetConfig targetConfig) {
         if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
-            return xmlTargetConfig.getPackageName() + "." + xmlTargetConfig.getRecordElement();
+      return qualifyClassName(
+          validatedPackageName(xmlTargetConfig.getPackageName(), "packageName", "XML target", xmlTargetConfig.getTargetName()),
+          validatedTypeName(xmlTargetConfig.getRecordElement(), "recordElement", "XML target", xmlTargetConfig.getTargetName())
+      );
         }
-        return targetConfig.getPackageName() + "." + targetConfig.getTargetName();
+    return qualifyClassName(
+        validatedPackageName(targetConfig.getPackageName(), "packageName", "target", targetConfig.getTargetName()),
+        validatedTypeName(targetConfig.getTargetName(), "targetName", "target", targetConfig.getTargetName())
+    );
     }
 
     @SuppressWarnings("unchecked")
@@ -131,7 +154,7 @@ public final class GeneratedModelClassResolver {
     }
 
     public static String resolveXmlWrapperFieldName(XmlTargetConfig targetConfig) {
-        String recordElement = targetConfig.getRecordElement();
+		String recordElement = validatedTypeName(targetConfig.getRecordElement(), "recordElement", "XML target", targetConfig.getTargetName());
         return Character.toLowerCase(recordElement.charAt(0)) + recordElement.substring(1);
     }
 
@@ -198,5 +221,68 @@ public final class GeneratedModelClassResolver {
     private static boolean requiresSourceRootClass(XmlSourceConfig xmlSourceConfig) {
         return !"NestedXml".equalsIgnoreCase(xmlSourceConfig.getFlatteningStrategy());
     }
+
+  private static String qualifyClassName(String packageName, String simpleName) {
+    return packageName + "." + simpleName;
+  }
+
+  private static String validatedPackageName(String value, String fieldName, String configType, String configName) {
+    String trimmed = requireNonBlank(value, fieldName, configType, configName);
+    if (!isQualifiedIdentifier(trimmed)) {
+      throw new IllegalArgumentException(configType + " config '" + defaultConfigName(configName) + "' has invalid "
+          + fieldName + "='" + trimmed + "'. Expected a dot-separated Java package name." + EXPLICIT_JOB_PACKAGE_HINT);
+    }
+    return trimmed;
+  }
+
+  private static String validatedTypeName(String value, String fieldName, String configType, String configName) {
+    String trimmed = requireNonBlank(value, fieldName, configType, configName);
+    if (!isJavaIdentifier(trimmed)) {
+      throw new IllegalArgumentException(configType + " config '" + defaultConfigName(configName) + "' has invalid "
+          + fieldName + "='" + trimmed + "'. Expected a Java identifier-compatible generated class name segment.");
+    }
+    return trimmed;
+  }
+
+  private static String requireNonBlank(String value, String fieldName, String configType, String configName) {
+    if (value == null || value.isBlank()) {
+      throw new IllegalArgumentException(configType + " config '" + defaultConfigName(configName)
+          + "' must define a non-blank " + fieldName + " before generated model class resolution."
+          + ("packageName".equals(fieldName) ? EXPLICIT_JOB_PACKAGE_HINT : ""));
+    }
+    return value.trim();
+  }
+
+  private static String defaultConfigName(String configName) {
+    return configName == null || configName.isBlank() ? "unnamed" : configName.trim();
+  }
+
+  private static boolean isQualifiedIdentifier(String value) {
+    String[] segments = value.split("\\.");
+    if (segments.length == 0) {
+      return false;
+    }
+    for (String segment : segments) {
+      if (!isJavaIdentifier(segment)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean isJavaIdentifier(String value) {
+    if (value == null || value.isBlank()) {
+      return false;
+    }
+    if (!Character.isJavaIdentifierStart(value.charAt(0))) {
+      return false;
+    }
+    for (int i = 1; i < value.length(); i++) {
+      if (!Character.isJavaIdentifierPart(value.charAt(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
 }
 

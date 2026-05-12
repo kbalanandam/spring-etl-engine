@@ -107,6 +107,7 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - `name` is still the selected bundle identity shown in logs and metadata. When the selected source or target config omits `packageName`, explicit job runs also derive default packages as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`.
 - During explicit startup, the selected source and target configs are validated first, then the selected processor config is validated before generated-model class checks run.
 - Processor-config validation failures in explicit runs are surfaced with the selected scenario name and processor-config path so operators can identify the broken scenario bundle quickly.
+- Generated-model naming/package failures in explicit runs are surfaced as config errors with the selected scenario name, job-config path, and the failing `step` / `source` / `target` so support can narrow model-resolution issues quickly.
 
 ## Validation / usage notes
 

@@ -50,7 +50,9 @@ Today, the shipped config contract now supports a first file-ingestion hardening
 - explicit rejected-record output configuration in processor config
 - processed-source-file archive configuration in file-based source config
 - explicit CSV source header handling through `skipHeader` so header-bearing handoff files can keep the current default while headerless CSV sources can opt out of first-line skipping
+- opt-in CSV parser quote-character configuration through `CsvSourceConfig.parser.quoteCharacter`, so the active CSV reader and header validator can honor alternate quoted-field contracts while keeping Spring Batch's default `"` behavior when that setting is omitted
 - staged file-target publication for CSV/XML outputs so partial rerun artifacts are not treated as final published outputs
+- active staged CSV/XML/JSON writers now also clean failed in-progress `.part` output on the writer path before any final-file promotion can occur, while keeping the same publish-on-success semantics for completed steps
 - accepted vs rejected record artifact semantics for the preserved CSV proof scenario
 
 The remaining gaps are now the broader follow-on work beyond that first slice.
@@ -304,6 +306,7 @@ The first slice should not yet try to solve:
 - relational-source archiving
 - complex XML nested validation rules
 - a broad source-transform YAML model for generic cleanup behavior
+- a generic CSV escape framework beyond the active reader path's quoted-field and doubled quote-character semantics
 - expression-based mapping itself
 - conditional transformation rules
 - quarantine workflow orchestration

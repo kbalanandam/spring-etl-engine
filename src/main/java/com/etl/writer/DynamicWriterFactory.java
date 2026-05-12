@@ -31,7 +31,13 @@ public class DynamicWriterFactory {
 
     public DynamicWriterFactory(List<DynamicWriter> writerList) {
         this.writers = writerList.stream()
-            .collect(Collectors.toMap(DynamicWriter::getFormat, Function.identity()));
+            .collect(Collectors.toMap(
+                DynamicWriter::getFormat,
+                Function.identity(),
+                (existing, replacement) -> {
+                    throw new FactoryException("Multiple writers registered for format: " + existing.getFormat());
+                }
+            ));
     }
 
     public ItemWriter<Object> createWriter(TargetConfig config, Class<?> clazz) throws Exception {

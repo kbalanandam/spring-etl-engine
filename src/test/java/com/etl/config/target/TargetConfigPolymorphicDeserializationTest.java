@@ -21,11 +21,6 @@ class TargetConfigPolymorphicDeserializationTest {
                     rootElement: Customers
                     recordElement: Customer
                     modelDefinitionPath: definitions/customer-target-model.yaml
-                    fields:
-                      - name: id
-                        type: int
-                      - name: name
-                        type: String
                 """;
 
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -39,6 +34,7 @@ class TargetConfigPolymorphicDeserializationTest {
         assertEquals("Customers", xmlTarget.getRootElement());
         assertEquals("Customer", xmlTarget.getRecordElement());
         assertEquals("definitions/customer-target-model.yaml", xmlTarget.getModelDefinitionPath());
+        assertNull(xmlTarget.getFields());
     }
 
     @Test

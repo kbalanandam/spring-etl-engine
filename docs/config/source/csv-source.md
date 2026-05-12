@@ -22,6 +22,8 @@ Backed by:
 | `filePath` | yes | string | CSV file path |
 | `delimiter` | yes | string | Field delimiter, usually `,` |
 | `skipHeader` | no | boolean | Whether the runtime skips the first CSV line as a header row; defaults to `true` |
+| `parser` | no | object | Optional CSV parser settings for quoted-field handling on the active reader path |
+| `parser.quoteCharacter` | no | string | Single-character quote marker used for quoted fields and doubled-quote escaping; when omitted the reader keeps Spring Batch's default `"` behavior |
 | `archive` | no | object | Optional archive-on-success behavior for CSV file sources |
 | `archive.enabled` | yes, when `archive` is present | boolean | Enables processed-file archiving after successful step completion |
 | `archive.successPath` | yes, when `archive.enabled=true` | string | Directory where the original CSV file is moved after successful processing |
@@ -36,7 +38,66 @@ Backed by:
 | `fields[].name` | yes | string | Field/property name |
 | `fields[].type` | yes | string | Logical type used in generated model contract |
 
+## Recommended standard template
+
+For new CSV scenarios in this repo, prefer one shared authoring pattern:
+
+- keep the top-level CSV source fields the same: `format`, `sourceName`, `packageName`, `filePath`, `delimiter`, `fields`
+- use `skipHeader` to describe whether the first line is a header row; it defaults to `true`
+- add `validation` only when the scenario needs file-level checks before reading starts
+- add `archive` only when the original source file should be moved after successful processing
+- add `parser.quoteCharacter` only when the source feed uses a non-default quote marker
+
+### Minimum required shape
+
+At minimum, a CSV source must declare:
+
+- `format`
+- `sourceName`
+- `filePath`
+- `delimiter`
+- `fields`
+
+Minimal CSV source example:
+
+```yaml
+sources:
+  - format: csv
+    sourceName: Events
+    filePath: input/events.csv
+    delimiter: ","
+    fields:
+      - name: id
+        type: String
+      - name: eventTime
+        type: String
+```
+
+Use that shape when you want the simplest valid CSV source config and do not need validation, archive behavior, or custom quote-character handling.
+
+### Preferred explicit-job pattern
+
+For preserved bundles and new explicit `job-config.yaml` scenarios, prefer a clear runtime shape and omit optional blocks unless the scenario needs them:
+
+```yaml
+sources:
+  - format: csv
+    sourceName: Events
+    filePath: input/events.csv
+    delimiter: ","
+    skipHeader: true
+    fields:
+      - name: id
+        type: String
+      - name: eventTime
+        type: String
+```
+
+`packageName` is optional in explicit job mode. When omitted, the runtime derives `com.etl.generated.job.<normalized-job-name>.source` automatically.
+
 ## Example
+
+### Example A — full CSV source shape with archive, validation, and parser options
 
 ```yaml
 sources:
@@ -46,6 +107,8 @@ sources:
     filePath: input/events-validation-input.csv
     delimiter: ","
     skipHeader: true
+    parser:
+      quoteCharacter: "'"
     archive:
       enabled: true
       successPath: output/archive/success/
@@ -65,9 +128,36 @@ sources:
         type: String
 ```
 
+This mirrors the preserved bundle:
+
+- `src/main/resources/config-jobs/csv-validation-reject-archive/source-config.yaml`
+
+### Example B — explicit job mode with derived package name
+
+Use this when the default job-scoped package is acceptable and you do not need optional archive, validation, or parser settings:
+
+```yaml
+sources:
+  - format: csv
+    sourceName: Customers
+    filePath: input/customers.csv
+    delimiter: ","
+    fields:
+      - name: id
+        type: String
+      - name: name
+        type: String
+```
+
+In that example:
+
+- `packageName` is intentionally omitted
+- `skipHeader` is omitted and still defaults to `true`
+- `validation`, `archive`, and `parser` are all optional and omitted
+
 ## Example walkthrough
 
-Read the example top to bottom:
+Read the examples top to bottom:
 
 - `sources:` is the required file root for source config bundles.
 - `format: csv` selects the CSV reader path.
@@ -75,7 +165,9 @@ Read the example top to bottom:
 - `packageName` points at the generated source model package; in explicit job mode it may be omitted if you want runtime to derive `com.etl.generated.job.<normalized-job-name>.source`.
 - `filePath` is the CSV file to read.
 - `delimiter` declares the incoming CSV separator.
-- `skipHeader: true` means the reader treats the first line as a header row and skips it before data mapping begins.
+- `skipHeader: true` means the reader treats the first line as a header row and skips it before data mapping begins. When omitted, it defaults to `true`.
+- `parser.quoteCharacter: "'"` opts this source into single-quote quoted-field handling, so a field like `'Doe, John'` is treated as one value even though it contains the delimiter.
+- inside a quoted CSV token, escape the quote character by doubling it, for example `obrien''s@example.com` when `parser.quoteCharacter` is `'`.
 - `archive` defines optional archive-on-success behavior for the original source file after the step succeeds.
 - `archive.enabled` turns archiving on.
 - `archive.successPath` is where the original input file is moved after success.
@@ -90,7 +182,13 @@ Read the example top to bottom:
 - `fields[].name` is the runtime property name expected by the generated source model and downstream processor mapping.
 - `fields[].type` is the logical type recorded in the generated model contract.
 
-This example intentionally shows a fuller CSV source shape. Smaller scenarios may omit `archive` or `validation`, but the meaning of the shared top-level fields remains the same.
+The important authoring rule is choice, not accumulation:
+
+- keep only the minimum CSV fields when the feed is simple
+- add `validation` only when file-level checks are needed
+- add `archive` only when the original file should be moved after success
+- add `parser.quoteCharacter` only when the incoming CSV contract needs it
+- omit `packageName` in explicit job mode when the default job-scoped package is acceptable
 
 ## Usage notes
 
@@ -98,6 +196,9 @@ This example intentionally shows a fuller CSV source shape. Smaller scenarios ma
 - The order of `fields` should match the order of columns in the CSV file.
 - `skipHeader: true` tells the CSV reader to skip the first line as a header row; this is the default for backward compatibility and for intermediate CSV handoff files that are written with `includeHeader: true`.
 - Set `skipHeader: false` for headerless CSV sources so the first line is treated as data.
+- `parser.quoteCharacter` is optional and must be exactly one character when configured.
+- When `parser.quoteCharacter` is omitted, the active reader keeps Spring Batch's default `"`-quoted CSV behavior.
+- When `parser.quoteCharacter` is configured, the active reader and CSV header validator both use that quote character for delimiter-safe tokenization and doubled-quote escaping.
 - When `validation` is present, the CSV source validator checks the configured file path before execution and can fail fast for missing/unreadable files, header-only files, or header mismatches.
 - `validation.requireHeaderMatch=true` is only valid when `skipHeader=true` because header matching assumes the first line is a real header row.
 - `validation.fileNamePattern` checks only the file name portion, not the full path.
@@ -111,7 +212,7 @@ This example intentionally shows a fuller CSV source shape. Smaller scenarios ma
 
 ## Current limitations
 
-- No custom quote/escape configuration yet
+- No generic backslash-style escape contract; the active CSV parser supports quoted fields and doubled quote-character escaping only
 - No per-column source alias support yet
 - No schema inference; fields must be declared explicitly
 - No alternate header mapping rules yet

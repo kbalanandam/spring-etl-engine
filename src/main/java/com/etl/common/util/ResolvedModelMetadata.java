@@ -1,5 +1,7 @@
 package com.etl.common.util;
 
+import java.util.Objects;
+
 /**
  * Immutable runtime metadata derived from source and target configuration.
  * <p>
@@ -21,11 +23,18 @@ public final class ResolvedModelMetadata {
                                  String targetWriteClassName,
                                  boolean wrapperRequired,
                                  String wrapperFieldName) {
-        this.sourceClassName = sourceClassName;
-        this.targetProcessingClassName = targetProcessingClassName;
-        this.targetWriteClassName = targetWriteClassName;
+        this.sourceClassName = requireQualifiedClassName(sourceClassName, "sourceClassName");
+        this.targetProcessingClassName = requireQualifiedClassName(targetProcessingClassName, "targetProcessingClassName");
+        this.targetWriteClassName = requireQualifiedClassName(targetWriteClassName, "targetWriteClassName");
         this.wrapperRequired = wrapperRequired;
-        this.wrapperFieldName = wrapperFieldName;
+        if (wrapperRequired) {
+            this.wrapperFieldName = requireJavaIdentifier(wrapperFieldName, "wrapperFieldName");
+        } else {
+            if (wrapperFieldName != null && !wrapperFieldName.isBlank()) {
+                throw new IllegalArgumentException("wrapperFieldName must be blank when wrapperRequired is false.");
+            }
+            this.wrapperFieldName = null;
+        }
     }
 
     public String getSourceClassName() {
@@ -47,5 +56,50 @@ public final class ResolvedModelMetadata {
     public String getWrapperFieldName() {
         return wrapperFieldName;
     }
+
+  private static String requireQualifiedClassName(String value, String fieldName) {
+    Objects.requireNonNull(value, fieldName + " must not be null.");
+    String trimmed = value.trim();
+    if (trimmed.isBlank()) {
+      throw new IllegalArgumentException(fieldName + " must not be blank.");
+    }
+    String[] segments = trimmed.split("\\.");
+    if (segments.length < 2) {
+      throw new IllegalArgumentException(fieldName + " must be a fully qualified class name.");
+    }
+    for (String segment : segments) {
+      if (!isJavaIdentifier(segment)) {
+        throw new IllegalArgumentException(fieldName + " must be a valid fully qualified class name.");
+      }
+    }
+    return trimmed;
+  }
+
+  private static String requireJavaIdentifier(String value, String fieldName) {
+    Objects.requireNonNull(value, fieldName + " must not be null.");
+    String trimmed = value.trim();
+    if (trimmed.isBlank()) {
+      throw new IllegalArgumentException(fieldName + " must not be blank.");
+    }
+    if (!isJavaIdentifier(trimmed)) {
+      throw new IllegalArgumentException(fieldName + " must be a valid Java identifier.");
+    }
+    return trimmed;
+  }
+
+  private static boolean isJavaIdentifier(String value) {
+    if (value == null || value.isBlank()) {
+      return false;
+    }
+    if (!Character.isJavaIdentifierStart(value.charAt(0))) {
+      return false;
+    }
+    for (int i = 1; i < value.length(); i++) {
+      if (!Character.isJavaIdentifierPart(value.charAt(i))) {
+        return false;
+      }
+    }
+    return true;
+  }
 }
 

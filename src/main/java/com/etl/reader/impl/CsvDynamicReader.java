@@ -46,11 +46,12 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 	@Override
 	public ItemReader<T> getReader(SourceConfig config, Class<T> clazz) {
 
-		CsvSourceConfig csvConfig = (CsvSourceConfig) config;
-
 		if (config == null || clazz == null) {
 			throw new IllegalArgumentException("SourceConfig and target class must not be null.");
 		}
+
+		CsvSourceConfig csvConfig = (CsvSourceConfig) config;
+		csvConfig.validateParserConfiguration();
 
 		FlatFileItemReader<T> reader = new FlatFileItemReader<>();
 		reader.setResource(new FileSystemResource(csvConfig.getFilePath()));
@@ -64,6 +65,10 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 		// Configure tokenizer
 		DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer();
 		tokenizer.setDelimiter(csvConfig.getDelimiter());
+		Character quoteCharacter = csvConfig.resolveQuoteCharacter();
+		if (quoteCharacter != null) {
+			tokenizer.setQuoteCharacter(quoteCharacter);
+		}
 
 		// Extract column names
 		String[] columnNames = config.getFields().stream()
@@ -88,6 +93,6 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 		reader.setLineMapper(lineMapper);
 		reader.setStrict(true);
 
-		return reader;
+		return new RuntimeCategorizingItemStreamReader<>(reader, csvConfig.getSourceName());
 	}
 }

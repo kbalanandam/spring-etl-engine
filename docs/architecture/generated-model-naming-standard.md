@@ -298,6 +298,7 @@ Remaining work in this phase:
 
 - keep reading `packageName` for compatibility
 - derive the canonical package anyway
+- fail fast when `packageName` or config-derived class-name segments are blank or invalid so resolver/runtime errors stay explicit instead of surfacing later as malformed `Class.forName` lookups
 - warn when `packageName` is present but redundant
 - fail when it disagrees with the canonical derived package
 - update preserved bundles to omit `packageName`

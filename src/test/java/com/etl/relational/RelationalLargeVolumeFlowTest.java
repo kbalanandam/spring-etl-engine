@@ -18,9 +18,10 @@ import com.etl.writer.impl.RelationalDynamicWriter;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.batch.item.database.JdbcCursorItemReader;
+import org.springframework.batch.item.ItemStream;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -53,11 +54,11 @@ class RelationalLargeVolumeFlowTest {
         DynamicProcessorFactory processorFactory = new DynamicProcessorFactory(Map.of("default", new DefaultDynamicProcessor()));
 
         ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(sourceConfig, targetConfig);
-        JdbcCursorItemReader<Customers> reader = (JdbcCursorItemReader<Customers>) readerFactory.createReader(sourceConfig, Customers.class);
+        ItemReader<Customers> reader = readerFactory.createReader(sourceConfig, Customers.class);
         ItemProcessor<Object, Object> processor = processorFactory.getProcessor(processorConfig, sourceConfig, targetConfig, metadata);
         ItemWriter<Object> writer = writerFactory.createWriter(targetConfig, CustomersSql.class);
 
-        reader.open(new ExecutionContext());
+		((ItemStream) reader).open(new ExecutionContext());
         List<Object> batch = new ArrayList<>(targetConfig.getBatchSize());
         try {
             Customers item;
@@ -73,7 +74,7 @@ class RelationalLargeVolumeFlowTest {
                 writer.write(new Chunk<>(new ArrayList<>(batch)));
             }
         } finally {
-            reader.close();
+			((ItemStream) reader).close();
         }
 
         assertEquals(TOTAL_ROWS, rowCount("SELECT COUNT(*) FROM customers_target"));

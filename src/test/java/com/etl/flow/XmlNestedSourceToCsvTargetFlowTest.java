@@ -27,6 +27,7 @@ import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemStream;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.file.FlatFileItemWriter;
 import org.springframework.batch.test.MetaDataInstanceFactory;
@@ -88,12 +89,22 @@ class XmlNestedSourceToCsvTargetFlowTest {
         ItemWriter<Object> writer = writerFactory.createWriter(targetConfig, targetRecordClass);
 
         List<Object> processedItems = new ArrayList<>();
-        Object sourceItem;
-        while ((sourceItem = reader.read()) != null) {
-            Object processed = processor.process(sourceItem);
-            if (processed != null) {
-                processedItems.add(processed);
+            ExecutionContext readerContext = new ExecutionContext();
+            if (reader instanceof ItemStream itemStreamReader) {
+              itemStreamReader.open(readerContext);
             }
+            try {
+              Object sourceItem;
+              while ((sourceItem = reader.read()) != null) {
+                Object processed = processor.process(sourceItem);
+                if (processed != null) {
+                  processedItems.add(processed);
+                }
+              }
+            } finally {
+              if (reader instanceof ItemStream itemStreamReader) {
+                itemStreamReader.close();
+              }
         }
 
         assertEquals(2, processedItems.size());

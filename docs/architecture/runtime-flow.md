@@ -299,7 +299,7 @@ Demo fallback still validates the selected processor config, but it does not run
 ### 2. Model resolution
 `GeneratedModelClassResolver` translates config into concrete runtime class names and wrapper metadata.
 
-For XML sources, explicit startup always requires the generated record class. Non-`NestedXml` XML sources also require the generated root class, while `NestedXml` source validation skips that root-class requirement because the active runtime path flattens from the generated record model.
+For XML sources, explicit startup always requires the generated record class. `XmlDynamicReader` then follows one of two flattening shapes beyond the shared `DirectXml` record-fragment reader: `NestedXml` keeps the active runtime path on `recordElement` fragment streaming and flattens from the generated record model, while `JobSpecificXml` switches to a root-wrapper path that unmarshals the generated XML root before invoking the selected custom strategy. Because of that split, non-`NestedXml` XML sources still require the generated root class during startup validation, while `NestedXml` validation skips that root-class requirement.
 
 ### 3. Step strategy
 `BatchConfig` walks the explicit step list from `job-config.yaml`. For each step, it resolves the named source and target, verifies that a matching processor mapping exists, emits machine-readable step-planning logs such as `STEP_PLAN` and `STEP_READY`, projects synthesized hierarchy metadata into the step execution context for later `STEP_EVENT` evidence, and then calls `getRecordCount()` on the selected source to compare it to `etl.chunk.threshold`.
@@ -328,6 +328,7 @@ The current runtime now implements a first file-ingestion hardening slice on the
 - duplicate handling now supports both keep-first/reject-later behavior and ordered winner selection
 - when ordered duplicate winner selection is configured, `BatchConfig` overrides chunk mode to tasklet mode so it can resolve winners before final write
 - successful file-source steps such as CSV and XML can archive the processed input file and expose `archivedSourcePath` in step-finished evidence when archive-on-success is enabled for that source config
+- staged CSV/XML/JSON file targets currently write to sibling `.part` artifacts first and publish the configured final output only after the writer stream closes cleanly and the enclosing step completes successfully
 - step-finished logs now include `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath`
 
 `FileIngestionRuntimeSupport` owns the reject/archive step state itself. `FileIngestionHardeningStepListener` initializes and completes that state around each step, while `StepLoggingContextListener` publishes the resulting counters and artifact paths from the step execution context.

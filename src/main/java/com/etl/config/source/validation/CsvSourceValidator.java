@@ -4,13 +4,13 @@ import com.etl.config.source.FileArchiveConfig;
 import com.etl.config.source.CsvSourceConfig;
 import com.etl.config.source.SourceConfig;
 import org.springframework.stereotype.Component;
+import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.nio.file.StandardCopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Arrays;
 import java.util.List;
 import java.util.regex.Pattern;
 
@@ -33,6 +33,7 @@ public class CsvSourceValidator implements SourceValidator {
 	@Override
 	public void validate(SourceConfig sourceConfig, SourceValidationContext context) {
 		CsvSourceConfig csvSourceConfig = (CsvSourceConfig) sourceConfig;
+		csvSourceConfig.validateParserConfiguration();
 		validateArchive(csvSourceConfig);
 		validateFileLevelRules(csvSourceConfig);
 	}
@@ -148,7 +149,7 @@ public class CsvSourceValidator implements SourceValidator {
 		List<String> expectedHeaders = csvSourceConfig.getFields().stream()
 				.map(field -> normalizeHeaderValue(field.getName()))
 				.toList();
-		List<String> actualHeaders = Arrays.stream(headerLine.split(Pattern.quote(csvSourceConfig.getDelimiter()), -1))
+		List<String> actualHeaders = parseCsvLine(csvSourceConfig, headerLine).stream()
 				.map(this::normalizeHeaderValue)
 				.toList();
 
@@ -181,6 +182,16 @@ public class CsvSourceValidator implements SourceValidator {
 
 	private String normalize(String value) {
 		return value == null ? "" : value.trim();
+	}
+
+	private List<String> parseCsvLine(CsvSourceConfig csvSourceConfig, String line) {
+		DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer();
+		tokenizer.setDelimiter(csvSourceConfig.getDelimiter());
+		Character quoteCharacter = csvSourceConfig.resolveQuoteCharacter();
+		if (quoteCharacter != null) {
+			tokenizer.setQuoteCharacter(quoteCharacter);
+		}
+		return List.of(tokenizer.tokenize(line).getValues());
 	}
 
 	private boolean hasDataRows(BufferedReader reader) throws IOException {

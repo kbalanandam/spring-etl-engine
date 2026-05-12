@@ -27,7 +27,7 @@ public class RelationalDynamicReader<T> implements DynamicReader<T> {
     }
 
     @Override
-    public ItemReader<T> getReader(SourceConfig config, Class<T> clazz) throws Exception {
+    public ItemReader<T> getReader(SourceConfig config, Class<T> clazz) {
         try {
             if (config == null || clazz == null) {
                 throw new RelationalException("SourceConfig and target class must not be null.");
@@ -50,7 +50,7 @@ public class RelationalDynamicReader<T> implements DynamicReader<T> {
             }
             reader.setRowMapper(buildRowMapper(relationalConfig, clazz));
             reader.afterPropertiesSet();
-            return reader;
+            return new RuntimeCategorizingItemStreamReader<>(reader, relationalConfig.getSourceName());
         } catch (RelationalException e) {
             throw e;
         } catch (IllegalArgumentException e) {

@@ -199,8 +199,9 @@ public class ConfigLoader {
 	                                                  TargetWrapper targetWrapper,
 	                                                  ProcessorConfig processorConfig,
 	                                                  JobRuntimeDescriptorAssembler assembler) {
+		ResolvedRuntimeConfig runtimeConfig = null;
 		try {
-			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
+			runtimeConfig = resolveRuntimeConfig();
 			return assembler.assemble(
 					runtimeConfig.scenarioName(),
 					runtimeConfig.jobConfigPath(),
@@ -215,6 +216,10 @@ public class ConfigLoader {
 					targetWrapper,
 					processorConfig
 			);
+		} catch (IllegalArgumentException | IllegalStateException e) {
+			throw new ConfigException("Invalid runtime descriptor configuration for scenario '"
+					+ defaultName(runtimeConfig == null ? null : runtimeConfig.scenarioName()) + "' in "
+					+ defaultJobPath(runtimeConfig == null ? null : runtimeConfig.jobConfigPath()) + ": " + e.getMessage(), e);
 		} catch (ConfigException e) {
 			throw e;
 		} catch (Exception e) {
@@ -343,7 +348,7 @@ public class ConfigLoader {
 		validateSelectedTargetConfigs(explicitTargetWrapper, scenarioName, resolvedTargetConfigPath);
 		validateProcessorConfig(explicitProcessorConfig, scenarioName, resolvedProcessorConfigPath);
 		List<JobConfig.JobStepConfig> resolvedSteps = resolveExplicitSteps(jobConfig, explicitSourceWrapper, explicitTargetWrapper, explicitProcessorConfig);
-		validateSelectedGeneratedModelClasses(explicitSourceWrapper, explicitTargetWrapper, resolvedSteps);
+		validateSelectedGeneratedModelClasses(explicitSourceWrapper, explicitTargetWrapper, resolvedSteps, scenarioName, jobConfigFile.getAbsolutePath());
 
 		return new ResolvedRuntimeConfig(
 				resolvedSourceConfigPath,
@@ -446,7 +451,9 @@ public class ConfigLoader {
 
 	private void validateSelectedGeneratedModelClasses(SourceWrapper sourceWrapper,
 	                                                TargetWrapper targetWrapper,
-	                                                List<JobConfig.JobStepConfig> resolvedSteps) {
+	                                                List<JobConfig.JobStepConfig> resolvedSteps,
+	                                                String scenarioName,
+	                                                String jobConfigPath) {
 		if (resolvedSteps == null || resolvedSteps.isEmpty()) {
 			return;
 		}
@@ -468,13 +475,24 @@ public class ConfigLoader {
 		for (JobConfig.JobStepConfig step : resolvedSteps) {
 			SourceConfig sourceConfig = sourcesByName.get(step.getSource());
 			TargetConfig targetConfig = targetsByName.get(step.getTarget());
-			if (sourceConfig != null) {
-				GeneratedModelClassResolver.requireSourceModelClassesAvailable(sourceConfig);
-			}
-			if (targetConfig != null) {
-				GeneratedModelClassResolver.requireTargetModelClassesAvailable(targetConfig);
+			try {
+				if (sourceConfig != null) {
+					GeneratedModelClassResolver.requireSourceModelClassesAvailable(sourceConfig);
+				}
+				if (targetConfig != null) {
+					GeneratedModelClassResolver.requireTargetModelClassesAvailable(targetConfig);
+				}
+			} catch (IllegalArgumentException | IllegalStateException e) {
+				throw new ConfigException("Invalid generated model configuration for scenario '"
+						+ defaultName(scenarioName) + "' in " + defaultJobPath(jobConfigPath)
+						+ " (step='" + defaultName(step.getName()) + "', source='" + defaultName(step.getSource())
+						+ "', target='" + defaultName(step.getTarget()) + "'): " + e.getMessage(), e);
 			}
 		}
+	}
+
+	private String defaultJobPath(String jobPath) {
+		return jobPath == null || jobPath.isBlank() ? "selected job-config" : jobPath.trim();
 	}
 
 	private void validateSelectedTargetConfigs(TargetWrapper targetWrapper, String scenarioName, String targetConfigPath) {
@@ -666,6 +684,7 @@ public class ConfigLoader {
 			if (sourceConfig instanceof XmlSourceConfig xmlSourceConfig) {
 				xmlSourceConfig.setModelDefinitionPath(resolveScenarioPath(configDirectory, xmlSourceConfig.getModelDefinitionPath()));
 				if (xmlSourceConfig.getValidation() != null) {
+					xmlSourceConfig.getValidation().setSchemaPath(resolveScenarioPath(configDirectory, xmlSourceConfig.getValidation().getSchemaPath()));
 					xmlSourceConfig.getValidation().setRejectPath(resolveScenarioPath(configDirectory, xmlSourceConfig.getValidation().getRejectPath()));
 				}
 			}
@@ -818,8 +837,6 @@ public class ConfigLoader {
 
 			validateRejectHandling(config);
 			logger.info("Processor configuration loaded and validated successfully from YAML");
-		} catch (ConfigException e) {
-			throw e;
 		} catch (IllegalArgumentException | IllegalStateException e) {
 			throw new ConfigException("Invalid processor configuration for scenario '"
 					+ defaultName(scenarioName) + "' in " + resolvedProcessorConfigPath + ": " + e.getMessage(), e);

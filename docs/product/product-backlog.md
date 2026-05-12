@@ -172,6 +172,7 @@ This table is the day-to-day execution view for the current product stage.
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
 | [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Ready | M1 | A2 | Future `job-config.yaml isActive` contract should fail fast in `ConfigLoader` with job-aware startup errors; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
 | [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | In Progress | M2 | A2 | Optional source/target `packageName` derivation is now shipped for explicit job mode; remaining work is the full naming standard, validation guardrails, and bridge tightening described in [`Generated model naming standard`](../architecture/generated-model-naming-standard.md) |
+| [A5](backlog-items/A5-relational-source-column-alias-contract.md) | Add relational source column alias contract and reader mapping | Epic A | P2 | Deferred | M2 | none | Parked for later review so relational reads can support source-column-to-property differences without disturbing the current phase-1 baseline |
 | T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | T2 | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
@@ -182,6 +183,8 @@ This table is the day-to-day execution view for the current product stage.
 | B1 | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | B2 | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
 | B3 | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
+| [B4](backlog-items/B4-strict-xml-source-validation-and-optional-xsd.md) | Add strict XML source validation mode with optional XSD checks | Epic B | P2 | Done | M2 | none | Shipped as an opt-in XML source-validation slice through `validation.schemaPath`, preserving lightweight structural XML checks as the default baseline while enabling fail-fast XSD validation and whole-file reject behavior |
+| [B5](backlog-items/B5-csv-reader-parsing-hardening.md) | Add CSV parsing hardening with configurable quote/escape behavior | Epic B | P2 | Done | M2 | none | Shipped as a narrow reader hardening slice through optional `parser.quoteCharacter`, preserving the current default CSV behavior while supporting alternate quoted-field contracts |
 | C1 | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Done | M1 | none | `RUN_EVENT` / `RUN_SUMMARY` and step lifecycle evidence are now emitted for selected runs |
 | [C2](backlog-items/C2-run-level-count-rollup-and-reconciliation.md) | Complete run-level source / written / rejected count rollup | Epic C | P1 | Done | M1 | C1 | `RUN_SUMMARY` now emits operator-oriented run-level `sourceCount` / `writtenCount` / `rejectedCount`, with intermediate handoff counts kept separate for multi-step jobs |
 | [D1](backlog-items/D1-stable-error-taxonomy-and-categories.md) | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
@@ -311,6 +314,7 @@ Make each run explicit, predictable, and less fragile.
 - [x] Validate scenario completeness before job start
 - [ ] Add job-level activation guardrail so `isActive: false` blocks the selected job before wiring
 - [ ] Complete the remaining generated-model naming and validation standard after the shipped optional-`packageName` bridge for explicit jobs
+- [ ] Add a relational source column alias contract so selected database column names can differ from generated/runtime property names without ad hoc query-only workarounds
 - [ ] Add stronger config validation error messages for operators
 - [ ] Make step definitions more business-meaningful and less index-driven
 - [ ] Document supported orchestration patterns and limitations
@@ -335,6 +339,8 @@ Handle bad data and transient failures in a controlled way.
 - [x] Add validation and rejected-record output strategy for file-based ingestion
 - [x] Add bad-record reporting through controlled rejected-record output, with broader quarantine workflows deferred
 - [x] Add processed-source-file archiving after successful runs
+- [x] Add an optional strict XML source-validation mode with XSD/schema checks for scenarios that need stronger source contracts
+- [x] Add CSV parsing hardening for quoted/escaped field handling while preserving today's simple default reader contract
 - [ ] Define fail-fast vs tolerate-and-report rules per scenario type
 
 ### Done criteria
@@ -377,7 +383,7 @@ Make each ETL run auditable beyond raw logs.
 
 ### Backlog
 - [x] Emit a run summary with start/end time, scenario, status, and duration
-- [ ] Complete run-level source / written / rejected count rollup
+- [x] Complete run-level source / written / rejected count rollup
 - [ ] Define a reconciliation model for input vs output records
 - [ ] Persist or export run summary metadata
 - [ ] Document operational evidence expectations

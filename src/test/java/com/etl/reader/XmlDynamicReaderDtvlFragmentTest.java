@@ -5,7 +5,9 @@ import com.etl.reader.impl.XmlDynamicReader;
 import com.etl.testsupport.GeneratedScenarioModelSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemStream;
 
 import java.nio.file.Path;
 import java.util.Map;
@@ -37,7 +39,14 @@ class XmlDynamicReaderDtvlFragmentTest {
             config.setFlatteningStrategy("NestedXml");
 
             ItemReader<Object> reader = new XmlDynamicReader<>().getReader(config, (Class<Object>) recordClass);
-            Object first = reader.read();
+            ItemStream itemStream = (ItemStream) reader;
+            itemStream.open(new ExecutionContext());
+            Object first;
+            try {
+                first = reader.read();
+            } finally {
+                itemStream.close();
+            }
 
             assertInstanceOf(Map.class, first);
             Map<String, Object> firstRow = (Map<String, Object>) first;

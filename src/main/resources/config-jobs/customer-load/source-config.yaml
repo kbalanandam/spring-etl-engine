@@ -4,6 +4,8 @@ sources:
     packageName: com.etl.generated.job.customerload.source
     filePath: src/main/resources/demo-input/Customers.csv
     delimiter: ","
+    parser:
+      quoteCharacter: '"'
     fields:
       - name: id
         type: int

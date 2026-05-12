@@ -9,6 +9,12 @@ import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLStreamConstants;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
+import javax.xml.XMLConstants;
+import javax.xml.transform.stream.StreamSource;
+import javax.xml.validation.Schema;
+import javax.xml.validation.SchemaFactory;
+import javax.xml.validation.Validator;
+import org.xml.sax.SAXException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.StandardCopyOption;
@@ -36,7 +42,8 @@ public class XmlSourceValidator implements SourceValidator {
 		validateFile(filePath);
 		validateRejectConfiguration(xmlSourceConfig.getValidation());
 		validateFileNamePattern(xmlSourceConfig.getValidation(), filePath);
-		validateXmlStructure(filePath, expectedRootElement.trim(), expectedRecordElement.trim());
+		validateSchema(xmlSourceConfig.getValidation(), filePath);
+		validateXmlStructure(xmlSourceConfig.getValidation(), filePath, expectedRootElement.trim(), expectedRecordElement.trim());
 	}
 
 	private void validateArchive(XmlSourceConfig xmlSourceConfig) {
@@ -86,7 +93,10 @@ public class XmlSourceValidator implements SourceValidator {
 				"XML fileNamePattern validation failed. pattern=" + validation.getFileNamePattern() + " fileName=" + fileName);
 	}
 
-	private void validateXmlStructure(Path filePath, String expectedRootElement, String expectedRecordElement) {
+	private void validateXmlStructure(XmlSourceConfig.ValidationConfig validation,
+	                                Path filePath,
+	                                String expectedRootElement,
+	                                String expectedRecordElement) {
 		XMLInputFactory factory = XMLInputFactory.newFactory();
 		disableExternalEntityResolution(factory);
 
@@ -106,8 +116,9 @@ public class XmlSourceValidator implements SourceValidator {
 					if (!rootSeen) {
 						rootSeen = true;
 						if (!expectedRootElement.equals(elementName)) {
-							throw new IllegalArgumentException("XML root element does not match configured rootElement. expected="
-									+ expectedRootElement + " actual=" + elementName);
+							handleValidationFailure(validation, filePath,
+									"XML root element does not match configured rootElement. expected="
+											+ expectedRootElement + " actual=" + elementName);
 						}
 						if (expectedRecordElement.equals(elementName)) {
 							recordSeen = true;
@@ -117,25 +128,64 @@ public class XmlSourceValidator implements SourceValidator {
 
 					if (expectedRecordElement.equals(elementName)) {
 						recordSeen = true;
-						break;
 					}
 				}
 			} finally {
 				reader.close();
 			}
 		} catch (XMLStreamException e) {
-			throw new IllegalArgumentException("XML source must be well-formed and readable: " + filePath, e);
+			handleValidationFailure(validation, filePath,
+					"XML source must be well-formed and readable: " + filePath + "; " + e.getMessage());
 		} catch (IOException e) {
 			throw new IllegalArgumentException("Unable to read XML file for validation: " + filePath, e);
 		}
 
 		if (!rootSeen) {
-			throw new IllegalArgumentException("XML document must contain a root element: " + filePath);
+			handleValidationFailure(validation, filePath,
+					"XML document must contain a root element: " + filePath);
 		}
 		if (!recordSeen) {
-			throw new IllegalArgumentException("XML record element '" + expectedRecordElement
-					+ "' was not found inside root '" + expectedRootElement + "'.");
+			handleValidationFailure(validation, filePath,
+					"XML record element '" + expectedRecordElement
+							+ "' was not found inside root '" + expectedRootElement + "'.");
 		}
+	}
+
+	private void validateSchema(XmlSourceConfig.ValidationConfig validation, Path filePath) {
+		if (validation == null || validation.getSchemaPath() == null || validation.getSchemaPath().isBlank()) {
+			return;
+		}
+
+		Path schemaPath = Path.of(validation.getSchemaPath().trim());
+		if (!Files.exists(schemaPath)) {
+			throw new IllegalArgumentException("XML validation schemaPath must exist: " + schemaPath);
+		}
+		if (!Files.isRegularFile(schemaPath)) {
+			throw new IllegalArgumentException("XML validation schemaPath must be a regular file: " + schemaPath);
+		}
+		if (!Files.isReadable(schemaPath)) {
+			throw new IllegalArgumentException("XML validation schemaPath must be readable: " + schemaPath);
+		}
+
+		SchemaFactory schemaFactory = SchemaFactory.newInstance(XMLConstants.W3C_XML_SCHEMA_NS_URI);
+		disableExternalSchemaResolution(schemaFactory);
+		try {
+			Schema schema = schemaFactory.newSchema(schemaPath.toFile());
+			Validator validator = schema.newValidator();
+			try (InputStream inputStream = Files.newInputStream(filePath)) {
+				validator.validate(new StreamSource(inputStream));
+			}
+		} catch (SAXException e) {
+			handleValidationFailure(validation, filePath,
+					"XML schema validation failed for schemaPath=" + schemaPath + ": " + e.getMessage());
+		} catch (IOException e) {
+			throw new IllegalArgumentException("Unable to validate XML file against schemaPath=" + schemaPath + ": " + filePath, e);
+		}
+	}
+
+	private void disableExternalSchemaResolution(SchemaFactory schemaFactory) {
+		setIfSupported(schemaFactory, XMLConstants.ACCESS_EXTERNAL_DTD, "");
+		setIfSupported(schemaFactory, XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
 	}
 
 	private void disableExternalEntityResolution(XMLInputFactory factory) {
@@ -148,6 +198,14 @@ public class XmlSourceValidator implements SourceValidator {
 			factory.setProperty(propertyName, value);
 		} catch (IllegalArgumentException ignored) {
 			// Keep compatibility with XMLInputFactory implementations that do not expose the property.
+		}
+	}
+
+	private void setIfSupported(SchemaFactory schemaFactory, String propertyName, String value) {
+		try {
+			schemaFactory.setProperty(propertyName, value);
+		} catch (SAXException | IllegalArgumentException ignored) {
+			// Keep compatibility with SchemaFactory implementations that do not expose the property.
 		}
 	}
 

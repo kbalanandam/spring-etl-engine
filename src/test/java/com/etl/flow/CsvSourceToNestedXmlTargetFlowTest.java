@@ -26,6 +26,7 @@ import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemStream;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.xml.StaxEventItemWriter;
 
@@ -87,7 +88,7 @@ class CsvSourceToNestedXmlTargetFlowTest {
 
         List<Object> processedItems = new ArrayList<>();
         ExecutionContext readerContext = new ExecutionContext();
-        if (reader instanceof org.springframework.batch.item.ItemStream itemStreamReader) {
+            if (reader instanceof ItemStream itemStreamReader) {
             itemStreamReader.open(readerContext);
         }
         try {
@@ -99,7 +100,7 @@ class CsvSourceToNestedXmlTargetFlowTest {
                 }
             }
         } finally {
-            if (reader instanceof org.springframework.batch.item.ItemStream itemStreamReader) {
+                      if (reader instanceof ItemStream itemStreamReader) {
                 itemStreamReader.close();
             }
         }
@@ -159,9 +160,9 @@ class CsvSourceToNestedXmlTargetFlowTest {
     }
 
   private void applyDerivedPackages(JobConfig jobConfig,
-                                   Path scenarioDir,
-                                   SourceWrapper sourceWrapper,
-                                   TargetWrapper targetWrapper) {
+                                    Path scenarioDir,
+                                    SourceWrapper sourceWrapper,
+                                    TargetWrapper targetWrapper) {
     String jobName = JobScopedPackageNameResolver.deriveJobName(jobConfig, scenarioDir);
     if (sourceWrapper.getSources() != null) {
       for (var sourceConfig : sourceWrapper.getSources()) {

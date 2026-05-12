@@ -10,6 +10,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CsvSourceConfigTest {
@@ -38,6 +40,36 @@ class CsvSourceConfigTest {
 
         assertEquals(2, config.getRecordCount());
     }
+
+  @Test
+  void resolveQuoteCharacterReturnsNullWhenParserIsNotConfigured() {
+    CsvSourceConfig config = csvSource(tempDir.resolve("customers.csv"));
+
+    assertNull(config.resolveQuoteCharacter());
+  }
+
+  @Test
+  void validateParserConfigurationRejectsMultiCharacterQuoteSetting() {
+    CsvSourceConfig config = csvSource(tempDir.resolve("customers.csv"));
+    CsvSourceConfig.ParserConfig parser = new CsvSourceConfig.ParserConfig();
+    parser.setQuoteCharacter("''");
+    config.setParser(parser);
+
+    IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, config::validateParserConfiguration);
+    assertEquals("parser.quoteCharacter must be exactly one character when configured.", failure.getMessage());
+  }
+
+  @Test
+  void validateParserConfigurationRejectsQuoteCharacterThatMatchesDelimiter() {
+    CsvSourceConfig config = csvSource(tempDir.resolve("customers.csv"));
+    config.setDelimiter("|");
+    CsvSourceConfig.ParserConfig parser = new CsvSourceConfig.ParserConfig();
+    parser.setQuoteCharacter("|");
+    config.setParser(parser);
+
+    IllegalArgumentException failure = assertThrows(IllegalArgumentException.class, config::validateParserConfiguration);
+    assertEquals("parser.quoteCharacter must differ from delimiter.", failure.getMessage());
+  }
 
     private CsvSourceConfig csvSource(Path filePath) {
         CsvSourceConfig config = new CsvSourceConfig();

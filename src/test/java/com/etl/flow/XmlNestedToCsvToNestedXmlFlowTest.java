@@ -28,6 +28,7 @@ import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemStream;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.file.FlatFileItemWriter;
 import org.springframework.batch.item.xml.StaxEventItemWriter;
@@ -105,12 +106,22 @@ class XmlNestedToCsvToNestedXmlFlowTest {
         ItemWriter<Object> firstStepWriter = writerFactory.createWriter(csvTargetConfig, csvTargetClass);
 
         List<Object> firstStepProcessedItems = new ArrayList<>();
-        Object xmlItem;
-        while ((xmlItem = firstStepReader.read()) != null) {
-            Object processed = firstStepProcessor.process(xmlItem);
-            if (processed != null) {
-                firstStepProcessedItems.add(processed);
+            ExecutionContext firstStepReaderContext = new ExecutionContext();
+            if (firstStepReader instanceof ItemStream itemStreamReader) {
+              itemStreamReader.open(firstStepReaderContext);
             }
+            try {
+              Object xmlItem;
+              while ((xmlItem = firstStepReader.read()) != null) {
+                Object processed = firstStepProcessor.process(xmlItem);
+                if (processed != null) {
+                  firstStepProcessedItems.add(processed);
+                }
+              }
+            } finally {
+              if (firstStepReader instanceof ItemStream itemStreamReader) {
+                itemStreamReader.close();
+              }
         }
         assertEquals(1, firstStepProcessedItems.size());
 
@@ -133,7 +144,7 @@ class XmlNestedToCsvToNestedXmlFlowTest {
 
         List<Object> secondStepProcessedItems = new ArrayList<>();
         ExecutionContext readerContext = new ExecutionContext();
-        if (secondStepReader instanceof org.springframework.batch.item.ItemStream itemStreamReader) {
+            if (secondStepReader instanceof ItemStream itemStreamReader) {
             itemStreamReader.open(readerContext);
         }
         try {
@@ -145,7 +156,7 @@ class XmlNestedToCsvToNestedXmlFlowTest {
                 }
             }
         } finally {
-            if (secondStepReader instanceof org.springframework.batch.item.ItemStream itemStreamReader) {
+                      if (secondStepReader instanceof ItemStream itemStreamReader) {
                 itemStreamReader.close();
             }
         }

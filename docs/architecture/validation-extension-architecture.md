@@ -30,6 +30,7 @@ The current shipped first slice supports:
 - CSV-focused processor field rules (`notNull`, `timeFormat`, and `duplicate` with single-field, composite-key, or ordered winner-selection behavior)
 - source-validation SPI dispatch for CSV, XML, and relational source validation concerns
 - optional source-file rejection on validation failure through `validation.onFailure=rejectFile`
+- optional XML schema validation through `XmlSourceConfig.validation.schemaPath`
 - rejected-record output through `processor-config.yaml`
 - archive-on-success through the shared file-source config contract for file-backed sources such as CSV and XML
 
@@ -105,8 +106,8 @@ XSD validation should remain an optional strict-mode source check rather than a 
 Recommended XML policy direction:
 
 - default baseline: lightweight structural XML checks only
-- strict contract mode: enable XSD validation explicitly when schema compliance is required
-- fail file/step for XML source or XSD failures
+- strict contract mode: enable XSD validation explicitly when schema compliance is required, for example through `XmlSourceConfig.validation.schemaPath`
+- fail file/step for XML source or XSD failures, with optional whole-file reject/move behavior when `validation.onFailure=rejectFile`
 - keep record/business-rule rejection decisions out of source validation
 
 ### Processor-level validation
@@ -247,7 +248,7 @@ This proposal does **not** mean:
 - bringing back a fourth top-level runtime config file for validation
 - unifying file-level and record-level validation under one generic legacy interface again
 - claiming all source types already support the same validation behavior today
-- claiming XML/XSD validation is shipped now
+- claiming XML/XSD validation belongs anywhere other than the active XML source-validation path
 
 ## Rollout order
 

@@ -3,6 +3,8 @@ package com.etl.reader;
 import com.etl.config.ColumnConfig;
 import com.etl.config.relational.RelationalConnectionConfig;
 import com.etl.config.source.RelationalSourceConfig;
+import com.etl.exception.EtlErrorCategory;
+import com.etl.exception.EtlExceptionDetails;
 import com.etl.model.source.Customers;
 import com.etl.reader.impl.CsvDynamicReader;
 import com.etl.reader.impl.RelationalDynamicReader;
@@ -10,7 +12,7 @@ import com.etl.reader.impl.XmlDynamicReader;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemReader;
-import org.springframework.batch.item.database.JdbcCursorItemReader;
+import org.springframework.batch.item.ItemStream;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -21,6 +23,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class RelationalDynamicReaderTest {
 
@@ -37,14 +40,14 @@ class RelationalDynamicReaderTest {
 
         ItemReader<Customers> reader = factory.createReader(config, Customers.class);
         assertNotNull(reader);
-        assertInstanceOf(JdbcCursorItemReader.class, reader);
+        assertInstanceOf(ItemStream.class, reader);
 
-        JdbcCursorItemReader<Customers> jdbcReader = (JdbcCursorItemReader<Customers>) reader;
+        ItemStream jdbcReader = (ItemStream) reader;
         jdbcReader.open(new ExecutionContext());
 
         List<Customers> records = new ArrayList<>();
         Customers record;
-        while ((record = jdbcReader.read()) != null) {
+        while ((record = reader.read()) != null) {
             records.add(record);
         }
         jdbcReader.close();
@@ -61,20 +64,31 @@ class RelationalDynamicReaderTest {
         RelationalSourceConfig config = relationalSourceConfig("SELECT id, name, email FROM customers ORDER BY id");
         config.setMaxRows(2);
 
-        JdbcCursorItemReader<Customers> reader = (JdbcCursorItemReader<Customers>) factory.createReader(config, Customers.class);
-        reader.open(new ExecutionContext());
+        ItemReader<Customers> reader = factory.createReader(config, Customers.class);
+        ((ItemStream) reader).open(new ExecutionContext());
 
         List<Customers> records = new ArrayList<>();
         Customers record;
         while ((record = reader.read()) != null) {
             records.add(record);
         }
-        reader.close();
+        ((ItemStream) reader).close();
 
         assertEquals(2, records.size());
         assertEquals(1, records.get(0).getId());
         assertEquals(2, records.get(1).getId());
     }
+
+  @Test
+  void categorizesRelationalOpenFailureAsRuntime() throws Exception {
+    RelationalSourceConfig config = relationalSourceConfig("SELECT id, name, email FROM missing_customers ORDER BY id");
+    ItemReader<Customers> reader = factory.createReader(config, Customers.class);
+
+    Exception failure = assertThrows(Exception.class,
+        () -> ((ItemStream) reader).open(new ExecutionContext()));
+
+    assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+  }
 
     private static void setupCustomersTable() throws Exception {
         try (Connection connection = DriverManager.getConnection(JDBC_URL, "sa", "");

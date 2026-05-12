@@ -21,6 +21,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 
@@ -38,6 +39,65 @@ class GeneratedModelClassResolverTest {
     );
 
     assertEquals("com.etl.model.source.xml.Customer", GeneratedModelClassResolver.resolveSourceClassName(sourceConfig));
+  }
+
+  @Test
+  void failsFastWhenSourcePackageNameIsBlankBeforeClassResolution() {
+    CsvSourceConfig config = new CsvSourceConfig(
+        "Customers",
+        null,
+        List.of(column("id", "int")),
+        "target/customers.csv",
+        ","
+    );
+
+    IllegalArgumentException exception = assertThrows(
+        IllegalArgumentException.class,
+        () -> GeneratedModelClassResolver.resolveSourceClassName(config)
+    );
+
+    assertTrue(exception.getMessage().contains("packageName"));
+    assertTrue(exception.getMessage().contains("Customers"));
+    assertTrue(exception.getMessage().contains("ConfigLoader package defaulting"));
+  }
+
+  @Test
+  void failsFastWhenTargetPackageNameIsInvalidBeforeClassResolution() {
+    CsvTargetConfig config = new CsvTargetConfig(
+        "CustomersOut",
+        "com.etl.invalid-package",
+        List.of(column("id", "int")),
+        "target/customers.csv",
+        ","
+    );
+
+    IllegalArgumentException exception = assertThrows(
+        IllegalArgumentException.class,
+        () -> GeneratedModelClassResolver.resolveTargetWriteClassName(config)
+    );
+
+    assertTrue(exception.getMessage().contains("invalid packageName"));
+    assertTrue(exception.getMessage().contains("CustomersOut"));
+  }
+
+  @Test
+  void failsFastWhenXmlRecordElementIsBlankBeforeWrapperResolution() {
+    XmlTargetConfig config = new XmlTargetConfig(
+        "Customers",
+        "com.etl.model.target",
+        List.of(column("id", "int")),
+        "target/customers.xml",
+        "Customers",
+        "   "
+    );
+
+    IllegalArgumentException exception = assertThrows(
+        IllegalArgumentException.class,
+        () -> GeneratedModelClassResolver.resolveXmlWrapperFieldName(config)
+    );
+
+    assertTrue(exception.getMessage().contains("recordElement"));
+    assertTrue(exception.getMessage().contains("Customers"));
   }
 
     @Test
@@ -175,6 +235,42 @@ class GeneratedModelClassResolverTest {
         assertDoesNotThrow(() -> GeneratedModelClassResolver.requireSourceModelClassesAvailable(csvSourceConfig));
     }
 
+  @Test
+  void skipsRootClassRequirementForNestedXmlSources() {
+    XmlSourceConfig config = new XmlSourceConfig(
+        "Customers",
+        "com.etl.model.target",
+        List.of(column("id", "int")),
+        "target/customers.xml",
+        "MissingCustomers",
+        "Customer"
+    );
+    config.setFlatteningStrategy("NestedXml");
+
+    assertDoesNotThrow(() -> GeneratedModelClassResolver.requireSourceModelClassesAvailable(config));
+  }
+
+  @Test
+  void requiresRootClassForJobSpecificXmlSources() {
+    XmlSourceConfig config = new XmlSourceConfig(
+        "Customers",
+        "com.etl.model.target",
+        List.of(column("id", "int")),
+        "target/customers.xml",
+        "MissingCustomers",
+        "Customer"
+    );
+    config.setFlatteningStrategy("JobSpecificXml");
+
+    IllegalStateException exception = assertThrows(
+        IllegalStateException.class,
+        () -> GeneratedModelClassResolver.requireSourceModelClassesAvailable(config)
+    );
+
+    assertTrue(exception.getMessage().contains("XML source root class not found"));
+    assertTrue(exception.getMessage().contains("com.etl.model.target.MissingCustomers"));
+  }
+
     @Test
     void validatesGeneratedClassPresenceForRelationalTargets() {
         RelationalTargetConfig config = new RelationalTargetConfig(
@@ -208,6 +304,32 @@ class GeneratedModelClassResolverTest {
 
         assertDoesNotThrow(() -> GeneratedModelClassResolver.requireSourceModelClassesAvailable(config));
     }
+
+  @Test
+  void failsFastWhenResolvedMetadataUsesUnqualifiedClassName() {
+    IllegalArgumentException exception = assertThrows(
+        IllegalArgumentException.class,
+        () -> new ResolvedModelMetadata("Customer", "com.etl.model.target.Customer", "com.etl.model.target.Customer", false, null)
+    );
+
+    assertEquals("sourceClassName must be a fully qualified class name.", exception.getMessage());
+  }
+
+  @Test
+  void failsFastWhenWrapperMetadataIsInconsistent() {
+    IllegalArgumentException exception = assertThrows(
+        IllegalArgumentException.class,
+        () -> new ResolvedModelMetadata(
+            "com.etl.model.source.Customer",
+            "com.etl.model.target.Customer",
+            "com.etl.model.target.Customers",
+            true,
+            ""
+        )
+    );
+
+    assertEquals("wrapperFieldName must not be blank.", exception.getMessage());
+  }
 
     private static ColumnConfig column(String name, String type) {
         ColumnConfig column = new ColumnConfig();

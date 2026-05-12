@@ -5,8 +5,5 @@ targets:
     filePath: output/customers-nested.xml
     rootElement: Customers
     recordElement: CustomerRecord
-    fields:
-      - name: id
-        type: String
     modelDefinitionPath: definitions/nested-target-model.yaml
 

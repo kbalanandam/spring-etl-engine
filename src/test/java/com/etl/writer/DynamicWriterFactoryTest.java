@@ -3,6 +3,7 @@ package com.etl.writer;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -11,7 +12,11 @@ import java.util.List;
 import com.etl.config.ColumnConfig;
 import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.JsonTargetConfig;
+import com.etl.config.target.TargetConfig;
+import com.etl.enums.ModelFormat;
+import com.etl.exception.FactoryException;
 import com.etl.model.source.Customers;
+import com.etl.writer.exception.NoWriterFoundException;
 import com.etl.writer.impl.JsonDynamicWriter;
 import com.etl.writer.impl.StagedJsonArrayItemWriter;
 import org.junit.jupiter.api.Test;
@@ -80,6 +85,33 @@ class DynamicWriterFactoryTest {
         assertEquals("john@example.com", json.get(0).get("email").asText());
     }
 
+  @Test
+  void failsFastWhenMultipleWritersRegisterSameFormat() {
+    FactoryException failure = assertThrows(
+        FactoryException.class,
+        () -> new DynamicWriterFactory(List.of(new CsvDynamicWriter(), new DuplicateCsvWriter()))
+    );
+
+    assertEquals("Multiple writers registered for format: CSV", failure.getMessage());
+  }
+
+  @Test
+  void throwsWriterSpecificExceptionWhenFormatHasNoRegisteredWriter() {
+    TargetConfig missingTarget = new TargetConfig("RelationalOut", "com.etl.model.target", List.of()) {
+      @Override
+      public ModelFormat getFormat() {
+        return ModelFormat.RELATIONAL;
+      }
+    };
+
+    NoWriterFoundException failure = assertThrows(
+        NoWriterFoundException.class,
+        () -> factory.createWriter(missingTarget, Customers.class)
+    );
+
+    assertEquals("No writer found for format: RELATIONAL", failure.getMessage());
+  }
+
   private static CsvTargetConfig getCsvTargetConfig(Path outputFile) {
         ColumnConfig col1 = new ColumnConfig();
         col1.setName("id");
@@ -124,4 +156,17 @@ class DynamicWriterFactoryTest {
                 outputFile.toString()
         );
     }
+
+  private static final class DuplicateCsvWriter implements DynamicWriter {
+    @Override
+    public ModelFormat getFormat() {
+      return ModelFormat.CSV;
+    }
+
+    @Override
+    public ItemWriter<Object> getWriter(TargetConfig config, Class<?> clazz) {
+      return chunk -> {
+      };
+    }
+  }
 }

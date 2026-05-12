@@ -34,7 +34,7 @@ The product will not revive `validation-config.yaml` or the deprecated `com.etl.
 
 - validation growth stays aligned to the active ETL runtime path
 - file-level validation and record-level validation remain clearly separated
-- future XML/XSD validation has a clean home in the source validation seam
+- shipped optional XML/XSD validation now has a clean home on the active source validation seam
 - future regex/range/cross-field validation has a clean home in the processor rule seam
 - contributors retain extensibility without being directed to deprecated code paths
 
@@ -46,7 +46,7 @@ The product will not revive `validation-config.yaml` or the deprecated `com.etl.
 
 ## Notes
 
-- `XsdValidationRule` maps conceptually to the future source validation SPI
+- `XsdValidationRule` maps conceptually to the active XML source-validation seam now used for optional `schemaPath` checks
 - `RegexRule` maps conceptually to the future processor rule SPI
 - the shipped current contract remains source config + processor config + explicit `job-config.yaml` orchestration
 

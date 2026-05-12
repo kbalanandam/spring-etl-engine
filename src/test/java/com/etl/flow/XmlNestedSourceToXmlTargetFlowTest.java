@@ -25,6 +25,7 @@ import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemStream;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.xml.StaxEventItemWriter;
 
@@ -47,8 +48,8 @@ class XmlNestedSourceToXmlTargetFlowTest {
     @TempDir
     Path tempDir;
 
-    @Test
-    @SuppressWarnings({"unchecked", "rawtypes"})
+  @Test
+  @SuppressWarnings("unchecked")
     void runsNestedXmlSourceThroughSharedProcessorIntoXmlTarget() throws Exception {
         Path scenarioDir = prepareScenarioBundle();
         Path generatedSourceRoot = tempDir.resolve("generated-flow-sources");
@@ -79,17 +80,27 @@ class XmlNestedSourceToXmlTargetFlowTest {
         DynamicWriterFactory writerFactory = new DynamicWriterFactory(List.of(new XmlDynamicWriter()));
 
         ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(sourceConfig, targetConfig);
-        ItemReader<Object> reader = (ItemReader<Object>) readerFactory.createReader(sourceConfig, (Class<Object>) sourceRecordClass);
+            ItemReader<Object> reader = readerFactory.createReader(sourceConfig, (Class<Object>) sourceRecordClass);
         ItemProcessor<Object, Object> processor = processorFactory.getProcessor(processorConfig, sourceConfig, targetConfig, metadata);
         ItemWriter<Object> writer = writerFactory.createWriter(targetConfig, targetRecordClass);
 
         List<Object> processedItems = new ArrayList<>();
-        Object sourceItem;
-        while ((sourceItem = reader.read()) != null) {
-            Object processed = processor.process(sourceItem);
-            if (processed != null) {
-                processedItems.add(processed);
+            ExecutionContext readerContext = new ExecutionContext();
+            if (reader instanceof ItemStream itemStreamReader) {
+              itemStreamReader.open(readerContext);
             }
+            try {
+              Object sourceItem;
+              while ((sourceItem = reader.read()) != null) {
+                Object processed = processor.process(sourceItem);
+                if (processed != null) {
+                  processedItems.add(processed);
+                }
+              }
+            } finally {
+              if (reader instanceof ItemStream itemStreamReader) {
+                itemStreamReader.close();
+              }
         }
 
         assertEquals(1, processedItems.size());
