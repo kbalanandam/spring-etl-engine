@@ -32,6 +32,7 @@ class ScenarioConfigReferenceTest {
     void allTrackedScenarioFoldersContainResolvableJobReferencedFiles() throws IOException {
         List<String> scenarioNames = List.of(
                 "csv-validation-reject-archive",
+                "csv-to-nested-xml",
                 "csv-to-sqlserver",
                 "relational-to-relational",
                 "xml-to-csv-events",
