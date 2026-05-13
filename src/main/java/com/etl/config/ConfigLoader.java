@@ -200,6 +200,8 @@ public class ConfigLoader {
 	                                                  TargetWrapper targetWrapper,
 	                                                  ProcessorConfig processorConfig,
 	                                                  JobRuntimeDescriptorAssembler assembler) {
+		// Build the observability/runtime descriptor from the same selected config contract
+		// that drives actual execution so logging and execution describe the same scenario.
 		ResolvedRuntimeConfig runtimeConfig = null;
 		try {
 			runtimeConfig = resolveRuntimeConfig();
@@ -280,6 +282,8 @@ public class ConfigLoader {
 	}
 
 	private ResolvedRuntimeConfig resolveRuntimeConfig() throws IOException {
+		// Runtime config is resolved once per application startup because all downstream beans
+		// must agree on one selected scenario or one explicit demo-fallback contract.
 		ResolvedRuntimeConfig existing = cachedRuntimeConfig;
 		if (existing != null) {
 			return existing;
@@ -294,6 +298,8 @@ public class ConfigLoader {
 	}
 
 	private ResolvedRuntimeConfig buildRuntimeConfig() throws IOException {
+		// The shipped runtime chooses exactly one selected job bundle per run. When no explicit
+		// job-config is provided, demo fallback is allowed only if operators enabled it on purpose.
 		if (jobConfigPath == null || jobConfigPath.isBlank()) {
 			if (!allowDemoFallback) {
 				logger.error("Missing required runtime property 'etl.config.job'. Demo fallback is disabled, so startup cannot continue.");

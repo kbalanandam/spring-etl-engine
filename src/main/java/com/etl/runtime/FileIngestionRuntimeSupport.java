@@ -58,6 +58,13 @@ public class FileIngestionRuntimeSupport {
 	private final Map<Long, RejectFileState> rejectStateByStepExecutionId = new ConcurrentHashMap<>();
 	private final Map<Long, Map<String, Set<String>>> duplicateValuesByStepExecutionId = new ConcurrentHashMap<>();
 
+	/**
+	 * Initializes step-scoped reject handling and duplicate tracking state.
+	 *
+	 * <p>This method is called once per step before processing begins. It creates the execution
+	 * context evidence slots used later by listeners and summaries, then prepares any optional
+	 * reject-file state for the active mapping.</p>
+	 */
 	public void initializeStep(StepExecution stepExecution,
 	                         SourceConfig sourceConfig,
 	                         ProcessorConfig processorConfig,
@@ -74,6 +81,13 @@ public class FileIngestionRuntimeSupport {
 		rejectStateByStepExecutionId.put(stepExecution.getId(), new RejectFileState(rejectPath, entityMapping, rejectHandling.isIncludeReasonColumns()));
 	}
 
+	/**
+	 * Records one rejected item for the current step when reject handling is enabled.
+	 *
+	 * <p>The method writes the rejected row to the active reject file, increments the step-level
+	 * rejected count, and returns {@code true}. When no step context or reject-file state exists,
+	 * it returns {@code false} so the caller can continue without treating that as an error.</p>
+	 */
 	public boolean recordRejected(Object input, List<ValidationIssue> issues) {
 		StepExecution stepExecution = currentStepExecution();
 		if (stepExecution == null) {
@@ -95,6 +109,13 @@ public class FileIngestionRuntimeSupport {
 		}
 	}
 
+	/**
+	 * Completes file-ingestion support for one step.
+	 *
+	 * <p>This closes any active reject output, clears duplicate tracking state, and archives the
+	 * source file only when the step completed successfully and the source config opted into
+	 * archive-on-success behavior.</p>
+	 */
 	public ExitStatus completeStep(StepExecution stepExecution, SourceConfig sourceConfig) {
 		RejectFileState rejectFileState = rejectStateByStepExecutionId.remove(stepExecution.getId());
 		duplicateValuesByStepExecutionId.remove(stepExecution.getId());
@@ -121,6 +142,13 @@ public class FileIngestionRuntimeSupport {
 		return isDuplicateValues(fieldName, List.of(value));
 	}
 
+	/**
+	 * Performs keep-first duplicate detection for the current step.
+	 *
+	 * <p>This is the lightweight duplicate path used when processor rules request duplicate
+	 * checking without ordered winner selection. Ordered winner selection uses the dedicated
+	 * duplicate resolver implementations instead.</p>
+	 */
 	public boolean isDuplicateValues(String keyName, List<?> values) {
 		StepExecution stepExecution = currentStepExecution();
 		if (stepExecution == null || keyName == null || keyName.isBlank()) {
@@ -216,6 +244,13 @@ public class FileIngestionRuntimeSupport {
 	}
 
 	private static final class RejectFileState {
+
+		/**
+		 * Per-step reject-file writer state.
+		 *
+		 * <p>This helper lazily opens the reject output, writes one header row, and then appends one
+		 * CSV row per rejected item using the active entity mapping as the output column contract.</p>
+		 */
 
 		private final Path rejectPath;
 		private final ProcessorConfig.EntityMapping entityMapping;

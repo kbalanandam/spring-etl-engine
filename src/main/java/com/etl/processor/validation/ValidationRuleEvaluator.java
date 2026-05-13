@@ -42,6 +42,14 @@ public class ValidationRuleEvaluator {
 		this.rulesByType = Map.copyOf(indexedRules);
 	}
 
+	/**
+	 * Evaluates the configured rules for one mapped runtime record.
+	 *
+	 * <p>The evaluator chooses the best field name to inspect from the active mapping, then delegates
+	 * each configured rule to the registered SPI implementation. The returned issues are ordered in
+	 * the same sequence as the mapping configuration so downstream logging and reject evidence remain
+	 * predictable.</p>
+	 */
 	public List<ValidationIssue> evaluate(Object input, ProcessorConfig.EntityMapping mapping) {
 		List<ValidationIssue> issues = new ArrayList<>();
 		if (mapping == null || mapping.getFields() == null) {
@@ -66,6 +74,10 @@ public class ValidationRuleEvaluator {
 		return issues;
 	}
 
+	/**
+	 * Validates that the configured rule can run against the declared entity mapping before the job
+	 * starts.
+	 */
 	public void validateConfiguration(ProcessorConfig.EntityMapping entityMapping,
 	                               ProcessorConfig.FieldMapping fieldMapping,
 	                               ProcessorConfig.FieldRule rule) {

@@ -152,6 +152,9 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 			TargetConfig targetConfig,
 			ResolvedModelMetadata metadata) throws ClassNotFoundException {
 
+		// Resolve exactly one mapping for the active source/target pair from the selected
+		// processor config. The shipped processor path stays step-specific even though the
+		// processor implementation itself is shared across scenarios.
 		var mapping = processorConfig.getMappings()
 				.stream()
 				.filter(m -> m.getSource().equalsIgnoreCase(sourceConfig.getSourceName())
@@ -170,6 +173,8 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 				targetConfig.getTargetName(),
 				mapping.getFields().size()
 		);
+		// Validation-aware processing is activated only when the selected mapping actually
+		// declares rules. Otherwise the runtime keeps the lighter transform-only path.
 		if (hasValidationRules(mapping)) {
 			return new ValidationAwareDynamicMapping<>(
 					mapping,
@@ -183,11 +188,23 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 		return new DynamicMapping<>(mapping, targetClass, transformEvaluator);
 	}
 
+	/**
+	 * Returns whether the selected entity mapping declares any processor validation rules.
+	 *
+	 * <p>The shipped processor order is read -> transforms -> rules -> write. This method is
+	 * the switch that decides whether the runtime needs the validation-aware processor path.</p>
+	 */
 	private boolean hasValidationRules(EntityMapping mapping) {
 		return mapping.getFields() != null && mapping.getFields().stream()
 				.anyMatch(fieldMapping -> fieldMapping.getRules() != null && !fieldMapping.getRules().isEmpty());
 	}
 
+	/**
+	 * Provides the built-in validation rules shipped with the shared default processor.
+	 *
+	 * <p>These rules form the active processor-rule baseline and are evaluated only when the
+	 * selected mapping references them from config.</p>
+	 */
 	private static List<ProcessorValidationRule> defaultRules(FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
 		return List.of(
 				new NotNullProcessorValidationRule(),

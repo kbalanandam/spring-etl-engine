@@ -230,6 +230,12 @@ For the current shipped `RUN_SUMMARY`, multi-step jobs now use operator-oriented
 - `rejectedCount` = summed rejected records across executed steps
 - `handoffReadCount` / `handoffWriteCount` = intermediate step-to-step movement kept as diagnostics, not treated as final published output
 
+The active per-step processing order remains:
+
+`read -> transforms -> processor rules -> write`
+
+When the active file-ingestion path enables reject handling or archive-on-success, step-finished evidence may also include `rejectOutputPath` and `archivedSourcePath` in addition to the core read/write/reject counts.
+
 This split matches the current bridge architecture: startup-time assembly evidence is separated from scenario-scoped runtime and hierarchy evidence, while both still describe the same selected run.
 
 ## Flow composition view

@@ -164,6 +164,10 @@ public class BatchConfig {
     /**
      * Defines the main ETL job bean.
      *
+     * <p>The runtime executes one flat ordered Spring Batch job per selected scenario.
+     * MainFlow/SubFlow descriptors are emitted for observability, but execution still
+     * follows the explicit step order resolved from {@code job-config.yaml}.</p>
+     *
      * @return the configured Job
      * @throws Exception if step creation fails
      */
@@ -189,6 +193,11 @@ public class BatchConfig {
     /**
      * Builds the list of ETL steps based on the source and target configurations.
      * Each step is either chunk-oriented or tasklet-based, depending on the record count.
+     *
+     * <p>This method is where the shipped runtime turns explicit ordered job steps into the
+     * concrete Spring Batch plan. Step order is taken from resolved job configuration, not
+     * inferred from source/target list position. Runtime descriptor information is used only
+     * to enrich logging and handoff metadata around those same ordered steps.</p>
      *
      * @return the list of configured steps
      * @throws Exception if step creation fails

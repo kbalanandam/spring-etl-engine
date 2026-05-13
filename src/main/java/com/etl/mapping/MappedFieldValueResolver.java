@@ -7,6 +7,12 @@ import com.etl.processor.transform.TransformEvaluator;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * Resolves mapped field values and populates generated output models for processor mappings.
+ *
+ * <p>The resolver is shared by both plain and validation-aware mapping paths so field extraction,
+ * transform execution, and output population all follow the same authored mapping order.</p>
+ */
 public class MappedFieldValueResolver {
 
 	private final TransformEvaluator transformEvaluator;
@@ -15,6 +21,10 @@ public class MappedFieldValueResolver {
 		this.transformEvaluator = transformEvaluator;
 	}
 
+	/**
+	 * Reads source fields, applies configured transforms, and returns the intermediate resolved-value
+	 * map keyed by both source and target field names when available.
+	 */
 	public Map<String, Object> resolve(Object input, ProcessorConfig.EntityMapping mapping) {
 		Map<String, Object> resolvedValues = new LinkedHashMap<>();
 		if (mapping == null || mapping.getFields() == null) {
@@ -36,6 +46,9 @@ public class MappedFieldValueResolver {
 		return resolvedValues;
 	}
 
+	/**
+	 * Instantiates the generated target model and populates it from the resolved mapping values.
+	 */
 	public <O> O createOutput(Class<O> targetClass,
 	                         ProcessorConfig.EntityMapping mapping,
 	                         Map<String, Object> resolvedValues) {
@@ -44,6 +57,9 @@ public class MappedFieldValueResolver {
 		return output;
 	}
 
+	/**
+	 * Writes resolved values into an existing output object using the configured target field names.
+	 */
 	public void populateOutput(Object output,
 	                         ProcessorConfig.EntityMapping mapping,
 	                         Map<String, Object> resolvedValues) {

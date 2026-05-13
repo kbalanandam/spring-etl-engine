@@ -14,6 +14,13 @@ import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Internal helper methods shared by ordered duplicate resolver implementations.
+ *
+ * <p>The in-memory and embedded-database resolvers intentionally share the same key building,
+ * order-value normalization, and comparison semantics so the chosen storage strategy does not
+ * change which record wins for a given duplicate group.</p>
+ */
 final class DuplicateSupport {
 
 	private DuplicateSupport() {
@@ -65,6 +72,8 @@ final class DuplicateSupport {
 	                  List<DuplicateProcessorValidationRule.OrderSelector> orderSelectors,
 	                  long leftArrivalSequence,
 	                  long rightArrivalSequence) {
+		// Higher-priority winners sort ahead of lower-priority candidates. When all configured
+		// selectors tie, the earliest arrival wins to keep duplicate resolution deterministic.
 		for (int i = 0; i < orderSelectors.size(); i++) {
 			DuplicateProcessorValidationRule.OrderSelector selector = orderSelectors.get(i);
 			int comparison = left.get(i).compareTo(right.get(i));
@@ -186,6 +195,10 @@ final class DuplicateSupport {
 	}
 
 	record SortCriterionValue(SortValueKind kind, Comparable<?> value) implements Comparable<SortCriterionValue> {
+		/**
+		 * Wraps one normalized order-by value so heterogeneous runtime inputs can be compared with a
+		 * stable kind-first ordering before the configured ASC/DESC direction is applied.
+		 */
 		static SortCriterionValue numeric(BigDecimal value) {
 			return new SortCriterionValue(SortValueKind.NUMERIC, value);
 		}

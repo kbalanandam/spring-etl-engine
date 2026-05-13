@@ -41,6 +41,14 @@ public class DynamicProcessorFactory {
 		this.processorMap = processorMap;
 	}
 
+	/**
+	 * Creates the active processor for one selected source/target pairing.
+	 *
+	 * <p>This factory is the runtime dispatch seam for processor type selection. It does not
+	 * interpret mapping rules itself; instead it ensures that the requested processor type is
+	 * registered and then delegates source/target-specific processor construction to the chosen
+	 * implementation.</p>
+	 */
 	@SuppressWarnings("unchecked")
 	public <I, O> ItemProcessor<I, O> getProcessor(
 			ProcessorConfig processorConfig,

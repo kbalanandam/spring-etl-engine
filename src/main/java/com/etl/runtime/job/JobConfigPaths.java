@@ -4,6 +4,9 @@ import java.util.Objects;
 
 /**
  * Canonical config paths selected by one job-config entry.
+ *
+ * <p>This record keeps the resolved source, target, and processor config paths together so
+ * runtime descriptors, logs, and diagnostics all refer to the same selected bundle files.</p>
  */
 public record JobConfigPaths(
 		String sourceConfigPath,
@@ -17,6 +20,9 @@ public record JobConfigPaths(
 		processorConfigPath = requireNonBlank(processorConfigPath, "processorConfigPath");
 	}
 
+	/**
+	 * Returns a compact stable summary used by runtime descriptor logs and diagnostics.
+	 */
 	public String summary() {
 		return "source=" + sourceConfigPath + ", target=" + targetConfigPath + ", processor=" + processorConfigPath;
 	}
