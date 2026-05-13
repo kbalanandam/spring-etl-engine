@@ -215,6 +215,14 @@ The current observed scenario-log order for a successful run is:
 
 Treat that as the verified current baseline from the shipped runtime and sample run evidence, not as a broader compatibility guarantee for every future logging refinement.
 
+For the current shipped `SUBFLOW_SUMMARY`, observed status is derived from executed step results plus descriptor control metadata:
+
+- `FAILED` when any executed step in the subflow fails, stops, or ends unknown
+- `COMPLETED` when every step in the subflow completed successfully
+- `RUNNING` while a step in the subflow has started and the job is still active
+- `BLOCKED` when upstream subflow or link control rules say the subflow must not start
+- `READY` when upstream dependencies are satisfied but the subflow has not started yet
+
 For the current shipped `RUN_SUMMARY`, multi-step jobs now use operator-oriented rollup semantics rather than raw sum-of-step writes:
 
 - `sourceCount` = records read from external/configured ingress steps

@@ -2,6 +2,10 @@ package com.etl.runtime.job;
 
 /**
  * Describes the effective input contract for one scenario step.
+ *
+ * <p>This descriptor explains whether the step reads directly from the configured source, from an
+ * upstream step output, or from a named intermediate alias. It is used for runtime summaries and
+ * hierarchy logging rather than as an alternate execution graph.</p>
  */
 public record JobStepInputDescriptor(
 		JobStepInputType type,
@@ -20,6 +24,9 @@ public record JobStepInputDescriptor(
 		summary = normalize(summary, defaultSummary(type, sourceName, upstreamStepName, inputAlias));
 	}
 
+	/**
+	 * Creates the descriptor for a step that reads straight from the selected source config.
+	 */
 	public static JobStepInputDescriptor fromConfiguredSource(String sourceName) {
 		return new JobStepInputDescriptor(
 				JobStepInputType.CONFIG_SOURCE,

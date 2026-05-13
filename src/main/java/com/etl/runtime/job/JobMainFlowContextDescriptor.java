@@ -31,14 +31,29 @@ public record JobMainFlowContextDescriptor(
 				: summary.trim();
 	}
 
+	/**
+	 * Indicates whether the selected scenario exposes any named handoff aliases at the MainFlow
+	 * level.
+	 */
 	public boolean hasHandoffs() {
 		return !handoffAliases.isEmpty();
 	}
 
+	/**
+	 * Returns whether the supplied alias is part of the shared MainFlow handoff contract.
+	 */
 	public boolean hasHandoffAlias(String alias) {
 		return alias != null && handoffAliases.contains(alias);
 	}
 
+	/**
+	 * Synthesizes the default MainFlow context descriptor from the selected subflows, steps, and
+	 * step links.
+	 *
+	 * <p>The result stays intentionally control-plane oriented: it summarizes shared logging and
+	 * recovery context, visible subflow names, and cross-subflow handoff aliases without changing the
+	 * flat ordered Spring Batch execution plan.</p>
+	 */
 	public static JobMainFlowContextDescriptor defaultFor(List<JobSubFlowDescriptor> subFlows,
 	                                                          List<JobStepDescriptor> steps,
 	                                                          List<JobStepLinkDescriptor> stepLinks,

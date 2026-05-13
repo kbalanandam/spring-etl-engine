@@ -167,7 +167,7 @@ class JobHierarchyLoggingSupportTest {
                         "com.etl.model.target.write." + stepName,
                         false,
                         "records",
-                        JobModelResolutionMode.CONFIG_DRIVEN,
+                        JobModelResolutionMode.PREGENERATED,
                         null
                 ),
                 new JobStepExecutionHints(JobStepExecutionMode.UNRESOLVED, false, null, false, false, false, false, null),
@@ -208,4 +208,5 @@ class JobHierarchyLoggingSupportTest {
         return mapping;
     }
 }
+
 

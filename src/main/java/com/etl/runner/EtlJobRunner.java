@@ -49,12 +49,16 @@ public class EtlJobRunner implements CommandLineRunner {
 
 	@Override
 	public void run(String... args) throws Exception {
+		// Capture one run-level logging identity before launching Spring Batch so startup,
+		// step, and summary evidence all share the same scenario/run correlation fields.
 		String scenarioName = sanitizeForLogging(runConfigurationMetadata.scenarioName());
 		String scenarioLogKey = LOG_FILE_DATE_FORMATTER.format(LocalDate.now()) + "/" + scenarioName;
 		String runCorrelationId = RUN_ID_FORMATTER.format(LocalDateTime.now());
 		String runMode = runConfigurationMetadata.demoFallbackMode() ? "demo-fallback" : "explicit-job";
 
 		JobParameters jobParameters = new JobParametersBuilder()
+				// Job parameters mirror the resolved runtime metadata so the launched job, logs,
+				// and job-execution records all describe the same selected scenario contract.
 				.addDate("runDate", new Date())
 				.addString("scenario", runConfigurationMetadata.scenarioName())
 				.addString("scenarioLogKey", scenarioLogKey)

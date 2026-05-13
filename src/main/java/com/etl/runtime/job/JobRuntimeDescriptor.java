@@ -9,6 +9,10 @@ import java.util.Objects;
 
 /**
  * Self-explanatory descriptor for one complete selected scenario run.
+ *
+ * <p>This record is the top-level observability view of the selected runtime contract. It keeps
+ * the scenario name, config paths, ordered steps, subflow grouping, recovery policy, and
+ * validation summary together so logs and runtime diagnostics can describe one run consistently.</p>
  */
 public record JobRuntimeDescriptor(
 		String scenarioName,

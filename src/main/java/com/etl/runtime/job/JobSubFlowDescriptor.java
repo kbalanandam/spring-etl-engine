@@ -5,6 +5,10 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 /**
  * Descriptor for one named subflow within the selected MainFlow.
+ *
+ * <p>Subflows are an observability construct layered on top of the shipped flat ordered step
+ * plan. They group one or more steps together and record dependency/handoff information so logs
+ * can describe blocking, readiness, and cross-step data flow more clearly.</p>
  */
 public record JobSubFlowDescriptor(
 String subFlowName,

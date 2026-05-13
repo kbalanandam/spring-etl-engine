@@ -1,7 +1,12 @@
 package com.etl.runtime.job;
 
 /**
- * Recovery policy for the selected scenario execution.
+ * Recovery policy advertised by the selected scenario runtime descriptor.
+ *
+ * <p>This policy describes restart expectations for operators and logs. The shipped runtime is
+ * still centered on rerunning an explicit ordered scenario from the beginning; checkpoint resume
+ * remains a forward-looking descriptor value so observability and design discussions can use a
+ * stable vocabulary.</p>
  */
 public enum JobRecoveryPolicy {
 
@@ -18,10 +23,16 @@ public enum JobRecoveryPolicy {
 		this.summary = summary;
 	}
 
+	/**
+	 * Returns the normalized value emitted in logs and structured runtime summaries.
+	 */
 	public String logValue() {
 		return logValue;
 	}
 
+	/**
+	 * Returns the operator-facing description for this recovery policy.
+	 */
 	public String summary() {
 		return summary;
 	}

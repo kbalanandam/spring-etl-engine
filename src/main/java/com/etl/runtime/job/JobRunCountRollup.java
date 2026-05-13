@@ -41,6 +41,13 @@ public record JobRunCountRollup(
 		summary = normalize(summary, buildSummary(sourceCount, writtenCount, rejectedCount, handoffReadCount, handoffWriteCount, executedStepCount, rollupMode));
 	}
 
+	/**
+	 * Calculates the operator-facing run summary from executed steps.
+	 *
+	 * <p>When a runtime descriptor is available, counts are derived from explicit step roles so
+	 * intermediate handoffs do not inflate the final written count. Without a descriptor, the
+	 * fallback mode uses the first step as source evidence and the last step as final output evidence.</p>
+	 */
 	public static JobRunCountRollup calculate(JobExecution jobExecution, JobRuntimeDescriptor descriptor) {
 		Collection<StepExecution> stepExecutions = jobExecution == null ? List.of() : jobExecution.getStepExecutions();
 		if (descriptor != null && descriptor.steps() != null && !descriptor.steps().isEmpty()) {
@@ -49,10 +56,14 @@ public record JobRunCountRollup(
 		return fallback(stepExecutions);
 	}
 
+	/**
+	 * Rollup that honors the runtime descriptor's step roles, separating source ingestion, handoff
+	 * traffic, and final published output.
+	 */
 	private static JobRunCountRollup fromDescriptor(Collection<StepExecution> stepExecutions, JobRuntimeDescriptor descriptor) {
 		Map<String, StepExecution> stepExecutionByName = new LinkedHashMap<>();
 		for (StepExecution stepExecution : stepExecutions == null ? List.<StepExecution>of() : stepExecutions) {
-			if (stepExecution != null && stepExecution.getStepName() != null && !stepExecution.getStepName().isBlank()) {
+			if (stepExecution != null && !stepExecution.getStepName().isBlank()) {
 				stepExecutionByName.put(stepExecution.getStepName(), stepExecution);
 			}
 		}
@@ -95,6 +106,10 @@ public record JobRunCountRollup(
 		);
 	}
 
+	/**
+	 * Best-effort rollup used only when no runtime descriptor is available. The first executed step
+	 * is treated as source evidence and the last executed step as final output evidence.
+	 */
 	private static JobRunCountRollup fallback(Collection<StepExecution> stepExecutions) {
 		List<StepExecution> ordered = new ArrayList<>();
 		for (StepExecution stepExecution : stepExecutions == null ? List.<StepExecution>of() : stepExecutions) {
@@ -104,7 +119,7 @@ public record JobRunCountRollup(
 		}
 		ordered.sort(Comparator
 				.comparing(JobRunCountRollup::startTimeOrMin)
-				.thenComparing(stepExecution -> stepExecution.getId() == null ? Long.MAX_VALUE : stepExecution.getId())
+				.thenComparing(StepExecution::getId)
 				.thenComparing(stepExecution -> normalize(stepExecution.getStepName(), "unknown-step")));
 		if (ordered.isEmpty()) {
 			return new JobRunCountRollup(0, 0, 0, 0, 0, 0, FALLBACK_MODE, null);

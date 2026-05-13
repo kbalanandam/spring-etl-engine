@@ -4,6 +4,9 @@ import java.util.Objects;
 
 /**
  * Describes a relationship between two scenario steps.
+ *
+ * <p>The runtime descriptor uses links to explain ordered adjacency, data handoffs, and named
+ * intermediate aliases between the flat Spring Batch steps that implement the selected scenario.</p>
  */
 public record JobStepLinkDescriptor(
 		String fromStepName,

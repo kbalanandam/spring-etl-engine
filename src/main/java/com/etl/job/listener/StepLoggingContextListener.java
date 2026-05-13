@@ -11,15 +11,25 @@ import org.springframework.batch.core.JobParameters;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.item.ExecutionContext;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 
+/**
+ * Populates and clears step-scoped logging context for runtime evidence.
+ *
+ * <p>This listener bridges Spring Batch step lifecycle callbacks into the product's logging
+ * model. It attaches main-flow, subflow, recovery, and step identity fields before the step
+ * runs, then emits step-finished evidence with reject/archive metrics after execution.</p>
+ */
 @Component
 public class StepLoggingContextListener implements StepExecutionListener {
 
   private static final Logger logger = LoggerFactory.getLogger(StepLoggingContextListener.class);
 
     @Override
-    public void beforeStep(StepExecution stepExecution) {
+    public void beforeStep(@NonNull StepExecution stepExecution) {
+        // Resolve the step's effective subflow from execution-context hierarchy metadata when
+        // available so step logs reflect the same subflow evidence emitted by runtime descriptors.
         JobParameters jobParameters = jobParameters(stepExecution);
         ExecutionContext executionContext = stepExecution.getExecutionContext();
         String resolvedSubFlow = resolvedSubFlow(jobParameters, executionContext);
@@ -44,13 +54,15 @@ public class StepLoggingContextListener implements StepExecutionListener {
     }
 
     @Override
-    public ExitStatus afterStep(StepExecution stepExecution) {
+    public ExitStatus afterStep(@NonNull StepExecution stepExecution) {
+  // Step-finished evidence includes both core Batch counts and file-ingestion hardening outputs
+  // so operators can reconcile rejects and source archiving from one structured event.
   JobParameters jobParameters = jobParameters(stepExecution);
   ExecutionContext executionContext = stepExecution.getExecutionContext();
   String resolvedSubFlow = resolvedSubFlow(jobParameters, executionContext);
-  int rejectedCount = executionContext == null ? 0 : executionContext.getInt(FileIngestionRuntimeSupport.REJECTED_COUNT_KEY, 0);
-  String rejectOutputPath = executionContext == null ? "" : executionContext.getString(FileIngestionRuntimeSupport.REJECT_OUTPUT_PATH_KEY, "");
-  String archivedSourcePath = executionContext == null ? "" : executionContext.getString(FileIngestionRuntimeSupport.ARCHIVED_SOURCE_PATH_KEY, "");
+  int rejectedCount = executionContext.getInt(FileIngestionRuntimeSupport.REJECTED_COUNT_KEY, 0);
+  String rejectOutputPath = executionContext.getString(FileIngestionRuntimeSupport.REJECT_OUTPUT_PATH_KEY, "");
+  String archivedSourcePath = executionContext.getString(FileIngestionRuntimeSupport.ARCHIVED_SOURCE_PATH_KEY, "");
 	logger.info("STEP_EVENT event=step_finished mainFlow={} subFlow={} recoveryPolicy={} stepName={} stepExecutionId={} status={} readCount={} writeCount={} filterCount={} skipCount={} rollbackCount={} rejectedCount={} rejectOutputPath={} archivedSourcePath={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={} stepSummary={}",
         stringParameter(jobParameters, "mainFlow"),
         resolvedSubFlow,

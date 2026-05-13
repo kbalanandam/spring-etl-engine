@@ -6,6 +6,11 @@ import java.util.Objects;
 
 /**
  * Self-explanatory model contract for one scenario step.
+ *
+ * <p>This record captures the model classes that the active step expects the runtime to use:
+ * the source read class, the target processing class, the target write/root class, and any
+ * XML wrapper-field requirement. It is the descriptor-level mirror of
+ * {@link com.etl.common.util.ResolvedModelMetadata}.</p>
  */
 public record JobStepModelDescriptor(
 		String sourceClassName,

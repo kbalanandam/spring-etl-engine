@@ -15,6 +15,10 @@ import java.util.Set;
 
 /**
  * Helper methods that project scenario hierarchy metadata into log-friendly evidence.
+ *
+ * <p>This class is the glue between runtime descriptors and emitted log events. It copies
+ * subflow/link metadata into step execution context, resolves inbound links for step/subflow
+ * evidence, and derives observed subflow status from executed steps plus control metadata.</p>
  */
 public final class JobHierarchyLoggingSupport {
 
@@ -107,7 +111,7 @@ public final class JobHierarchyLoggingSupport {
 		Map<String, StepExecution> stepExecutionByName = new LinkedHashMap<>();
 		if (stepExecutions != null) {
 			for (StepExecution stepExecution : stepExecutions) {
-				if (stepExecution != null && stepExecution.getStepName() != null) {
+				if (stepExecution != null) {
 					stepExecutionByName.put(stepExecution.getStepName(), stepExecution);
 				}
 			}
@@ -129,8 +133,7 @@ public final class JobHierarchyLoggingSupport {
 		if (executionContext == null || key == null || !executionContext.containsKey(key)) {
 			return "";
 		}
-		String value = executionContext.getString(key, "");
-		return value == null ? "" : value;
+		return executionContext.getString(key, "");
 	}
 
 	public static int intValue(ExecutionContext executionContext, String key, int defaultValue) {
@@ -152,9 +155,11 @@ public final class JobHierarchyLoggingSupport {
 		if (anyFailed) {
 			return JobSubFlowExecutionStatus.FAILED;
 		}
-		boolean allCompleted = !stepExecutions.isEmpty()
-				&& stepExecutions.size() == subFlowDescriptor.stepNames().size()
-				&& stepExecutions.stream().allMatch(JobHierarchyLoggingSupport::isCompleted);
+		boolean allStepExecutionsObserved = !stepExecutions.isEmpty()
+				&& stepExecutions.size() == subFlowDescriptor.stepNames().size();
+		boolean allCompleted = allStepExecutionsObserved
+				&& (jobStatus == BatchStatus.COMPLETED
+					|| stepExecutions.stream().allMatch(JobHierarchyLoggingSupport::isCompleted));
 		if (allCompleted) {
 			return JobSubFlowExecutionStatus.COMPLETED;
 		}
@@ -166,10 +171,37 @@ public final class JobHierarchyLoggingSupport {
 		if (!blockedReason.isBlank()) {
 			return JobSubFlowExecutionStatus.BLOCKED;
 		}
-		if (jobStatus == BatchStatus.COMPLETED && !stepExecutions.isEmpty()) {
-			return JobSubFlowExecutionStatus.COMPLETED;
+		if (isReadyToStart(descriptor, subFlowDescriptor, knownStatuses)) {
+			return JobSubFlowExecutionStatus.READY;
 		}
 		return subFlowDescriptor.initialStatus();
+	}
+
+	private static boolean isReadyToStart(JobRuntimeDescriptor descriptor,
+	                                   JobSubFlowDescriptor subFlowDescriptor,
+	                                   Map<String, JobSubFlowExecutionStatus> knownStatuses) {
+		for (String dependencyName : subFlowDescriptor.dependsOnSubFlowNames()) {
+			JobSubFlowExecutionStatus dependencyStatus = knownStatuses.get(dependencyName);
+			if (dependencyStatus == null) {
+				return false;
+			}
+			if (!subFlowDescriptor.control().startAfterStatuses().isEmpty()
+					&& !subFlowDescriptor.control().startAfterStatuses().contains(dependencyStatus)) {
+				return false;
+			}
+		}
+		for (JobStepLinkDescriptor inboundLink : inboundLinks(descriptor, subFlowDescriptor)) {
+			JobSubFlowDescriptor upstreamSubFlow = subFlowForStep(descriptor, inboundLink.fromStepName());
+			JobSubFlowExecutionStatus upstreamStatus = upstreamSubFlow == null ? null : knownStatuses.get(upstreamSubFlow.subFlowName());
+			if (upstreamStatus == null) {
+				return false;
+			}
+			if (!inboundLink.control().requiredUpstreamStatuses().isEmpty()
+					&& !inboundLink.control().requiredUpstreamStatuses().contains(upstreamStatus)) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	private static String buildBlockedReason(JobRuntimeDescriptor descriptor,
@@ -240,6 +272,9 @@ public final class JobHierarchyLoggingSupport {
 		return status == BatchStatus.STARTED || status == BatchStatus.STARTING || status == BatchStatus.STOPPING;
 	}
 
+	/**
+	 * Observed runtime evidence for one subflow after comparing descriptor intent with step results.
+	 */
 	public record SubFlowStatusEvidence(
 			JobSubFlowDescriptor subFlowDescriptor,
 			JobSubFlowExecutionStatus observedStatus,
