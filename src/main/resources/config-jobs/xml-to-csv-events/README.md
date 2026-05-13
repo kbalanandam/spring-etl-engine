@@ -44,7 +44,6 @@ steps:
 sources:
   - format: xml
     sourceName: Events
-    packageName: com.etl.generated.job.xmltocsvevents.source
     filePath: src/main/resources/demo-input/Events.xml
     rootElement: Events
     recordElement: Event
@@ -63,7 +62,7 @@ sources:
 
 - `format: xml` selects the XML reader path.
 - `sourceName: Events` is the logical source identity used by the job step and processor mapping.
-- `packageName` points to the scenario-scoped generated XML source package.
+- This bundle intentionally omits `packageName`; the runtime derives the XML source package from `job-config.yaml -> name`.
 - `filePath` points to the committed XML sample input.
 - `rootElement` is the XML document envelope.
 - `recordElement` is the repeating XML fragment streamed as one runtime record.
@@ -75,7 +74,6 @@ sources:
 targets:
   - format: csv
     targetName: EventsCsv
-    packageName: com.etl.generated.job.xmltocsvevents.target
     filePath: output/events-output.csv
     delimiter: ","
     fields:
@@ -93,7 +91,7 @@ targets:
 
 - `format: csv` selects the CSV writer path.
 - `targetName: EventsCsv` is the logical target identity used by the job step and processor mapping.
-- `packageName` points to the scenario-scoped generated CSV target package.
+- This bundle intentionally omits `packageName`; the runtime derives the CSV target package from `job-config.yaml -> name`.
 - `filePath` is the output CSV artifact path.
 - `delimiter` controls the CSV separator and defaults to `,` when omitted.
 - `fields` lists the output columns in write order.

@@ -17,6 +17,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class SelectedJobNamingValidatorTest {
 
     @Test
+    void allowsSameLogicalNameWithinOneStepForCurrentSingleStepCompatibility() {
+        SourceWrapper sourceWrapper = new SourceWrapper();
+        sourceWrapper.setSources(List.of(csvSource("Customers", "com.etl.generated.job.customerload.source")));
+
+        TargetWrapper targetWrapper = new TargetWrapper();
+        targetWrapper.setTargets(List.of(csvTarget("Customers", "com.etl.generated.job.customerload.target")));
+
+        assertDoesNotThrow(() -> SelectedJobNamingValidator.validate(
+                "customer-load",
+                sourceWrapper,
+                targetWrapper,
+                List.of(step("customers-step", "Customers", "Customers"))
+        ));
+    }
+
+    @Test
     void allowsSelectedIntermediateReuseWhenTargetIsProducedBeforeLaterSourceConsumption() {
         SourceWrapper sourceWrapper = new SourceWrapper();
         sourceWrapper.setSources(List.of(
@@ -106,12 +122,18 @@ class SelectedJobNamingValidatorTest {
     }
 
     @Test
-    void failsFastWhenJobScopedPackageNameConflictsWithDerivedPackage() {
+    void failsFastWhenSelectedTargetNamesNormalizeToTheSameGeneratedClass() {
         SourceWrapper sourceWrapper = new SourceWrapper();
-        sourceWrapper.setSources(List.of(csvSource("Customers", "com.etl.generated.job.otherjob.source")));
+        sourceWrapper.setSources(List.of(
+                csvSource("FirstSource", "com.etl.generated.job.namingjob.source"),
+                csvSource("SecondSource", "com.etl.generated.job.namingjob.source")
+        ));
 
         TargetWrapper targetWrapper = new TargetWrapper();
-        targetWrapper.setTargets(List.of(csvTarget("CustomersJson", "com.etl.generated.job.namingjob.target")));
+        targetWrapper.setTargets(List.of(
+                csvTarget("Customer Export", "com.etl.generated.job.namingjob.target"),
+                csvTarget("Customer-Export", "com.etl.generated.job.namingjob.target")
+        ));
 
         IllegalStateException exception = assertThrows(
                 IllegalStateException.class,
@@ -119,12 +141,17 @@ class SelectedJobNamingValidatorTest {
                         "naming-job",
                         sourceWrapper,
                         targetWrapper,
-                        List.of(step("customers-step", "Customers", "CustomersJson"))
+                        List.of(
+                                step("first-step", "FirstSource", "Customer Export"),
+                                step("second-step", "SecondSource", "Customer-Export")
+                        )
                 )
         );
 
-        assertTrue(exception.getMessage().contains("declares packageName='com.etl.generated.job.otherjob.source'"));
-        assertTrue(exception.getMessage().contains("com.etl.generated.job.namingjob.source"));
+        assertTrue(exception.getMessage().contains("naming collision"));
+        assertTrue(exception.getMessage().contains("Customer Export"));
+        assertTrue(exception.getMessage().contains("Customer-Export"));
+        assertTrue(exception.getMessage().contains("CustomerExportModel"));
     }
 
     private static CsvSourceConfig csvSource(String sourceName, String packageName) {
@@ -150,4 +177,6 @@ class SelectedJobNamingValidatorTest {
         return column;
     }
 }
+
+
 

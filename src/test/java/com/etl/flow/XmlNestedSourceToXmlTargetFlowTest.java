@@ -1,7 +1,9 @@
 package com.etl.flow;
 
 import com.etl.common.util.GeneratedModelClassResolver;
+import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.common.util.ResolvedModelMetadata;
+import com.etl.config.ColumnConfig;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.SourceWrapper;
@@ -59,6 +61,7 @@ class XmlNestedSourceToXmlTargetFlowTest {
         SourceWrapper sourceWrapper = mapper.readValue(scenarioDir.resolve(jobConfig.getSourceConfigPath()).toFile(), SourceWrapper.class);
         TargetWrapper targetWrapper = mapper.readValue(scenarioDir.resolve(jobConfig.getTargetConfigPath()).toFile(), TargetWrapper.class);
         ProcessorConfig processorConfig = mapper.readValue(scenarioDir.resolve(jobConfig.getProcessorConfigPath()).toFile(), ProcessorConfig.class);
+        applyDerivedPackages(jobConfig, scenarioDir, sourceWrapper, targetWrapper);
 
         XmlSourceConfig sourceConfig = (XmlSourceConfig) sourceWrapper.getSources().get(0);
         XmlTargetConfig targetConfig = (XmlTargetConfig) targetWrapper.getTargets().get(0);
@@ -70,8 +73,8 @@ class XmlNestedSourceToXmlTargetFlowTest {
 
         compile(generationResult.allGeneratedFiles(), Path.of("target", "test-classes"));
 
-        Class<?> sourceRecordClass = Class.forName(sourceConfig.getPackageName() + "." + sourceConfig.getRecordElement());
-        Class<?> targetRecordClass = Class.forName(targetConfig.getPackageName() + "." + targetConfig.getRecordElement());
+        Class<?> sourceRecordClass = GeneratedModelClassResolver.resolveSourceClass(sourceConfig);
+        Class<?> targetRecordClass = GeneratedModelClassResolver.resolveTargetProcessingClass(targetConfig);
         assertNotNull(sourceRecordClass);
         assertNotNull(targetRecordClass);
 
@@ -150,6 +153,52 @@ class XmlNestedSourceToXmlTargetFlowTest {
         );
 
         return scenarioDir;
+    }
+
+    private void applyDerivedPackages(JobConfig jobConfig,
+                                      Path scenarioDir,
+                                      SourceWrapper sourceWrapper,
+                                      TargetWrapper targetWrapper) {
+        String jobName = JobScopedPackageNameResolver.deriveJobName(jobConfig, scenarioDir);
+        if (sourceWrapper.getSources() != null) {
+            for (var sourceConfig : sourceWrapper.getSources()) {
+                if (sourceConfig.getPackageName() == null || sourceConfig.getPackageName().isBlank()) {
+                    sourceConfig.setPackageName(JobScopedPackageNameResolver.resolveSourcePackage(jobName));
+                }
+            }
+        }
+        if (targetWrapper.getTargets() != null) {
+            List<com.etl.config.target.TargetConfig> defaultedTargets = new ArrayList<>();
+            for (var target : targetWrapper.getTargets()) {
+                XmlTargetConfig targetConfig = (XmlTargetConfig) target;
+                if (targetConfig.getPackageName() == null || targetConfig.getPackageName().isBlank()) {
+                    defaultedTargets.add(new XmlTargetConfig(
+                            targetConfig.getTargetName(),
+                            JobScopedPackageNameResolver.resolveTargetPackage(jobName),
+                            copyFields(targetConfig),
+                            targetConfig.getFilePath(),
+                            targetConfig.getRootElement(),
+                            targetConfig.getRecordElement(),
+                            targetConfig.getModelDefinitionPath()
+                    ));
+                } else {
+                    defaultedTargets.add(targetConfig);
+                }
+            }
+            targetWrapper.setTargets(defaultedTargets);
+        }
+    }
+
+    private List<ColumnConfig> copyFields(XmlTargetConfig targetConfig) {
+        if (targetConfig.getFields() == null) {
+            return null;
+        }
+        return targetConfig.getFields().stream().map(field -> {
+            ColumnConfig column = new ColumnConfig();
+            column.setName(field.getName());
+            column.setType(field.getType());
+            return column;
+        }).toList();
     }
 
     private void copyDirectory(Path source, Path target) throws Exception {

@@ -42,6 +42,39 @@ class GeneratedModelClassResolverTest {
   }
 
   @Test
+  void resolvesJobScopedXmlAndFlatClassesFromLogicalNames() {
+    XmlSourceConfig sourceConfig = new XmlSourceConfig(
+        "Customer Feed",
+        "com.etl.generated.job.customerfeed.source",
+        List.of(column("id", "int")),
+        "target/customers.xml",
+        "Customers",
+        "Customer"
+    );
+    JsonTargetConfig flatTarget = new JsonTargetConfig(
+        "CustomersJson",
+        "com.etl.generated.job.customerfeed.target",
+        List.of(column("id", "int")),
+        "target/customers.json"
+    );
+    XmlTargetConfig xmlTarget = new XmlTargetConfig(
+        "Customer Export",
+        "com.etl.generated.job.customerfeed.target",
+        List.of(column("id", "int")),
+        "target/customers.xml",
+        "Customers",
+        "Customer"
+    );
+
+    assertEquals("com.etl.generated.job.customerfeed.source.CustomerFeedXmlRecord", GeneratedModelClassResolver.resolveSourceClassName(sourceConfig));
+    assertEquals("com.etl.generated.job.customerfeed.source.CustomerFeedXmlRoot", GeneratedModelClassResolver.resolveSourceRootClassName(sourceConfig));
+    assertEquals("com.etl.generated.job.customerfeed.target.CustomersJsonModel", GeneratedModelClassResolver.resolveTargetWriteClassName(flatTarget));
+    assertEquals("com.etl.generated.job.customerfeed.target.CustomerExportXmlRecord", GeneratedModelClassResolver.resolveTargetProcessingClassName(xmlTarget));
+    assertEquals("com.etl.generated.job.customerfeed.target.CustomerExportXmlRoot", GeneratedModelClassResolver.resolveTargetWriteClassName(xmlTarget));
+    assertEquals("customerExportXmlRecord", GeneratedModelClassResolver.resolveXmlWrapperFieldName(xmlTarget));
+  }
+
+  @Test
   void failsFastWhenSourcePackageNameIsBlankBeforeClassResolution() {
     CsvSourceConfig config = new CsvSourceConfig(
         "Customers",
