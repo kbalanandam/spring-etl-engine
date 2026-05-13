@@ -64,6 +64,7 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 
 	@Override
 	public O process(@NonNull I input) throws Exception {
+		String inputType = input.getClass().getName();
 		Map<String, Object> resolvedValues = mappedFieldValueResolver.resolve(input, mapping);
 		Object validationInput = hasTransforms() ? resolvedValues : input;
 		List<ValidationIssue> issues = validationRuleEvaluator.evaluate(validationInput, mapping);
@@ -77,7 +78,7 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 						mapping.getSource(),
 						mapping.getTarget(),
 						issueSummary,
-						input == null ? "null" : input.getClass().getName());
+						inputType);
 				throw new IllegalStateException(message);
 			}
 
@@ -86,7 +87,7 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 					mapping.getSource(),
 					mapping.getTarget(),
 					issueSummary,
-					input == null ? "null" : input.getClass().getName());
+					inputType);
 			boolean recorded = fileIngestionRuntimeSupport.recordRejected(input, issues);
 			if (!recorded) {
 				throw new IllegalStateException("Processor validation rejected a record for mapping '"
