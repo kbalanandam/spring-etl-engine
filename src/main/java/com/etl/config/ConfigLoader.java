@@ -11,6 +11,7 @@ import com.etl.config.source.XmlSourceConfig;
 import com.etl.common.util.ConfigBundlePathAliasResolver;
 import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.JobScopedPackageNameResolver;
+import com.etl.common.util.SelectedJobNamingValidator;
 import com.etl.config.source.validation.SourceValidationContext;
 import com.etl.config.source.validation.SourceValidationService;
 import com.etl.config.target.CsvTargetConfig;
@@ -330,7 +331,7 @@ public class ConfigLoader {
 		logger.info("Loading JobConfig from external YAML file: {}", resolvedRequestedJobConfigPath);
 		JobConfig jobConfig = mapper.readValue(jobConfigFile, JobConfig.class);
 		Path jobConfigDirectory = jobConfigFile.getAbsoluteFile().getParentFile().toPath();
-		String scenarioName = deriveScenarioName(jobConfig, jobConfigDirectory);
+		String scenarioName = requireExplicitJobName(jobConfig, jobConfigFile.toPath());
 		String resolvedSourceConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getSourceConfigPath(), "sourceConfigPath");
 		String resolvedTargetConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getTargetConfigPath(), "targetConfigPath");
 		String resolvedProcessorConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getProcessorConfigPath(), "processorConfigPath");
@@ -348,6 +349,15 @@ public class ConfigLoader {
 		validateSelectedTargetConfigs(explicitTargetWrapper, scenarioName, resolvedTargetConfigPath);
 		validateProcessorConfig(explicitProcessorConfig, scenarioName, resolvedProcessorConfigPath);
 		List<JobConfig.JobStepConfig> resolvedSteps = resolveExplicitSteps(jobConfig, explicitSourceWrapper, explicitTargetWrapper, explicitProcessorConfig);
+		warnOnDeprecatedGeneratedPackageDrift(
+				explicitSourceWrapper,
+				explicitTargetWrapper,
+				resolvedSteps,
+				scenarioName,
+				Path.of(resolvedSourceConfigPath),
+				Path.of(resolvedTargetConfigPath)
+		);
+		SelectedJobNamingValidator.validate(scenarioName, explicitSourceWrapper, explicitTargetWrapper, resolvedSteps);
 		validateSelectedGeneratedModelClasses(explicitSourceWrapper, explicitTargetWrapper, resolvedSteps, scenarioName, jobConfigFile.getAbsolutePath());
 
 		return new ResolvedRuntimeConfig(
@@ -360,6 +370,14 @@ public class ConfigLoader {
 				false,
 				resolvedSteps
 		);
+	}
+
+	private String requireExplicitJobName(JobConfig jobConfig, Path jobConfigPath) {
+		try {
+			return JobScopedPackageNameResolver.requireExplicitJobName(jobConfig, jobConfigPath);
+		} catch (IllegalStateException e) {
+			throw new ConfigException(e.getMessage(), e);
+		}
 	}
 
 	private String resolveSelectedJobConfigPath(String configuredJobConfigPath) {
@@ -561,15 +579,83 @@ public class ConfigLoader {
 		return value.trim();
 	}
 
-	private String deriveScenarioName(JobConfig jobConfig, Path jobConfigDirectory) {
-		return JobScopedPackageNameResolver.deriveJobName(jobConfig, jobConfigDirectory);
-	}
 
 	private void applyJobScopedPackageDefaults(SourceWrapper sourceWrapper,
 	                                         TargetWrapper targetWrapper,
 	                                         String scenarioName) {
 		applyDefaultSourcePackages(sourceWrapper, scenarioName);
 		applyDefaultTargetPackages(targetWrapper, scenarioName);
+	}
+
+	private void warnOnDeprecatedGeneratedPackageDrift(SourceWrapper sourceWrapper,
+	                                                TargetWrapper targetWrapper,
+	                                                List<JobConfig.JobStepConfig> resolvedSteps,
+	                                                String scenarioName,
+	                                                Path sourceConfigPath,
+	                                                Path targetConfigPath) {
+		Set<String> selectedSourceNames = new HashSet<>();
+		Set<String> selectedTargetNames = new HashSet<>();
+		if (resolvedSteps != null) {
+			for (JobConfig.JobStepConfig step : resolvedSteps) {
+				if (step == null) {
+					continue;
+				}
+				if (step.getSource() != null && !step.getSource().isBlank()) {
+					selectedSourceNames.add(step.getSource().trim());
+				}
+				if (step.getTarget() != null && !step.getTarget().isBlank()) {
+					selectedTargetNames.add(step.getTarget().trim());
+				}
+			}
+		}
+
+		String derivedSourcePackage = JobScopedPackageNameResolver.resolveSourcePackage(scenarioName);
+		java.util.Map<String, SourceConfig> selectedSourcesByName = new java.util.LinkedHashMap<>();
+		if (sourceWrapper != null && sourceWrapper.getSources() != null) {
+			for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
+				if (sourceConfig != null && sourceConfig.getSourceName() != null && !sourceConfig.getSourceName().isBlank()) {
+					selectedSourcesByName.put(sourceConfig.getSourceName().trim(), sourceConfig);
+				}
+			}
+		}
+		for (String sourceName : selectedSourceNames) {
+			SourceConfig sourceConfig = selectedSourcesByName.get(sourceName);
+			if (sourceConfig != null
+					&& JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(sourceConfig.getPackageName(), derivedSourcePackage)) {
+					logger.warn(JobScopedPackageNameResolver.buildPackageDriftWarning(
+							"source config",
+							sourceConfig.getSourceName(),
+							scenarioName,
+							sourceConfigPath,
+							sourceConfig.getPackageName(),
+							derivedSourcePackage
+					));
+			}
+		}
+
+		String derivedTargetPackage = JobScopedPackageNameResolver.resolveTargetPackage(scenarioName);
+		java.util.Map<String, TargetConfig> selectedTargetsByName = new java.util.LinkedHashMap<>();
+		if (targetWrapper != null && targetWrapper.getTargets() != null) {
+			for (TargetConfig targetConfig : targetWrapper.getTargets()) {
+				if (targetConfig != null && targetConfig.getTargetName() != null && !targetConfig.getTargetName().isBlank()) {
+					selectedTargetsByName.put(targetConfig.getTargetName().trim(), targetConfig);
+				}
+			}
+		}
+		for (String targetName : selectedTargetNames) {
+			TargetConfig targetConfig = selectedTargetsByName.get(targetName);
+			if (targetConfig != null
+					&& JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(targetConfig.getPackageName(), derivedTargetPackage)) {
+				logger.warn(JobScopedPackageNameResolver.buildPackageDriftWarning(
+						"target config",
+						targetConfig.getTargetName(),
+						scenarioName,
+						targetConfigPath,
+						targetConfig.getPackageName(),
+						derivedTargetPackage
+				));
+			}
+		}
 	}
 
 	private void applyDefaultSourcePackages(SourceWrapper sourceWrapper, String scenarioName) {

@@ -18,7 +18,7 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `csv` |
 | `targetName` | yes | string | Logical target name used in processor mapping lookup |
-| `packageName` | no in explicit job mode; otherwise yes | string | Package used for generated target model naming. When omitted for an explicit `job-config.yaml` run, the runtime and build-time generation path derive `com.etl.generated.job.<normalized-job-name>.target` |
+| `packageName` | no in explicit job mode; otherwise yes | string | Deprecated bridge field for generated target model naming. When omitted for an explicit `job-config.yaml` run, the runtime and build-time generation path derive `com.etl.generated.job.<normalized-job-name>.target` |
 | `filePath` | yes | string | CSV output file path or output directory |
 | `delimiter` | no | string | Field delimiter for CSV output. When omitted or blank, the target defaults to `,` |
 | `includeHeader` | no | boolean | When true, the writer emits one header row using the configured `fields[].name` order before writing data rows |
@@ -30,7 +30,7 @@ Backed by:
 
 For new CSV target scenarios in this repo, prefer one shared authoring pattern:
 
-- keep the top-level CSV target fields the same: `format`, `targetName`, `packageName`, `filePath`, `delimiter`, `includeHeader`, `fields`
+- keep the top-level CSV target fields the same: `format`, `targetName`, `filePath`, `delimiter`, `includeHeader`, `fields`
 - keep `fields` as the structural source of truth for flat CSV output
 - omit `delimiter` when standard comma-separated output is acceptable
 - add `includeHeader` only when a downstream consumer expects a header row
@@ -74,11 +74,11 @@ targets:
         type: String
 ```
 
-`packageName` is optional in explicit job mode. When omitted, the runtime derives `com.etl.generated.job.<normalized-job-name>.target` automatically.
+`packageName` is optional in explicit job mode and should be treated as a deprecated bridge field. When omitted, the runtime derives `com.etl.generated.job.<normalized-job-name>.target` automatically.
 
 ## Example
 
-### Example A — flat CSV target with explicit package name
+### Example A — flat CSV target with derived package name
 
 This mirrors `src/main/resources/config-jobs/xml-to-csv-events/target-config.yaml`.
 
@@ -86,7 +86,6 @@ This mirrors `src/main/resources/config-jobs/xml-to-csv-events/target-config.yam
 targets:
   - format: csv
     targetName: EventsCsv
-    packageName: com.etl.generated.job.xmltocsvevents.target
     filePath: output/events-output.csv
     delimiter: ","
     fields:
@@ -132,7 +131,7 @@ Read the examples in write order:
 - `targets:` is the required root for target config files.
 - `format: csv` selects the CSV writer path.
 - `targetName` is the logical target identity matched by processor mappings and job steps.
-- `packageName` is the generated target package; in explicit job mode it may be omitted to use the job-scoped default package.
+- `packageName` is a deprecated bridge field for the generated target package; in explicit job mode prefer omitting it to use the job-scoped default package.
 - `filePath` is the output artifact path or output directory.
 - `delimiter` controls the CSV separator; when omitted, the target defaults to `,`.
 - `includeHeader` is optional; when omitted, it defaults to `false`.
@@ -146,6 +145,12 @@ The important authoring rule is simple:
 - omit `delimiter` when standard comma-separated output is fine
 - add `includeHeader: true` only when a downstream consumer expects a header row
 - omit `packageName` in explicit job mode when the default job-scoped package is acceptable
+
+## `packageName` deprecation direction
+
+- for new explicit job bundles, omit `packageName`
+- treat explicit `packageName` as a compatibility bridge only
+- expect a later A4 slice to tighten handling for conflicting authored `packageName` values before the field is removed from the normal target config contract
 
 ## Runtime behavior today
 

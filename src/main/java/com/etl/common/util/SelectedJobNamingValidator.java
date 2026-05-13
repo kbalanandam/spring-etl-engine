@@ -28,7 +28,6 @@ import java.util.Set;
  *     <li>cross-side logical-name reuse is only valid for a downstream-readable handoff
  *     where a target is produced before a later step consumes the same logical name as a source</li>
  *     <li>generated class names must not collide within the same package after normalization</li>
- *     <li>job-scoped {@code packageName} values must align with the derived package for the selected job</li>
  * </ul>
  */
 public final class SelectedJobNamingValidator {
@@ -73,7 +72,6 @@ public final class SelectedJobNamingValidator {
     private static Map<String, SourceConfig> selectedSourcesByName(SourceWrapper sourceWrapper,
                                                                    Set<String> selectedSourceNames,
                                                                    String jobName) {
-        String expectedPackage = JobScopedPackageNameResolver.resolveSourcePackage(jobName);
         Map<String, SourceConfig> selectedByName = new LinkedHashMap<>();
         if (sourceWrapper.getSources() == null) {
             return selectedByName;
@@ -85,7 +83,6 @@ public final class SelectedJobNamingValidator {
             }
 
             String sourceName = requireNonBlank(sourceConfig.getSourceName(), "sourceName");
-            validateDerivedPackageAlignment(sourceConfig.getPackageName(), expectedPackage, "source", sourceName);
             SourceConfig previous = selectedByName.putIfAbsent(sourceName, sourceConfig);
             if (previous != null) {
                 throw new IllegalStateException("Selected job '" + jobName + "' contains duplicate sourceName '" + sourceName
@@ -98,7 +95,6 @@ public final class SelectedJobNamingValidator {
     private static Map<String, TargetConfig> selectedTargetsByName(TargetWrapper targetWrapper,
                                                                    Set<String> selectedTargetNames,
                                                                    String jobName) {
-        String expectedPackage = JobScopedPackageNameResolver.resolveTargetPackage(jobName);
         Map<String, TargetConfig> selectedByName = new LinkedHashMap<>();
         if (targetWrapper.getTargets() == null) {
             return selectedByName;
@@ -110,7 +106,6 @@ public final class SelectedJobNamingValidator {
             }
 
             String targetName = requireNonBlank(targetConfig.getTargetName(), "targetName");
-            validateDerivedPackageAlignment(targetConfig.getPackageName(), expectedPackage, "target", targetName);
             TargetConfig previous = selectedByName.putIfAbsent(targetName, targetConfig);
             if (previous != null) {
                 throw new IllegalStateException("Selected job '" + jobName + "' contains duplicate targetName '" + targetName
@@ -118,21 +113,6 @@ public final class SelectedJobNamingValidator {
             }
         }
         return selectedByName;
-    }
-
-    private static void validateDerivedPackageAlignment(String packageName,
-                                                        String expectedPackage,
-                                                        String configType,
-                                                        String configName) {
-        if (packageName == null || packageName.isBlank()) {
-            return;
-        }
-
-        String trimmed = packageName.trim();
-        if (GeneratedModelNamingPolicy.usesDerivedJobScopedNaming(trimmed) && !expectedPackage.equals(trimmed)) {
-            throw new IllegalStateException(configType + " config '" + configName + "' declares packageName='" + trimmed
-                    + "' but the selected job requires derived " + configType + " package '" + expectedPackage + "'.");
-        }
     }
 
     private static void validateCrossSideReuse(String jobName,
@@ -146,13 +126,9 @@ public final class SelectedJobNamingValidator {
         for (String logicalName : reusedNames) {
             int producedIndex = firstProducedStepIndexByName.getOrDefault(logicalName, Integer.MAX_VALUE);
             int consumedIndex = firstConsumedStepIndexByName.getOrDefault(logicalName, Integer.MAX_VALUE);
-            if (consumedIndex == producedIndex) {
-                throw new IllegalStateException("Selected job '" + jobName + "' reuses logical name '" + logicalName
-                        + "' as both source and target in the same ordered step. Intermediate handoff names must be produced first and consumed only by a later step.");
-            }
             if (consumedIndex < producedIndex) {
                 throw new IllegalStateException("Selected job '" + jobName + "' reuses logical name '" + logicalName
-                        + "' before it is produced. Intermediate handoff names must first appear as a target and only later as a downstream source.");
+                        + "' before it is produced. Reuse is only valid when the same logical name represents the current step's source-to-target identity or a downstream handoff produced earlier in the ordered plan.");
             }
         }
     }
@@ -217,4 +193,6 @@ public final class SelectedJobNamingValidator {
         return value.trim();
     }
 }
+
+
 

@@ -26,12 +26,12 @@ public final class GeneratedModelClassResolver {
 		if (sourceConfig instanceof XmlSourceConfig xmlSourceConfig) {
       return qualifyClassName(
           validatedPackageName(xmlSourceConfig.getPackageName(), "packageName", "XML source", xmlSourceConfig.getSourceName()),
-          validatedTypeName(xmlSourceConfig.getRecordElement(), "recordElement", "XML source", xmlSourceConfig.getSourceName())
+          GeneratedModelNamingPolicy.resolveSourceSimpleClassName(xmlSourceConfig)
       );
 		}
     return qualifyClassName(
         validatedPackageName(sourceConfig.getPackageName(), "packageName", "source", sourceConfig.getSourceName()),
-        validatedTypeName(sourceConfig.getSourceName(), "sourceName", "source", sourceConfig.getSourceName())
+        GeneratedModelNamingPolicy.resolveSourceSimpleClassName(sourceConfig)
     );
     }
 
@@ -39,7 +39,7 @@ public final class GeneratedModelClassResolver {
         if (sourceConfig instanceof XmlSourceConfig xmlSourceConfig) {
       return qualifyClassName(
           validatedPackageName(xmlSourceConfig.getPackageName(), "packageName", "XML source", xmlSourceConfig.getSourceName()),
-          validatedTypeName(xmlSourceConfig.getRootElement(), "rootElement", "XML source", xmlSourceConfig.getSourceName())
+          GeneratedModelNamingPolicy.resolveSourceRootSimpleClassName(xmlSourceConfig)
       );
         }
         return resolveSourceClassName(sourceConfig);
@@ -73,12 +73,12 @@ public final class GeneratedModelClassResolver {
         if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
       return qualifyClassName(
           validatedPackageName(xmlTargetConfig.getPackageName(), "packageName", "XML target", xmlTargetConfig.getTargetName()),
-          validatedTypeName(xmlTargetConfig.getRootElement(), "rootElement", "XML target", xmlTargetConfig.getTargetName())
+          GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(xmlTargetConfig)
       );
         }
     return qualifyClassName(
         validatedPackageName(targetConfig.getPackageName(), "packageName", "target", targetConfig.getTargetName()),
-        validatedTypeName(targetConfig.getTargetName(), "targetName", "target", targetConfig.getTargetName())
+        GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(targetConfig)
     );
     }
 
@@ -86,12 +86,12 @@ public final class GeneratedModelClassResolver {
         if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
       return qualifyClassName(
           validatedPackageName(xmlTargetConfig.getPackageName(), "packageName", "XML target", xmlTargetConfig.getTargetName()),
-          validatedTypeName(xmlTargetConfig.getRecordElement(), "recordElement", "XML target", xmlTargetConfig.getTargetName())
+          GeneratedModelNamingPolicy.resolveTargetProcessingSimpleClassName(xmlTargetConfig)
       );
         }
     return qualifyClassName(
         validatedPackageName(targetConfig.getPackageName(), "packageName", "target", targetConfig.getTargetName()),
-        validatedTypeName(targetConfig.getTargetName(), "targetName", "target", targetConfig.getTargetName())
+        GeneratedModelNamingPolicy.resolveTargetProcessingSimpleClassName(targetConfig)
     );
     }
 
@@ -154,8 +154,12 @@ public final class GeneratedModelClassResolver {
     }
 
     public static String resolveXmlWrapperFieldName(XmlTargetConfig targetConfig) {
-		String recordElement = validatedTypeName(targetConfig.getRecordElement(), "recordElement", "XML target", targetConfig.getTargetName());
-        return Character.toLowerCase(recordElement.charAt(0)) + recordElement.substring(1);
+		String packageName = validatedPackageName(targetConfig.getPackageName(), "packageName", "XML target", targetConfig.getTargetName());
+        return GeneratedModelNamingPolicy.resolveWrapperFieldName(
+                packageName,
+                requireNonBlank(targetConfig.getRecordElement(), "recordElement", "XML target", targetConfig.getTargetName()),
+                GeneratedModelNamingPolicy.resolveTargetProcessingSimpleClassName(targetConfig)
+        );
     }
 
     public static void requireSourceModelClassesAvailable(SourceConfig sourceConfig) {
@@ -231,15 +235,6 @@ public final class GeneratedModelClassResolver {
     if (!isQualifiedIdentifier(trimmed)) {
       throw new IllegalArgumentException(configType + " config '" + defaultConfigName(configName) + "' has invalid "
           + fieldName + "='" + trimmed + "'. Expected a dot-separated Java package name." + EXPLICIT_JOB_PACKAGE_HINT);
-    }
-    return trimmed;
-  }
-
-  private static String validatedTypeName(String value, String fieldName, String configType, String configName) {
-    String trimmed = requireNonBlank(value, fieldName, configType, configName);
-    if (!isJavaIdentifier(trimmed)) {
-      throw new IllegalArgumentException(configType + " config '" + defaultConfigName(configName) + "' has invalid "
-          + fieldName + "='" + trimmed + "'. Expected a Java identifier-compatible generated class name segment.");
     }
     return trimmed;
   }

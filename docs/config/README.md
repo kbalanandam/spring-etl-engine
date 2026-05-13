@@ -250,7 +250,7 @@ steps:
 
 Relative paths in `job-config.yaml` are resolved from the job-config file's folder, and explicit job-config runs now require a non-empty `steps` list.
 
-For explicit job-config runs, source and target `packageName` values are now optional. When omitted, the runtime and job-scoped generation path derive them as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`. Explicit `packageName` values still override that default for compatibility.
+For explicit job-config runs, source and target `packageName` values are now optional. When omitted, the runtime and job-scoped generation path derive them as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`. Explicit `packageName` values are now part of a deprecated compatibility bridge rather than the preferred authoring style for new bundles. If an authored bridge value under `com.etl.generated.job...` drifts from the package implied by the selected `job-config.yaml -> name`, runtime/build-time explicit-job paths now log a warning and still honor the authored value for compatibility.
 
 Legacy development-time model generation paths from `model.paths.*` remain anchored to the repository root rather than the selected scenario working directory. This keeps explicit job runs from creating scenario-local `src/main/java` or `target/classes` trees when older dev-profile generators are still active.
 
@@ -260,7 +260,7 @@ The engine should not auto-discover all scenario folders and execute them. One r
 
 The canonical checked-in preserved bundle path is `config-jobs`, and the runtime still accepts legacy `config-scenarios/...` references temporarily for backward compatibility, but that alias path is now deprecated. Developer-local private bundles should now prefer `private-jobs/...` instead of adding real data or environment-specific settings under `src/main/resources/`, and those private bundles should remain uncommitted.
 
-`JobConfig.name` is currently the selected scenario/job identity used in logs and metadata. It is still not a separate lookup registry key, but it now also seeds the default generated package path when the selected source or target config omits `packageName`.
+`JobConfig.name` is currently the selected scenario/job identity used in logs and metadata. It is still not a separate lookup registry key, but it now also seeds the default generated package path when the selected source or target config omits `packageName`, and that non-blank job name is part of the active package-free naming contract.
 
 If `etl.config.job` is not set, startup should fail unless `etl.config.allow-demo-fallback=true` is enabled. Demo fallback mode may then use the direct config path properties and, if those direct files are missing, continue into bundled classpath YAML intended for local/demo usage.
 

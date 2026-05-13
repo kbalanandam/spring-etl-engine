@@ -8,6 +8,8 @@ import java.util.List;
  */
 public class XmlModelDefinition {
     private String packageName;
+    private String rootClassName;
+    private String recordClassName;
     private String rootElement;
     private String recordElement;
     private List<XmlFieldDefinition> fields;
@@ -16,6 +18,18 @@ public class XmlModelDefinition {
     }
     public void setPackageName(String packageName) {
         this.packageName = packageName;
+    }
+    public String getRootClassName() {
+        return rootClassName;
+    }
+    public void setRootClassName(String rootClassName) {
+        this.rootClassName = rootClassName;
+    }
+    public String getRecordClassName() {
+        return recordClassName;
+    }
+    public void setRecordClassName(String recordClassName) {
+        this.recordClassName = recordClassName;
     }
     public String getRootElement() {
         return rootElement;

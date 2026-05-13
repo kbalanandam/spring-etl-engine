@@ -15,6 +15,9 @@ and this project adheres to **Semantic Versioning**.
 
 ### Changed
 - Source and target `packageName` values can now be omitted across the active config-loading path, with job-scoped defaults still derived from the selected job identity for compatibility.
+- Explicit `job-config.yaml` runs now require a non-blank `name` on the active generated-model naming path; folder-name fallback is no longer used for runtime/build-time package derivation.
+- Explicit job runtime loading and build-time generation now also fail fast on generated-name collisions after logical-name normalization and on cross-step handoff names consumed before an earlier step produces them.
+- Explicit job runtime loading and build-time generation now also warn when deprecated authored `com.etl.generated.job...` packageName bridge values drift from the package derived from the selected `job-config.yaml` name, while still honoring the authored value for compatibility.
 - CSV targets now default `delimiter` to `,` when omitted or blank, while still honoring user-provided alternate separators at runtime.
 - Architecture, config, README, and product-tracking docs now describe the shipped optional-`packageName` bridge baseline and the current JSON/CSV target behavior more consistently.
 - CSV reader parsing and mapping are now more defensive, including quote-character parsing support in config, fail-fast field writability checks, and refreshed reader-focused regression coverage.

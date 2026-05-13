@@ -171,7 +171,7 @@ This table is the day-to-day execution view for the current product stage.
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
 | [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Ready | M1 | A2 | Future `job-config.yaml isActive` contract should fail fast in `ConfigLoader` with job-aware startup errors; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
-| [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | In Progress | M2 | A2 | Optional source/target `packageName` derivation is now shipped for explicit job mode; remaining work is the full naming standard, validation guardrails, and bridge tightening described in [`Generated model naming standard`](../architecture/generated-model-naming-standard.md) |
+| [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | In Progress | M2 | A2 | Explicit job mode now ships derived package defaults, required non-blank job names, and first naming guardrails for cross-step handoff reuse plus normalization collisions; remaining work is the broader bridge tightening and package-free config direction described in [`Generated model naming standard`](../architecture/generated-model-naming-standard.md) |
 | [A5](backlog-items/A5-relational-source-column-alias-contract.md) | Add relational source column alias contract and reader mapping | Epic A | P2 | Deferred | M2 | none | Parked for later review so relational reads can support source-column-to-property differences without disturbing the current phase-1 baseline |
 | T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
@@ -208,12 +208,13 @@ This table is the day-to-day execution view for the current product stage.
 
 Use this section as the near-term sequencing view behind the execution board:
 
-1. `T3` next, now that expression-derived fields are shipped on the processor transform seam.
-2. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, not a redesign of the shipped duplicate baseline.
-3. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
-4. Keep `E2` as the next portability/documentation step.
-5. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-6. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
+1. `A4` first, to finish the generated-model naming and package-derivation contract before more feature breadth increases rework.
+2. `T3` next, once the generated-model contract is tighter and the remaining naming drift risk is reduced.
+3. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, not a redesign of the shipped duplicate baseline.
+4. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
+5. Keep `E2` as the next portability/documentation step.
+6. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
+7. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -652,12 +653,13 @@ Exit signal:
 
 Use this as the condensed near-term priority order:
 
-1. `T3` — conditional transformation rules
-2. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
-3. `E2` — packaged-run guidance
-4. `X1` / `X2` — SFTP contract and first inbound slice
-5. `F1` / `S1` / `S2` — restartability and scheduler baseline
-6. `V3` / `V4` / `G1` — reporting, release gating, and secure config
+1. `A4` — generated-model naming and package-derivation completion
+2. `T3` — conditional transformation rules
+3. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
+4. `E2` — packaged-run guidance
+5. `X1` / `X2` — SFTP contract and first inbound slice
+6. `F1` / `S1` / `S2` — restartability and scheduler baseline
+7. `V3` / `V4` / `G1` — reporting, release gating, and secure config
 
 ---
 

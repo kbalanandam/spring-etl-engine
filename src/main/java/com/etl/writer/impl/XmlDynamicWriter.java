@@ -1,5 +1,7 @@
 package com.etl.writer.impl;
 
+import com.etl.common.util.GeneratedModelClassResolver;
+import com.etl.common.util.GeneratedModelNamingPolicy;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.XmlTargetConfig;
 import com.etl.enums.ModelFormat;
@@ -27,7 +29,10 @@ public class XmlDynamicWriter implements DynamicWriter {
 
 		String path = resolveOutputPath(xmlConfig, config);
 		Jaxb2Marshaller marshaller = jaxbMarshaller(clazz);
-		if (clazz.getSimpleName().equals(xmlConfig.getRecordElement())) {
+		String expectedProcessingClassName = GeneratedModelClassResolver.resolveTargetProcessingClassName(xmlConfig);
+		String expectedProcessingSimpleName = GeneratedModelNamingPolicy.resolveTargetProcessingSimpleClassName(xmlConfig);
+		if (clazz.getName().equals(expectedProcessingClassName)
+				|| clazz.getSimpleName().equals(expectedProcessingSimpleName)) {
 			// Stream individual record elements for chunk-oriented XML writes.
 			StagedStaxEventItemWriter<Object> writer = new StagedStaxEventItemWriter<>(path);
 			writer.setRootTagName(xmlConfig.getRootElement());

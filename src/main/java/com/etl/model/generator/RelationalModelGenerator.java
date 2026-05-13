@@ -1,5 +1,6 @@
 package com.etl.model.generator;
 
+import com.etl.common.util.GeneratedModelNamingPolicy;
 import com.etl.common.util.StringUtils;
 import com.etl.config.FieldDefinition;
 import com.etl.config.ModelConfig;
@@ -62,13 +63,13 @@ public class RelationalModelGenerator<T extends ModelConfig> implements ModelGen
         ModelType modelType;
 
         if (object instanceof SourceConfig sourceCfg) {
-            className = StringUtils.capitalize(sourceCfg.getSourceName());
+            className = GeneratedModelNamingPolicy.resolveSourceSimpleClassName(sourceCfg);
             packageName = sourceCfg.getPackageName();
             fields = sourceCfg.getFields();
             modelType = ModelType.SOURCE;
             logger.info("Generating relational model for source: {}", sourceCfg.getSourceName());
         } else if (object instanceof TargetConfig targetCfg) {
-            className = StringUtils.capitalize(targetCfg.getTargetName());
+            className = GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(targetCfg);
             packageName = targetCfg.getPackageName();
             fields = targetCfg.getFields();
             modelType = ModelType.TARGET;
@@ -86,7 +87,9 @@ public class RelationalModelGenerator<T extends ModelConfig> implements ModelGen
 
         buildFields(classBuilder, fields);
 
-        JavaFile javaFile = JavaFile.builder(packageName, classBuilder.build()).build();
+        JavaFile javaFile = JavaFile.builder(packageName, classBuilder.build())
+                .addFileComment(GeneratedModelNamingPolicy.generatedSourceHeader())
+                .build();
         Path outputDirectory = GeneratedSourcePathResolver.resolveSourceRoot(modelPathConfig, modelType, packageName);
         try {
             javaFile.writeTo(outputDirectory);

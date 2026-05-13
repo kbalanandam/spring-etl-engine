@@ -1,5 +1,6 @@
 package com.etl.generation.xml.build;
 
+import com.etl.common.util.GeneratedModelNamingPolicy;
 import com.etl.common.util.StringUtils;
 import com.etl.common.util.ValidationUtils;
 import com.etl.config.FieldDefinition;
@@ -40,7 +41,9 @@ public class FlatTargetModelClassGenerator {
                 addField(typeBuilder, field);
             }
 
-            JavaFile javaFile = JavaFile.builder(packageName, typeBuilder.build()).build();
+            JavaFile javaFile = JavaFile.builder(packageName, typeBuilder.build())
+                    .addFileComment(GeneratedModelNamingPolicy.generatedSourceHeader())
+                    .build();
             Path javaFilePath = packageDirectory.resolve(className + ".java");
             javaFile.writeTo(generatedSourceRoot);
 

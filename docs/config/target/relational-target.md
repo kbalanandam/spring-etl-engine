@@ -26,7 +26,7 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `relational` |
 | `targetName` | yes | string | Logical target name used in processor mapping lookup |
-| `packageName` | no in explicit job mode; otherwise yes | string | Package used for generated target model naming. When omitted for an explicit `job-config.yaml` run, the runtime and build-time generation path derive `com.etl.generated.job.<normalized-job-name>.target` |
+| `packageName` | no in explicit job mode; otherwise yes | string | Deprecated bridge field for generated target model naming. When omitted for an explicit `job-config.yaml` run, the runtime and build-time generation path derive `com.etl.generated.job.<normalized-job-name>.target` |
 | `schema` | no | string | Optional schema override, e.g. `dbo` |
 | `table` | yes | string | Target table name |
 | `writeMode` | no | string | Currently only `insert` is supported |
@@ -62,7 +62,6 @@ This shape mirrors the preserved SQL Server target bundles under `src/main/resou
 targets:
   - format: relational
     targetName: CustomersSql
-    packageName: com.etl.generated.job.csvtosqlserver.target
     schema: dbo
     table: Customers
     writeMode: insert
@@ -90,7 +89,7 @@ Read the example in target-contract order:
 - `targets:` is the required root for target config files.
 - `format: relational` selects the JDBC writer path.
 - `targetName` is the logical identity matched by processor mappings and job steps.
-- `packageName` is the generated target model package; in explicit job mode it may be omitted to use the job-scoped default package.
+- `packageName` is a deprecated bridge field for the generated target model package; in explicit job mode prefer omitting it to use the job-scoped default package.
 - `schema` optionally overrides the database schema for the target table.
 - `table` is the relational table written by the step.
 - `writeMode: insert` selects the only shipped relational write mode today.
@@ -143,6 +142,7 @@ Phase-1 relational target support is intentionally narrow.
 
 - `targetName` must match `processor.mappings[].target`.
 - In explicit job mode, `packageName` may be omitted and defaults to `com.etl.generated.job.<normalized-job-name>.target`.
+- Treat explicit `packageName` as a deprecated compatibility bridge on the active path, not as the preferred authoring style for new relational targets.
 - Use explicit `jdbcUrl` for the first live test when possible.
 - Keep DB column names aligned with configured field names during phase 1.
 - Keep credentials out of committed real environment configs where possible; use placeholders in committed scenario YAMLs.

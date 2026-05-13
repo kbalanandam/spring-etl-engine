@@ -1,5 +1,6 @@
 package com.etl.generation.xml.build;
 
+import com.etl.common.util.GeneratedModelNamingPolicy;
 import com.etl.common.util.ValidationUtils;
 import com.etl.config.FieldDefinition;
 import com.etl.config.source.XmlSourceConfig;
@@ -17,23 +18,41 @@ public class XmlConfigToModelDefinitionMapper {
 
     public XmlModelDefinition fromSourceConfig(XmlSourceConfig config) {
         ValidationUtils.requireNonNull(config, "XmlSourceConfig must not be null.");
-        return toDefinition(config.getPackageName(), config.getRootElement(), config.getRecordElement(), config.getFields());
+        return toDefinition(
+                config.getPackageName(),
+                config.getRootElement(),
+                config.getRecordElement(),
+                GeneratedModelNamingPolicy.resolveXmlRootSimpleClassName(config.getSourceName()),
+                GeneratedModelNamingPolicy.resolveXmlRecordSimpleClassName(config.getSourceName()),
+                config.getFields()
+        );
     }
 
     public XmlModelDefinition fromTargetConfig(XmlTargetConfig config) {
         ValidationUtils.requireNonNull(config, "XmlTargetConfig must not be null.");
-        return toDefinition(config.getPackageName(), config.getRootElement(), config.getRecordElement(), config.getFields());
+        return toDefinition(
+                config.getPackageName(),
+                config.getRootElement(),
+                config.getRecordElement(),
+                GeneratedModelNamingPolicy.resolveXmlRootSimpleClassName(config.getTargetName()),
+                GeneratedModelNamingPolicy.resolveXmlRecordSimpleClassName(config.getTargetName()),
+                config.getFields()
+        );
     }
 
     private XmlModelDefinition toDefinition(String packageName,
                                             String rootElement,
                                             String recordElement,
+                                            String rootClassName,
+                                            String recordClassName,
                                             List<? extends FieldDefinition> fields) {
         ValidationUtils.requireNonBlank("Invalid XML config for model generation", packageName, rootElement, recordElement);
         ValidationUtils.requireNonEmpty(fields, "XML config must define at least one field for model generation.");
 
         XmlModelDefinition definition = new XmlModelDefinition();
         definition.setPackageName(packageName);
+        definition.setRootClassName(rootClassName);
+        definition.setRecordClassName(recordClassName);
         definition.setRootElement(rootElement);
         definition.setRecordElement(recordElement);
         definition.setFields(fields.stream().map(this::toFieldDefinition).toList());

@@ -1,5 +1,6 @@
 package com.etl.model.generator;
 
+import com.etl.common.util.GeneratedModelNamingPolicy;
 import com.etl.config.FieldDefinition;
 import com.etl.config.ModelConfig;
 import com.etl.config.ModelPathConfig;
@@ -68,16 +69,16 @@ public class XmlModelGenerator<T extends ModelConfig> implements ModelGenerator<
 
         // Always require both rootElement and recordElement for any XML type
         if (config.getModelType() == ModelType.TARGET && config instanceof XmlTargetConfig xmlTarget) {
-            wrapperClassName = xmlTarget.getRootElement();
-            recordClassName = xmlTarget.getRecordElement();
+			wrapperClassName = GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(xmlTarget);
+			recordClassName = GeneratedModelNamingPolicy.resolveTargetProcessingSimpleClassName(xmlTarget);
             packageName = xmlTarget.getPackageName();
             rootElement = xmlTarget.getRootElement();
             recordElement = xmlTarget.getRecordElement();
             fields = xmlTarget.getFields();
 			modelType = ModelType.TARGET;
         } else if (config.getModelType() == ModelType.SOURCE && config instanceof XmlSourceConfig xmlSource) {
-            wrapperClassName = xmlSource.getRootElement();
-            recordClassName = xmlSource.getRecordElement();
+									wrapperClassName = GeneratedModelNamingPolicy.resolveSourceRootSimpleClassName(xmlSource);
+									recordClassName = GeneratedModelNamingPolicy.resolveSourceSimpleClassName(xmlSource);
             packageName = xmlSource.getPackageName();
             rootElement = xmlSource.getRootElement();
             recordElement = xmlSource.getRecordElement();
@@ -142,6 +143,7 @@ public class XmlModelGenerator<T extends ModelConfig> implements ModelGenerator<
 			List<? extends FieldDefinition> fields
 	) {
 		StringBuilder sb = new StringBuilder();
+		sb.append("// ").append(GeneratedModelNamingPolicy.generatedSourceHeader()).append("\n");
 		sb.append("package ").append(packageName).append(";\n\n");
 		sb.append("import jakarta.xml.bind.annotation.*;\n\n");
 		sb.append("@XmlRootElement(name = \"").append(recordElement).append("\")\n");
@@ -177,25 +179,26 @@ public class XmlModelGenerator<T extends ModelConfig> implements ModelGenerator<
 			String recordElement
 	) {
 		StringBuilder sb = new StringBuilder();
+		sb.append("// ").append(GeneratedModelNamingPolicy.generatedSourceHeader()).append("\n");
 		sb.append("package ").append(packageName).append(";\n\n");
 		sb.append("import jakarta.xml.bind.annotation.*;\n");
 		sb.append("import java.util.List;\n\n");
 		sb.append("@XmlRootElement(name = \"").append(rootElement).append("\")\n");
 		sb.append("@XmlAccessorType(XmlAccessType.FIELD)\n");
 		sb.append("public class ").append(wrapperClassName).append(" {\n\n");
-		// Use lowerCamelCase of recordElement for the field name
-		String fieldName = Character.toLowerCase(recordElement.charAt(0)) + recordElement.substring(1);
+		String fieldName = GeneratedModelNamingPolicy.resolveWrapperFieldName(packageName, recordElement, recordClassName);
+		String accessorBase = GeneratedModelNamingPolicy.resolveWrapperAccessorBase(packageName, recordElement, recordClassName);
 		sb.append("    @XmlElement(name = \"").append(recordElement).append("\")\n");
 		sb.append("    private List<").append(recordClassName).append("> ")
 		  .append(fieldName).append(";\n\n");
 		sb.append("    public ").append(wrapperClassName).append("() {}\n\n");
 		// Getter
 		sb.append("    public List<").append(recordClassName).append("> get")
-		  .append(recordElement).append("() {\n");
+		  .append(accessorBase).append("() {\n");
 		sb.append("        return ").append(fieldName).append(";\n");
 		sb.append("    }\n\n");
 		// Setter
-		sb.append("    public void set").append(recordElement).append("(List<")
+		sb.append("    public void set").append(accessorBase).append("(List<")
 		  .append(recordClassName).append("> ")
 		  .append(fieldName).append(") {\n");
 		sb.append("        this.").append(fieldName).append(" = ")

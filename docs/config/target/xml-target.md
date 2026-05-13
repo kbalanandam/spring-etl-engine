@@ -18,7 +18,7 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `xml` |
 | `targetName` | yes | string | Logical target name used in processor mapping lookup |
-| `packageName` | no in explicit job mode; otherwise yes | string | Package used for generated target model naming; runtime now validates that the configured XML root and record classes exist in this package during startup. When omitted for an explicit `job-config.yaml` run, the runtime and build-time generation path derive `com.etl.generated.job.<normalized-job-name>.target` |
+| `packageName` | no in explicit job mode; otherwise yes | string | Deprecated bridge field for generated target model naming; runtime now validates that the configured XML root and record classes exist in this package during startup. When omitted for an explicit `job-config.yaml` run, the runtime and build-time generation path derive `com.etl.generated.job.<normalized-job-name>.target` |
 | `filePath` | yes | string | XML output file path or output directory |
 | `rootElement` | yes | string | Root container element for the generated XML document |
 | `recordElement` | yes | string | Record element name used for repeated XML items |
@@ -31,7 +31,7 @@ Backed by:
 
 For new XML target scenarios in this repo, prefer one shared authoring pattern for both simple and nested XML targets:
 
-- keep the top-level XML target fields the same: `format`, `targetName`, `packageName`, `filePath`, `rootElement`, `recordElement`
+- keep the top-level XML target fields the same: `format`, `targetName`, `filePath`, `rootElement`, `recordElement`
 - use `modelDefinitionPath` when the target shape is nested or should come from a structural XML definition
 - keep `fields` for simple flat XML targets; when `modelDefinitionPath` is present for nested XML, prefer the definition file as the single structural source of truth
 
@@ -80,7 +80,7 @@ targets:
         type: String
 ```
 
-`packageName` is optional in explicit job mode. When omitted, the runtime derives `com.etl.generated.job.<normalized-job-name>.target` automatically.
+`packageName` is optional in explicit job mode and should be treated as a deprecated bridge field. When omitted, the runtime derives `com.etl.generated.job.<normalized-job-name>.target` automatically.
 
 Use this simple/flat XML variant when one runtime target record maps directly to one repeated XML output element:
 
@@ -88,7 +88,6 @@ Use this simple/flat XML variant when one runtime target record maps directly to
 targets:
   - format: xml
     targetName: Customers
-    packageName: com.etl.generated.job.customerload.target
     filePath: output/customers.xml
     rootElement: Customers
     recordElement: Customer
@@ -107,7 +106,6 @@ Use this nested XML variant when the output shape should be generated from a str
 targets:
   - format: xml
     targetName: CustomersNestedXml
-    packageName: com.etl.generated.job.csvtonestedxml.target
     filePath: output/customers-nested.xml
     rootElement: Customers
     recordElement: CustomerRecord
@@ -118,7 +116,7 @@ Treat that nested form as the preferred pattern when the XML output contains str
 
 ## Example
 
-### Example A — flat XML target with explicit package name
+### Example A — flat XML target with derived package name
 
 This is the current preserved flat XML target pattern:
 
@@ -126,7 +124,6 @@ This is the current preserved flat XML target pattern:
 targets:
   - format: xml
     targetName: Customers
-    packageName: com.etl.generated.job.customerload.target
     filePath: output/customers.xml
     rootElement: Customers
     recordElement: Customer
@@ -192,7 +189,7 @@ Read the examples in output-contract order:
 - `targets:` is the required root for target config files.
 - `format: xml` selects the XML writer path.
 - `targetName` is the logical target identity referenced by processor mappings and job steps.
-- `packageName` is the generated target package validated during startup; in explicit job mode it may be omitted to use the job-scoped default package.
+- `packageName` is a deprecated bridge field for the generated target package validated during startup; in explicit job mode prefer omitting it to use the job-scoped default package.
 - `filePath` is the XML output artifact path or output directory.
 - `rootElement` is the document envelope element written around the output.
 - `recordElement` is the repeated XML item element name expected by the writer path.
@@ -211,7 +208,7 @@ The important authoring rule is choice, not duplication:
 ## Runtime behavior today
 
 - The target config file root is `targets:`.
-- The same top-level XML target contract is used for both simple and nested XML outputs: `format`, `targetName`, `packageName`, `filePath`, `rootElement`, `recordElement`, plus optional `fields` and optional `modelDefinitionPath`.
+- The same top-level XML target contract is used for both simple and nested XML outputs: `format`, `targetName`, `filePath`, `rootElement`, `recordElement`, plus optional deprecated-bridge `packageName`, optional `fields`, and optional `modelDefinitionPath`.
 - If `filePath` ends with `/` or points to an existing directory, the writer appends `<targetName>.xml` using a lowercase target name.
 - When the generated target class simple name matches `recordElement`, the runtime streams individual XML record elements under the configured `rootElement`.
 - Otherwise the writer falls back to wrapper/single-object XML output.
@@ -224,6 +221,7 @@ The important authoring rule is choice, not duplication:
 - `targetName` must match the selected `processor.mappings[].target` value.
 - `packageName`, `rootElement`, and `recordElement` must line up with the generated XML classes that Maven compiled for the selected job.
 - In explicit job mode, `packageName` may be omitted and defaults to `com.etl.generated.job.<normalized-job-name>.target`.
+- Treat explicit `packageName` as a deprecated compatibility bridge on the active path, not as the preferred authoring style for new XML targets.
 - Use `modelDefinitionPath` when the XML target must contain nested object structure such as `profile.email` or `address.city` rather than only flat record fields.
 - Keep the top-level target YAML consistent between simple and nested XML targets so scenario authors only switch the structural source of truth, not the overall target config shape.
 - For nested XML targets, keep the structural shape in the referenced model definition rather than duplicating overlapping fields in both places.
