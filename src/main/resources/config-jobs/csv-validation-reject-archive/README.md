@@ -46,7 +46,6 @@ steps:
 sources:
   - format: csv
     sourceName: Events
-    packageName: com.etl.generated.job.csvvalidationrejectarchive.source
     filePath: input/events-validation-input.csv
     delimiter: ","
     archive:
@@ -66,7 +65,7 @@ sources:
 
 - `format: csv` selects the CSV reader path.
 - `sourceName: Events` is the logical identity matched by the job step and processor mapping.
-- `packageName` points to the scenario-scoped generated source package.
+- This bundle intentionally omits `packageName`; the runtime derives the CSV source package from `job-config.yaml -> name`.
 - `filePath` is the staged working file, not the committed sample fixture.
 - `delimiter` declares the CSV separator.
 - `archive.enabled: true` turns on archive-on-success after the step finishes successfully.
@@ -80,7 +79,6 @@ sources:
 targets:
   - format: csv
     targetName: EventsCsv
-    packageName: com.etl.generated.job.csvvalidationrejectarchive.target
     filePath: output/events-validation-output.csv
     delimiter: ","
     fields:
@@ -96,7 +94,7 @@ targets:
 
 - `format: csv` selects the CSV writer path for accepted rows.
 - `targetName: EventsCsv` is the logical target identity matched by the job step and processor mapping.
-- `packageName` points to the scenario-scoped generated target package.
+- This bundle intentionally omits `packageName`; the runtime derives the CSV target package from `job-config.yaml -> name`.
 - `filePath` is the accepted-record output artifact.
 - `fields` lists the written columns in output order.
 

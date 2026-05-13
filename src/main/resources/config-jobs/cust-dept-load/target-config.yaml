@@ -1,7 +1,6 @@
 targets:
   - format: xml
     targetName: Customers
-    packageName: com.etl.generated.job.custdeptload.target
     filePath: output/customers.xml
     rootElement: Customers
     recordElement: Customer
@@ -15,7 +14,6 @@ targets:
 
   - format: xml
     targetName: Departments
-    packageName: com.etl.generated.job.custdeptload.target
     filePath: output/departments.xml
     rootElement: Departments
     recordElement: Department

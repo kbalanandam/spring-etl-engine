@@ -28,13 +28,12 @@ This preserved bundle keeps the same top-level XML target YAML shape used by sim
 
 - `format`
 - `targetName`
-- `packageName`
 - `filePath`
 - `rootElement`
 - `recordElement`
 - optional `modelDefinitionPath`
 
-The nested XML difference is that `modelDefinitionPath` supplies the structural target contract for the final XML shape. That means the nested XML target is not a different top-level layout; it is the same authoring pattern plus an external structural definition.
+The nested XML difference is that `modelDefinitionPath` supplies the structural target contract for the final XML shape. That means the nested XML target is not a different top-level layout; it is the same authoring pattern plus an external structural definition, while the generated package is derived from `job-config.yaml -> name` instead of an authored `packageName` field.
 
 ## Expected behavior
 

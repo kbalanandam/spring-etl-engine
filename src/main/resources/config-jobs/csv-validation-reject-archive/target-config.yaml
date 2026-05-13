@@ -1,7 +1,6 @@
 targets:
   - format: csv
     targetName: EventsCsv
-    packageName: com.etl.generated.job.csvvalidationrejectarchive.target
     filePath: output/events-validation-output.csv
     delimiter: ","
     fields:

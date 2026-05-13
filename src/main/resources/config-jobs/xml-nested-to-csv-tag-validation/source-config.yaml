@@ -1,7 +1,6 @@
 sources:
   - format: xml
     sourceName: TagValidationSource
-    packageName: com.etl.generated.job.xmlnestedtocsvtagvalidation.source
     filePath: input/tag-validation-sample.xml
     archive:
       enabled: false

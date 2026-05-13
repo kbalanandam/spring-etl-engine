@@ -1,7 +1,6 @@
 targets:
   - format: xml
     targetName: TagValidationExport
-    packageName: com.etl.generated.job.xmlnestedtagvalidation.target
     filePath: output/tag-validation-export.xml
     rootElement: TagValidationExports
     recordElement: TagValidationExport

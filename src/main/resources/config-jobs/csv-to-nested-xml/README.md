@@ -8,7 +8,7 @@ This scenario proves that the shared default processor path can:
 
 - read a CSV source through explicit `job-config.yaml` selection
 - map flat CSV fields into nested XML target paths such as `profile.email` and `address.city`
-- keep the same top-level XML target YAML shape used by simpler XML targets (`format`, `targetName`, `packageName`, `filePath`, `rootElement`, `recordElement`, plus optional `modelDefinitionPath`)
+- keep the same top-level XML target YAML shape used by simpler XML targets (`format`, `targetName`, `filePath`, `rootElement`, `recordElement`, plus optional `modelDefinitionPath`)
 - generate job-scoped nested XML target model classes through `modelDefinitionPath`
 - write the final nested XML output through the active XML writer path
 
@@ -16,7 +16,7 @@ This scenario proves that the shared default processor path can:
 
 - `job-config.yaml` - explicit job selection and step binding
 - `source-config.yaml` - CSV source definition for the preserved sample
-- `target-config.yaml` - XML target definition using the shared top-level XML target shape plus `modelDefinitionPath`
+- `target-config.yaml` - package-free XML target definition using the shared top-level XML target shape plus `modelDefinitionPath`
 - `processor-config.yaml` - shared processor mapping from flat CSV fields into nested XML target fields
 - `definitions/nested-target-model.yaml` - authoritative structural nested XML target contract
 - `input/customers.csv` - preserved CSV sample used to verify nested XML output
@@ -28,13 +28,12 @@ This preserved bundle now follows the same top-level XML target authoring shape 
 
 - `format`
 - `targetName`
-- `packageName`
 - `filePath`
 - `rootElement`
 - `recordElement`
 - optional `modelDefinitionPath`
 
-The nested XML difference is that `modelDefinitionPath` supplies the structural target contract for elements such as `profile.email` and `address.city`.
+The nested XML difference is that `modelDefinitionPath` supplies the structural target contract for elements such as `profile.email` and `address.city`, while the generated package is derived from `job-config.yaml -> name`. The preserved bundle YAML stays package-free.
 
 That means the nested scenario does **not** use a different XML target layout; it uses the same top-level target YAML shape plus an external structural definition.
 

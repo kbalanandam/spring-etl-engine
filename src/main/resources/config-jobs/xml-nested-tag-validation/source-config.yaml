@@ -1,7 +1,6 @@
 sources:
   - format: xml
     sourceName: TagValidationSource
-    packageName: com.etl.generated.job.xmlnestedtagvalidation.source
     filePath: input/nested-sample.xml
     rootElement: TagValidationList
     recordElement: TVLTagDetails

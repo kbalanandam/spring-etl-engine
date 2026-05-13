@@ -1,7 +1,6 @@
 sources:
   - format: xml
     sourceName: TagValidationSource
-    packageName: com.etl.generated.job.xmlnestedcsvroundtrip.source
     filePath: input/nested-sample.xml
     rootElement: TagValidationList
     recordElement: TVLTagDetails
@@ -13,7 +12,6 @@ sources:
     modelDefinitionPath: definitions/nested-source-model.yaml
   - format: csv
     sourceName: TagValidationCsvIntermediate
-    packageName: com.etl.generated.job.xmlnestedcsvroundtrip.source
     filePath: output/intermediate/tag-validation-intermediate.csv
     delimiter: ","
     fields:

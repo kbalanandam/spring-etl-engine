@@ -45,7 +45,6 @@ steps:
 sources:
   - format: relational
     sourceName: Customers
-    packageName: com.etl.generated.job.relationaltorelational.source
     schema: dbo
     table: CustomersSource
     countQuery: SELECT COUNT(*) FROM dbo.CustomersSource
@@ -70,7 +69,7 @@ sources:
 
 - `format: relational` selects the JDBC reader path.
 - `sourceName: Customers` is the logical identity used by the job step and processor mapping.
-- `packageName` points to the scenario-scoped generated source package.
+- This bundle intentionally omits `packageName`; the runtime derives the relational source package from `job-config.yaml -> name`.
 - `schema` and `table` identify the source table.
 - `countQuery` keeps source counting explicit for planning and reporting.
 - `fetchSize` is the source-side streaming hint.
@@ -84,7 +83,6 @@ sources:
 targets:
   - format: relational
     targetName: CustomersSql
-    packageName: com.etl.generated.job.relationaltorelational.target
     schema: dbo
     table: CustomersTarget
     writeMode: insert
@@ -109,7 +107,7 @@ targets:
 
 - `format: relational` selects the JDBC writer path.
 - `targetName: CustomersSql` is the logical target identity used by the job step and processor mapping.
-- `packageName` points to the scenario-scoped generated target package.
+- This bundle intentionally omits `packageName`; the runtime derives the relational target package from `job-config.yaml -> name`.
 - `schema` and `table` identify the destination table.
 - `writeMode: insert` uses the only shipped relational write mode today.
 - `batchSize: 500` is the target-side write-grouping hint.
