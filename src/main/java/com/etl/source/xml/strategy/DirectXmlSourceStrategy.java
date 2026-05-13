@@ -12,7 +12,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Shared flattening strategy for simple one-record-to-one-row XML payloads.
+ * Shipped flattening strategy for simple one-record-to-one-row XML payloads.
+ *
+ * <p>This strategy is used when the generated XML record model already matches the fragment shape
+ * the runtime reads from the source document. It either extracts explicitly mapped fields or, when
+ * no mapping is supplied, flattens the record's simple fields directly into one output row.</p>
+ *
+ * <p>Nested complex objects are intentionally rejected in the unmapped path so authors do not get
+ * silent partial flattening from a strategy meant for direct/simple XML records.</p>
  */
 @Component
 public class DirectXmlSourceStrategy extends AbstractXmlSourceStrategy {
@@ -38,6 +45,9 @@ public class DirectXmlSourceStrategy extends AbstractXmlSourceStrategy {
         return XmlFlatteningResult.ofRows(rows);
     }
 
+    /**
+     * Flattens a generated record object by copying only simple scalar or simple-collection fields.
+     */
     private Map<String, Object> flattenDirectRecord(Object record) {
         Map<String, Object> row = new LinkedHashMap<>();
         for (Field field : readableFields(record.getClass())) {

@@ -48,6 +48,13 @@ public class DynamicReaderFactory {
 				));
 	}
 
+	/**
+	 * Returns the registered reader implementation for a source format.
+	 *
+	 * <p>This factory is the active runtime dispatch seam for reader selection. Missing
+	 * registrations fail fast here so unsupported formats do not surface later as
+	 * ambiguous runtime read errors.</p>
+	 */
 	public DynamicReader<?> getReaderByFormat(ModelFormat format) {
 		DynamicReader<?> reader = readers.get(format);
 		if (reader == null) {
@@ -57,6 +64,14 @@ public class DynamicReaderFactory {
 		return reader;
 	}
 
+	/**
+	 * Creates the concrete Spring Batch reader for the supplied source config.
+	 *
+	 * <p>The factory validates only the generic creation contract: non-null config,
+	 * non-null generated class, registered reader presence, and consistent exception
+	 * wrapping. Format-specific validation remains inside the chosen reader
+	 * implementation.</p>
+	 */
 	@SuppressWarnings("unchecked")
 	public <T> ItemReader<T> createReader(SourceConfig config, Class<T> clazz) throws Exception {
 		if (config == null || clazz == null) {

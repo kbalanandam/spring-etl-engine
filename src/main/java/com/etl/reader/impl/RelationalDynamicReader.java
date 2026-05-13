@@ -18,6 +18,20 @@ import org.springframework.stereotype.Component;
 import java.sql.ResultSet;
 import java.util.stream.Collectors;
 
+/**
+ * Runtime relational reader builder for database-backed sources.
+ *
+ * <p>This reader turns the selected relational source config into a
+ * {@link JdbcCursorItemReader}. It owns datasource creation, dialect-aware SQL
+ * selection, optional fetch/max row tuning, and column-to-field mapping into the
+ * generated source model class.</p>
+ *
+ * <p>The reader supports two relational source styles:</p>
+ * <ul>
+ *   <li>an explicit SQL query provided by config</li>
+ *   <li>a generated {@code SELECT} statement based on configured fields, schema, and table</li>
+ * </ul>
+ */
 @Component("relational")
 public class RelationalDynamicReader<T> implements DynamicReader<T> {
 
@@ -36,6 +50,8 @@ public class RelationalDynamicReader<T> implements DynamicReader<T> {
             RelationalSourceConfig relationalConfig = (RelationalSourceConfig) config;
             relationalConfig.validate();
 
+            // Resolve the database dialect once so identifier quoting and qualified
+            // table naming stay vendor-correct for generated fallback SQL.
             DatabaseDialect dialect = DatabaseDialectResolver.resolve(relationalConfig.getConnection().getResolvedVendor());
 
             JdbcCursorItemReader<T> reader = new JdbcCursorItemReader<>();
@@ -48,6 +64,8 @@ public class RelationalDynamicReader<T> implements DynamicReader<T> {
             if (relationalConfig.getMaxRows() != null && relationalConfig.getMaxRows() > 0) {
                 reader.setMaxRows(relationalConfig.getMaxRows());
             }
+            // Row mapping stays config-driven: each configured field name is treated as
+            // the JDBC column label and the generated model property name.
             reader.setRowMapper(buildRowMapper(relationalConfig, clazz));
             reader.afterPropertiesSet();
             return new RuntimeCategorizingItemStreamReader<>(reader, relationalConfig.getSourceName());
@@ -61,6 +79,13 @@ public class RelationalDynamicReader<T> implements DynamicReader<T> {
         }
     }
 
+    /**
+     * Resolves the SQL statement used by the cursor reader.
+     *
+     * <p>If the source config already declares a query, that query is used verbatim.
+     * Otherwise the reader synthesizes a simple dialect-aware {@code SELECT} based on
+     * configured field names and the effective schema/table reference.</p>
+     */
     private String resolveReadSql(RelationalSourceConfig config, DatabaseDialect dialect) {
         if (config.hasQuery()) {
             return config.getQuery();
@@ -75,6 +100,12 @@ public class RelationalDynamicReader<T> implements DynamicReader<T> {
                 + " FROM " + dialect.qualifyTableName(config.getEffectiveSchema(), config.getTable());
     }
 
+    /**
+     * Builds a reflection-based row mapper for the generated source model class.
+     *
+     * <p>The mapping contract assumes relational field names already describe both the
+     * selected column labels and the generated Java property names.</p>
+     */
     private RowMapper<T> buildRowMapper(RelationalSourceConfig config, Class<T> clazz) {
         return (ResultSet rs, int rowNum) -> {
             T instance = ReflectionUtils.createInstance(clazz);

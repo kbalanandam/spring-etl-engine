@@ -34,6 +34,10 @@ import org.springframework.lang.NonNull;
  * <p>Already categorized {@link EtlException} instances are preserved as-is. This class only wraps
  * uncategorized failures so downstream diagnostics and log evidence stay consistent across source
  * formats.</p>
+ *
+ * <p>In other words, this adapter is the common reader-side equivalent of the staged XML writer
+ * wrappers: concrete format readers keep their parsing semantics, while this class standardizes
+ * the runtime-facing failure surface.</p>
  */
 public class RuntimeCategorizingItemStreamReader<T> implements ItemStreamReader<T> {
 

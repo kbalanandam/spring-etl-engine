@@ -15,6 +15,8 @@ import java.nio.file.StandardCopyOption;
 /**
  * Shared staged-file publication contract for file-based writers.
  *
+ * <p><strong>Transition status:</strong> REUSE.</p>
+ *
  * <p>This helper keeps one invariant for the active CSV, XML, and JSON file target path:
  * writer implementations should write into a sibling {@code .part} file first and only publish
  * the configured final output path once the write stream has closed cleanly and the surrounding
@@ -33,6 +35,10 @@ import java.nio.file.StandardCopyOption;
  *
  * <p>Failed steps never publish staged output. Instead, the {@code .part} file is deleted so a
  * partial rerun artifact cannot be mistaken for a completed target publication.</p>
+ *
+ * <p>This class owns staging, promotion, and cleanup timing only. Concrete writers still own their
+ * own stream open/write/close behavior, format-specific error categorization, and any extra policy
+ * such as deleting stale published output when a step completes without producing new content.</p>
  */
 final class StagedFileLifecycle {
 
@@ -65,7 +71,8 @@ final class StagedFileLifecycle {
      * empty.
      *
      * <p>This is the first lifecycle step for any staged writer. It clears any leftover
-     * {@code .part} file from an earlier run before the delegate stream opens.</p>
+     * {@code .part} file from an earlier run before the delegate stream opens. Writers should call
+     * this exactly once for each new output attempt before any bytes are written.</p>
      */
     void prepareForWrite() {
         try {
@@ -86,7 +93,8 @@ final class StagedFileLifecycle {
      *
      * <p>This path exists for standalone usage patterns where the writer still needs the same
      * staged-write safety but there is no later {@link #completeStep(ExitStatus)} callback to act
-     * as the second publish signal.</p>
+     * as the second publish signal. Step-scoped writers must still wait for the explicit step
+     * completion handshake instead of publishing here.</p>
      */
     void promoteIfNoActiveStep() {
         if (hasNoActiveStepContext()) {
@@ -99,6 +107,9 @@ final class StagedFileLifecycle {
      *
      * <p>If the step outcome has already been signaled, or if no step context exists at all, that
      * means the publish handshake is complete and the staged file can move into its final path.</p>
+     *
+     * <p>This method intentionally does not try to infer whether a step succeeded; it only records
+     * the writer-side signal that streaming has completed without an immediate failure.</p>
      */
     void streamClosed() {
         streamClosed = true;
@@ -114,6 +125,9 @@ final class StagedFileLifecycle {
      * staged file is promoted immediately. A failed step never publishes; instead the staged
      * artifact is deleted quietly because it should not survive as an operator-visible final
      * output.</p>
+     *
+     * <p>Concrete writers may still layer additional step-end behavior around this, but promotion
+     * and failed-step staging cleanup should continue to flow through this shared helper.</p>
      */
     ExitStatus completeStep(ExitStatus exitStatus) {
         if (ExitStatus.COMPLETED.getExitCode().equals(exitStatus.getExitCode())) {

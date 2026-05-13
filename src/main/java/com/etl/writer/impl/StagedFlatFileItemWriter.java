@@ -15,7 +15,21 @@ import java.io.IOException;
 import java.nio.file.Files;
 
 /**
- * Flat file writer that stages output until the step completes successfully.
+ * Chunk-oriented CSV writer that stages output until the step completes successfully.
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>This writer extends Spring Batch's {@link FlatFileItemWriter} for CSV targets that
+ * publish row-oriented output one item at a time. Rows are written to a sibling staging
+ * file first and only promoted to the final output once the surrounding step completes
+ * successfully.</p>
+ *
+ * <p>When a stream operation fails, the writer enters a failed state and switches to cleanup
+ * behavior so partial CSV output is removed instead of being exposed as a published file.</p>
+ *
+ * <p>This wrapper owns CSV stream lifecycle and failure categorization. The actual publish timing
+ * and final-path promotion handshake stay delegated to {@link StagedFileLifecycle} so CSV follows
+ * the same staged publication rules as JSON and XML file writers.</p>
  */
 public class StagedFlatFileItemWriter<T> extends FlatFileItemWriter<T> implements StepExecutionListener {
 
@@ -36,6 +50,8 @@ public class StagedFlatFileItemWriter<T> extends FlatFileItemWriter<T> implement
 
     @Override
     public void open(@NonNull ExecutionContext executionContext) {
+        // Prepare a fresh staging path before the underlying flat-file stream opens so the
+        // inherited writer never writes directly into the published destination.
         stagedFileLifecycle.prepareForWrite();
         failed = false;
         try {
@@ -55,6 +71,8 @@ public class StagedFlatFileItemWriter<T> extends FlatFileItemWriter<T> implement
             throw new RuntimeEtlException("Staged CSV writer for '" + stagedFileLifecycle.finalPath() + "' is already in a failed state.");
         }
         try {
+            // Delegate line aggregation and CSV serialization to the parent writer while this
+            // wrapper preserves staged-publication boundaries and CSV-specific failure handling.
             super.write(chunk);
         } catch (Exception e) {
             failed = true;
@@ -80,6 +98,8 @@ public class StagedFlatFileItemWriter<T> extends FlatFileItemWriter<T> implement
     @Override
     public void close() {
         if (failed) {
+            // Failed streams should never reach normal staged publication. Clean up the partial
+            // staging state instead.
             cleanupFailedStreamState();
             return;
         }
@@ -98,6 +118,7 @@ public class StagedFlatFileItemWriter<T> extends FlatFileItemWriter<T> implement
 
     @Override
     public ExitStatus afterStep(StepExecution stepExecution) {
+        // Step completion is the second signal in the staged publish handshake for CSV output.
         return stagedFileLifecycle.completeStep(stepExecution.getExitStatus());
     }
 
@@ -106,6 +127,7 @@ public class StagedFlatFileItemWriter<T> extends FlatFileItemWriter<T> implement
   }
 
   private void cleanupFailedStreamState() {
+    // Best-effort cleanup for failed CSV stream state so unfinished staged output does not survive.
     Exception cleanupFailure = null;
     try {
       super.close();

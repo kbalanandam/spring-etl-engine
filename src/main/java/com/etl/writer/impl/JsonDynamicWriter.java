@@ -11,6 +11,13 @@ import org.springframework.stereotype.Component;
 import java.io.File;
 import java.nio.file.Path;
 
+/**
+ * Runtime JSON writer builder for staged JSON-array output.
+ *
+ * <p>The shipped JSON target path writes one array document per step. This class owns
+ * output-path resolution and delegates staged publication plus incremental array writing
+ * to {@link StagedJsonArrayItemWriter}.</p>
+ */
 @Component("jsonWriter")
 public class JsonDynamicWriter implements DynamicWriter {
 
@@ -35,6 +42,13 @@ public class JsonDynamicWriter implements DynamicWriter {
         return new StagedJsonArrayItemWriter<>(resolveOutputPath(jsonConfig), objectMapper);
     }
 
+    /**
+     * Resolves the final JSON output file path from the selected target config.
+     *
+     * <p>If the configured path points at a directory-like location, the writer derives a
+     * deterministic file name from {@code targetName}. Otherwise the configured path is
+     * treated as the final JSON file.</p>
+     */
     private String resolveOutputPath(JsonTargetConfig jsonConfig) {
         String configuredPath = jsonConfig.getFilePath();
         if (configuredPath == null || configuredPath.isBlank()) {

@@ -20,9 +20,16 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * CsvDynamicReader is a DynamicReader implementation for reading CSV files.
- * It supports dynamic column mapping using SourceConfig and allows flexible
- * reading of different CSV structures.
+ * Runtime CSV reader builder for explicit-job source configs.
+ *
+ * <p>This reader converts the configured CSV contract into a Spring Batch
+ * {@link FlatFileItemReader}. It owns delimiter and quote handling, optional header
+ * skipping, tokenizer column ordering, and dynamic field mapping from CSV columns
+ * into the generated source model class.</p>
+ *
+ * <p>The runtime contract is intentionally config-driven: field order comes from
+ * {@code source-config.yaml}, not from reflection over the generated class. That keeps
+ * CSV parsing aligned with the selected bundle instead of relying on Java property order.</p>
  *
  * @param <T> The target object type for each CSV row
  */
@@ -55,6 +62,8 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 
 		FlatFileItemReader<T> reader = new FlatFileItemReader<>();
 		reader.setResource(new FileSystemResource(csvConfig.getFilePath()));
+		// Header skipping is controlled explicitly by config so intermediate handoff
+		// CSV files can opt in or out depending on how the upstream step published them.
 		reader.setLinesToSkip(csvConfig.isSkipHeader() ? 1 : 0);
 
 		// ------------------------------
@@ -62,7 +71,8 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 		// ------------------------------
 		DefaultLineMapper<T> lineMapper = new DefaultLineMapper<>();
 
-		// Configure tokenizer
+		// Configure delimiter and quote handling from the selected source config so the
+		// tokenizer matches the file contract instead of assuming default CSV behavior.
 		DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer();
 		tokenizer.setDelimiter(csvConfig.getDelimiter());
 		Character quoteCharacter = csvConfig.resolveQuoteCharacter();
@@ -70,7 +80,8 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 			tokenizer.setQuoteCharacter(quoteCharacter);
 		}
 
-		// Extract column names
+		// Column names come from config field order and drive both token binding and
+		// DynamicFieldSetMapper property assignment into the generated model class.
 		String[] columnNames = config.getFields().stream()
 				.map(FieldDefinition::getName)
 				.toArray(String[]::new);
@@ -87,12 +98,15 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 		lineMapper.setLineTokenizer(tokenizer);
 		List<? extends FieldDefinition> fields = config.getFields();
 
-		// Map fields to target class dynamically
+		// Field mapping stays dynamic so one reader implementation can support many
+		// different generated source model shapes across preserved bundles.
 		lineMapper.setFieldSetMapper(new DynamicFieldSetMapper<>(fields, clazz));
 
 		reader.setLineMapper(lineMapper);
 		reader.setStrict(true);
 
+		// Wrap the concrete reader so CSV parsing failures use the same categorized
+		// runtime failure path as the other active source formats.
 		return new RuntimeCategorizingItemStreamReader<>(reader, csvConfig.getSourceName());
 	}
 }

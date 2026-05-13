@@ -18,8 +18,22 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
+/**
+ * Shared helper logic for XML source strategies.
+ *
+ * <p>This base class centralizes record extraction, path-based value lookup, recursive flattening,
+ * JAXB-aware field naming, and reflective field access so shipped and job-specific strategies can
+ * focus on choosing the right flattening shape instead of reimplementing XML traversal rules.</p>
+ */
 abstract class AbstractXmlSourceStrategy implements XmlSourceStrategy {
 
+    /**
+     * Extracts the candidate record objects that the active strategy should flatten.
+     *
+     * <p>The method accepts either a root wrapper, a direct record instance, or a collection and
+     * tries to locate the effective record set using the runtime context's configured record class
+     * and record element metadata.</p>
+     */
     protected List<?> extractRecords(XmlSourceRuntimeContext context, Object xmlRoot) {
         if (xmlRoot == null) {
             return List.of();
@@ -130,6 +144,10 @@ abstract class AbstractXmlSourceStrategy implements XmlSourceStrategy {
         return context.getRecordClass() != null && context.getRecordClass().isInstance(value);
     }
 
+    /**
+     * Extracts explicitly mapped values from one record using configured dotted/indexed source
+     * paths.
+     */
     protected Map<String, Object> extractMappedValues(Object record, Map<String, String> fieldMappings) {
         Map<String, Object> row = new LinkedHashMap<>();
         for (Map.Entry<String, String> entry : fieldMappings.entrySet()) {
@@ -138,6 +156,9 @@ abstract class AbstractXmlSourceStrategy implements XmlSourceStrategy {
         return row;
     }
 
+    /**
+     * Recursively flattens nested objects and collections into dotted/indexed field names.
+     */
     protected void flattenRecursively(Map<String, Object> row, String prefix, Object value) {
         if (value == null) {
             return;
@@ -168,6 +189,9 @@ abstract class AbstractXmlSourceStrategy implements XmlSourceStrategy {
         }
     }
 
+    /**
+     * Resolves one configured dotted/indexed path against the supplied source object.
+     */
     protected Object extractValueByPath(Object source, String path) {
         if (source == null || path == null || path.isBlank()) {
             return null;
