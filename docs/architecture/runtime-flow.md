@@ -4,6 +4,8 @@
 
 This page explains how one ETL run currently executes from startup to output.
 
+For a format-specific operational deep dive, continue in [`csv-to-xml-runtime-flow.md`](csv-to-xml-runtime-flow.md) when you want the shipped `CSV -> XML` runtime path explained end to end with preserved scenario anchors, flow diagrams, publication behavior, and operator-facing evidence.
+
 For the target next-direction runtime contract, where one selected scenario becomes the only normal execution boundary and model generation/resolution becomes scenario-scoped, continue in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
 
 For repository-provided preserved bundles, explicit runtime and build-time generation entry points now resolve directly against the checked-in `config-jobs/...` bundle tree, while legacy `config-scenarios/...` paths remain temporarily available as deprecated backward-compatibility aliases.
@@ -356,6 +358,8 @@ This flow shows where future enhancements should plug in:
 - multi-job orchestration will likely require a higher-level flow model than the current selected job-config plus explicit step list
 
 This page intentionally stays focused on the shipped runtime baseline. The preferred next architecture direction for strict scenario-driven execution is documented separately in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
+
+For a flow-level operational manual of the shipped CSV source to XML target path, including flat XML, nested XML, reject/archive behavior on the shared CSV ingestion path, and staged XML publication, see [`csv-to-xml-runtime-flow.md`](csv-to-xml-runtime-flow.md).
 
 ## Current file-ingestion hardening path
 

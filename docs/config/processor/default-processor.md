@@ -99,6 +99,8 @@ This is still the best place to begin. Everything else on this page is additive.
 | `mappings[].fields[].rules[].orderBy[].field` | yes, when `orderBy` is present | string | Field used to rank duplicate candidates; each configured field should appear only once per `orderBy` list |
 | `mappings[].fields[].rules[].orderBy[].direction` | yes, when `orderBy` is present | string | Winner-selection direction: `ASC` or `DESC` |
 
+There is no separate processor-config field today for choosing duplicate storage mode such as `inMemory` or `embeddedDb`. The shipped config contract expresses duplicate semantics through `duplicate`, optional `keyFields`, and optional `orderBy`; the runtime chooses the backing resolver automatically when ordered winner selection is active.
+
 ## Progressive examples
 
 ### 1. Basic field mapping
@@ -283,8 +285,9 @@ Use the expression transform for derived fields and other processor-side value c
 - Repeating the same `orderBy[].field` more than once in one `duplicate` rule is invalid and is rejected during processor-config validation.
 - When `orderBy` is not present, duplicate handling does not do â€œbest record winsâ€ selection; it stays in simple keep-first mode.
 - The current shipped `duplicate` rule uses step-local in-memory tracking for keep-first duplicate elimination.
-- When `orderBy` is present, runtime resolves winners through a shared ordered-duplicate abstraction and currently chooses between in-memory and embedded-DB staging based on runtime volume hints before the final write phase.
+- When `orderBy` is present, runtime upgrades duplicate handling into ordered winner selection and uses a shared ordered-duplicate resolver before the final write phase.
 - Ordered duplicate winner selection still uses tasklet-style final buffering for that mapping so earlier writes do not need to be undone.
+- The storage implementation for ordered winner selection is not selected in YAML today. Runtime chooses it automatically from step volume hints: smaller known candidate sets stay on the in-memory path, while counts above the active `etl.chunk.threshold` (or unknown counts that default to the large-input path) use the embedded-database resolver.
 - The current duplicate contract expects flat field/property access on the runtime record. XML-native duplicate identity based on XPath, namespaces, or nested structure selectors is not part of the shipped processor config contract yet.
 - Those built-in rule types are dispatched through the active processor-rule SPI, so future rule types should be added as `ProcessorValidationRule` implementations rather than through the deprecated `com.etl.validation.*` package.
 
@@ -326,7 +329,7 @@ That separation keeps shipped behavior readable today and leaves room for future
 - No conditional mapping rules yet
 - The shipped validation rule set remains intentionally small (`notNull`, `timeFormat`, and `duplicate` with single-field, composite-key, or ordered winner selection)
 - The shipped transform baseline now covers config-driven `valueMap` rewriting plus processor-side expression-derived fields, while conditional rules and lookup/enrichment remain future work
-- Client-selectable duplicate storage strategy and target-aware deduplication are still future work
+- No client-selectable duplicate storage switch exists today, and target-aware deduplication is still future work
 - Reject handling is now exercised by preserved file-backed scenarios, with the strongest first proof still centered on CSV and additional nested XML proof through the same processor contract
 - No nested field alias or database-column alias support yet
 - No per-target write behavior inside the processor config
