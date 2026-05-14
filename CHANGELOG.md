@@ -6,6 +6,10 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+---
+
+## [1.6.0] - 2026-05-14
+
 ### Added
 - Added a flat JSON target format plus staged JSON-array writing so preserved and custom scenarios can convert XML sources into JSON output through the existing factory-driven runtime path.
 - Added a preserved `xml-to-json-events` scenario bundle and focused JSON writer / XML-to-JSON flow coverage.

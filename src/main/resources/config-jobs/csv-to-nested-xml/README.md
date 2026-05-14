@@ -51,7 +51,7 @@ Generate the job-scoped XML target classes first, then run the selected scenario
 
 ```powershell
 mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-jobs/csv-to-nested-xml/job-config.yaml" -DskipTests package
-java "-Detl.config.job=src/main/resources/config-jobs/csv-to-nested-xml/job-config.yaml" -jar target/spring-etl-engine-1.5.0.jar
+ java "-Detl.config.job=src/main/resources/config-jobs/csv-to-nested-xml/job-config.yaml" -jar target/spring-etl-engine-1.6.0.jar
 ```
 
 The checked-in bundle root is now `config-jobs`. The runtime still accepts legacy `config-scenarios/...` paths temporarily for backward compatibility, but that alias path is now deprecated.

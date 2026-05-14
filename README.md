@@ -326,7 +326,7 @@ You can override the base directory with:
 etl.logging.base-dir=target/test-logs
 ```
 
-The scenario name is resolved from `JobConfig.name` when `etl.config.job` is used. If that field is blank, the runtime falls back to the selected `job-config.yaml` folder name. Each log line still keeps the `runCorrelationId`, so multiple same-day runs for one scenario remain distinguishable inside the shared daily file.
+The scenario name is resolved from `JobConfig.name` when `etl.config.job` is used. Explicit job-config runs now require that field to be non-blank, so startup fails fast before scenario logging begins if `job-config.yaml -> name` is missing or blank. Each log line still keeps the `runCorrelationId`, so multiple same-day runs for one scenario remain distinguishable inside the shared daily file.
 
 For relational large-volume scenarios, the current phase-1 tuning knobs are:
 
