@@ -1,0 +1,83 @@
+name: Product Backlog Project Sync
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - docs/product/product-backlog.md
+      - docs/product/project-board-sync.md
+      - docs/README.md
+      - scripts/sync_project_board.py
+      - scripts/tests/test_sync_project_board.py
+      - .github/workflows/product-backlog-project-sync.yml
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Preview the sync without mutating the GitHub Project
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  sync-project-board:
+    name: Sync Product Backlog execution board into GitHub Project
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run backlog sync unit tests
+        run: python -m unittest discover -s scripts/tests -p "test_*.py"
+
+      - name: Detect project-sync configuration
+        id: config
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.ONEFLOW_PROJECT_SYNC_TOKEN }}" ] || [ -z "${{ vars.ONEFLOW_PROJECT_NUMBER }}" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Explain skipped sync
+        if: steps.config.outputs.enabled != 'true'
+        shell: bash
+        run: |
+          echo "Skipping Product Backlog Project sync because ONEFLOW_PROJECT_SYNC_TOKEN or ONEFLOW_PROJECT_NUMBER is not configured."
+          echo "The parser/tests still ran successfully."
+
+      - name: Sync execution board into GitHub Project
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.ONEFLOW_PROJECT_SYNC_TOKEN }}
+          ONEFLOW_PROJECT_OWNER: ${{ vars.ONEFLOW_PROJECT_OWNER != '' && vars.ONEFLOW_PROJECT_OWNER || github.repository_owner }}
+          ONEFLOW_PROJECT_NUMBER: ${{ vars.ONEFLOW_PROJECT_NUMBER }}
+          ONEFLOW_PROJECT_PUBLIC_MODE: ${{ vars.ONEFLOW_PROJECT_PUBLIC_MODE }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          extra_flags=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ inputs.dry_run }}" = "true" ]; then
+            extra_flags="$extra_flags --dry-run"
+          fi
+
+          if [ "${ONEFLOW_PROJECT_PUBLIC_MODE:-false}" = "true" ]; then
+            extra_flags="$extra_flags --public-mode"
+          fi
+
+          python scripts/sync_project_board.py \
+            --backlog-file docs/product/product-backlog.md \
+            --project-owner "$ONEFLOW_PROJECT_OWNER" \
+            --project-number "$ONEFLOW_PROJECT_NUMBER" \
+            $extra_flags

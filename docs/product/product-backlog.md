@@ -1,5 +1,11 @@
 # Product Backlog
 
+## Executive Dashboard
+
+Active execution tracking lives in the GitHub Project **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)**.
+
+This document remains the strategic/reference product backlog and milestone view.
+
 ## Purpose
 
 This document preserves the product goal for `spring-etl-engine` from the starting point to the current state, and from the current state toward an enterprise-grade ETL product.
@@ -165,6 +171,10 @@ Use this maintenance rule:
 ## Current Execution Board
 
 This table is the day-to-day execution view for the current product stage.
+
+> Live execution view: **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)**
+>
+> Sync contract: this Markdown table is the canonical source of truth for execution-board status. The GitHub Project is the synchronized live projection maintained by `scripts/sync_project_board.py` and `.github/workflows/product-backlog-project-sync.yml`. See [`project-board-sync.md`](project-board-sync.md) for setup details. When that sync is enabled, update this table first and avoid manually editing the mirrored Project fields except for emergency cleanup.
 
 | ID | Item | Epic | Priority | Status | Milestone | Dependency | Notes |
 |---|---|---|---|---|---|---|---|
@@ -702,6 +712,7 @@ Keep the backlog honest:
 - when an item becomes `Blocked`, add the blocking reason in the notes column
 - when an item becomes `Done`, ensure tests/docs/changelog reflect that completion level
 - if priorities change, update both the execution board and `Priority Snapshot`
+- when Project sync is enabled, treat the GitHub Project as a projection of this table and make execution-status changes here rather than editing mirrored Project fields manually
 
 ---
 
