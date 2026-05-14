@@ -121,6 +121,8 @@ Use this table as the recommended reading order by goal:
 | Set up a developer-local private job bundle or collection | [`private-jobs/`](private-jobs/README.md) | [Explicit job-config mode](#explicit-job-config-mode) |
 | Understand what is shipped vs planned | [`docs/README.md`](docs/README.md) | [`docs/product/product-backlog.md`](docs/product/product-backlog.md) |
 
+Active execution tracking for the OneFlow product-facing roadmap lives in the GitHub Project **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)**. The execution-board table in [`docs/product/product-backlog.md`](docs/product/product-backlog.md) can act as the source of truth for that Project through the backlog-to-project sync described in [`docs/product/project-board-sync.md`](docs/product/project-board-sync.md).
+
 ## Documentation strategy
 
 Use the repository docs in this order:
