@@ -1,7 +1,6 @@
 targets:
   - format: relational
     targetName: CustomersSql
-    packageName: com.etl.generated.job.relationaltorelational.target
     schema: dbo
     table: CustomersTarget
     writeMode: insert

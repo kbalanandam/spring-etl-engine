@@ -18,7 +18,7 @@ This scenario proves four things together inside one selected `job-config.yaml`:
 - `target-config.yaml` - CSV intermediate target plus nested XML target definition
 - `processor-config.yaml` - shared processor mappings for both step pairs
 - `definitions/nested-source-model.yaml` - structural nested XML source contract
-- `definitions/nested-target-model.yaml` - structural nested XML target contract
+- `definitions/nested-target-model.yaml` - authoritative structural nested XML target contract
 - `input/nested-sample.xml` - preserved nested XML sample payload
 - `output/` - scenario-local runtime folder for the intermediate CSV handoff and final XML artifact
 
@@ -28,14 +28,12 @@ This preserved bundle keeps the same top-level XML target YAML shape used by sim
 
 - `format`
 - `targetName`
-- `packageName`
 - `filePath`
 - `rootElement`
 - `recordElement`
-- `fields`
 - optional `modelDefinitionPath`
 
-The nested XML difference is that `modelDefinitionPath` supplies the structural target contract for the final XML shape. That means the nested XML target is not a different top-level layout; it is the same authoring pattern plus an external structural definition.
+The nested XML difference is that `modelDefinitionPath` supplies the structural target contract for the final XML shape. That means the nested XML target is not a different top-level layout; it is the same authoring pattern plus an external structural definition, while the generated package is derived from `job-config.yaml -> name` instead of an authored `packageName` field.
 
 ## Expected behavior
 
@@ -44,7 +42,7 @@ The nested XML difference is that `modelDefinitionPath` supplies the structural 
 - step 1 archives the original XML file to `archive/success/nested-sample.xml`
 - step 1 emits `archivedSourcePath` in `STEP_EVENT event=step_finished`
 - step 2 reads that intermediate CSV file in the same job run
-- step 2 keeps the normal XML target top-level fields in that same order and uses `modelDefinitionPath` after `fields` for the nested output structure
+- step 2 keeps the normal XML target top-level metadata in that same order and uses `modelDefinitionPath` as the structural source of truth for the nested output
 - step 2 writes `output/tag-validation-roundtrip.xml`
 
 ## Run example
@@ -54,7 +52,7 @@ Generate the job-scoped XML classes first, then run the scenario:
 ```powershell
 Set-Location 'C:\spring-etl-engine'
 mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml" -DskipTests package
-java "-Detl.config.job=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml" -jar target/spring-etl-engine-1.5.0.jar
+ java "-Detl.config.job=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml" -jar target/spring-etl-engine-1.6.0.jar
 ```
 
 ## Rerun note

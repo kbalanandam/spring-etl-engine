@@ -2,6 +2,8 @@ package com.etl.writer;
 
 import com.etl.config.ColumnConfig;
 import com.etl.config.target.CsvTargetConfig;
+import com.etl.exception.EtlErrorCategory;
+import com.etl.exception.EtlExceptionDetails;
 import com.etl.writer.impl.CsvDynamicWriter;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -21,6 +23,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CsvDynamicWriterTest {
@@ -78,6 +81,58 @@ class CsvDynamicWriterTest {
     }
 
     @Test
+    void defaultsDelimiterToCommaWhenOmitted(@TempDir Path tempDir) throws Exception {
+        Path outputFile = tempDir.resolve("customers-default-delimiter.csv");
+        CsvTargetConfig config = new CsvTargetConfig(
+                "TagValidationCsvIntermediate",
+                "com.etl.generated.job.xmlnestedcsvroundtrip.target",
+                List.of(column("id"), column("email"), column("city"), column("country")),
+                outputFile.toString(),
+                null,
+                true
+        );
+
+        ItemWriter<Object> writer = factory.createWriter(config, CustomerCsvRow.class);
+        FlatFileItemWriter<Object> csvWriter = (FlatFileItemWriter<Object>) writer;
+        csvWriter.open(new ExecutionContext());
+        try {
+            csvWriter.write(new Chunk<>(List.of(new CustomerCsvRow("1001", "alice@example.com", "Chennai", "IN"))));
+        } finally {
+            csvWriter.close();
+        }
+
+        String csv = Files.readString(outputFile);
+        assertTrue(csv.contains("id,email,city,country"));
+        assertTrue(csv.contains("1001,alice@example.com,Chennai,IN"));
+    }
+
+    @Test
+    void writesConfiguredAlternateDelimiter(@TempDir Path tempDir) throws Exception {
+        Path outputFile = tempDir.resolve("customers-pipe.csv");
+        CsvTargetConfig config = new CsvTargetConfig(
+                "TagValidationCsvIntermediate",
+                "com.etl.generated.job.xmlnestedcsvroundtrip.target",
+                List.of(column("id"), column("email"), column("city"), column("country")),
+                outputFile.toString(),
+                "|",
+                true
+        );
+
+        ItemWriter<Object> writer = factory.createWriter(config, CustomerCsvRow.class);
+        FlatFileItemWriter<Object> csvWriter = (FlatFileItemWriter<Object>) writer;
+        csvWriter.open(new ExecutionContext());
+        try {
+            csvWriter.write(new Chunk<>(List.of(new CustomerCsvRow("1001", "alice@example.com", "Chennai", "IN"))));
+        } finally {
+            csvWriter.close();
+        }
+
+        String csv = Files.readString(outputFile);
+        assertTrue(csv.contains("id|email|city|country"));
+        assertTrue(csv.contains("1001|alice@example.com|Chennai|IN"));
+    }
+
+    @Test
     void replacesExistingFinalFileOnSuccessfulStandaloneWrite(@TempDir Path tempDir) throws Exception {
         Path outputFile = tempDir.resolve("customers-replace.csv");
         Files.writeString(outputFile, "stale,data\nold,row\n");
@@ -124,6 +179,28 @@ class CsvDynamicWriterTest {
         assertFalse(Files.exists(stagingFile));
     }
 
+  @Test
+  void cleansStagingAndCategorizesCsvWriteFailure(@TempDir Path tempDir) throws Exception {
+    Path outputFile = tempDir.resolve("customers-write-failed.csv");
+    Path stagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");
+    CsvTargetConfig config = csvTargetConfig(outputFile, true);
+
+    ItemWriter<Object> writer = factory.createWriter(config, BrokenCustomerCsvRow.class);
+    FlatFileItemWriter<Object> csvWriter = (FlatFileItemWriter<Object>) writer;
+    csvWriter.open(new ExecutionContext());
+
+    Exception failure = assertThrows(
+        Exception.class,
+        () -> csvWriter.write(new Chunk<>(List.of(new BrokenCustomerCsvRow("4004", "broken@example.com", "Mumbai", "IN"))))
+    );
+    assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+
+    csvWriter.close();
+
+    assertFalse(Files.exists(outputFile));
+    assertFalse(Files.exists(stagingFile));
+  }
+
     private CsvTargetConfig csvTargetConfig(Path outputFile, boolean includeHeader) {
         return new CsvTargetConfig(
                 "TagValidationCsvIntermediate",
@@ -142,7 +219,7 @@ class CsvDynamicWriterTest {
         return columnConfig;
     }
 
-    public static final class CustomerCsvRow {
+    public static class CustomerCsvRow {
         private final String id;
         private final String email;
         private final String city;
@@ -174,5 +251,16 @@ class CsvDynamicWriterTest {
             return country;
         }
     }
+
+  public static final class BrokenCustomerCsvRow extends CustomerCsvRow {
+    public BrokenCustomerCsvRow(String id, String email, String city, String country) {
+      super(id, email, city, country);
+    }
+
+    @Override
+    public String getEmail() {
+      throw new IllegalStateException("boom");
+    }
+  }
 }
 

@@ -10,6 +10,8 @@ import java.util.List;
 
 public class CsvTargetConfig extends TargetConfig {
 
+    public static final String DEFAULT_DELIMITER = ",";
+
     private final String filePath;
     private final String delimiter;
     private final boolean includeHeader;
@@ -34,7 +36,7 @@ public class CsvTargetConfig extends TargetConfig {
     ) {
         super(targetName, packageName, fields);
         this.filePath = filePath;
-        this.delimiter = delimiter;
+        this.delimiter = resolveDelimiter(delimiter);
         this.includeHeader = includeHeader;
     }
 
@@ -49,8 +51,12 @@ public class CsvTargetConfig extends TargetConfig {
     ) {
         super(targetName, packageName, fields);
         this.filePath = filePath;
-        this.delimiter = delimiter;
+        this.delimiter = resolveDelimiter(delimiter);
         this.includeHeader = includeHeader != null && includeHeader;
+    }
+
+    private static String resolveDelimiter(String delimiter) {
+        return delimiter == null || delimiter.isBlank() ? DEFAULT_DELIMITER : delimiter;
     }
 
           public String getFilePath() {

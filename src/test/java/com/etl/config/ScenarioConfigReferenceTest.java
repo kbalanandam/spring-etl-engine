@@ -1,6 +1,5 @@
 package com.etl.config;
 
-import com.etl.common.util.ConfigBundlePathAliasResolver;
 import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
@@ -32,6 +31,7 @@ class ScenarioConfigReferenceTest {
     void allTrackedScenarioFoldersContainResolvableJobReferencedFiles() throws IOException {
         List<String> scenarioNames = List.of(
                 "csv-validation-reject-archive",
+                "csv-to-nested-xml",
                 "csv-to-sqlserver",
                 "relational-to-relational",
                 "xml-to-csv-events",
@@ -92,16 +92,13 @@ class ScenarioConfigReferenceTest {
     }
 
     private static Path scenarioRootPath() {
-        Path mainResourceRoot = ConfigBundlePathAliasResolver.resolveBundleRoot(
-                Path.of("src", "main", "resources").toAbsolutePath().normalize()
-        );
-        if (Files.isDirectory(mainResourceRoot)) {
-            return mainResourceRoot;
+        Path canonicalScenarioRoot = Path.of("src", "main", "resources", "config-jobs")
+                .toAbsolutePath()
+                .normalize();
+        if (Files.isDirectory(canonicalScenarioRoot)) {
+            return canonicalScenarioRoot;
         }
-        String resourceName = ConfigBundlePathAliasResolver.resolveExistingResourceName(
-                ScenarioConfigReferenceTest.class.getClassLoader(),
-                ConfigBundlePathAliasResolver.PREFERRED_BUNDLE_FOLDER
-        );
+        String resourceName = "config-jobs";
         try {
             return Path.of(Objects.requireNonNull(
                     ScenarioConfigReferenceTest.class.getClassLoader().getResource(resourceName),

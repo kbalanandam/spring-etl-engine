@@ -50,7 +50,9 @@ Today, the shipped config contract now supports a first file-ingestion hardening
 - explicit rejected-record output configuration in processor config
 - processed-source-file archive configuration in file-based source config
 - explicit CSV source header handling through `skipHeader` so header-bearing handoff files can keep the current default while headerless CSV sources can opt out of first-line skipping
+- opt-in CSV parser quote-character configuration through `CsvSourceConfig.parser.quoteCharacter`, so the active CSV reader and header validator can honor alternate quoted-field contracts while keeping Spring Batch's default `"` behavior when that setting is omitted
 - staged file-target publication for CSV/XML outputs so partial rerun artifacts are not treated as final published outputs
+- active staged CSV/XML/JSON writers now also clean failed in-progress `.part` output on the writer path before any final-file promotion can occur, while keeping the same publish-on-success semantics for completed steps
 - accepted vs rejected record artifact semantics for the preserved CSV proof scenario
 
 The remaining gaps are now the broader follow-on work beyond that first slice.
@@ -61,10 +63,10 @@ For duplicate handling specifically, the shipped runtime currently uses:
 - keep-first duplicate handling when `duplicate` is configured with the mapped field alone or with `keyFields` but without `orderBy`
 - ordered winner selection when `duplicate` is configured with `orderBy`, so the best record per duplicate key is retained before final write
 - a shared processor-level duplicate contract intended for CSV, flat XML, relational, and other future record-oriented sources once records are available as normal runtime objects
-- in-memory duplicate tracking for simpler and faster moderate-volume runs
-- embedded-DB staging for ordered duplicate winner selection when larger-volume runs would otherwise put too much pressure on heap memory
+- step-local in-memory duplicate tracking for keep-first duplicate elimination
+- automatic storage selection for ordered duplicate winner selection, with in-memory resolution for smaller known candidate sets and embedded-DB staging when runtime volume crosses the large-input path
 
-The product direction should still preserve a future client-selectable tracking strategy so operators can explicitly choose the storage mode when needed.
+The product direction should still preserve a future client-selectable tracking strategy so operators can explicitly choose the storage mode when needed, but the shipped contract today remains runtime-selected rather than config-selected.
 
 The main deferred exception to preserve is source-native duplicate identity that cannot be expressed cleanly through flat mapped fields. If a future XML scenario needs duplicate keys based on XPath, namespaces, nested collections, or other pre-flattening structure details, that should be treated as separate XML/source-level duplicate scope rather than stretching the current processor rule beyond its intended contract.
 
@@ -304,6 +306,7 @@ The first slice should not yet try to solve:
 - relational-source archiving
 - complex XML nested validation rules
 - a broad source-transform YAML model for generic cleanup behavior
+- a generic CSV escape framework beyond the active reader path's quoted-field and doubled quote-character semantics
 - expression-based mapping itself
 - conditional transformation rules
 - quarantine workflow orchestration

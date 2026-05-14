@@ -194,6 +194,7 @@ public class XmlSourceConfig extends SourceConfig implements FileSourceConfig {
   public static class ValidationConfig {
 
     private String fileNamePattern;
+    private String schemaPath;
     private String onFailure;
     private String rejectPath;
 
@@ -203,6 +204,14 @@ public class XmlSourceConfig extends SourceConfig implements FileSourceConfig {
 
     public void setFileNamePattern(String fileNamePattern) {
       this.fileNamePattern = fileNamePattern;
+    }
+
+    public String getSchemaPath() {
+      return schemaPath;
+    }
+
+    public void setSchemaPath(String schemaPath) {
+      this.schemaPath = schemaPath;
     }
 
     public String getOnFailure() {

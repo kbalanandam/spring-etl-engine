@@ -2,99 +2,77 @@
 
 ## Purpose
 
-`XmlSourceConfig` defines a file-based XML source.
+`XmlSourceConfig` defines a file-based XML source selected by a `job-config.yaml` step.
 
-It supports the current XML reader path used for staged XML file ingestion, including record counting for chunk/tasklet decisions and flat record extraction through a configured record element.
+It covers three runtime shapes behind one YAML contract:
+
+- `DirectXml` for simple repeating-record XML
+- `NestedXml` for nested XML that must be flattened before processor mapping
+- `JobSpecificXml` for job-owned custom flattening logic
+
+The repo standard is to keep the same top-level YAML shape for both simple and nested XML, and let `flatteningStrategy` describe runtime behavior.
 
 ## Java contract
 
 Backed by:
 - `src/main/java/com/etl/config/source/XmlSourceConfig.java`
+- `src/main/java/com/etl/config/source/validation/XmlSourceValidator.java`
 - `src/main/java/com/etl/reader/impl/XmlDynamicReader.java`
+- `src/main/java/com/etl/common/util/JobScopedPackageNameResolver.java`
 
 ## Supported fields today
 
 | Field | Required | Type | Description |
 |---|---|---|---|
 | `format` | yes | string | Must be `xml` |
-| `sourceName` | yes | string | Logical source name used in processor mapping lookup |
-| `packageName` | no in explicit job mode; otherwise yes | string | Package used for generated source model naming; runtime validates that the generated XML record class exists in this package during startup, and non-`NestedXml` source paths also require the generated XML root class. When omitted for an explicit `job-config.yaml` run, the runtime derives `com.etl.generated.job.<normalized-job-name>.source` |
-| `filePath` | yes | string | XML file path |
-| `archive` | no | object | Optional archive-on-success behavior for XML file sources |
-| `archive.enabled` | yes, when `archive` is present | boolean | Enables processed-file archiving after successful step completion |
-| `archive.successPath` | yes, when `archive.enabled=true` | string | Directory where the original XML file is moved after successful processing |
-| `archive.namePattern` | no | string | Output file naming pattern supporting `{originalName}` and `{timestamp}` |
-| `rootElement` | yes | string | Expected top-level XML container element for the file |
-| `recordElement` | yes | string | Repeating XML element name used for record counting and streaming reads |
-| `flatteningStrategy` | no | string | XML source flattening strategy. Supported values today: `DirectXml`, `NestedXml`, `JobSpecificXml`. Defaults to `DirectXml`. |
-| `jobSpecificStrategyBean` | no | string | Spring bean name used when `flatteningStrategy` is `JobSpecificXml` |
-| `modelDefinitionPath` | no | string | External structural XML model definition YAML used by the build-time generator, especially for nested XML contracts |
-| `validation` | no | object | Optional XML file-level validation extensions |
-| `validation.fileNamePattern` | no | string | Optional regex the source file name must match |
-| `validation.onFailure` | no | string | Optional file-level failure behavior: `failStep` or `rejectFile` |
-| `validation.rejectPath` | yes, when `validation.onFailure=rejectFile` | string | Directory where an invalid XML source file is moved before the run fails |
-| `fields` | no | list | Flat XML field list used when no external `modelDefinitionPath` is provided; for `NestedXml` and other external-model cases, keep the structural source contract in the referenced model definition and omit this block |
-| `fields[].name` | yes, when `fields` is present | string | XML-backed property name expected on each record object |
-| `fields[].type` | yes, when `fields` is present | string | Logical type used in the generated model contract |
+| `sourceName` | yes | string | Logical source name matched by `processor.mappings[].source` |
+| `packageName` | no in explicit job mode; otherwise effectively required | string | Deprecated bridge field for the generated source package. When omitted for an explicit `job-config.yaml` run, runtime/build-time default to `com.etl.generated.job.<normalized-job-name>.source` |
+| `filePath` | yes | string | XML input file path |
+| `archive` | no | object | Optional archive-on-success settings for file-based XML sources |
+| `archive.enabled` | yes, when `archive` is present | boolean | Enables moving the original file after successful step completion |
+| `archive.successPath` | yes, when `archive.enabled=true` | string | Destination directory for the archived source file |
+| `archive.namePattern` | no | string | Archive name pattern supporting `{originalName}` and `{timestamp}` |
+| `rootElement` | yes | string | Expected document root element |
+| `recordElement` | yes | string | Repeating fragment element treated as one runtime record |
+| `flatteningStrategy` | no | string | `DirectXml`, `NestedXml`, or `JobSpecificXml`. Defaults to `DirectXml` |
+| `jobSpecificStrategyBean` | no | string | Required only when `flatteningStrategy: JobSpecificXml` |
+| `modelDefinitionPath` | no | string | External XML model-definition YAML used as the structural contract, especially for nested XML |
+| `validation` | no | object | Optional file-level XML validation block |
+| `validation.fileNamePattern` | no | string | Regex applied to the file name only |
+| `validation.schemaPath` | no | string | Optional XSD path for strict schema validation before normal read/flatten/write processing |
+| `validation.onFailure` | no | string | `failStep` or `rejectFile` |
+| `validation.rejectPath` | yes, when `validation.onFailure=rejectFile` | string | Directory where an invalid XML file is moved |
+| `fields` | no | list | Inline flat field definition block. Use this mainly for simple/compatibility XML when you are not using `modelDefinitionPath` |
+| `fields[].name` | yes, when `fields` is present | string | Property name exposed on the generated/read record model |
+| `fields[].type` | yes, when `fields` is present | string | Logical type stored in the generated model contract |
 
-## Recommended standard template
+## Authoring standard for this repo
 
-For new XML scenarios in this repo, prefer one shared authoring pattern for both simple and nested XML:
+Prefer one consistent XML source shape for both simple and nested XML:
 
-- keep the top-level XML source fields the same: `format`, `sourceName`, `packageName`, `filePath`, `rootElement`, `recordElement`
-- use `flatteningStrategy` to describe runtime behavior: `DirectXml` for flat/simple XML and `NestedXml` for nested XML
-- prefer `modelDefinitionPath` as the structural source of truth for generated XML source classes
-- keep inline `fields` as a compatibility option for older or intentionally simple flat XML configs that do not use an external model definition
+- always start with `format`, `sourceName`, `filePath`, `rootElement`, and `recordElement`
+- use `flatteningStrategy` to explain runtime behavior instead of inventing different YAML layouts
+- prefer `modelDefinitionPath` as the structural source of truth for new XML scenarios
+- keep inline `fields` only for intentionally simple or compatibility-style flat XML configs
+- omit `packageName` in explicit job mode unless you are keeping it temporarily for compatibility during migration
 
-Preferred baseline template:
+## Minimum valid shape
 
-```yaml
-sources:
-  - format: xml
-    sourceName: YourSourceName
-    packageName: com.etl.generated.job.yourscenario.source
-    filePath: input/your-input.xml
-    rootElement: RootElementName
-    recordElement: RecordElementName
-    flatteningStrategy: DirectXml
-    modelDefinitionPath: definitions/your-source-model.yaml
-```
+At minimum, define:
 
-Use this `DirectXml` variant for simple repeating-record XML feeds when one XML record maps cleanly to one runtime record:
+- `format`
+- `sourceName`
+- `filePath`
+- `rootElement`
+- `recordElement`
+- one structural contract source: either `fields` or `modelDefinitionPath`
 
-```yaml
-sources:
-  - format: xml
-    sourceName: Events
-    packageName: com.etl.generated.job.events.source
-    filePath: input/events.xml
-    rootElement: Events
-    recordElement: Event
-    flatteningStrategy: DirectXml
-    modelDefinitionPath: definitions/events-source-model.yaml
-```
-
-Use this `NestedXml` variant when the XML record contains nested objects that must be flattened for downstream processor mappings such as `TVLPlateDetails.PlateCountry`:
-
-```yaml
-sources:
-  - format: xml
-    sourceName: TagValidationSource
-    packageName: com.etl.generated.job.xmlnestedcsvroundtrip.source
-    filePath: input/nested-sample.xml
-    rootElement: TagValidationList
-    recordElement: TVLTagDetails
-    flatteningStrategy: NestedXml
-    modelDefinitionPath: definitions/nested-source-model.yaml
-```
-
-Compatibility option for flat XML without an external structural definition:
+Minimal flat XML example:
 
 ```yaml
 sources:
   - format: xml
     sourceName: Events
-    packageName: com.etl.generated.job.xmltocsvevents.source
     filePath: input/events.xml
     rootElement: Events
     recordElement: Event
@@ -105,11 +83,117 @@ sources:
         type: String
 ```
 
-Treat that inline-`fields` form as the flat XML fallback, not the preferred pattern for new nested XML scenario bundles.
+Use that shape only when you want the simplest flat XML contract in one file.
 
-## Example
+## Preferred patterns
 
-This mirrors `src/main/resources/config-jobs/xml-to-csv-events/source-config.yaml`.
+### Pattern A — direct/simple XML with derived package name
+
+Use this for one repeating XML fragment = one runtime record.
+
+```yaml
+sources:
+  - format: xml
+    sourceName: Events
+    filePath: input/events.xml
+    rootElement: Events
+    recordElement: Event
+    flatteningStrategy: DirectXml
+    modelDefinitionPath: definitions/events-source-model.yaml
+```
+
+Notes:
+
+- `packageName` is omitted on purpose
+- runtime derives `com.etl.generated.job.<normalized-job-name>.source`
+- `flatteningStrategy` could also be omitted here because the default is `DirectXml`, but keeping it explicit is clearer
+
+This matches the preserved job style in:
+
+- `src/main/resources/config-jobs/xml-to-json-events/source-config.yaml`
+
+### Pattern B — direct/simple XML with optional validation and archive
+
+Use this when the same simple XML flow also needs file-level checks or source-file archiving.
+
+```yaml
+sources:
+  - format: xml
+    sourceName: Events
+    filePath: input/events.xml
+    rootElement: Events
+    recordElement: Event
+    flatteningStrategy: DirectXml
+    modelDefinitionPath: definitions/events-source-model.yaml
+    archive:
+      enabled: true
+      successPath: output/archive/success/
+      namePattern: "{originalName}-{timestamp}"
+    validation:
+      fileNamePattern: '^Events-\d{8}\.xml$'
+      onFailure: rejectFile
+      rejectPath: rejects/
+      # schemaPath: schemas/events.xsd
+```
+
+Notes:
+
+- `validation` is optional
+- `validation.schemaPath` is optional
+- if `schemaPath` is not present, the runtime still validates file existence, XML well-formedness, configured `rootElement`, configured `recordElement`, and optional file-name rules
+- `archive.successPath` becomes required only when `archive.enabled=true`
+
+### Pattern C — nested XML with shared flattening
+
+Use this when the XML fragment contains nested objects and downstream processor mappings need flattened keys.
+
+```yaml
+sources:
+  - format: xml
+    sourceName: TagValidationSource
+    filePath: input/tag-validation-sample.xml
+    rootElement: TagValidationList
+    recordElement: TVLTagDetails
+    flatteningStrategy: NestedXml
+    modelDefinitionPath: definitions/nested-source-model.yaml
+```
+
+Notes:
+
+- the YAML shape is the same as simple XML
+- the only important runtime difference is `flatteningStrategy: NestedXml`
+- keep the nested structure in `modelDefinitionPath`; do not duplicate a partial nested structure in inline `fields`
+
+This mirrors preserved bundle patterns such as:
+
+- `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/source-config.yaml`
+- `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/source-config.yaml`
+
+### Pattern D — job-specific XML flattening
+
+Use this only when `NestedXml` is not enough and one job needs custom extraction logic.
+
+```yaml
+sources:
+  - format: xml
+    sourceName: PartnerOrders
+    filePath: input/partner-orders.xml
+    rootElement: PartnerOrderEnvelope
+    recordElement: PartnerOrder
+    flatteningStrategy: JobSpecificXml
+    jobSpecificStrategyBean: partnerOrdersXmlStrategy
+    modelDefinitionPath: definitions/partner-orders-model.yaml
+```
+
+Notes:
+
+- `jobSpecificStrategyBean` matters only for `JobSpecificXml`
+- this is still the same XML source contract; only runtime extraction changes
+- prefer `DirectXml` or `NestedXml` first, and use `JobSpecificXml` only when a shared strategy cannot represent the source correctly
+
+### Pattern E — flat compatibility form with inline fields
+
+This remains supported for older/simple flat XML jobs.
 
 ```yaml
 sources:
@@ -119,12 +203,6 @@ sources:
     filePath: src/main/resources/demo-input/Events.xml
     rootElement: Events
     recordElement: Event
-    validation:
-      fileNamePattern: '^Events-\d{8}\.xml$'
-      onFailure: rejectFile
-      rejectPath: target/rejected-files/
-    flatteningStrategy: DirectXml
-    modelDefinitionPath: definitions/events-source-model.yaml
     fields:
       - name: eventCode
         type: String
@@ -136,127 +214,111 @@ sources:
         type: String
 ```
 
-## Example walkthrough
+This mirrors:
 
-Read the example in authoring order:
+- `src/main/resources/config-jobs/xml-to-csv-events/source-config.yaml`
 
-- `sources:` is the required root for source config files.
+## Field-by-field walkthrough
+
+- `sources:` is the required root for the source YAML file.
 - `format: xml` selects the XML reader path.
-- `sourceName` is the logical source identity referenced by processor mappings and job steps.
-- `packageName` is the generated source package that runtime validates during startup; in explicit job mode it may be omitted to use the job-scoped default package.
-- `filePath` points to the XML input file.
-- `rootElement` declares the expected document envelope.
-- `recordElement` declares the repeating XML fragment read as one runtime record.
-- `validation` is optional file-level validation.
-- `validation.fileNamePattern` constrains the input file name.
-- `validation.onFailure: rejectFile` means an invalid XML file is moved aside before the run fails.
-- `validation.rejectPath` is the destination for rejected source files.
-- `flatteningStrategy: DirectXml` keeps the standard record-object streaming path.
-- `modelDefinitionPath` points to the structural XML definition used by build-time generation.
-- `fields` documents the emitted record properties for this flat XML example.
-- `fields[].name` is the property name expected on the generated/read XML record.
-- `fields[].type` is the logical type recorded in the model contract.
-
-This example shows both `modelDefinitionPath` and `fields` because the preserved flat XML baseline keeps the contract very visible. For nested XML scenarios, keep the structural shape in the referenced model definition and omit `fields` when the external model is the authoritative contract.
+- `sourceName` is the name referenced from processor mappings and `job-config.yaml` steps.
+- `packageName` points to the generated Java model package. In explicit job mode it is now a deprecated bridge field and may be omitted so the runtime uses `com.etl.generated.job.<normalized-job-name>.source`.
+- `filePath` points to the XML file to read.
+- `rootElement` is the expected XML document root.
+- `recordElement` is the fragment counted and streamed as one runtime record.
+- `flatteningStrategy` defaults to `DirectXml` when omitted.
+- `jobSpecificStrategyBean` is only relevant for `JobSpecificXml`.
+- `modelDefinitionPath` is optional but preferred for new XML jobs, especially nested XML jobs.
+- `fields` is optional and mainly for simple inline flat contracts.
+- `archive` is optional and uses the shared file-source archive behavior.
+- `validation` is optional.
+- `validation.fileNamePattern` validates only the file name, not the full path.
+- `validation.schemaPath` is optional; add it only when the file must pass XSD validation before processing.
+- `validation.onFailure: rejectFile` moves the whole file to `validation.rejectPath` and still fails the run with a clear validation error.
+- `validation.rejectPath` is required only when `onFailure=rejectFile`.
 
 ## Runtime behavior today
 
-### Runtime sequence: `DirectXml` vs `NestedXml`
+All XML source variants start with the same orchestration path:
 
-Both XML source paths start the same way during step assembly:
+- `BatchConfig` assembles the selected step
+- `GeneratedModelClassResolver` verifies generated classes for the selected job
+- `DynamicReaderFactory` picks `XmlDynamicReader`
+- `XmlDynamicReader` branches by `flatteningStrategy`
 
-- `BatchConfig` resolves source metadata through `GeneratedModelClassResolver`
-- `DynamicReaderFactory` selects `XmlDynamicReader`
-- `XmlDynamicReader` branches on `flatteningStrategy`
+### `DirectXml`
 
-From that split, the runtime behavior differs in an important way:
+- streams `recordElement` fragments through the normal XML reader path
+- emits generated XML record objects directly to the processor
+- best fit for simple repeating-record XML
 
-- `DirectXml` uses a `StaxEventItemReader` over `recordElement` fragments and emits generated JAXB record objects directly into the processor stage
-- `NestedXml` also reads `recordElement` fragments first, but then routes each unmarshalled record through `XmlSourceStrategySelector` -> `NestedXmlSourceStrategy`, which flattens the XML object graph into `Map<String, Object>` rows for downstream processor mapping
-- `JobSpecificXml` follows the same selector-based flattening path as `NestedXml`, but resolves a custom strategy bean instead of the shared `NestedXmlSourceStrategy`
+### `NestedXml`
 
-```mermaid
-flowchart TD
-    A[BatchConfig] --> B[GeneratedModelClassResolver]
-    B --> C[XmlDynamicReader]
-    C --> D{flatteningStrategy}
-    D -- DirectXml --> E[StaxEventItemReader on recordElement]
-    E --> F[generated XML record object]
-    F --> G[processor mappings read object properties]
-    D -- NestedXml --> H[fragment unmarshal to generated record]
-    H --> I[XmlSourceStrategySelector]
-    I --> J[NestedXmlSourceStrategy]
-    J --> K[flattened Map String,Object row]
-    K --> L[processor mappings read flat keys like TVLPlateDetails.PlateCountry]
-```
+- still streams by `recordElement`
+- unmarshals each fragment and passes it through the shared nested XML strategy
+- emits flattened `Map<String, Object>` rows for downstream processor mappings
+- best fit when processor mappings need flattened dotted access derived from nested XML
 
-Runtime implications of that split:
+### `JobSpecificXml`
 
-- `DirectXml` is the simpler streaming path for flat repeating-record XML
-- `NestedXml` is the flattening path for nested XML shapes that need dotted downstream field access
-- non-`NestedXml` startup currently requires both generated source root and record classes, while `NestedXml` requires the generated record class but skips the source root wrapper requirement on the active runtime path
+- uses the custom strategy-bean seam instead of the shared nested strategy
+- keeps custom XML extraction in one job-owned component rather than spreading conditionals across the runtime
 
-- The source config file root is `sources:`.
-- `recordElement` is the key runtime field for XML streaming; the XML reader uses it as the fragment root element name.
-- `DirectXml` preserves the current streaming reader path and emits record objects backed by the generated XML record class.
-- `NestedXml` and `JobSpecificXml` switch the XML reader to a source-flattening path that unmarshals the XML root, applies the configured XML source strategy, and emits flattened row maps for downstream processor mapping.
-- `modelDefinitionPath` is optional and is used by the build-time XML generation slice when the XML structure needs an external structural contract, especially for nested XML.
-- When `modelDefinitionPath` is present, that external definition becomes the authoritative structural contract for generated XML source classes; the source-level `fields` block can be omitted.
-- For explicit job execution, startup now fails fast if the generated XML record class is missing from the configured `packageName`.
-- Non-`NestedXml` XML source paths still require the generated XML root class during startup.
-- `NestedXml` source paths do not require the XML source root wrapper class during generated-model validation because the active runtime path flattens from the generated record model.
-- `getRecordCount()` counts XML start elements matching `recordElement`.
-- `rootElement` is preserved as part of the config contract and should match the real XML envelope even though the current reader path streams individual `recordElement` fragments.
-- `validation.fileNamePattern` checks only the file name portion, not the full path.
-- If `validation.onFailure=rejectFile`, an XML file that fails file-level validation is moved to `validation.rejectPath` and the run still surfaces a validation error with the rejected-file location in the message/logs.
-- If `archive.enabled=true`, the original XML source file is moved to `archive.successPath` after successful step completion and the runtime publishes `archivedSourcePath` in step-finished evidence.
-- When `fields` is present, its property names must align with the generated/read XML record model used by the reader and processor.
-- For flattened nested XML, the structural shape belongs in `modelDefinitionPath`, and processor mappings may use flattened keys such as `TVLPlateDetails.PlateCountry` even when `fields` is omitted from `source-config.yaml`.
+## Path and package rules
 
-## Validation / usage notes
+- In explicit `job-config.yaml` mode, relative paths resolve from the folder containing the referenced config file, not from the repo root.
+- That rule applies to `filePath`, `modelDefinitionPath`, `validation.schemaPath`, `validation.rejectPath`, and `archive.successPath`.
+- When `packageName` is omitted in explicit job mode, the runtime derives a stable package using the selected non-blank job name from `job-config.yaml`.
+- The derived default is `com.etl.generated.job.<normalized-job-name>.source`.
 
-- `sourceName` must match the selected `processor.mappings[].source` value.
-- `packageName`, `rootElement`, and `recordElement` must line up with the generated XML classes that Maven compiled for the selected job.
-- In explicit job mode, `packageName` may be omitted and defaults to `com.etl.generated.job.<normalized-job-name>.source`.
-- The preserved flat XML baseline `xml-to-csv-events` now uses scenario-scoped generated classes under `com.etl.generated.job.xmltocsvevents.source`, so prepare it with the build-time generation profile before running the explicit scenario.
-- If `modelDefinitionPath` is omitted, provide `fields` so flat XML source classes can still be derived directly from `source-config.yaml`.
-- If `modelDefinitionPath` is present, keep nested structural fields in that referenced definition instead of duplicating a partial nested shape in `source-config.yaml`.
-- For `NestedXml`, the generated record class is still required even when the XML source root wrapper class is not.
-- Keep `rootElement` and `recordElement` aligned with the actual XML structure; mismatches typically surface as empty reads, count mismatches, or unmarshalling failures.
-- Duplicate handling for XML should currently be configured through the shared processor-level `duplicate` rule after XML records are read into flat runtime objects; there is no separate XML-source duplicate block in the shipped config contract.
-- Use `DirectXml` for flat repeating-record XML feeds first. Use `NestedXml` only when a shared nested flattening rule is sufficient; otherwise use `JobSpecificXml` with an explicit strategy bean.
-- Relative file paths are resolved by the surrounding runtime/config selection path, just like other source config files.
+## `packageName` deprecation direction
+
+The long-term authoring direction is to remove `packageName` from normal XML source config usage.
+
+Current guidance:
+
+- for new explicit job bundles, omit `packageName`
+- treat explicit `packageName` as a compatibility bridge only
+- keep runtime/build-time package identity derived from the selected job name rather than from Java-specific authored YAML
+- expect a later A4 slice to tighten handling for conflicting authored `packageName` values before the field is removed from the config contract entirely
+
+## Validation and usage notes
+
+- `sourceName` must match the selected `processor.mappings[].source` entry.
+- Keep `rootElement` and `recordElement` aligned with the real XML document; mismatches fail during source validation or lead to empty reads.
+- For `DirectXml`, runtime validation expects generated XML classes for the configured source package.
+- For `NestedXml`, the generated record class is still required even though the active runtime path does not depend on a root-wrapper class in the same way.
+- Use `modelDefinitionPath` for new nested XML jobs; it is the clearest place to preserve nested structure.
+- XML duplicate handling still lives in processor rules, not in a separate XML-source duplicate block.
 
 ## Current limitations
 
-- XML file-level validation is lighter than CSV today: the shipped XML `validation` block supports `fileNamePattern`, `onFailure`, and `rejectPath`, but it does not currently expose CSV-specific options such as `allowEmpty` or `requireHeaderMatch`
-- Archive-on-success now uses the shared file-source contract; non-file sources such as relational remain not applicable
-- No first-class nested field alias block yet; nested flattening currently relies on the external model definition plus processor mappings against emitted flat keys or strategy-provided field mappings
-- No XML-native duplicate config yet for XPath selectors, namespace-aware key extraction, or source-level duplicate checks before record mapping
-- No alternate XPath-based record selection or namespace-aware config fields yet
-- Current XML support still defaults to flat repeated record elements; nested support is opt-in through the XML source flattening strategy seam
+- No namespace-aware XML config fields yet
+- No XPath-based record selection block yet
+- No source-level XML duplicate contract yet
+- Inline `fields` works only for flat/simple structures; nested structures should stay in `modelDefinitionPath`
 
 ## Build-time generation command
 
-The first job-scoped build-time XML generation slice can be invoked through the opt-in Maven profile:
+Use the XML generation profile when the selected job needs generated XML classes:
 
 ```powershell
 mvn --no-transfer-progress -Pxml-generation -Detl.xml.generation.jobConfig=src/test/resources/config-jobs/xml-build-generation-it/job-config.yaml clean test
 ```
 
-When that profile is enabled:
+When the profile is enabled:
 
 - Maven adds `target/generated-sources/etl/source` and `target/generated-sources/etl/target` as source roots
-- the build-time XML generation entrypoint runs after main classes compile
-- generated XML source classes plus selected flat CSV/relational source and target model classes are written into those generated roots for the chosen job
+- generated XML model classes are produced for the selected job
 - Maven compiles those generated classes before test execution and packaging
 
 ## Preserved examples
 
 - `src/main/resources/config-jobs/xml-to-csv-events/source-config.yaml`
+- `src/main/resources/config-jobs/xml-to-json-events/source-config.yaml`
 - `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/source-config.yaml`
-- `src/main/resources/config-jobs/xml-nested-tag-validation/source-config.yaml`
-- `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/source-config.yaml`
+- `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/source-config.yaml`
 
 ## Related docs
 

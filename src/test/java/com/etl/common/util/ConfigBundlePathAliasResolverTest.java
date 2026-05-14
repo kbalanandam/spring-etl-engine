@@ -52,3 +52,5 @@ class ConfigBundlePathAliasResolverTest {
         assertEquals(resourceRoot.resolve("config-jobs"), ConfigBundlePathAliasResolver.resolveBundleRoot(resourceRoot));
     }
 }
+
+

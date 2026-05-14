@@ -1,5 +1,6 @@
 package com.etl.generation.xml;
 
+import com.etl.common.util.GeneratedModelNamingPolicy;
 import com.etl.common.util.StringUtils;
 import com.etl.common.util.ValidationUtils;
 import com.etl.model.exception.ModelGenerationException;
@@ -27,14 +28,16 @@ public class XmlStructureClassGenerator {
         try {
             Path packageDirectory = generatedSourceRoot.resolve(definition.getPackageName().replace('.', '/'));
             Files.createDirectories(packageDirectory);
-            Path recordFile = packageDirectory.resolve(definition.getRecordElement() + ".java");
+            String recordClassName = resolvedRecordClassName(definition);
+            String rootClassName = resolvedRootClassName(definition);
+            Path recordFile = packageDirectory.resolve(recordClassName + ".java");
             Files.writeString(recordFile, buildRecordSource(definition));
-            Path wrapperFile = packageDirectory.resolve(definition.getRootElement() + ".java");
+            Path wrapperFile = packageDirectory.resolve(rootClassName + ".java");
             Files.writeString(wrapperFile, buildWrapperSource(definition));
             return new XmlModelGenerationResult(
                     definition.getPackageName(),
-                    definition.getRootElement(),
-                    definition.getRecordElement(),
+                    rootClassName,
+                    recordClassName,
                     List.of(recordFile, wrapperFile)
             );
         } catch (IOException e) {
@@ -53,6 +56,8 @@ public class XmlStructureClassGenerator {
     }
     private String buildRecordSource(XmlModelDefinition definition) {
         StringBuilder sb = new StringBuilder();
+        String recordClassName = resolvedRecordClassName(definition);
+        sb.append("// ").append(GeneratedModelNamingPolicy.generatedSourceHeader()).append("\n");
         sb.append("package ").append(definition.getPackageName()).append(";\n\n");
         sb.append("import jakarta.xml.bind.annotation.*;\n");
         if (containsCollection(definition.getFields())) {
@@ -60,8 +65,8 @@ public class XmlStructureClassGenerator {
         }
         sb.append("\n@XmlRootElement(name = \"").append(definition.getRecordElement()).append("\")\n");
         sb.append("@XmlAccessorType(XmlAccessType.FIELD)\n");
-        sb.append("public class ").append(definition.getRecordElement()).append(" {\n\n");
-        sb.append("    public ").append(definition.getRecordElement()).append("() {}\n\n");
+        sb.append("public class ").append(recordClassName).append(" {\n\n");
+        sb.append("    public ").append(recordClassName).append("() {}\n\n");
         appendFieldsAndAccessors(sb, definition.getFields(), "    ");
         appendNestedTypes(sb, definition.getFields(), "    ");
         sb.append("}\n");
@@ -69,22 +74,34 @@ public class XmlStructureClassGenerator {
     }
     private String buildWrapperSource(XmlModelDefinition definition) {
         StringBuilder sb = new StringBuilder();
-        String wrapperFieldName = javaFieldName(definition.getRecordElement());
+        String recordClassName = resolvedRecordClassName(definition);
+        String rootClassName = resolvedRootClassName(definition);
+        String wrapperFieldName = GeneratedModelNamingPolicy.resolveWrapperFieldName(
+                definition.getPackageName(),
+                definition.getRecordElement(),
+                recordClassName
+        );
+        String wrapperAccessorBase = GeneratedModelNamingPolicy.resolveWrapperAccessorBase(
+                definition.getPackageName(),
+                definition.getRecordElement(),
+                recordClassName
+        );
+        sb.append("// ").append(GeneratedModelNamingPolicy.generatedSourceHeader()).append("\n");
         sb.append("package ").append(definition.getPackageName()).append(";\n\n");
         sb.append("import jakarta.xml.bind.annotation.*;\n");
         sb.append("import java.util.List;\n\n");
         sb.append("@XmlRootElement(name = \"").append(definition.getRootElement()).append("\")\n");
         sb.append("@XmlAccessorType(XmlAccessType.FIELD)\n");
-        sb.append("public class ").append(definition.getRootElement()).append(" {\n\n");
+        sb.append("public class ").append(rootClassName).append(" {\n\n");
         sb.append("    @XmlElement(name = \"").append(definition.getRecordElement()).append("\")\n");
-        sb.append("    private List<").append(definition.getRecordElement()).append("> ").append(wrapperFieldName).append(";\n\n");
-        sb.append("    public ").append(definition.getRootElement()).append("() {}\n\n");
-        sb.append("    public List<").append(definition.getRecordElement()).append("> get")
-                .append(definition.getRecordElement()).append("() {\n")
+        sb.append("    private List<").append(recordClassName).append("> ").append(wrapperFieldName).append(";\n\n");
+        sb.append("    public ").append(rootClassName).append("() {}\n\n");
+        sb.append("    public List<").append(recordClassName).append("> get")
+                .append(wrapperAccessorBase).append("() {\n")
                 .append("        return ").append(wrapperFieldName).append(";\n")
                 .append("    }\n\n");
-        sb.append("    public void set").append(definition.getRecordElement()).append("(List<")
-                .append(definition.getRecordElement()).append("> ").append(wrapperFieldName).append(") {\n")
+        sb.append("    public void set").append(wrapperAccessorBase).append("(List<")
+                .append(recordClassName).append("> ").append(wrapperFieldName).append(") {\n")
                 .append("        this.").append(wrapperFieldName).append(" = ").append(wrapperFieldName).append(";\n")
                 .append("    }\n");
         sb.append("}\n");
@@ -166,6 +183,18 @@ public class XmlStructureClassGenerator {
                 resolveJavaType(field),
                 javaName.isBlank() ? "Value" : StringUtils.capitalize(javaName)
         );
+    }
+
+    private String resolvedRecordClassName(XmlModelDefinition definition) {
+        return definition.getRecordClassName() == null || definition.getRecordClassName().isBlank()
+                ? definition.getRecordElement()
+                : definition.getRecordClassName();
+    }
+
+    private String resolvedRootClassName(XmlModelDefinition definition) {
+        return definition.getRootClassName() == null || definition.getRootClassName().isBlank()
+                ? definition.getRootElement()
+                : definition.getRootClassName();
     }
 
     private String sanitizeJavaIdentifier(String value, boolean upperCamel) {

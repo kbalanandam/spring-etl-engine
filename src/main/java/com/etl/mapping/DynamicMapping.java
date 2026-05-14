@@ -3,18 +3,20 @@ package com.etl.mapping;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.processor.transform.TransformEvaluator;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.lang.NonNull;
+
 /**
- * DynamicMapping is a generic ItemProcessor that performs dynamic field
- * mapping between input and output objects based on the provided mapping
- * configuration.
+ * Maps one input record into a generated target model using the configured processor field map.
  *
- * <p>
- * It uses reflection to read field values from the input object and set them
- * on the output object according to the specified field mappings.
- * </p>
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
  *
- * @param <I> The type of the input object.
- * @param <O> The type of the output object.
+ * <p>This is the lightweight mapping path used when a step has transforms but no active processor
+ * validation/reject handling requirements. Field extraction, transform application, and output
+ * population are delegated to {@link MappedFieldValueResolver} so this class stays a thin Spring
+ * Batch adapter.</p>
+ *
+ * @param <I> runtime input type
+ * @param <O> generated target output type
  */
 public class DynamicMapping<I, O> implements ItemProcessor<I, O> {
 
@@ -33,7 +35,7 @@ public class DynamicMapping<I, O> implements ItemProcessor<I, O> {
     }
 
     @Override
-    public O process(I input) throws Exception {
+    public O process(@NonNull I input) throws Exception {
         return mappedFieldValueResolver.createOutput(targetClass, mapping, mappedFieldValueResolver.resolve(input, mapping));
     }
 }

@@ -10,7 +10,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Shared flattening strategy for nested XML structures that still follow generic traversal rules.
+ * Shipped flattening strategy for nested XML structures that still follow generic traversal rules.
+ *
+ * <p>This strategy supports XML payloads where a fragment or root object may contain nested object
+ * graphs or collections. When explicit field mappings are provided it extracts only those mapped
+ * values; otherwise it walks the object graph recursively and emits dotted/indexed field paths into
+ * one flat row per extracted record.</p>
  */
 @Component
 public class NestedXmlSourceStrategy extends AbstractXmlSourceStrategy {

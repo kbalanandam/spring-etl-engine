@@ -1,5 +1,6 @@
 package com.etl.model.generator;
 
+import com.etl.common.util.GeneratedModelNamingPolicy;
 import com.etl.config.ModelConfig;
 import com.etl.config.ModelPathConfig;
 import com.etl.config.RunConfigurationMetadata;
@@ -308,10 +309,22 @@ public class ModelGeneratorFactory {
 
 	private List<String> resolveGeneratedClassNames(ModelConfig modelConfig) {
 		if (modelConfig instanceof XmlSourceConfig xmlSourceConfig) {
-			return List.of(xmlSourceConfig.getRootElement(), xmlSourceConfig.getRecordElement());
+			return List.of(
+					GeneratedModelNamingPolicy.resolveSourceRootSimpleClassName(xmlSourceConfig),
+					GeneratedModelNamingPolicy.resolveSourceSimpleClassName(xmlSourceConfig)
+			);
 		}
 		if (modelConfig instanceof XmlTargetConfig xmlTargetConfig) {
-			return List.of(xmlTargetConfig.getRootElement(), xmlTargetConfig.getRecordElement());
+			return List.of(
+					GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(xmlTargetConfig),
+					GeneratedModelNamingPolicy.resolveTargetProcessingSimpleClassName(xmlTargetConfig)
+			);
+		}
+		if (modelConfig instanceof SourceConfig sourceConfig) {
+			return List.of(GeneratedModelNamingPolicy.resolveSourceSimpleClassName(sourceConfig));
+		}
+		if (modelConfig instanceof TargetConfig targetConfig) {
+			return List.of(GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(targetConfig));
 		}
 		return List.of(modelConfig.getModelName());
 	}

@@ -21,7 +21,8 @@ Backed by:
 
 | Field | Required | Type | Description |
 |---|---|---|---|
-| `name` | yes | string | Descriptive scenario name for the selected config bundle; when selected source/target configs omit `packageName`, explicit job runs also use this value as the seed for the default generated package path |
+| `name` | yes | string | Required naming anchor for the selected config bundle. Explicit job runs use this value for logs, evidence, and derived generated-model package naming; blank values now fail fast instead of falling back to the job folder name |
+| `isActive` | no | boolean | Optional startup guardrail for the selected explicit job. Omitted means `true`; `false` blocks startup before referenced source/target/processor YAMLs are resolved |
 | `sourceConfigPath` | yes | string | Relative or absolute path to the selected source config file |
 | `targetConfigPath` | yes | string | Relative or absolute path to the selected target config file |
 | `processorConfigPath` | yes | string | Relative or absolute path to the selected processor config file |
@@ -36,6 +37,7 @@ This mirrors `src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml`.
 
 ```yaml
 name: csv-to-sqlserver
+isActive: true
 sourceConfigPath: source-config.yaml
 targetConfigPath: target-config.yaml
 processorConfigPath: processor-config.yaml
@@ -48,6 +50,8 @@ steps:
 ### Single-step example walkthrough
 
 - `name` identifies the selected scenario in logs, evidence, and default generated package derivation when source or target `packageName` is omitted.
+- Keep `name` non-blank for every explicit job bundle; the active generated-model contract now fails fast when it is blank.
+- `isActive` is optional. When omitted, explicit startup treats the selected job as active. Set `isActive: false` only when you want startup to fail fast before referenced configs are resolved.
 - `sourceConfigPath` points to the source bundle for this run and is resolved relative to the `job-config.yaml` folder when written as a relative path.
 - `targetConfigPath` points to the target bundle selected for this run.
 - `processorConfigPath` points to the processor bundle that contains the mapping for the step below.
@@ -55,6 +59,7 @@ steps:
 - `steps[].name` is the operator-visible step identity used in plan and run logs.
 - `steps[].source` must match one `sourceName` from the selected source config.
 - `steps[].target` must match one `targetName` from the selected target config.
+- Reusing the same logical name as `steps[].source` and `steps[].target` in the same step is still allowed for the current single-step compatibility pattern (for example `Customers -> Customers`). Reusing a logical name across different ordered steps is only valid when an earlier step produces that handoff artifact and a later step consumes it.
 
 ## Multi-step example
 
@@ -97,22 +102,30 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 ## Runtime behavior today
 
 - Explicit `etl.config.job` runs require a non-empty `steps` list.
+- Explicit `etl.config.job` runs now also fail fast when the selected `job-config.yaml` declares `isActive: false`.
 - Step order is taken from `steps` and is no longer inferred by source/target list position.
 - The current flat `steps` list is the executable baseline even when future architecture docs describe a richer `main flow -> subflow -> step` hierarchy.
 - Current descriptor assembly synthesizes named subflow/status metadata from the flat ordered `steps` list for observability, so startup/job logs can emit `MAIN_FLOW_PLAN`, `SUBFLOW_PLAN`, and `SUBFLOW_SUMMARY` evidence even though execution still follows the flat `steps` list.
 - When an upstream step/subflow fails, downstream descriptor-derived subflows can now be logged as `BLOCKED` with explicit dependency and handoff reasons, but `job-config.yaml` still does not require explicit authored subflow blocks.
 - Relative `sourceConfigPath`, `targetConfigPath`, and `processorConfigPath` values are resolved from the `job-config.yaml` file's folder.
-- Checked-in reference bundles should use `config-jobs/...`. Developer-local private bundles copied from those examples should prefer [`private-jobs/...`](../../private-jobs/README.md). Legacy `config-scenarios/...` bundle paths still resolve for backward compatibility, but that alias path is now deprecated.
+- Checked-in reference bundles should use `config-jobs/...`. Developer-local private bundles copied from those examples should prefer [`private-jobs/...`](../../private-jobs/README.md). Legacy `config-scenarios/...` bundle paths remain temporarily accepted only at the selected `etl.config.job` entry path for backward compatibility; once that job is loaded, its referenced `sourceConfigPath`, `targetConfigPath`, and `processorConfigPath` are resolved directly and should already be canonical.
 - The runtime does not scan scenario folders automatically; one run explicitly chooses one `job-config.yaml`.
-- `name` is still the selected bundle identity shown in logs and metadata. When the selected source or target config omits `packageName`, explicit job runs also derive default packages as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`.
+- Explicit `etl.config.job` runs now also require a non-blank `name` so generated-model naming stays deterministic and does not fall back to the job folder name.
+- The optional top-level `isActive` flag defaults to `true`; when it is explicitly `false`, `ConfigLoader` now stops before referenced source/target/processor configs are resolved or steps are wired.
+- `name` is the selected bundle identity shown in logs and metadata. When the selected source or target config omits `packageName`, explicit job runs derive default packages as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`.
+- If an explicit source or target config still authors a deprecated bridge package under `com.etl.generated.job...` that does not match the package derived from `name`, runtime/build-time startup now logs a warning with the selected job name, config path, logical config name, authored package, and derived package, while still honoring the authored value for compatibility.
 - During explicit startup, the selected source and target configs are validated first, then the selected processor config is validated before generated-model class checks run.
 - Processor-config validation failures in explicit runs are surfaced with the selected scenario name and processor-config path so operators can identify the broken scenario bundle quickly.
+- Generated-model naming/package failures in explicit runs are surfaced as config errors with the selected scenario name, job-config path, and the failing `step` / `source` / `target` so support can narrow model-resolution issues quickly.
 
 ## Validation / usage notes
 
 - Every `steps[].source` value must match a configured `sourceName` in the selected source config file.
 - Every `steps[].target` value must match a configured `targetName` in the selected target config file.
-- In explicit job mode, `packageName` in the selected source/target config is now optional. When omitted, the runtime and build-time generation path derive it from the selected `job-config.yaml` name (or the job folder name fallback) using a normalized lowercase alphanumeric segment.
+- If `isActive: false` is set on the selected explicit job, startup stops before downstream config resolution as a configuration failure rather than silently skipping execution.
+- In explicit job mode, `packageName` in the selected source/target config is now optional. When omitted, the runtime and build-time generation path derive it from the selected non-blank `job-config.yaml` name using a normalized lowercase alphanumeric segment.
+- Explicit authored `packageName` values that already use the deprecated `com.etl.generated.job...` bridge shape should either match that derived package or be removed. Mismatches no longer fail immediately, but they now produce a startup/generation warning so operators can clean them up before the bridge is tightened further.
+- Selected logical names must still remain stable enough to avoid generated-class collisions after normalization. Different names such as `Customer Feed` and `Customer-Feed` can now fail fast if they would generate the same class in the same selected job side.
 - The selected processor config must contain a matching mapping for each source/target pair used by the selected steps.
 - A multi-step scenario can reuse one processor config file with multiple mappings; runtime picks the mapping by `source` and `target` names, not by list position.
 - If the selected processor config is malformed, explicit startup now fails before generated-model class validation so processor issues are not masked by unrelated missing generated classes.
@@ -130,6 +143,7 @@ The broader file-ingestion hardening direction beyond the first preserved CSV pr
 - `src/main/resources/config-jobs/csv-validation-reject-archive/job-config.yaml`
 - `src/main/resources/config-jobs/relational-to-relational/job-config.yaml`
 - `src/main/resources/config-jobs/xml-to-csv-events/job-config.yaml`
+- `src/main/resources/config-jobs/xml-to-json-events/job-config.yaml`
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml`
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load/job-config.yaml`

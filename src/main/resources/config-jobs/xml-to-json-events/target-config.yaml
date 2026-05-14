@@ -1,0 +1,14 @@
+targets:
+  - format: json
+    targetName: EventsJson
+    filePath: output/events-output.json
+    fields:
+      - name: eventCode
+        type: String
+      - name: eventTime
+        type: String
+      - name: description
+        type: String
+      - name: sourceSystem
+        type: String
+

@@ -9,11 +9,26 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.item.ItemProcessor;
+import org.springframework.lang.NonNull;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+/**
+ * Processor mapping adapter that combines transforms, processor validation rules, and optional
+ * reject-file handling.
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>This is the primary processor path for steps that need rule evaluation. It first resolves
+ * mapped field values, evaluates processor rules against the original or transformed view as
+ * required, then either emits a generated target model, records a reject, or fails the step based
+ * on the configured rule behavior.</p>
+ *
+ * @param <I> runtime input type
+ * @param <O> generated target output type
+ */
 public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> {
 
 	private static final Logger logger = LoggerFactory.getLogger(ValidationAwareDynamicMapping.class);
@@ -48,7 +63,8 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 	}
 
 	@Override
-	public O process(I input) throws Exception {
+	public O process(@NonNull I input) throws Exception {
+		String inputType = input.getClass().getName();
 		Map<String, Object> resolvedValues = mappedFieldValueResolver.resolve(input, mapping);
 		Object validationInput = hasTransforms() ? resolvedValues : input;
 		List<ValidationIssue> issues = validationRuleEvaluator.evaluate(validationInput, mapping);
@@ -62,7 +78,7 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 						mapping.getSource(),
 						mapping.getTarget(),
 						issueSummary,
-						input == null ? "null" : input.getClass().getName());
+						inputType);
 				throw new IllegalStateException(message);
 			}
 
@@ -71,7 +87,7 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 					mapping.getSource(),
 					mapping.getTarget(),
 					issueSummary,
-					input == null ? "null" : input.getClass().getName());
+					inputType);
 			boolean recorded = fileIngestionRuntimeSupport.recordRejected(input, issues);
 			if (!recorded) {
 				throw new IllegalStateException("Processor validation rejected a record for mapping '"

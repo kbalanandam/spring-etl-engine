@@ -62,6 +62,8 @@ class SourceConfigPolymorphicDeserializationTest {
             filePath: input/events.csv
             delimiter: ","
             skipHeader: false
+            parser:
+              quoteCharacter: "'"
             archive:
               enabled: true
               successPath: target/archive/success/
@@ -86,6 +88,8 @@ class SourceConfigPolymorphicDeserializationTest {
         assertEquals("target/archive/success/", csvSource.getArchive().getSuccessPath());
         assertEquals("{originalName}-{timestamp}", csvSource.getArchive().getNamePattern());
         assertFalse(csvSource.isSkipHeader());
+        assertNotNull(csvSource.getParser());
+        assertEquals('\'', csvSource.resolveQuoteCharacter());
         assertFalse(csvSource.getValidation().isAllowEmpty());
         assertTrue(csvSource.getValidation().isRequireHeaderMatch());
     }

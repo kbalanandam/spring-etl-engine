@@ -4,6 +4,10 @@ import java.util.List;
 
 /**
  * Scenario-level validation summary intended for runtime diagnostics, logs, and UI views.
+ *
+ * <p>This record captures whether the selected scenario passed the major validation stages
+ * required before execution: source config, target config, processor config, and generated-model
+ * availability.</p>
  */
 public record JobValidationSummary(
 		boolean sourceValidated,

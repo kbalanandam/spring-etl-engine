@@ -3,6 +3,7 @@ package com.etl.flow;
 import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.common.util.ResolvedModelMetadata;
+import com.etl.config.ColumnConfig;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
@@ -26,6 +27,7 @@ import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemStream;
 import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.xml.StaxEventItemWriter;
 
@@ -71,8 +73,8 @@ class CsvSourceToNestedXmlTargetFlowTest {
 
         compile(generationResult.allGeneratedFiles(), Path.of("target", "test-classes"));
 
-        Class<?> sourceRecordClass = Class.forName(sourceConfig.getPackageName() + "." + sourceConfig.getSourceName());
-        Class<?> targetRecordClass = Class.forName(targetConfig.getPackageName() + "." + targetConfig.getRecordElement());
+        Class<?> sourceRecordClass = GeneratedModelClassResolver.resolveSourceClass(sourceConfig);
+        Class<?> targetRecordClass = GeneratedModelClassResolver.resolveTargetProcessingClass(targetConfig);
         assertNotNull(sourceRecordClass);
         assertNotNull(targetRecordClass);
 
@@ -87,7 +89,7 @@ class CsvSourceToNestedXmlTargetFlowTest {
 
         List<Object> processedItems = new ArrayList<>();
         ExecutionContext readerContext = new ExecutionContext();
-        if (reader instanceof org.springframework.batch.item.ItemStream itemStreamReader) {
+            if (reader instanceof ItemStream itemStreamReader) {
             itemStreamReader.open(readerContext);
         }
         try {
@@ -99,7 +101,7 @@ class CsvSourceToNestedXmlTargetFlowTest {
                 }
             }
         } finally {
-            if (reader instanceof org.springframework.batch.item.ItemStream itemStreamReader) {
+                      if (reader instanceof ItemStream itemStreamReader) {
                 itemStreamReader.close();
             }
         }
@@ -159,9 +161,9 @@ class CsvSourceToNestedXmlTargetFlowTest {
     }
 
   private void applyDerivedPackages(JobConfig jobConfig,
-                                   Path scenarioDir,
-                                   SourceWrapper sourceWrapper,
-                                   TargetWrapper targetWrapper) {
+                                    Path scenarioDir,
+                                    SourceWrapper sourceWrapper,
+                                    TargetWrapper targetWrapper) {
     String jobName = JobScopedPackageNameResolver.deriveJobName(jobConfig, scenarioDir);
     if (sourceWrapper.getSources() != null) {
       for (var sourceConfig : sourceWrapper.getSources()) {
@@ -178,12 +180,7 @@ class CsvSourceToNestedXmlTargetFlowTest {
           defaultedTargets.add(new XmlTargetConfig(
               targetConfig.getTargetName(),
               JobScopedPackageNameResolver.resolveTargetPackage(jobName),
-              targetConfig.getFields().stream().map(field -> {
-                com.etl.config.ColumnConfig column = new com.etl.config.ColumnConfig();
-                column.setName(field.getName());
-                column.setType(field.getType());
-                return column;
-              }).toList(),
+              copyFields(targetConfig),
               targetConfig.getFilePath(),
               targetConfig.getRootElement(),
               targetConfig.getRecordElement(),
@@ -195,6 +192,18 @@ class CsvSourceToNestedXmlTargetFlowTest {
       }
       targetWrapper.setTargets(defaultedTargets);
     }
+  }
+
+  private List<ColumnConfig> copyFields(XmlTargetConfig targetConfig) {
+    if (targetConfig.getFields() == null) {
+      return null;
+    }
+    return targetConfig.getFields().stream().map(field -> {
+      ColumnConfig column = new ColumnConfig();
+      column.setName(field.getName());
+      column.setType(field.getType());
+      return column;
+    }).toList();
   }
 
     private void copyDirectory(Path source, Path target) throws Exception {

@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JobScopedPackageNameResolverTest {
 
@@ -32,6 +34,41 @@ class JobScopedPackageNameResolverTest {
     void prefixesLeadingDigitsAndDropsNonAlphanumericCharacters() {
         assertEquals("job2026demojob", JobScopedPackageNameResolver.normalizeJobPackageSegment("2026 Demo Job!"));
         assertEquals("selectedjob", JobScopedPackageNameResolver.normalizeJobPackageSegment("!!!"));
+    }
+
+    @Test
+    void detectsDeprecatedBridgePackageDriftWhenAuthoredGeneratedPackageDiffersFromDerivedPackage() {
+        String derivedPackage = JobScopedPackageNameResolver.resolveSourcePackage("events-job");
+
+        assertTrue(JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(
+                "com.etl.generated.job.events.source",
+                derivedPackage
+        ));
+
+        String warning = JobScopedPackageNameResolver.buildPackageDriftWarning(
+                "source config",
+                "Events",
+                "events-job",
+                Path.of("config-jobs", "events-job", "source-config.yaml"),
+                "com.etl.generated.job.events.source",
+                derivedPackage
+        );
+
+        assertTrue(warning.contains("source config 'Events'"));
+        assertTrue(warning.contains("config-jobs"));
+        assertTrue(warning.contains("com.etl.generated.job.events.source"));
+        assertTrue(warning.contains(derivedPackage));
+        assertTrue(warning.contains("still honored for compatibility"));
+    }
+
+    @Test
+    void ignoresMatchingDerivedPackagesAndLegacyNonGeneratedPackages() {
+        String derivedPackage = JobScopedPackageNameResolver.resolveTargetPackage("events-job");
+
+        assertFalse(JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(derivedPackage, derivedPackage));
+        assertFalse(JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift("com.etl.model.target", derivedPackage));
+        assertTrue(JobScopedPackageNameResolver.usesDerivedJobScopedPackage("com.etl.generated.job.events.target"));
+        assertFalse(JobScopedPackageNameResolver.usesDerivedJobScopedPackage("com.etl.model.target"));
     }
 }
 

@@ -4,9 +4,11 @@
 
 This page explains how one ETL run currently executes from startup to output.
 
+For a format-specific operational deep dive, continue in [`csv-to-xml-runtime-flow.md`](csv-to-xml-runtime-flow.md) when you want the shipped `CSV -> XML` runtime path explained end to end with preserved scenario anchors, flow diagrams, publication behavior, and operator-facing evidence.
+
 For the target next-direction runtime contract, where one selected scenario becomes the only normal execution boundary and model generation/resolution becomes scenario-scoped, continue in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
 
-For repository-provided preserved bundles, explicit runtime and build-time generation entry points now resolve directly against the checked-in `config-jobs/...` bundle tree, while legacy `config-scenarios/...` paths remain temporarily available as deprecated backward-compatibility aliases.
+For repository-provided preserved bundles, the explicit runtime `etl.config.job` entry path and the build-time generation entry point resolve against the checked-in `config-jobs/...` bundle tree, while legacy `config-scenarios/...` job-config paths remain temporarily available as deprecated backward-compatibility aliases at that entry boundary only.
 
 ## Status
 
@@ -72,7 +74,7 @@ sequenceDiagram
     App->>Loader: resolve selected business scenario
     Loader->>Loader: read etl.config.job
     Loader->>Loader: fail fast if missing unless demo fallback is enabled
-    Loader->>Loader: resolve source/target/processor paths and explicit steps
+    Loader->>Loader: trim and resolve source/target/processor paths plus explicit steps
     Loader->>Loader: validate selected relational configs early and reject placeholder values
     Loader->>Loader: validate selected processor config for the scenario
     Loader->>Resolver: validate required generated model classes for selected steps
@@ -215,12 +217,26 @@ The current observed scenario-log order for a successful run is:
 
 Treat that as the verified current baseline from the shipped runtime and sample run evidence, not as a broader compatibility guarantee for every future logging refinement.
 
+For the current shipped `SUBFLOW_SUMMARY`, observed status is derived from executed step results plus descriptor control metadata:
+
+- `FAILED` when any executed step in the subflow fails, stops, or ends unknown
+- `COMPLETED` when every step in the subflow completed successfully
+- `RUNNING` while a step in the subflow has started and the job is still active
+- `BLOCKED` when upstream subflow or link control rules say the subflow must not start
+- `READY` when upstream dependencies are satisfied but the subflow has not started yet
+
 For the current shipped `RUN_SUMMARY`, multi-step jobs now use operator-oriented rollup semantics rather than raw sum-of-step writes:
 
 - `sourceCount` = records read from external/configured ingress steps
 - `writtenCount` = records written to final scenario outputs
 - `rejectedCount` = summed rejected records across executed steps
 - `handoffReadCount` / `handoffWriteCount` = intermediate step-to-step movement kept as diagnostics, not treated as final published output
+
+The active per-step processing order remains:
+
+`read -> transforms -> processor rules -> write`
+
+When the active file-ingestion path enables reject handling or archive-on-success, step-finished evidence may also include `rejectOutputPath` and `archivedSourcePath` in addition to the core read/write/reject counts.
 
 This split matches the current bridge architecture: startup-time assembly evidence is separated from scenario-scoped runtime and hierarchy evidence, while both still describe the same selected run.
 
@@ -284,6 +300,8 @@ For the target direction where scenario descriptors and step links become the st
 
 `ConfigLoader` does not auto-discover scenario folders. Exactly one config set is selected for a run.
 
+For explicit job-config startup, the selected `job-config.yaml` may now also declare `isActive: false`. When it does, `ConfigLoader` fails fast before referenced source/target/processor YAMLs are resolved or steps are wired.
+
 When explicit `job-config.yaml` loading rebases the selected source, target, and processor YAMLs:
 
 - `job-config.yaml` references still resolve from the selected job-config folder
@@ -299,7 +317,7 @@ Demo fallback still validates the selected processor config, but it does not run
 ### 2. Model resolution
 `GeneratedModelClassResolver` translates config into concrete runtime class names and wrapper metadata.
 
-For XML sources, explicit startup always requires the generated record class. Non-`NestedXml` XML sources also require the generated root class, while `NestedXml` source validation skips that root-class requirement because the active runtime path flattens from the generated record model.
+For XML sources, explicit startup always requires the generated record class. `XmlDynamicReader` then follows one of two flattening shapes beyond the shared `DirectXml` record-fragment reader: `NestedXml` keeps the active runtime path on `recordElement` fragment streaming and flattens from the generated record model, while `JobSpecificXml` switches to a root-wrapper path that unmarshals the generated XML root before invoking the selected custom strategy. Because of that split, non-`NestedXml` XML sources still require the generated root class during startup validation, while `NestedXml` validation skips that root-class requirement.
 
 ### 3. Step strategy
 `BatchConfig` walks the explicit step list from `job-config.yaml`. For each step, it resolves the named source and target, verifies that a matching processor mapping exists, emits machine-readable step-planning logs such as `STEP_PLAN` and `STEP_READY`, projects synthesized hierarchy metadata into the step execution context for later `STEP_EVENT` evidence, and then calls `getRecordCount()` on the selected source to compare it to `etl.chunk.threshold`.
@@ -328,6 +346,7 @@ The current runtime now implements a first file-ingestion hardening slice on the
 - duplicate handling now supports both keep-first/reject-later behavior and ordered winner selection
 - when ordered duplicate winner selection is configured, `BatchConfig` overrides chunk mode to tasklet mode so it can resolve winners before final write
 - successful file-source steps such as CSV and XML can archive the processed input file and expose `archivedSourcePath` in step-finished evidence when archive-on-success is enabled for that source config
+- staged CSV/XML/JSON file targets currently write to sibling `.part` artifacts first and publish the configured final output only after the writer stream closes cleanly and the enclosing step completes successfully
 - step-finished logs now include `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath`
 
 `FileIngestionRuntimeSupport` owns the reject/archive step state itself. `FileIngestionHardeningStepListener` initializes and completes that state around each step, while `StepLoggingContextListener` publishes the resulting counters and artifact paths from the step execution context.
@@ -341,6 +360,8 @@ This flow shows where future enhancements should plug in:
 - multi-job orchestration will likely require a higher-level flow model than the current selected job-config plus explicit step list
 
 This page intentionally stays focused on the shipped runtime baseline. The preferred next architecture direction for strict scenario-driven execution is documented separately in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
+
+For a flow-level operational manual of the shipped CSV source to XML target path, including flat XML, nested XML, reject/archive behavior on the shared CSV ingestion path, and staged XML publication, see [`csv-to-xml-runtime-flow.md`](csv-to-xml-runtime-flow.md).
 
 ## Current file-ingestion hardening path
 

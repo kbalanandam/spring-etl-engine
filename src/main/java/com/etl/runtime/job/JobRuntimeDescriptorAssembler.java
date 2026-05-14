@@ -19,9 +19,21 @@ import java.util.Objects;
 /**
  * Transitional assembler that turns the current explicit scenario contract into
  * one self-explanatory scenario runtime descriptor.
+ *
+ * <p>This assembler does not change execution order. Instead, it projects the selected
+ * explicit job bundle into descriptor records that make the shipped flat Spring Batch plan
+ * easier to log, inspect, and reason about as MainFlow/SubFlow/Step observability data.</p>
  */
 public class JobRuntimeDescriptorAssembler {
 
+	/**
+	 * Assembles one runtime descriptor for the selected scenario bundle.
+	 *
+	 * <p>The descriptor is built from the same source/target/processor/job contract used by
+	 * execution so observability remains aligned with the real runtime plan. Intermediate
+	 * handoffs, final outputs, and model-resolution metadata are all derived here from the
+	 * explicit ordered step list.</p>
+	 */
 	public JobRuntimeDescriptor assemble(String scenarioName,
 	                                        String jobConfigPath,
 	                                        JobRunMode runMode,

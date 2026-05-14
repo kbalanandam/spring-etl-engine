@@ -1,8 +1,10 @@
 package com.etl.writer;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -11,9 +13,14 @@ import java.util.List;
 
 import com.etl.config.ColumnConfig;
 import com.etl.config.target.XmlTargetConfig;
+import com.etl.exception.EtlErrorCategory;
+import com.etl.exception.EtlExceptionDetails;
 import com.etl.model.target.Customer;
 import com.etl.model.target.Customers;
 import com.etl.writer.impl.SingleObjectXmlWriter;
+import jakarta.xml.bind.annotation.XmlAccessType;
+import jakarta.xml.bind.annotation.XmlAccessorType;
+import jakarta.xml.bind.annotation.XmlRootElement;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.batch.core.ExitStatus;
@@ -208,6 +215,30 @@ class XmlDynamicWriterTest {
     assertTrue(Files.readString(outputFile).contains("Step Chunk Jane"));
     }
 
+  @Test
+  void cleansStagingAndCategorizesChunkXmlWriteFailure(@TempDir Path tempDir) throws Exception {
+    Path outputFile = tempDir.resolve("customers_write_failed.xml");
+    Path stagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");
+    XmlTargetConfig config = getXmlTargetConfig(outputFile, "BrokenChunkXmlRecord");
+    ItemWriter<Object> writer = factory.createWriter(config, BrokenChunkXmlRecord.class);
+    assertInstanceOf(StaxEventItemWriter.class, writer);
+
+    StaxEventItemWriter<Object> xmlWriter = (StaxEventItemWriter<Object>) writer;
+    xmlWriter.afterPropertiesSet();
+    xmlWriter.open(new ExecutionContext());
+
+    Exception failure = assertThrows(
+        Exception.class,
+        () -> xmlWriter.write(new Chunk<>(List.of(new BrokenChunkXmlRecord("8"))))
+    );
+    assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+
+    xmlWriter.close();
+
+    assertFalse(Files.exists(outputFile));
+    assertFalse(Files.exists(stagingFile));
+  }
+
     @Test
     void promotesSingleObjectXmlAfterCloseThenAfterStepWithinActiveStep(@TempDir Path tempDir) throws Exception {
     Path outputFile = tempDir.resolve("customers_tasklet_step.xml");
@@ -247,6 +278,10 @@ class XmlDynamicWriterTest {
     }
 
   private static XmlTargetConfig getXmlTargetConfig(Path outputFile) {
+		return getXmlTargetConfig(outputFile, "Customer");
+	}
+
+	private static XmlTargetConfig getXmlTargetConfig(Path outputFile, String recordElement) {
         ColumnConfig col1 = new ColumnConfig();
         col1.setName("id");
         col1.setType("integer");
@@ -266,7 +301,36 @@ class XmlDynamicWriterTest {
                 columnConfig,
                 outputFile.toString(),
                 "Customers",
-                "Customer"
+                recordElement
         );
     }
+
+  @XmlRootElement(name = "BrokenChunkXmlRecord")
+  @XmlAccessorType(XmlAccessType.PROPERTY)
+  public static final class BrokenChunkXmlRecord {
+    private String id;
+
+    public BrokenChunkXmlRecord() {
+    }
+
+    public BrokenChunkXmlRecord(String id) {
+      this.id = id;
+    }
+
+    public String getId() {
+      return id;
+    }
+
+    public void setId(String id) {
+      this.id = id;
+    }
+
+    public String getName() {
+      throw new IllegalStateException("boom");
+    }
+
+    public void setName(String name) {
+      // no-op; getter throws so the marshalling path still fails deterministically
+    }
+  }
 }

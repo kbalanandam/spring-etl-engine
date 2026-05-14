@@ -16,11 +16,7 @@ import java.util.List;
  * name.
  * </p>
  *
- * @deprecated Use canonical {@code config-jobs/...} paths directly for all new
- * commands, docs, tests, and generated examples. This bridge remains only to keep
- * older {@code config-scenarios/...} invocations working temporarily.
  */
-@Deprecated
 public final class ConfigBundlePathAliasResolver {
 
     public static final String PREFERRED_BUNDLE_FOLDER = "config-jobs";

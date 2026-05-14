@@ -35,7 +35,7 @@
 
 ## Debugging and evidence
 - Read `logs/startup/startup.log` for startup-time `STEP_PLAN` / `STEP_READY` events; read `logs/<yyyy-MM-dd>/<scenario>.log` for `RUN_EVENT`, `MAIN_FLOW_PLAN`, `SUBFLOW_PLAN`, `STEP_EVENT`, `SUBFLOW_SUMMARY`, and `RUN_SUMMARY` (`src/main/resources/logback-spring.xml`, `docs/architecture/runtime-flow.md`).
-- Scenario logs are keyed from `JobConfig.name` (or the folder name fallback), and MDC fields like `scenario`, `runCorrelationId`, `jobExecutionId`, and `stepName` are part of the expected evidence model.
+- Scenario logs are keyed from `JobConfig.name`, and explicit `etl.config.job` runs now fail fast when that selected `job-config.yaml` name is blank. MDC fields like `scenario`, `runCorrelationId`, `jobExecutionId`, and `stepName` are part of the expected evidence model.
 - Reject/archive behavior lives on the active step path via `FileIngestionRuntimeSupport` and `FileIngestionHardeningStepListener`; check step-finished evidence for `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath`.
 
 ## Docs + PR rules that are enforced here

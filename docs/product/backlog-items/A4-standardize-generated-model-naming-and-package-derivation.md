@@ -8,7 +8,7 @@ Define one shared naming contract for generated model packages, class names, and
 
 - Epic: **Epic A**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **In Progress**
 - Milestone: **M2**
 - Dependency: **A2**
 
@@ -103,9 +103,48 @@ Keep the first delivery slice compatibility-aware. The most important product st
 
 A developer-local multi-step TVL-style example in `private-jobs/<collection>/xml-nested-to-csv-tag-validation/` is a useful design proof because it contains an ingress XML source, an intermediate CSV handoff, and a final relational target in one selected job.
 
+## `packageName` deprecation plan
+
+Treat `packageName` removal as a phased compatibility change, not a one-shot cleanup.
+
+### Phase 1 — shipped bridge baseline
+
+- explicit `job-config.yaml` runs may already omit `packageName`
+- runtime and build-time generation already derive `...source` and `...target` packages from the selected non-blank job name
+- generated-name collision checks and cross-step handoff-order checks are already active on the selected-job path
+
+### Phase 2 — deprecate authored use without breaking active bundles
+
+- mark `packageName` in config docs as a deprecated bridge field rather than a normal authored field
+- keep accepting omitted values as the preferred path
+- keep accepting explicit matching values for compatibility while steering new bundles away from them
+- make operator-facing warnings/errors name the selected job, config file, logical source/target name, authored value, and derived value
+
+### Phase 3 — tighten drift handling
+
+- fail fast when authored `packageName` conflicts with the derived contract on the active explicit-job path
+- keep this step separate from Phase 2 so preserved bundles and private bundles can be cleaned up deliberately
+- update focused tests so runtime and build-time paths enforce the same mismatch behavior
+
+### Phase 4 — package-free preserved examples and docs
+
+- remove `packageName` from preserved `config-jobs/...` examples except for one intentionally documented deprecated bridge example if still needed
+- update config reference pages so package-free YAML becomes the default authoring style everywhere
+- keep docs explicit that generated package identity still exists, but it is now product-derived rather than authored
+
+### Phase 5 — final field removal
+
+- stop binding `packageName` in source/target config classes only after docs, preserved bundles, and upgrade guidance are ready
+- keep runtime lookup fully centralized behind the shared naming policy and resolver
+- mark A4 done only when authored `packageName` is no longer part of the normal config contract
+
 ## Status notes
 
-Drafted after the architecture note for generated-model naming was added so the execution board can link to concrete scope, acceptance criteria, and migration rules before implementation begins.
+- Updated to **In Progress** because the active runtime and build-time bridge now ship default source/target package derivation for explicit `job-config.yaml` runs when `packageName` is omitted.
+- The active explicit-job naming path now also requires a non-blank `job-config.yaml -> name` during runtime loading and build-time XML generation, so folder-name fallback is no longer part of the shipped generated-model contract.
+- The active runtime and build-time path now also fail fast when selected logical names collide after generated-name normalization and when a named handoff is consumed before any earlier step produced it.
+- Same-step logical-name reuse such as `Customers -> Customers` remains compatibility-supported on the active path; the stricter selected-job uniqueness direction is now focused on cross-step handoff reuse and collision safety rather than breaking shipped single-step bundles immediately.
+- Remaining A4 scope is still open: stricter legacy `packageName` tightening, richer warning/deprecation handling, XML Java-name vs XML-element separation rollout across all paths, and the broader package-free authored-config direction documented in the architecture note.
 
 
 

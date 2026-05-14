@@ -12,6 +12,17 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Implements the processor-side {@code duplicate} validation rule.
+ *
+ * <p><strong>Transition status:</strong> REUSE.</p>
+ *
+ * <p>This rule serves two related contracts. Without {@code orderBy}, it performs immediate
+ * duplicate detection within the current step and emits normal validation issues. With
+ * {@code orderBy}, it acts as the configuration parser for ordered winner selection; actual
+ * winner resolution is deferred to the tasklet-based duplicate runtime so the full candidate set
+ * can be evaluated before anything is written.</p>
+ */
 @Component
 public class DuplicateProcessorValidationRule implements ProcessorValidationRule {
 
@@ -74,6 +85,10 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 		return !configuredWinnerSelectors(rule).isEmpty();
 	}
 
+	/**
+	 * Resolves the logical duplicate key fields for the rule, defaulting to the mapped field when
+	 * the config does not declare an explicit composite key.
+	 */
 	public static List<String> configuredKeyFields(String fieldName, ProcessorConfig.FieldRule rule) {
 		if (rule == null || rule.getKeyFields() == null || rule.getKeyFields().isEmpty()) {
 			return List.of(fieldName);
@@ -93,6 +108,11 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 		return List.copyOf(distinctFields);
 	}
 
+	/**
+	 * Parses the ordered winner-selection selectors declared on {@code orderBy}. Presence of at
+	 * least one selector is what upgrades the rule from immediate validation into winner-selection
+	 * mode.</p>
+	 */
 	public static List<OrderSelector> configuredWinnerSelectors(ProcessorConfig.FieldRule rule) {
 		if (rule == null || rule.getOrderBy() == null || rule.getOrderBy().isEmpty()) {
 			return List.of();
@@ -194,6 +214,9 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 		return value == null || value.isBlank() ? null : value.trim();
 	}
 
+	/**
+	 * Canonical runtime representation of one configured duplicate winner-order selector.
+	 */
 	public record OrderSelector(String field, boolean descending) {
 		public String toDisplayString() {
 			return field + " " + (descending ? "DESC" : "ASC");

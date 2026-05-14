@@ -32,6 +32,8 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
 
     private ValidationConfig validation;
 
+  private ParserConfig parser;
+
   public String getFilePath() {
     return filePath;
   }
@@ -76,6 +78,14 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
 	public void setValidation(ValidationConfig validation) {
 		this.validation = validation;
 	}
+
+  public ParserConfig getParser() {
+    return parser;
+  }
+
+  public void setParser(ParserConfig parser) {
+    this.parser = parser;
+  }
 
     // No-args constructor for YAML/object mapping
     public CsvSourceConfig() {
@@ -180,7 +190,47 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
 		return skipHeader && count > 0 ? count - 1 : count;
     }
 
+  public Character resolveQuoteCharacter() {
+    if (parser == null || parser.getQuoteCharacter() == null || parser.getQuoteCharacter().isBlank()) {
+      return null;
+    }
+
+    String trimmed = parser.getQuoteCharacter().trim();
+    if (trimmed.length() != 1) {
+      throw new IllegalArgumentException("parser.quoteCharacter must be exactly one character when configured.");
+    }
+    return trimmed.charAt(0);
+  }
+
+  public void validateParserConfiguration() {
+    Character quoteCharacter = resolveQuoteCharacter();
+    if (quoteCharacter == null) {
+      return;
+    }
+
+    if (delimiter == null || delimiter.isBlank()) {
+      throw new IllegalArgumentException("parser.quoteCharacter requires a non-blank delimiter.");
+    }
+
+    if (delimiter.equals(String.valueOf(quoteCharacter))) {
+      throw new IllegalArgumentException("parser.quoteCharacter must differ from delimiter.");
+    }
+  }
+
   public static class ArchiveConfig extends FileArchiveConfig {
+  }
+
+  public static class ParserConfig {
+
+    private String quoteCharacter;
+
+    public String getQuoteCharacter() {
+      return quoteCharacter;
+    }
+
+    public void setQuoteCharacter(String quoteCharacter) {
+      this.quoteCharacter = quoteCharacter;
+    }
   }
 
   public static class ValidationConfig {

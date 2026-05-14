@@ -81,6 +81,25 @@ Use this simple flow:
 5. delete the whole collection folder when that private workspace should be purged
 6. if a new config contract is discovered, update docs plus one preserved reference bundle separately
 
+## Cleanup helper
+
+When you want to purge one private bundle and its generated job-scoped model artifacts together, use the generalized cleanup helper:
+
+```powershell
+Set-Location 'C:\spring-etl-engine'
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\remove-job-bundle.ps1 -JobConfigPath .\private-jobs\local-verification\your-job\config\job-config.yaml -WhatIf
+```
+
+Remove `-WhatIf` after reviewing the planned deletes.
+
+The helper removes:
+
+- the private bundle rooted at the selected `job-config.yaml`
+- matching generated sources under `target/generated-sources/etl/`
+- matching compiled generated classes under `target/classes/` and `target/test-classes/`
+
+For preserved or other non-private bundles, the generalized helper requires explicit `-DeleteSharedBundle` opt-in before it will remove the bundle root.
+
 ## Git behavior
 
 The repository tracks this `README.md` so the folder exists for all contributors and the intended pattern stays discoverable.

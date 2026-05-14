@@ -2,6 +2,10 @@ package com.etl.runtime.job;
 
 /**
  * Describes the effective output contract for one scenario step.
+ *
+ * <p>This descriptor records whether a step publishes to its configured target, emits an
+ * intermediate dataset for downstream reuse, or completes the overall scenario with the final
+ * output. The distinction is primarily for logging, runtime summaries, and operator evidence.</p>
  */
 public record JobStepOutputDescriptor(
 		JobStepOutputType type,
@@ -20,6 +24,9 @@ public record JobStepOutputDescriptor(
 		summary = normalize(summary, defaultSummary(type, targetName, outputAlias, finalScenarioOutput));
 	}
 
+	/**
+	 * Creates the descriptor for a step that writes to its configured target path or destination.
+	 */
 	public static JobStepOutputDescriptor configuredTarget(String targetName, boolean finalScenarioOutput) {
 		return new JobStepOutputDescriptor(
 				finalScenarioOutput ? JobStepOutputType.FINAL_OUTPUT : JobStepOutputType.CONFIG_TARGET,

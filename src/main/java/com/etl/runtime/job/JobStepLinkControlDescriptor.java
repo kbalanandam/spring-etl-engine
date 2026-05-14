@@ -5,6 +5,10 @@ import java.util.List;
 
 /**
  * Control-plane rules for a step-to-step link.
+ *
+ * <p>This metadata tells observability and future orchestration layers what upstream statuses are
+ * required, which statuses should block downstream readiness, and whether a concrete handoff must
+ * be present before the downstream step may proceed.</p>
  */
 public record JobStepLinkControlDescriptor(
 		List<JobSubFlowExecutionStatus> requiredUpstreamStatuses,
@@ -23,14 +27,24 @@ public record JobStepLinkControlDescriptor(
 				: summary.trim();
 	}
 
+	/**
+	 * Returns whether the downstream step requires the supplied upstream subflow status.
+	 */
 	public boolean requiresUpstreamStatus(JobSubFlowExecutionStatus status) {
 		return status != null && requiredUpstreamStatuses.contains(status);
 	}
 
+	/**
+	 * Returns whether the downstream step should remain blocked for the supplied upstream status.
+	 */
 	public boolean blocksOnUpstreamStatus(JobSubFlowExecutionStatus status) {
 		return status != null && blockingUpstreamStatuses.contains(status);
 	}
 
+	/**
+	 * Builds the default control contract for the current sequential runtime: wait for upstream
+	 * completion, block on failure/blocked states, and optionally require a materialized handoff.
+	 */
 	public static JobStepLinkControlDescriptor defaultSequentialControl(boolean requiresHandoffReady) {
 		return new JobStepLinkControlDescriptor(
 				List.of(JobSubFlowExecutionStatus.COMPLETED),

@@ -1,0 +1,14 @@
+sources:
+  - format: xml
+    sourceName: Events
+    filePath: input/events.xml
+    rootElement: Events
+    recordElement: Event
+    flatteningStrategy: DirectXml
+    modelDefinitionPath: definitions/events-source-model.yaml
+    validation:
+      schemaPath: schemas/events.xsd
+      # Optional whole-file rejection when source validation fails:
+      # onFailure: rejectFile
+      # rejectPath: rejects/
+

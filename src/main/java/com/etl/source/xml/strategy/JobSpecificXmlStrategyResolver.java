@@ -6,6 +6,13 @@ import org.springframework.stereotype.Component;
 
 /**
  * Resolves job-specific XML source strategies by Spring bean name.
+ *
+ * <p><strong>Transition status:</strong> BRIDGE.</p>
+ *
+ * <p>This resolver is used only when the selected XML source explicitly chooses the
+ * {@code JOB_SPECIFIC_XML} strategy mode. It looks up the configured Spring bean, verifies that it
+ * implements {@link XmlSourceStrategy}, and ensures the resulting strategy supports the active
+ * source context before the runtime uses it.</p>
  */
 @Component
 public class JobSpecificXmlStrategyResolver {
@@ -16,6 +23,12 @@ public class JobSpecificXmlStrategyResolver {
         this.applicationContext = applicationContext;
     }
 
+    /**
+     * Resolves the required job-specific XML strategy bean for the supplied runtime context.
+     *
+     * @throws IllegalArgumentException when the bean does not exist or the resolved strategy does
+     * not support the active XML source context
+     */
     public XmlSourceStrategy resolve(XmlSourceRuntimeContext context) {
         String beanName = context.getRequiredJobSpecificStrategyBean();
         if (!applicationContext.containsBean(beanName)) {

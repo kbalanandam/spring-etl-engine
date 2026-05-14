@@ -4,6 +4,10 @@ import java.util.List;
 
 /**
  * Step-level validation summary intended for startup diagnostics and later UI projection.
+ *
+ * <p>This record is the per-step counterpart to {@link JobValidationSummary}. It captures whether
+ * mapping selection, source/target validation, and model validation all succeeded for one resolved
+ * executable step.</p>
  */
 public record JobStepValidationSummary(
 		boolean mappingValidated,

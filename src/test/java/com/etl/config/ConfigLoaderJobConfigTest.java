@@ -1,5 +1,8 @@
 package com.etl.config;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.etl.config.exception.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
@@ -8,15 +11,19 @@ import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.source.validation.SourceValidationService;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.CsvTargetConfig;
+import com.etl.config.target.JsonTargetConfig;
 import com.etl.config.target.TargetWrapper;
+import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.processor.validation.NotNullProcessorValidationRule;
 import com.etl.processor.validation.ProcessorValidationRule;
 import com.etl.processor.validation.TimeFormatProcessorValidationRule;
 import com.etl.processor.validation.ValidationIssue;
 import com.etl.processor.validation.ValidationRuleEvaluator;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.io.IOException;
@@ -32,8 +39,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ConfigLoaderJobConfigTest {
 
+    private final Logger configLoaderLogger = (Logger) LoggerFactory.getLogger(ConfigLoader.class);
+
     @TempDir
     Path tempDir;
+
+    @AfterEach
+    void tearDown() {
+        configLoaderLogger.detachAndStopAllAppenders();
+    }
 
     @Test
     void loadsReferencedConfigsFromJobConfigUsingRelativePaths() throws IOException {
@@ -211,6 +225,567 @@ class ConfigLoaderJobConfigTest {
         assertEquals(scenarioDir.resolve("rejects").toAbsolutePath().normalize().toString(), processorConfig.getRejectHandling().getOutputPath());
     }
 
+  @Test
+  void trimsReferencedConfigPathsBeforeResolvingThemRelativeToJobConfig() throws IOException {
+    Path scenarioDir = tempDir.resolve("trimmed-relative-config-paths");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.createDirectories(scenarioDir.resolve("output"));
+    Files.writeString(scenarioDir.resolve("input/customers.csv"), "id,name\n1,Alice\n");
+
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+            sources:
+              - format: csv
+                sourceName: Customers
+                packageName: com.etl.model.source
+                filePath: input/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+                  - name: name
+                    type: String
+            """);
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+            targets:
+              - format: csv
+                targetName: CustomersOut
+                packageName: com.etl.model.target
+                filePath: output/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+                  - name: name
+                    type: String
+            """);
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+            type: default
+            mappings:
+              - source: Customers
+                target: CustomersOut
+                fields:
+                  - from: id
+                    to: id
+                  - from: name
+                    to: name
+            """);
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+            name: trimmed-relative-config-paths
+            sourceConfigPath:   source-config.yaml
+            targetConfigPath:   target-config.yaml
+            processorConfigPath:   processor-config.yaml
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+    SourceWrapper sourceWrapper = loader.sourceWrapper();
+    TargetWrapper targetWrapper = loader.targetWrapper();
+    ProcessorConfig processorConfig = loader.processorConfig();
+
+    assertEquals("trimmed-relative-config-paths", metadata.scenarioName());
+    assertEquals("Customers", sourceWrapper.getSources().get(0).getSourceName());
+    assertEquals("CustomersOut", targetWrapper.getTargets().get(0).getTargetName());
+    assertEquals("Customers", processorConfig.getMappings().get(0).getSource());
+  }
+
+    @Test
+    void derivesDefaultPackagesWhenExplicitJobOmitsSourceAndJsonTargetPackageNames() throws IOException {
+        Path scenarioDir = tempDir.resolve("xml-to-json-events");
+        Files.createDirectories(scenarioDir.resolve("input"));
+        Files.createDirectories(scenarioDir.resolve("definitions"));
+
+        Files.writeString(scenarioDir.resolve("input/events.xml"), """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <Events>
+                  <Event>
+                    <eventCode>LOGIN</eventCode>
+                    <eventTime>2026-05-10T08:00:00</eventTime>
+                  </Event>
+                </Events>
+                """);
+
+        Files.writeString(scenarioDir.resolve("definitions/events-source-model.yaml"), """
+                packageName: ignored.by.runtime.bundle
+                rootElement: Events
+                recordElement: Event
+                fields:
+                  - name: eventCode
+                    type: String
+                  - name: eventTime
+                    type: String
+                """);
+
+        Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+                sources:
+                  - format: xml
+                    sourceName: Events
+                    filePath: input/events.xml
+                    rootElement: Events
+                    recordElement: Event
+                    flatteningStrategy: DirectXml
+                    modelDefinitionPath: definitions/events-source-model.yaml
+                """);
+
+        Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+                targets:
+                  - format: json
+                    targetName: EventsJson
+                    filePath: output/events.json
+                    fields:
+                      - name: eventCode
+                        type: String
+                      - name: eventTime
+                        type: String
+                """);
+
+        Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+                type: default
+                mappings:
+                  - source: Events
+                    target: EventsJson
+                    fields:
+                      - from: eventCode
+                        to: eventCode
+                      - from: eventTime
+                        to: eventTime
+                """);
+
+        Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+                name: xml-to-json-events
+                sourceConfigPath: source-config.yaml
+                targetConfigPath: target-config.yaml
+                processorConfigPath: processor-config.yaml
+                steps:
+                  - name: events-xml-to-json-step
+                    source: Events
+                    target: EventsJson
+                """);
+
+        ConfigLoader loader = new ConfigLoader();
+        ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+        ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+        SourceWrapper sourceWrapper = loader.sourceWrapper();
+        TargetWrapper targetWrapper = loader.targetWrapper();
+
+        XmlSourceConfig sourceConfig = (XmlSourceConfig) sourceWrapper.getSources().get(0);
+        JsonTargetConfig targetConfig = (JsonTargetConfig) targetWrapper.getTargets().get(0);
+
+        assertEquals(JobScopedPackageNameResolver.resolveSourcePackage("xml-to-json-events"), sourceConfig.getPackageName());
+        assertEquals(JobScopedPackageNameResolver.resolveTargetPackage("xml-to-json-events"), targetConfig.getPackageName());
+        assertEquals(scenarioDir.resolve("input/events.xml").toAbsolutePath().normalize().toString(), sourceConfig.getFilePath());
+        assertEquals("DirectXml", sourceConfig.getFlatteningStrategy());
+        assertEquals(scenarioDir.resolve("definitions/events-source-model.yaml").toAbsolutePath().normalize().toString(), sourceConfig.getModelDefinitionPath());
+        assertEquals(scenarioDir.resolve("output/events.json").toAbsolutePath().normalize().toString(), targetConfig.getFilePath());
+    }
+
+  @Test
+  void normalizesXmlValidationSchemaPathInsideReferencedConfigs() throws IOException {
+    Path scenarioDir = tempDir.resolve("xml-to-json-events");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.createDirectories(scenarioDir.resolve("definitions"));
+    Files.createDirectories(scenarioDir.resolve("schemas"));
+
+    Files.writeString(scenarioDir.resolve("input/events.xml"), """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <Events>
+          <Event>
+            <eventCode>LOGIN</eventCode>
+          </Event>
+        </Events>
+        """);
+    Files.writeString(scenarioDir.resolve("schemas/events.xsd"), """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+          <xs:element name="Events">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="Event" maxOccurs="unbounded">
+                  <xs:complexType>
+                    <xs:sequence>
+                      <xs:element name="eventCode" type="xs:string"/>
+                    </xs:sequence>
+                  </xs:complexType>
+                </xs:element>
+              </xs:sequence>
+            </xs:complexType>
+          </xs:element>
+        </xs:schema>
+        """);
+    Files.writeString(scenarioDir.resolve("definitions/events-source-model.yaml"), """
+        packageName: ignored.by.runtime.bundle
+        rootElement: Events
+        recordElement: Event
+        fields:
+          - name: eventCode
+            type: String
+        """);
+
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+        sources:
+          - format: xml
+            sourceName: Events
+            filePath: input/events.xml
+            rootElement: Events
+            recordElement: Event
+            flatteningStrategy: DirectXml
+            modelDefinitionPath: definitions/events-source-model.yaml
+            validation:
+              schemaPath: schemas/events.xsd
+              onFailure: rejectFile
+              rejectPath: rejects
+        """);
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+        targets:
+          - format: json
+            targetName: EventsJson
+            filePath: output/events.json
+            fields:
+              - name: eventCode
+                type: String
+        """);
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+        type: default
+        mappings:
+          - source: Events
+            target: EventsJson
+            fields:
+              - from: eventCode
+                to: eventCode
+        """);
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+        name: xml-to-json-events
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: events-xml-to-json-step
+            source: Events
+            target: EventsJson
+        """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    SourceWrapper sourceWrapper = loader.sourceWrapper();
+    XmlSourceConfig sourceConfig = (XmlSourceConfig) sourceWrapper.getSources().get(0);
+
+    assertNotNull(sourceConfig.getValidation());
+    assertEquals(scenarioDir.resolve("definitions/events-source-model.yaml").toAbsolutePath().normalize().toString(), sourceConfig.getModelDefinitionPath());
+    assertEquals(scenarioDir.resolve("schemas/events.xsd").toAbsolutePath().normalize().toString(), sourceConfig.getValidation().getSchemaPath());
+    assertEquals(scenarioDir.resolve("rejects").toAbsolutePath().normalize().toString(), sourceConfig.getValidation().getRejectPath());
+  }
+
+  @Test
+  void failsFastWithDerivedTargetPackageWhenExplicitJobOmitsPackageName() throws IOException {
+    Path sourceFile = tempDir.resolve("customers.csv");
+    Files.writeString(sourceFile, "id,name\n1,John Doe\n");
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: csv
+          sourceName: Customers
+          packageName: com.etl.model.source
+          filePath: %s
+          delimiter: ","
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """.formatted(yamlPath(sourceFile)));
+    Files.writeString(targetConfig, """
+      targets:
+        - format: json
+          targetName: CustomersJson
+          filePath: output/customers.json
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: Customers
+          target: CustomersJson
+          fields:
+            - from: id
+              to: id
+            - from: name
+              to: name
+      """);
+    Files.writeString(jobConfig, """
+      name: csv-to-json-derived-package
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: customers-step
+          source: Customers
+          target: CustomersJson
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    String messages = messageChain(exception);
+
+    assertTrue(messages.contains("Target model class not found"));
+    assertTrue(messages.contains(JobScopedPackageNameResolver.resolveTargetPackage("csv-to-json-derived-package") + ".CustomersJsonModel"));
+    assertFalse(messages.contains("null.CustomersJsonModel"));
+    assertFalse(messages.contains("must define a non-blank packageName"));
+  }
+
+  @Test
+  void warnsWhenExplicitGeneratedPackageNameDiffersFromSelectedJobDerivedPackage() throws IOException {
+    Path scenarioDir = tempDir.resolve("xml-to-json-events-warning");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.createDirectories(scenarioDir.resolve("output"));
+    Files.writeString(scenarioDir.resolve("input/events.xml"), "<Events><Event><eventCode>LOGIN</eventCode></Event></Events>");
+
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+        sources:
+          - format: xml
+            sourceName: Events
+            packageName: com.etl.generated.job.xmltojsonevents.source
+            filePath: input/events.xml
+            rootElement: Events
+            recordElement: Event
+            fields:
+              - name: eventCode
+                type: String
+        """);
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+        targets:
+          - format: json
+            targetName: EventsJson
+            packageName: com.etl.generated.job.xmltojsonevents.target
+            filePath: output/events.json
+            fields:
+              - name: eventCode
+                type: String
+        """);
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+        type: default
+        mappings:
+          - source: Events
+            target: EventsJson
+            fields:
+              - from: eventCode
+                to: eventCode
+        """);
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+        name: xml-to-json-events-warning
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: events-step
+            source: Events
+            target: EventsJson
+        """);
+
+    ListAppender<ILoggingEvent> appender = attachConfigLoaderAppender();
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+
+    assertEquals("xml-to-json-events-warning", metadata.scenarioName());
+    assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("source config 'Events'")
+            && event.getFormattedMessage().contains("com.etl.generated.job.xmltojsonevents.source")
+            && event.getFormattedMessage().contains("com.etl.generated.job.xmltojsoneventswarning.source")
+            && event.getFormattedMessage().contains("still honored for compatibility")));
+    assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("target config 'EventsJson'")
+            && event.getFormattedMessage().contains("com.etl.generated.job.xmltojsonevents.target")
+            && event.getFormattedMessage().contains("com.etl.generated.job.xmltojsoneventswarning.target")));
+  }
+
+  @Test
+  void categorizesInvalidGeneratedModelPackageMetadataWithScenarioAndStepContext() throws IOException {
+    Path sourceFile = tempDir.resolve("customers.csv");
+    Files.writeString(sourceFile, "id,name\n1,John Doe\n");
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: csv
+          sourceName: Customers
+          packageName: com.etl.model.source
+          filePath: %s
+          delimiter: ","
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """.formatted(yamlPath(sourceFile)));
+    Files.writeString(targetConfig, """
+      targets:
+        - format: json
+          targetName: CustomersJson
+          packageName: com.etl.invalid-package
+          filePath: output/customers.json
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: Customers
+          target: CustomersJson
+          fields:
+            - from: id
+              to: id
+            - from: name
+              to: name
+      """);
+    Files.writeString(jobConfig, """
+      name: invalid-generated-model-package
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: customers-step
+          source: Customers
+          target: CustomersJson
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    String messages = messageChain(exception);
+
+    assertTrue(messages.contains("Invalid generated model configuration for scenario 'invalid-generated-model-package'"));
+    assertTrue(messages.contains(jobConfig.toString()));
+    assertTrue(messages.contains("step='customers-step'"));
+    assertTrue(messages.contains("source='Customers'"));
+    assertTrue(messages.contains("target='CustomersJson'"));
+    assertTrue(messages.contains("invalid packageName='com.etl.invalid-package'"));
+    assertFalse(messages.contains("Failed to resolve runtime configuration metadata"));
+  }
+
+  @Test
+  void failsFastWhenLogicalHandoffNameIsConsumedBeforeAnyEarlierStepProducesIt() throws IOException {
+    Path sourceFile = tempDir.resolve("customers.csv");
+    Files.writeString(sourceFile, "id,name\n1,John Doe\n");
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: csv
+          sourceName: CustomersIntermediate
+          packageName: com.etl.model.source
+          filePath: %s
+          delimiter: ","
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+        - format: csv
+          sourceName: IngressCustomers
+          packageName: com.etl.model.source
+          filePath: %s
+          delimiter: ","
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """.formatted(yamlPath(sourceFile), yamlPath(sourceFile)));
+    Files.writeString(targetConfig, """
+      targets:
+        - format: json
+          targetName: FinalCustomersJson
+          packageName: com.etl.model.target
+          filePath: output/customers.json
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+        - format: json
+          targetName: CustomersIntermediate
+          packageName: com.etl.model.target
+          filePath: output/intermediate.json
+          fields:
+            - name: id
+              type: int
+            - name: name
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: CustomersIntermediate
+          target: FinalCustomersJson
+          fields:
+            - from: id
+              to: id
+            - from: name
+              to: name
+        - source: IngressCustomers
+          target: CustomersIntermediate
+          fields:
+            - from: id
+              to: id
+            - from: name
+              to: name
+      """);
+    Files.writeString(jobConfig, """
+      name: naming-guardrail
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: final-step
+          source: CustomersIntermediate
+          target: FinalCustomersJson
+        - name: ingest-step
+          source: IngressCustomers
+          target: CustomersIntermediate
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    String messages = messageChain(exception);
+
+    assertTrue(messages.contains("CustomersIntermediate"));
+    assertTrue(messages.contains("before it is produced"));
+  }
+
     @Test
     void failsFastWhenJobConfigReferencesMissingFiles() throws IOException {
         Path jobConfig = tempDir.resolve("job-config.yaml");
@@ -280,7 +855,7 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
-  void derivesScenarioNameFromFolderWhenJobConfigNameIsBlank() throws IOException {
+  void failsFastWhenJobConfigNameIsBlankForExplicitJobRuns() throws IOException {
     Path scenarioDir = tempDir.resolve("customer-load");
     Files.createDirectories(scenarioDir);
 
@@ -334,12 +909,106 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    assertTrue(messageChain(exception).contains("require a non-blank 'name'"));
+    assertTrue(messageChain(exception).contains(jobConfig.toString()));
+  }
+
+  @Test
+  void failsFastWhenSelectedExplicitJobIsInactiveBeforeReferencedConfigsAreResolved() throws IOException {
+    Path scenarioDir = tempDir.resolve("inactive-job");
+    Files.createDirectories(scenarioDir);
+
+    Path jobConfig = scenarioDir.resolve("job-config.yaml");
+    Files.writeString(jobConfig, """
+            name: inactive-job
+            isActive: false
+            sourceConfigPath: missing-source-config.yaml
+            targetConfigPath: missing-target-config.yaml
+            processorConfigPath: missing-processor-config.yaml
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::sourceWrapper);
+    String messages = messageChain(exception);
+
+    assertTrue(messages.contains("Selected job 'inactive-job' is inactive"));
+    assertTrue(messages.contains(jobConfig.toAbsolutePath().normalize().toString()));
+    assertFalse(messages.contains("missing-source-config.yaml"));
+  }
+
+  @Test
+  void preservesCurrentExplicitJobBehaviorWhenIsActiveIsTrue() throws IOException {
+    Path scenarioDir = tempDir.resolve("active-job");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.createDirectories(scenarioDir.resolve("output"));
+    Files.writeString(scenarioDir.resolve("input/customers.csv"), "id,name\n1,Alice\n");
+
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+            sources:
+              - format: csv
+                sourceName: Customers
+                packageName: com.etl.model.source
+                filePath: input/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+                  - name: name
+                    type: String
+            """);
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+            targets:
+              - format: csv
+                targetName: CustomersOut
+                packageName: com.etl.model.target
+                filePath: output/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+                  - name: name
+                    type: String
+            """);
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+            type: default
+            mappings:
+              - source: Customers
+                target: CustomersOut
+                fields:
+                  - from: id
+                    to: id
+                  - from: name
+                    to: name
+            """);
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+            name: active-job
+            isActive: true
+            sourceConfigPath: source-config.yaml
+            targetConfigPath: target-config.yaml
+            processorConfigPath: processor-config.yaml
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
     RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
 
-    assertEquals("customer-load", metadata.scenarioName());
-    assertEquals(jobConfig.toString(), metadata.jobConfigPath());
-    assertFalse(metadata.demoFallbackMode());
+    assertEquals("active-job", metadata.scenarioName());
     assertEquals(1, metadata.steps().size());
+    assertEquals("customers-step", metadata.steps().get(0).getName());
   }
 
   @Test
@@ -406,6 +1075,32 @@ class ConfigLoaderJobConfigTest {
     RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
     assertEquals("customer-load", metadata.scenarioName());
     assertEquals(canonicalScenarioDir.resolve("job-config.yaml").toAbsolutePath().normalize().toString(), metadata.jobConfigPath());
+  }
+
+  @Test
+  void doesNotResolveLegacyBundleAliasForReferencedYamlLoadsInsideConfigLoader() throws Exception {
+    Path canonicalSourceConfig = tempDir.resolve("src/main/resources/config-jobs/customer-load/source-config.yaml");
+    Files.createDirectories(canonicalSourceConfig.getParent());
+    Files.writeString(canonicalSourceConfig, "sources:\n  - format: csv\n    sourceName: Customers\n");
+
+    Path requestedAliasSourceConfig = tempDir.resolve("src/main/resources/config-scenarios/customer-load/source-config.yaml");
+
+    ConfigLoader loader = new ConfigLoader();
+
+    var method = ConfigLoader.class.getDeclaredMethod("loadRequiredExternalYamlConfig", String.class, Class.class);
+    method.setAccessible(true);
+
+    IOException exception = assertThrows(IOException.class,
+            () -> {
+              try {
+                method.invoke(loader, requestedAliasSourceConfig.toString(), SourceWrapper.class);
+              } catch (java.lang.reflect.InvocationTargetException e) {
+                throw e.getCause();
+              }
+            });
+
+    assertTrue(exception.getMessage().contains("Required YAML file not found"));
+    assertTrue(exception.getMessage().contains(requestedAliasSourceConfig.toString()));
   }
 
   @Test
@@ -2173,6 +2868,14 @@ class ConfigLoaderJobConfigTest {
 
   private String yamlPath(Path path) {
     return path.toString().replace("\\", "\\\\");
+  }
+
+  private ListAppender<ILoggingEvent> attachConfigLoaderAppender() {
+    configLoaderLogger.detachAndStopAllAppenders();
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    configLoaderLogger.addAppender(appender);
+    return appender;
   }
 
   private ColumnConfig column(String name, String type) {

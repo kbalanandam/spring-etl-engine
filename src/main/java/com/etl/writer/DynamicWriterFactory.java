@@ -31,9 +31,23 @@ public class DynamicWriterFactory {
 
     public DynamicWriterFactory(List<DynamicWriter> writerList) {
         this.writers = writerList.stream()
-            .collect(Collectors.toMap(DynamicWriter::getFormat, Function.identity()));
+            .collect(Collectors.toMap(
+                DynamicWriter::getFormat,
+                Function.identity(),
+                (existing, replacement) -> {
+                    throw new FactoryException("Multiple writers registered for format: " + existing.getFormat());
+                }
+            ));
     }
 
+    /**
+     * Creates the concrete Spring Batch writer for the supplied target config.
+     *
+     * <p>This factory owns only the cross-format creation contract: the target config
+     * and generated class must be present, a writer must be registered for the target
+     * format, and uncategorized creation failures are wrapped consistently. Format-specific
+     * publication rules stay inside each writer implementation.</p>
+     */
     public ItemWriter<Object> createWriter(TargetConfig config, Class<?> clazz) throws Exception {
 	    	if (config == null || clazz == null) {
 	    		throw new FactoryException("Target configuration and target class must not be null when creating a writer.");
@@ -50,7 +64,7 @@ public class DynamicWriterFactory {
             throw e;
           } catch (Exception e) {
             throw new FactoryException(
-                "Failed to create writer for target '" + defaultName(config == null ? null : config.getTargetName())
+				"Failed to create writer for target '" + defaultName(config.getTargetName())
                     + "' using format '" + format + "'.",
                 e
             );

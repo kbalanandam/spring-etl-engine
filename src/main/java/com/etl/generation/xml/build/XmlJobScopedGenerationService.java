@@ -1,13 +1,16 @@
 package com.etl.generation.xml.build;
 
 import com.etl.common.util.ConfigBundlePathAliasResolver;
+import com.etl.common.util.GeneratedModelNamingPolicy;
 import com.etl.common.util.JobScopedPackageNameResolver;
+import com.etl.common.util.SelectedJobNamingValidator;
 import com.etl.common.util.ValidationUtils;
 import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.target.CsvTargetConfig;
+import com.etl.config.target.JsonTargetConfig;
 import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
@@ -19,6 +22,8 @@ import com.etl.generation.xml.XmlStructureClassGenerator;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -40,6 +45,8 @@ import java.util.Set;
  * </p>
  */
 public class XmlJobScopedGenerationService {
+
+    private static final Logger logger = LoggerFactory.getLogger(XmlJobScopedGenerationService.class);
 
     private final ObjectMapper yamlMapper;
     private final XmlModelDefinitionLoader definitionLoader;
@@ -74,7 +81,7 @@ public class XmlJobScopedGenerationService {
 
         JobConfig jobConfig = yamlMapper.readValue(normalizedJobConfigPath.toFile(), JobConfig.class);
         Path jobDirectory = Objects.requireNonNull(normalizedJobConfigPath.getParent(), "Job config parent directory must exist.");
-        String jobName = JobScopedPackageNameResolver.deriveJobName(jobConfig, jobDirectory);
+            String jobName = JobScopedPackageNameResolver.requireExplicitJobName(jobConfig, normalizedJobConfigPath);
         Path sourceConfigPath = resolveReferencedPath(jobDirectory, jobConfig.getSourceConfigPath(), "sourceConfigPath");
         Path targetConfigPath = resolveReferencedPath(jobDirectory, jobConfig.getTargetConfigPath(), "targetConfigPath");
 
@@ -82,6 +89,8 @@ public class XmlJobScopedGenerationService {
         TargetWrapper targetWrapper = yamlMapper.readValue(targetConfigPath.toFile(), TargetWrapper.class);
         applyJobScopedPackageDefaults(sourceWrapper, targetWrapper, jobName);
         List<JobConfig.JobStepConfig> steps = requireSteps(jobConfig);
+        warnOnDeprecatedGeneratedPackageDrift(sourceWrapper, targetWrapper, steps, jobName, sourceConfigPath, targetConfigPath);
+        SelectedJobNamingValidator.validate(jobName, sourceWrapper, targetWrapper, steps);
 
         Map<String, SourceConfig> sourcesByName = indexSources(sourceWrapper);
         Map<String, TargetConfig> targetsByName = indexTargets(targetWrapper);
@@ -125,6 +134,77 @@ public class XmlJobScopedGenerationService {
                                               String jobName) {
         applyDefaultSourcePackages(sourceWrapper, jobName);
         applyDefaultTargetPackages(targetWrapper, jobName);
+    }
+
+    private void warnOnDeprecatedGeneratedPackageDrift(SourceWrapper sourceWrapper,
+                                                       TargetWrapper targetWrapper,
+                                                       List<JobConfig.JobStepConfig> steps,
+                                                       String jobName,
+                                                       Path sourceConfigPath,
+                                                       Path targetConfigPath) {
+        Set<String> selectedSourceNames = new LinkedHashSet<>();
+        Set<String> selectedTargetNames = new LinkedHashSet<>();
+        if (steps != null) {
+            for (JobConfig.JobStepConfig step : steps) {
+                if (step == null) {
+                    continue;
+                }
+                if (step.getSource() != null && !step.getSource().isBlank()) {
+                    selectedSourceNames.add(step.getSource().trim());
+                }
+                if (step.getTarget() != null && !step.getTarget().isBlank()) {
+                    selectedTargetNames.add(step.getTarget().trim());
+                }
+            }
+        }
+
+        String derivedSourcePackage = JobScopedPackageNameResolver.resolveSourcePackage(jobName);
+        Map<String, SourceConfig> selectedSourcesByName = new LinkedHashMap<>();
+        if (sourceWrapper != null && sourceWrapper.getSources() != null) {
+            for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
+                if (sourceConfig != null && sourceConfig.getSourceName() != null && !sourceConfig.getSourceName().isBlank()) {
+                    selectedSourcesByName.put(sourceConfig.getSourceName().trim(), sourceConfig);
+                }
+            }
+        }
+        for (String sourceName : selectedSourceNames) {
+            SourceConfig sourceConfig = selectedSourcesByName.get(sourceName);
+            if (sourceConfig != null
+                    && JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(sourceConfig.getPackageName(), derivedSourcePackage)) {
+                    logger.warn(JobScopedPackageNameResolver.buildPackageDriftWarning(
+                            "source config",
+                            sourceConfig.getSourceName(),
+                            jobName,
+                            sourceConfigPath,
+                            sourceConfig.getPackageName(),
+                            derivedSourcePackage
+                    ));
+            }
+        }
+
+        String derivedTargetPackage = JobScopedPackageNameResolver.resolveTargetPackage(jobName);
+        Map<String, TargetConfig> selectedTargetsByName = new LinkedHashMap<>();
+        if (targetWrapper != null && targetWrapper.getTargets() != null) {
+            for (TargetConfig targetConfig : targetWrapper.getTargets()) {
+                if (targetConfig != null && targetConfig.getTargetName() != null && !targetConfig.getTargetName().isBlank()) {
+                    selectedTargetsByName.put(targetConfig.getTargetName().trim(), targetConfig);
+                }
+            }
+        }
+        for (String targetName : selectedTargetNames) {
+            TargetConfig targetConfig = selectedTargetsByName.get(targetName);
+            if (targetConfig != null
+                    && JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(targetConfig.getPackageName(), derivedTargetPackage)) {
+                logger.warn(JobScopedPackageNameResolver.buildPackageDriftWarning(
+                        "target config",
+                        targetConfig.getTargetName(),
+                        jobName,
+                        targetConfigPath,
+                        targetConfig.getPackageName(),
+                        derivedTargetPackage
+                ));
+            }
+        }
     }
 
     private void applyDefaultSourcePackages(SourceWrapper sourceWrapper, String jobName) {
@@ -180,6 +260,15 @@ public class XmlJobScopedGenerationService {
             );
         }
 
+        if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
+            return new JsonTargetConfig(
+                    jsonTargetConfig.getTargetName(),
+                    defaultTargetPackage,
+                    copyColumns(jsonTargetConfig.getFields()),
+                    jsonTargetConfig.getFilePath()
+            );
+        }
+
         if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
             return new RelationalTargetConfig(
                     relationalTargetConfig.getTargetName(),
@@ -206,13 +295,13 @@ public class XmlJobScopedGenerationService {
             }
         }
 
-        return generateFlatModel(config.getPackageName(), config.getSourceName(), config.getFields(), outputRoot,
+        return generateFlatModel(config.getPackageName(), GeneratedModelNamingPolicy.resolveSourceSimpleClassName(config), config.getFields(), outputRoot,
                 "source", config.getSourceName());
     }
 
     private XmlModelGenerationResult generateTargetModel(TargetConfig config, Path targetConfigDirectory, Path outputRoot) {
         if (!(config instanceof XmlTargetConfig xmlTargetConfig)) {
-            return generateFlatModel(config.getPackageName(), config.getTargetName(), config.getFields(), outputRoot,
+            return generateFlatModel(config.getPackageName(), GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(config), config.getFields(), outputRoot,
                     "target", config.getTargetName());
         }
 
@@ -233,6 +322,7 @@ public class XmlJobScopedGenerationService {
     private boolean supportsBuildTimeTargetGeneration(TargetConfig config) {
         return config instanceof XmlTargetConfig
                 || config.getFormat() == com.etl.enums.ModelFormat.CSV
+                || config.getFormat() == com.etl.enums.ModelFormat.JSON
                 || config.getFormat() == com.etl.enums.ModelFormat.RELATIONAL;
     }
 
@@ -254,7 +344,7 @@ public class XmlJobScopedGenerationService {
             return configMapper.fromSourceConfig(config);
         }
         XmlModelDefinition definition = definitionLoader.load(resolveModelDefinitionPath(configDirectory, config.getModelDefinitionPath()));
-        return applyConfigContract(definition, config.getPackageName(), config.getRootElement(), config.getRecordElement());
+        return applySourceConfigContract(definition, config);
     }
 
     private XmlModelDefinition resolveTargetDefinition(XmlTargetConfig config, Path configDirectory) throws IOException {
@@ -262,13 +352,37 @@ public class XmlJobScopedGenerationService {
             return configMapper.fromTargetConfig(config);
         }
         XmlModelDefinition definition = definitionLoader.load(resolveModelDefinitionPath(configDirectory, config.getModelDefinitionPath()));
-        return applyConfigContract(definition, config.getPackageName(), config.getRootElement(), config.getRecordElement());
+        return applyTargetConfigContract(definition, config);
+    }
+
+    private XmlModelDefinition applySourceConfigContract(XmlModelDefinition definition, XmlSourceConfig config) {
+        return applyConfigContract(
+                definition,
+                config.getPackageName(),
+                config.getRootElement(),
+                config.getRecordElement(),
+                GeneratedModelNamingPolicy.resolveXmlRootSimpleClassName(config.getSourceName()),
+                GeneratedModelNamingPolicy.resolveXmlRecordSimpleClassName(config.getSourceName())
+        );
+    }
+
+    private XmlModelDefinition applyTargetConfigContract(XmlModelDefinition definition, XmlTargetConfig config) {
+        return applyConfigContract(
+                definition,
+                config.getPackageName(),
+                config.getRootElement(),
+                config.getRecordElement(),
+                GeneratedModelNamingPolicy.resolveXmlRootSimpleClassName(config.getTargetName()),
+                GeneratedModelNamingPolicy.resolveXmlRecordSimpleClassName(config.getTargetName())
+        );
     }
 
     private XmlModelDefinition applyConfigContract(XmlModelDefinition definition,
                                                    String packageName,
                                                    String rootElement,
-                                                   String recordElement) {
+                                                   String recordElement,
+                                                   String rootClassName,
+                                                   String recordClassName) {
         ValidationUtils.requireNonNull(definition, "XmlModelDefinition must not be null.");
         ValidationUtils.requireNonBlank("Invalid XML generation contract", packageName, rootElement, recordElement);
         if (definition.getRootElement() != null && !rootElement.equals(definition.getRootElement())) {
@@ -280,6 +394,8 @@ public class XmlJobScopedGenerationService {
                     + "' does not match config record element '" + recordElement + "'.");
         }
         definition.setPackageName(packageName);
+        definition.setRootClassName(rootClassName);
+        definition.setRecordClassName(recordClassName);
         definition.setRootElement(rootElement);
         definition.setRecordElement(recordElement);
         return definition;

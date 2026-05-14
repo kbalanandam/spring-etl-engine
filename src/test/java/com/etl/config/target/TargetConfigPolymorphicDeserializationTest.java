@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class TargetConfigPolymorphicDeserializationTest {
 
@@ -20,11 +21,6 @@ class TargetConfigPolymorphicDeserializationTest {
                     rootElement: Customers
                     recordElement: Customer
                     modelDefinitionPath: definitions/customer-target-model.yaml
-                    fields:
-                      - name: id
-                        type: int
-                      - name: name
-                        type: String
                 """;
 
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
@@ -38,6 +34,7 @@ class TargetConfigPolymorphicDeserializationTest {
         assertEquals("Customers", xmlTarget.getRootElement());
         assertEquals("Customer", xmlTarget.getRecordElement());
         assertEquals("definitions/customer-target-model.yaml", xmlTarget.getModelDefinitionPath());
+        assertNull(xmlTarget.getFields());
     }
 
     @Test
@@ -79,6 +76,57 @@ class TargetConfigPolymorphicDeserializationTest {
         assertEquals(WriteMode.INSERT, relationalTarget.getWriteMode());
         assertEquals("sqlserver", relationalTarget.getConnection().getVendor());
         assertEquals("dbo", relationalTarget.getEffectiveSchema());
+    }
+
+    @Test
+    void deserializesJsonTargetConfigFromYamlWithoutPackageName() throws Exception {
+        String yaml = """
+                targets:
+                  - format: json
+                    targetName: EventsJson
+                    filePath: output/events.json
+                    fields:
+                      - name: eventCode
+                        type: String
+                      - name: eventTime
+                        type: String
+                """;
+
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        mapper.findAndRegisterModules();
+
+        TargetWrapper wrapper = mapper.readValue(yaml, TargetWrapper.class);
+        JsonTargetConfig jsonTarget = assertInstanceOf(JsonTargetConfig.class, wrapper.getTargets().get(0));
+
+        assertEquals("EventsJson", jsonTarget.getTargetName());
+        assertEquals("output/events.json", jsonTarget.getFilePath());
+        assertNull(jsonTarget.getPackageName());
+        assertEquals(2, jsonTarget.getFields().size());
+    }
+
+    @Test
+    void defaultsCsvTargetDelimiterToCommaWhenOmitted() throws Exception {
+        String yaml = """
+                targets:
+                  - format: csv
+                    targetName: EventsCsv
+                    filePath: output/events.csv
+                    fields:
+                      - name: eventCode
+                        type: String
+                      - name: eventTime
+                        type: String
+                """;
+
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        mapper.findAndRegisterModules();
+
+        TargetWrapper wrapper = mapper.readValue(yaml, TargetWrapper.class);
+        CsvTargetConfig csvTarget = assertInstanceOf(CsvTargetConfig.class, wrapper.getTargets().get(0));
+
+        assertEquals("EventsCsv", csvTarget.getTargetName());
+        assertEquals("output/events.csv", csvTarget.getFilePath());
+        assertEquals(CsvTargetConfig.DEFAULT_DELIMITER, csvTarget.getDelimiter());
     }
 }
 

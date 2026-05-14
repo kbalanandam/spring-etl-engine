@@ -8,7 +8,7 @@ Add a small job-level enable/disable contract so a selected `job-config.yaml` ca
 
 - Epic: **Epic A**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **Done**
 - Milestone: **M1**
 - Dependency: **A2**
 
@@ -68,12 +68,12 @@ Expected impact when this item ships:
 
 ## Acceptance criteria
 
-- [ ] a selected job with `isActive: false` fails during explicit job-config startup
-- [ ] missing `isActive` preserves current behavior
-- [ ] `isActive: true` preserves current behavior
-- [ ] failure happens before downstream config resolution and step wiring
-- [ ] the failure message includes job/scenario identity and the resolved `job-config.yaml` path
-- [ ] documentation and tests ship in the same change
+- [x] a selected job with `isActive: false` fails during explicit job-config startup
+- [x] missing `isActive` preserves current behavior
+- [x] `isActive: true` preserves current behavior
+- [x] failure happens before downstream config resolution and step wiring
+- [x] the failure message includes job/scenario identity and the resolved `job-config.yaml` path
+- [x] documentation and tests ship in the same change
 
 ## Related docs
 
@@ -88,5 +88,5 @@ Keep the first slice job-level only. Do not push activation decisions down into 
 
 ## Status notes
 
-Drafted as the first backlog drill-down page so the execution board can stay compact while still linking to fuller implementation detail.
+Shipped as a first job-level slice only. The implementation stays in `ConfigLoader`, defaults omitted `isActive` to active behavior, and deliberately avoids step-level activation or scheduler semantics.
 

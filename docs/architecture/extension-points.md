@@ -59,6 +59,12 @@ Validation and field-level processing behavior now use both shipped and planned 
 4. handle any special write-class / wrapper contract explicitly
 5. add tests and docs
 
+Current shipped target formats now include flat CSV, flat JSON, XML, and phase-1 relational targets. Flat JSON follows the same non-wrapper generated-model contract as other flat targets, while XML remains the only shipped target format with distinct processing-vs-write classes.
+
+For the current file-based target writers, keep publication semantics aligned to the shared staged-file lifecycle: write to a sibling `.part` artifact first, promote to the configured final path only after successful step completion, and clean failed staged artifacts before they can be mistaken for published output.
+
+When a selected explicit job omits `packageName` on source or target configs, keep the runtime aligned to the shared job-scoped derivation contract through `JobScopedPackageNameResolver` instead of reintroducing per-format handwritten package requirements.
+
 ## How to add a new processor type
 
 1. implement `DynamicProcessor`
@@ -169,6 +175,11 @@ flowchart LR
 - prefer composition over vendor-specific config duplication
 - centralize runtime contracts instead of scattering conventions
 - add new behaviors through factories instead of conditionals spread across the codebase
+- fail fast when two runtime implementations try to register the same factory-dispatch key so extension wiring stays deterministic; the current bridge reader and writer factories both enforce this at registration time
+- keep reader/writer factory registration and construction failures categorized as `factory`; the current bridge factories may still expose format-specific missing-dispatch exceptions such as `NoReaderFoundException` and `NoWriterFoundException`, while stream/read/write lifecycle failures should surface through the runtime failure category used by operator-facing diagnostics
+- on the active reader path, CSV, XML, and relational readers currently share `RuntimeCategorizingItemStreamReader` so delegate `read` and optional `ItemStream` lifecycle failures are categorized consistently across source formats without duplicating that wrapper logic per reader
+- CSV field binding on the active reader path now fails during mapper initialization when a configured field does not match a writable property on the target class, instead of silently skipping that mismatch
+- reader-side adapters that implement Spring Batch contracts should preserve the framework nullability signature as part of the active runtime contract; for example, `FieldSetMapper.mapFieldSet` in `DynamicFieldSetMapper` should keep the package-level non-null return/parameter expectations exposed by Spring Batch
 - document every new runtime path when it is introduced
 
 ## Likely next extension areas

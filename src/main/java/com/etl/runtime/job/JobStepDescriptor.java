@@ -8,6 +8,10 @@ import java.util.Objects;
 
 /**
  * Self-explanatory descriptor for one executable flow unit inside a selected scenario.
+ *
+ * <p>A step descriptor combines the business-facing step identity with the concrete runtime
+ * pieces used by execution: selected source config, selected target config, processor mapping,
+ * model-resolution metadata, execution hints, and input/output handoff semantics.</p>
  */
 public record JobStepDescriptor(
 		String stepName,

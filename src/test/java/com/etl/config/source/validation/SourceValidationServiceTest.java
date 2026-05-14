@@ -16,6 +16,7 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -167,7 +168,7 @@ class SourceValidationServiceTest {
 		Files.writeString(xmlFile, """
 				<?xml version="1.0" encoding="UTF-8"?>
 				<Customers>
-				  <Customer><id>1</id></Customer>
+				  <Customer><id>ABC</id></Customer>
 				</Customers>
 				""");
 		Path rejectDir = tempDir.resolve("xml-rejects");
@@ -194,6 +195,80 @@ class SourceValidationServiceTest {
 			assertNotNull(rejected);
 			assertTrue(rejected.getFileName().toString().endsWith("bad-name.xml"));
 		}
+	}
+
+	@Test
+	void rejectsXmlFileWhenRootElementValidationFailsAndOnFailureIsRejectFile() throws IOException {
+		Path xmlFile = tempDir.resolve("customers.xml");
+		Files.writeString(xmlFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<Clients>
+				  <Customer><id>1</id></Customer>
+				</Clients>
+				""");
+		Path rejectDir = tempDir.resolve("xml-root-rejects");
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		XmlSourceConfig.ValidationConfig validation = rejectFileValidation(rejectDir);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("rootElement"));
+		assertRejected(xmlFile, rejectDir, "customers.xml");
+	}
+
+	@Test
+	void rejectsXmlFileWhenRecordElementValidationFailsAndOnFailureIsRejectFile() throws IOException {
+		Path xmlFile = tempDir.resolve("customers.xml");
+		Files.writeString(xmlFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<Customers>
+				  <Client><id>1</id></Client>
+				</Customers>
+				""");
+		Path rejectDir = tempDir.resolve("xml-record-rejects");
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		XmlSourceConfig.ValidationConfig validation = rejectFileValidation(rejectDir);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("record element"));
+		assertRejected(xmlFile, rejectDir, "customers.xml");
+	}
+
+	@Test
+	void rejectsXmlFileWhenXmlIsMalformedAndOnFailureIsRejectFile() throws IOException {
+		Path xmlFile = tempDir.resolve("customers.xml");
+		Files.writeString(xmlFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<Customers>
+				  <Customer><id>1</id></Customer>
+				""");
+		Path rejectDir = tempDir.resolve("xml-malformed-rejects");
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		XmlSourceConfig.ValidationConfig validation = rejectFileValidation(rejectDir);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("well-formed"));
+		assertRejected(xmlFile, rejectDir, "customers.xml");
 	}
 
 	@Test
@@ -228,6 +303,42 @@ class SourceValidationServiceTest {
 
 		SourceValidationService service = new SourceValidationService();
 		assertDoesNotThrow(() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml")));
+	}
+
+	@Test
+	void passesWhenCsvValidationHeaderMatchesUsingConfiguredQuoteCharacter() throws IOException {
+		Path csvFile = tempDir.resolve("events-valid-single-quoted-header.csv");
+		Files.writeString(csvFile, "'id','eventTime'\n'EVT-1','08:30:00'\n");
+
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setRequireHeaderMatch(true);
+		validation.setAllowEmpty(false);
+
+		CsvSourceConfig sourceConfig = csvSource(csvFile);
+		CsvSourceConfig.ParserConfig parser = new CsvSourceConfig.ParserConfig();
+		parser.setQuoteCharacter("'");
+		sourceConfig.setParser(parser);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		assertDoesNotThrow(() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml")));
+	}
+
+	@Test
+	void failsFastWhenCsvParserQuoteCharacterIsInvalid() {
+		CsvSourceConfig sourceConfig = csvSource(tempDir.resolve("events.csv"));
+		CsvSourceConfig.ParserConfig parser = new CsvSourceConfig.ParserConfig();
+		parser.setQuoteCharacter("''");
+		sourceConfig.setParser(parser);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("parser.quoteCharacter"));
+		assertTrue(exception.getMessage().contains("exactly one character"));
 	}
 
 	@Test
@@ -336,7 +447,7 @@ class SourceValidationServiceTest {
 		Files.writeString(xmlFile, """
 				<?xml version="1.0" encoding="UTF-8"?>
 				<Customers>
-				  <Customer><id>1</id></Customer>
+				  <Customer><id>ABC</id></Customer>
 				</Customers>
 				""");
 
@@ -345,6 +456,166 @@ class SourceValidationServiceTest {
 				xmlSource(xmlFile),
 				new SourceValidationContext("xml-validation", "tmp/source-config.yaml")
 		));
+	}
+
+	@Test
+	void passesWhenXmlValidationSchemaPathMatchesXmlContract() throws IOException {
+		Path xmlFile = tempDir.resolve("customers.xml");
+		Files.writeString(xmlFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<Customers>
+				  <Customer><id>ABC</id></Customer>
+				</Customers>
+				""");
+		Path schemaFile = tempDir.resolve("customers.xsd");
+		Files.writeString(schemaFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+				  <xs:element name="Customers">
+				    <xs:complexType>
+				      <xs:sequence>
+				        <xs:element name="Customer" maxOccurs="unbounded">
+				          <xs:complexType>
+				            <xs:sequence>
+				              <xs:element name="id" type="xs:string"/>
+				            </xs:sequence>
+				          </xs:complexType>
+				        </xs:element>
+				      </xs:sequence>
+				    </xs:complexType>
+				  </xs:element>
+				</xs:schema>
+				""");
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		XmlSourceConfig.ValidationConfig validation = new XmlSourceConfig.ValidationConfig();
+		validation.setSchemaPath(schemaFile.toString());
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		assertDoesNotThrow(() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml")));
+	}
+
+	@Test
+	void failsFastWhenXmlValidationSchemaPathDoesNotMatchXmlContract() throws IOException {
+		Path xmlFile = tempDir.resolve("customers.xml");
+		Files.writeString(xmlFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<Customers>
+				  <Customer><id>ABC</id></Customer>
+				</Customers>
+				""");
+		Path schemaFile = tempDir.resolve("customers.xsd");
+		Files.writeString(schemaFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+				  <xs:element name="Customers">
+				    <xs:complexType>
+				      <xs:sequence>
+				        <xs:element name="Customer" maxOccurs="unbounded">
+				          <xs:complexType>
+				            <xs:sequence>
+				              <xs:element name="id" type="xs:int"/>
+				            </xs:sequence>
+				          </xs:complexType>
+				        </xs:element>
+				      </xs:sequence>
+				    </xs:complexType>
+				  </xs:element>
+				</xs:schema>
+				""");
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		XmlSourceConfig.ValidationConfig validation = new XmlSourceConfig.ValidationConfig();
+		validation.setSchemaPath(schemaFile.toString());
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("schema validation failed"));
+		assertTrue(exception.getMessage().contains("schemaPath"));
+	}
+
+	@Test
+	void rejectsXmlFileWhenSchemaValidationFailsAndOnFailureIsRejectFile() throws IOException {
+		Path xmlFile = tempDir.resolve("customers.xml");
+		Files.writeString(xmlFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<Customers>
+				  <Customer><id>ABC</id></Customer>
+				</Customers>
+				""");
+		Path schemaFile = tempDir.resolve("customers.xsd");
+		Files.writeString(schemaFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+				  <xs:element name="Customers">
+				    <xs:complexType>
+				      <xs:sequence>
+				        <xs:element name="Customer" maxOccurs="unbounded">
+				          <xs:complexType>
+				            <xs:sequence>
+				              <xs:element name="id" type="xs:int"/>
+				            </xs:sequence>
+				          </xs:complexType>
+				        </xs:element>
+				      </xs:sequence>
+				    </xs:complexType>
+				  </xs:element>
+				</xs:schema>
+				""");
+		Path rejectDir = tempDir.resolve("xml-schema-rejects");
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		XmlSourceConfig.ValidationConfig validation = new XmlSourceConfig.ValidationConfig();
+		validation.setSchemaPath(schemaFile.toString());
+		validation.setOnFailure("rejectFile");
+		validation.setRejectPath(rejectDir.toString());
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("schema validation failed"));
+		assertTrue(exception.getMessage().contains("moved to reject path"));
+		assertFalse(Files.exists(xmlFile));
+		try (var rejectedFiles = Files.list(rejectDir)) {
+			Path rejected = rejectedFiles.findFirst().orElse(null);
+			assertNotNull(rejected);
+			assertEquals("customers.xml", rejected.getFileName().toString());
+		}
+	}
+
+	@Test
+	void failsFastWhenXmlValidationSchemaPathDoesNotExist() throws IOException {
+		Path xmlFile = tempDir.resolve("customers.xml");
+		Files.writeString(xmlFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<Customers>
+				  <Customer><id>1</id></Customer>
+				</Customers>
+				""");
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		XmlSourceConfig.ValidationConfig validation = new XmlSourceConfig.ValidationConfig();
+		validation.setSchemaPath(tempDir.resolve("missing-customers.xsd").toString());
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("schemaPath must exist"));
+		assertTrue(Files.exists(xmlFile));
 	}
 
 	private CsvSourceConfig csvSource(Path filePath) {
@@ -376,6 +647,22 @@ class SourceValidationServiceTest {
 		sourceConfig.setRecordElement("Customer");
 		sourceConfig.setFields(List.of(column("id")));
 		return sourceConfig;
+	}
+
+	private XmlSourceConfig.ValidationConfig rejectFileValidation(Path rejectDir) {
+		XmlSourceConfig.ValidationConfig validation = new XmlSourceConfig.ValidationConfig();
+		validation.setOnFailure("rejectFile");
+		validation.setRejectPath(rejectDir.toString());
+		return validation;
+	}
+
+	private void assertRejected(Path originalFile, Path rejectDir, String expectedFileName) throws IOException {
+		assertTrue(Files.notExists(originalFile));
+		try (var rejectedFiles = Files.list(rejectDir)) {
+			Path rejected = rejectedFiles.findFirst().orElse(null);
+			assertNotNull(rejected);
+			assertEquals(expectedFileName, rejected.getFileName().toString());
+		}
 	}
 
 	private static final class TestSourceConfig extends SourceConfig {

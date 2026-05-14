@@ -9,6 +9,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Collections;
 
+/**
+ * Evaluates configured processor transforms for one mapped field value.
+ *
+ * <p><strong>Transition status:</strong> REUSE.</p>
+ *
+ * <p>This class is the active transform SPI dispatcher. It keeps transform registration strict,
+ * executes transforms in authored order, and provides a contextual view of already-resolved field
+ * values so multi-field normalization stays deterministic within a single record.</p>
+ */
 @Component
 public class TransformEvaluator {
 
@@ -31,10 +40,16 @@ public class TransformEvaluator {
 		this.transformsByType = Map.copyOf(indexedTransforms);
 	}
 
+	/**
+	 * Convenience overload used by legacy callers that only need field-level transforms.
+	 */
 	public Object apply(Object value, ProcessorConfig.FieldMapping fieldMapping) {
 		return apply(value, null, fieldMapping, null, Map.of());
 	}
 
+	/**
+	 * Applies the configured transforms in declared order for the current mapped field.
+	 */
 	public Object apply(Object value,
 	                 ProcessorConfig.EntityMapping entityMapping,
 	                 ProcessorConfig.FieldMapping fieldMapping,
@@ -56,6 +71,9 @@ public class TransformEvaluator {
 		return transformedValue;
 	}
 
+	/**
+	 * Validates one transform declaration against the active entity mapping before runtime.
+	 */
 	public void validateConfiguration(ProcessorConfig.EntityMapping entityMapping,
 	                               ProcessorConfig.FieldMapping fieldMapping,
 	                               ProcessorConfig.FieldTransform transform) {

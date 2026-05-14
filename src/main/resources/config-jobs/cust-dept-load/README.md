@@ -51,7 +51,6 @@ steps:
 sources:
   - format: csv
     sourceName: Customers
-    packageName: com.etl.generated.job.custdeptload.source
     filePath: src/main/resources/demo-input/Customers.csv
     delimiter: ","
     fields:
@@ -64,7 +63,6 @@ sources:
 
   - format: csv
     sourceName: Department
-    packageName: com.etl.generated.job.custdeptload.source
     filePath: src/main/resources/demo-input/Department.csv
     delimiter: ","
     fields:
@@ -79,7 +77,7 @@ sources:
 - `sources:` is the root list for source definitions.
 - `format: csv` selects the CSV reader for both entities.
 - `sourceName` gives each CSV source a logical identity used by the job step and processor mapping.
-- `packageName` keeps both sources under the same scenario-scoped generated source package.
+- This bundle intentionally omits `packageName`; the runtime derives the shared source-side package from `job-config.yaml -> name`.
 - `filePath` points to the committed demo CSV for each entity.
 - `delimiter` documents the CSV separator.
 - `fields` declares the column order expected by the reader.
@@ -92,7 +90,6 @@ sources:
 targets:
   - format: xml
     targetName: Customers
-    packageName: com.etl.generated.job.custdeptload.target
     filePath: output/customers.xml
     rootElement: Customers
     recordElement: Customer
@@ -106,7 +103,6 @@ targets:
 
   - format: xml
     targetName: Departments
-    packageName: com.etl.generated.job.custdeptload.target
     filePath: output/departments.xml
     rootElement: Departments
     recordElement: Department
@@ -122,7 +118,7 @@ targets:
 - `targets:` is the root list for target definitions.
 - `format: xml` selects the XML writer path.
 - `targetName` is the logical target identity used by the job step and processor mapping.
-- `packageName` points to the scenario-scoped generated target package.
+- This bundle intentionally omits `packageName`; the runtime derives the shared target-side package from `job-config.yaml -> name`.
 - `filePath` fixes the output artifact name for each entity.
 - `rootElement` is the XML document container.
 - `recordElement` is the repeated XML item element.

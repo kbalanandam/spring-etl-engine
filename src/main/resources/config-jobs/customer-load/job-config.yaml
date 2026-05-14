@@ -1,4 +1,5 @@
 name: customer-load
+isActive: true
 sourceConfigPath: source-config.yaml
 targetConfigPath: target-config.yaml
 processorConfigPath: processor-config.yaml

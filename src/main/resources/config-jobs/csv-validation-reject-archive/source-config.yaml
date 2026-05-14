@@ -1,7 +1,6 @@
 sources:
   - format: csv
     sourceName: Events
-    packageName: com.etl.generated.job.csvvalidationrejectarchive.source
     filePath: input/events-validation-input.csv
     delimiter: ","
     archive:

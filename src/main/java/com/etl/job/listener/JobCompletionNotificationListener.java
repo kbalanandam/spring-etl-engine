@@ -21,15 +21,15 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * Emits run-level start, summary, failure, and flow-hierarchy evidence for one job execution.
+ *
+ * <p>This listener is the run-level counterpart to {@link StepLoggingContextListener}. It
+ * establishes job-scope logging fields before execution, emits main-flow/subflow plan evidence,
+ * and then publishes run-summary plus failure diagnostics after the job completes.</p>
+ */
 @Component
 public class JobCompletionNotificationListener implements JobExecutionListener {
-
-	/**
-	 * JobCompletionNotificationListener is a listener that provides notifications
-	 * about the completion of a job. It implements the JobExecutionListener
-	 * interface and is used to log the start and end of a job, as well as its
-	 * status.
-	 */
 
 	private static final Logger logger = LoggerFactory.getLogger(JobCompletionNotificationListener.class);
 	private final JobRuntimeDescriptor jobRuntimeDescriptor;
@@ -45,6 +45,8 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 
 	@Override
 	public void beforeJob(JobExecution jobExecution) {
+		// Seed the run-level MDC/logging context once so all later job and step events share the
+		// same scenario, run-correlation, and flow identifiers.
 		JobParameters jobParameters = jobExecution.getJobParameters();
 		RunLoggingContext.put(RunLoggingContext.SCENARIO, jobParameters.getString("scenario", "unknown-scenario"));
 		RunLoggingContext.put(RunLoggingContext.SCENARIO_LOG_KEY, jobParameters.getString("scenarioLogKey", ""));
@@ -73,6 +75,8 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 	@Override
 	public void afterJob(JobExecution jobExecution) {
 		try {
+			// Roll up executed-step evidence into one operator-facing run summary so published output,
+			// handoff counts, and reject counts can be reconciled at run scope.
 			LocalDateTime startTime = jobExecution.getStartTime();
 			LocalDateTime endTime = jobExecution.getEndTime();
 			Long durationSeconds = startTime != null && endTime != null
@@ -135,6 +139,7 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 		if (jobRuntimeDescriptor == null) {
 			return;
 		}
+		// Plan events describe the synthesized MainFlow/SubFlow view of the selected flat step plan.
 		logger.info("MAIN_FLOW_PLAN event=main_flow_plan scenario={} mainFlow={} subFlow={} recoveryPolicy={} jobExecutionId={} plannedSubFlowCount={} plannedStepCount={} visibleSubFlows={} handoffAliases={} supportsCrossSubFlowHandshake={} supportsBlockingOnUpstreamFailure={} summary={}",
 				jobParameters.getString("scenario", "unknown-scenario"),
 				jobParameters.getString("mainFlow", ""),
@@ -168,6 +173,8 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 		if (jobRuntimeDescriptor == null) {
 			return;
 		}
+		// Subflow summaries are derived from executed steps plus runtime-descriptor control metadata,
+		// not from a separate execution engine.
 		List<JobHierarchyLoggingSupport.SubFlowStatusEvidence> evidence = JobHierarchyLoggingSupport.evaluateSubFlowEvidence(
 				jobRuntimeDescriptor,
 				jobExecution.getStepExecutions(),
