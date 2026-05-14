@@ -53,6 +53,14 @@ class ExistingProjectItem:
     body: str
 
 
+@dataclass
+class FieldBinding:
+    logical_name: str
+    resolved_name: str
+    field: ProjectField
+    value_getter: Any
+
+
 SUPPORTED_PROJECT_FIELD_TYPES = {"SINGLE_SELECT", "TEXT"}
 
 SINGLE_SELECT_OPTION_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
@@ -246,6 +254,61 @@ def resolve_project_field(
             unsupported_match = field
 
     return None, None, unsupported_match
+
+
+def build_field_bindings(
+    fields: dict[str, ProjectField],
+    field_mapping: dict[str, tuple[tuple[str, ...], Any]],
+) -> list[FieldBinding]:
+    bindings: list[FieldBinding] = []
+
+    for logical_name, (candidate_names, value_getter) in field_mapping.items():
+        resolved_name, field, unsupported_field = resolve_project_field(
+            fields,
+            candidate_names,
+            supported_types=SUPPORTED_PROJECT_FIELD_TYPES,
+        )
+        if field is None:
+            if unsupported_field is not None:
+                if logical_name == "Milestone" and unsupported_field.data_type == "MILESTONE":
+                    print(
+                        "WARN  field 'Milestone': project field 'Milestone' uses unsupported type 'MILESTONE'; "
+                        "create a custom text or single-select field named 'Execution Milestone' "
+                        "(or replace the built-in field) and rerun."
+                    )
+                else:
+                    print(
+                        f"WARN  field '{logical_name}': project field '{unsupported_field.name}' uses unsupported type "
+                        f"'{unsupported_field.data_type}'; values will be skipped."
+                    )
+            else:
+                print(
+                    f"WARN  field '{logical_name}': project field is missing; looked for {list(candidate_names)}; "
+                    "values will be skipped."
+                )
+            continue
+
+        if resolved_name != logical_name:
+            if logical_name == "Milestone" and unsupported_field is not None and unsupported_field.data_type == "MILESTONE":
+                print(
+                    "INFO  field 'Milestone': built-in project field 'Milestone' uses unsupported type 'MILESTONE'; "
+                    "using supported fallback field 'Execution Milestone'."
+                )
+            else:
+                print(
+                    f"INFO  field '{logical_name}': using project field '{resolved_name}'."
+                )
+
+        bindings.append(
+            FieldBinding(
+                logical_name=logical_name,
+                resolved_name=resolved_name,
+                field=field,
+                value_getter=value_getter,
+            )
+        )
+
+    return bindings
 
 
 class GitHubProjectClient:
@@ -590,6 +653,7 @@ def sync_items(
         "Milestone": (("Milestone", "Execution Milestone"), lambda item: item.milestone),
         "Dependency": (("Dependency",), lambda item: item.dependency),
     }
+    field_bindings = build_field_bindings(fields, field_mapping)
 
     for item in items:
         desired_title = item.project_title
@@ -613,35 +677,12 @@ def sync_items(
             if not dry_run:
                 client.update_draft_issue(existing.content_id, desired_title, desired_body)
 
-        for field_name, (candidate_names, value_getter) in field_mapping.items():
-            resolved_name, field, unsupported_field = resolve_project_field(
-                fields,
-                candidate_names,
-                supported_types=SUPPORTED_PROJECT_FIELD_TYPES,
-            )
-            if field is None:
-                if unsupported_field is not None:
-                    if field_name == "Milestone" and unsupported_field.data_type == "MILESTONE":
-                        print(
-                            f"WARN  {item.backlog_id}: project field '{unsupported_field.name}' uses unsupported type 'MILESTONE'; "
-                            "create a custom text or single-select field named 'Execution Milestone' (or replace the built-in field) and rerun."
-                        )
-                    else:
-                        print(
-                            f"WARN  {item.backlog_id}: project field '{unsupported_field.name}' uses unsupported type "
-                            f"'{unsupported_field.data_type}'; skipping."
-                        )
-                else:
-                    print(
-                        f"WARN  {item.backlog_id}: project field '{field_name}' is missing; looked for {list(candidate_names)}; skipping."
-                    )
-                continue
-
-            field_value = value_getter(item)
-            print(f"FIELD {item.backlog_id}: {resolved_name} = {field_value}")
+        for binding in field_bindings:
+            field_value = binding.value_getter(item)
+            print(f"FIELD {item.backlog_id}: {binding.resolved_name} = {field_value}")
             actions += 1
             if not dry_run and existing is not None:
-                client.update_field_value(project_id, existing.item_id, field, field_value)
+                client.update_field_value(project_id, existing.item_id, binding.field, field_value)
 
     stale_ids = sorted(set(existing_items) - synced_ids)
     for stale_id in stale_ids:

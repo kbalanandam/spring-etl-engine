@@ -1,9 +1,11 @@
 import importlib.util
+import io
 import sys
 import tempfile
 import textwrap
 import unittest
 from pathlib import Path
+from contextlib import redirect_stdout
 
 
 MODULE_PATH = Path(__file__).resolve().parents[1] / "sync_project_board.py"
@@ -15,6 +17,20 @@ SPEC.loader.exec_module(sync_project_board)
 
 
 class SyncProjectBoardTests(unittest.TestCase):
+    @staticmethod
+    def make_item(backlog_id: str) -> object:
+        return sync_project_board.BacklogItem(
+            backlog_id=backlog_id,
+            id_link=None,
+            item=f"Item {backlog_id}",
+            epic="Epic A",
+            priority="P1",
+            status="Ready",
+            milestone="M1",
+            dependency="none",
+            notes="",
+        )
+
     def test_filter_graphql_errors_ignores_expected_owner_not_found(self) -> None:
         errors = [
             {
@@ -113,6 +129,106 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertEqual("SINGLE_SELECT", field.data_type)
         self.assertIsNotNone(unsupported_field)
         self.assertEqual("MILESTONE", unsupported_field.data_type)
+
+    def test_build_field_bindings_warns_once_for_unsupported_builtin_milestone(self) -> None:
+        field_mapping = {
+            "Status": (("Status",), lambda item: item.status),
+            "Milestone": (("Milestone", "Execution Milestone"), lambda item: item.milestone),
+        }
+        fields = {
+            "Status": sync_project_board.ProjectField(
+                field_id="field-status",
+                name="Status",
+                data_type="TEXT",
+                options_by_name={},
+            ),
+            "Milestone": sync_project_board.ProjectField(
+                field_id="field-milestone",
+                name="Milestone",
+                data_type="MILESTONE",
+                options_by_name={},
+            ),
+        }
+
+        output = io.StringIO()
+        with redirect_stdout(output):
+            bindings = sync_project_board.build_field_bindings(fields, field_mapping)
+
+        self.assertEqual(["Status"], [binding.logical_name for binding in bindings])
+        self.assertEqual(1, output.getvalue().count("unsupported type 'MILESTONE'"))
+
+    def test_sync_items_uses_execution_milestone_fallback_without_repeated_warning(self) -> None:
+        item_one = self.make_item("A1")
+        item_two = self.make_item("A2")
+
+        class FakeClient:
+            def get_project(self) -> tuple[str, dict[str, object], dict[str, object]]:
+                fields = {
+                    "Status": sync_project_board.ProjectField(
+                        field_id="field-status",
+                        name="Status",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Priority": sync_project_board.ProjectField(
+                        field_id="field-priority",
+                        name="Priority",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Epic": sync_project_board.ProjectField(
+                        field_id="field-epic",
+                        name="Epic",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Milestone": sync_project_board.ProjectField(
+                        field_id="field-milestone-built-in",
+                        name="Milestone",
+                        data_type="MILESTONE",
+                        options_by_name={},
+                    ),
+                    "Execution Milestone": sync_project_board.ProjectField(
+                        field_id="field-execution-milestone",
+                        name="Execution Milestone",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Dependency": sync_project_board.ProjectField(
+                        field_id="field-dependency",
+                        name="Dependency",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                }
+                existing_items = {
+                    "A1": sync_project_board.ExistingProjectItem(
+                        item_id="item-a1",
+                        content_id="draft-a1",
+                        content_type="DraftIssue",
+                        title=item_one.project_title,
+                        body=sync_project_board.build_project_body(item_one, public_mode=False),
+                    ),
+                    "A2": sync_project_board.ExistingProjectItem(
+                        item_id="item-a2",
+                        content_id="draft-a2",
+                        content_type="DraftIssue",
+                        title=item_two.project_title,
+                        body=sync_project_board.build_project_body(item_two, public_mode=False),
+                    ),
+                }
+                return "project-1", fields, existing_items
+
+        output = io.StringIO()
+        with redirect_stdout(output):
+            actions = sync_project_board.sync_items(FakeClient(), [item_one, item_two], dry_run=True, public_mode=False)
+
+        rendered = output.getvalue()
+        self.assertEqual(10, actions)
+        self.assertEqual(1, rendered.count("using supported fallback field 'Execution Milestone'"))
+        self.assertEqual(0, rendered.count("create a custom text or single-select field named 'Execution Milestone'"))
+        self.assertIn("FIELD A1: Execution Milestone = M1", rendered)
+        self.assertIn("FIELD A2: Execution Milestone = M1", rendered)
 
     def test_parse_backlog_items_reads_current_execution_board(self) -> None:
         markdown = textwrap.dedent(

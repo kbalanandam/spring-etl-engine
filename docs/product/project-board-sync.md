@@ -69,6 +69,11 @@ Use one of these setups:
 
 The sync now looks for `Milestone` first and falls back to `Execution Milestone` when needed.
 
+During sync preflight, field-shape validation is reported once per run rather than once per backlog row:
+
+- if only the built-in `Milestone` field is present, the sync emits one warning telling you to create `Execution Milestone` or replace the built-in field
+- if a supported `Execution Milestone` field is present, the sync emits one informational message and then writes execution-board milestone values into that fallback field
+
 For single-select fields, the Project options must already contain the values used in the Markdown table.
 
 Recommended `Status` options:
