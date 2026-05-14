@@ -39,6 +39,24 @@ The sync currently supports:
 - `Status` as a **single-select** or **text** field
 - `Priority`, `Epic`, `Milestone`, and `Dependency` as **single-select** or **text** fields
 
+### Important `Status` note
+
+The preferred setup is still a custom `Status` field whose option names exactly match the backlog table:
+
+- `Ready`
+- `In Progress`
+- `Blocked`
+- `Done`
+- `Deferred`
+
+To reduce operator friction during first-time setup, the sync also tolerates a small alias set for `Status` single-select fields:
+
+- `Ready` → `Todo`, `To do`, `To-do`
+- `In Progress` → `In progress`, `In-Progress`, `InProgress`
+- `Done` → `Completed`, `Complete`
+
+That alias support is only a compatibility bridge. The most predictable setup remains using the exact backlog labels in the Project field options.
+
 ### Important `Milestone` note
 
 GitHub Projects also exposes a built-in field named `Milestone` with data type `MILESTONE`.

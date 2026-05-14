@@ -55,6 +55,14 @@ class ExistingProjectItem:
 
 SUPPORTED_PROJECT_FIELD_TYPES = {"SINGLE_SELECT", "TEXT"}
 
+SINGLE_SELECT_OPTION_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
+    "Status": {
+        "Ready": ("Todo", "To do", "To-do"),
+        "In Progress": ("In progress", "In-Progress", "InProgress"),
+        "Done": ("Completed", "Complete"),
+    }
+}
+
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
@@ -66,6 +74,51 @@ def markdown_to_plain_text(value: str) -> str:
     value = value.replace("**", "")
     value = value.replace("*", "")
     return re.sub(r"\s+", " ", value).strip()
+
+
+def normalize_option_label(value: str) -> str:
+    normalized = re.sub(r"[-_]+", " ", value.strip().lower())
+    return re.sub(r"\s+", " ", normalized)
+
+
+def resolve_single_select_option(field: ProjectField, value: str) -> tuple[str, str]:
+    option_id = field.options_by_name.get(value)
+    if option_id is not None:
+        return option_id, value
+
+    normalized_options: dict[str, list[tuple[str, str]]] = {}
+    for option_name, existing_option_id in field.options_by_name.items():
+        normalized_options.setdefault(normalize_option_label(option_name), []).append((option_name, existing_option_id))
+
+    direct_matches = normalized_options.get(normalize_option_label(value), [])
+    if len(direct_matches) == 1:
+        option_name, matched_option_id = direct_matches[0]
+        return matched_option_id, option_name
+    if len(direct_matches) > 1:
+        raise RuntimeError(
+            f"Project field '{field.name}' has ambiguous normalized options for '{value}': "
+            f"{sorted(option_name for option_name, _ in direct_matches)}"
+        )
+
+    alias_values = SINGLE_SELECT_OPTION_ALIASES.get(field.name, {}).get(value, ())
+    alias_matches: list[tuple[str, str]] = []
+    for alias_value in alias_values:
+        alias_matches.extend(normalized_options.get(normalize_option_label(alias_value), []))
+
+    if len(alias_matches) == 1:
+        option_name, matched_option_id = alias_matches[0]
+        return matched_option_id, option_name
+    if len(alias_matches) > 1:
+        raise RuntimeError(
+            f"Project field '{field.name}' has ambiguous alias matches for '{value}': "
+            f"{sorted(option_name for option_name, _ in alias_matches)}"
+        )
+
+    alias_hint = f" Tried aliases: {list(alias_values)}." if alias_values else ""
+    raise RuntimeError(
+        f"Project field '{field.name}' does not contain option '{value}'."
+        f" Existing options: {sorted(field.options_by_name)}.{alias_hint}"
+    )
 
 
 def split_markdown_row(line: str, expected_columns: int | None = None) -> list[str]:
@@ -435,11 +488,7 @@ mutation($draftIssueId: ID!, $title: String!, $body: String!) {
 
     def update_field_value(self, project_id: str, item_id: str, field: ProjectField, value: str) -> None:
         if field.data_type == "SINGLE_SELECT":
-            option_id = field.options_by_name.get(value)
-            if option_id is None:
-                raise RuntimeError(
-                    f"Project field '{field.name}' does not contain option '{value}'. Existing options: {sorted(field.options_by_name)}"
-                )
+            option_id, resolved_option_name = resolve_single_select_option(field, value)
             mutation = """
 mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
   updateProjectV2ItemFieldValue(
@@ -465,6 +514,10 @@ mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $optionId: String!) {
                     "optionId": option_id,
                 },
             )
+            if resolved_option_name != value:
+                print(
+                    f"INFO  {field.name}: resolved backlog value '{value}' to existing project option '{resolved_option_name}'."
+                )
             return
 
         if field.data_type == "TEXT":

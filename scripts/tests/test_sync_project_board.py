@@ -46,6 +46,46 @@ class SyncProjectBoardTests(unittest.TestCase):
 
         self.assertEqual(errors, filtered)
 
+    def test_resolve_single_select_option_matches_normalized_status_value(self) -> None:
+        field = sync_project_board.ProjectField(
+            field_id="field-status",
+            name="Status",
+            data_type="SINGLE_SELECT",
+            options_by_name={"In progress": "opt-in-progress"},
+        )
+
+        option_id, resolved_name = sync_project_board.resolve_single_select_option(field, "In Progress")
+
+        self.assertEqual("opt-in-progress", option_id)
+        self.assertEqual("In progress", resolved_name)
+
+    def test_resolve_single_select_option_uses_status_aliases(self) -> None:
+        field = sync_project_board.ProjectField(
+            field_id="field-status",
+            name="Status",
+            data_type="SINGLE_SELECT",
+            options_by_name={"Todo": "opt-todo"},
+        )
+
+        option_id, resolved_name = sync_project_board.resolve_single_select_option(field, "Ready")
+
+        self.assertEqual("opt-todo", option_id)
+        self.assertEqual("Todo", resolved_name)
+
+    def test_resolve_single_select_option_reports_aliases_on_failure(self) -> None:
+        field = sync_project_board.ProjectField(
+            field_id="field-status",
+            name="Status",
+            data_type="SINGLE_SELECT",
+            options_by_name={"Blocked": "opt-blocked"},
+        )
+
+        with self.assertRaises(RuntimeError) as context:
+            sync_project_board.resolve_single_select_option(field, "In Progress")
+
+        self.assertIn("Tried aliases", str(context.exception))
+        self.assertIn("In progress", str(context.exception))
+
     def test_resolve_project_field_uses_supported_execution_milestone_alias(self) -> None:
         fields = {
             "Milestone": sync_project_board.ProjectField(
