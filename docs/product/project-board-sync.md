@@ -39,6 +39,41 @@ The sync currently supports:
 - `Status` as a **single-select** or **text** field
 - `Priority`, `Epic`, `Milestone`, and `Dependency` as **single-select** or **text** fields
 
+### Important `Status` note
+
+The preferred setup is still a custom `Status` field whose option names exactly match the backlog table:
+
+- `Ready`
+- `In Progress`
+- `Blocked`
+- `Done`
+- `Deferred`
+
+To reduce operator friction during first-time setup, the sync also tolerates a small alias set for `Status` single-select fields:
+
+- `Ready` → `Todo`, `To do`, `To-do`
+- `In Progress` → `In progress`, `In-Progress`, `InProgress`
+- `Done` → `Completed`, `Complete`
+
+That alias support is only a compatibility bridge. The most predictable setup remains using the exact backlog labels in the Project field options.
+
+### Important `Milestone` note
+
+GitHub Projects also exposes a built-in field named `Milestone` with data type `MILESTONE`.
+That built-in field is **not** the same as the custom execution-board milestone contract and is not currently supported by the sync script.
+
+Use one of these setups:
+
+- preferred: a custom `Milestone` field of type **single-select** or **text**
+- fallback when the built-in field name is already present: a custom `Execution Milestone` field of type **single-select** or **text**
+
+The sync now looks for `Milestone` first and falls back to `Execution Milestone` when needed.
+
+During sync preflight, field-shape validation is reported once per run rather than once per backlog row:
+
+- if only the built-in `Milestone` field is present, the sync emits one warning telling you to create `Execution Milestone` or replace the built-in field
+- if a supported `Execution Milestone` field is present, the sync emits one informational message and then writes execution-board milestone values into that fallback field
+
 For single-select fields, the Project options must already contain the values used in the Markdown table.
 
 Recommended `Status` options:
@@ -76,7 +111,7 @@ Use a Personal Access Token that can update Project V2 items. For private reposi
 ### Variables
 
 - `ONEFLOW_PROJECT_NUMBER` — the numeric project number from the Project URL, for example `3`
-- `ONEFLOW_PROJECT_OWNER` — optional; defaults to the repository owner when omitted
+- `ONEFLOW_PROJECT_OWNER` — optional; defaults to the repository owner when omitted. If the Project URL is user-owned (`/users/<login>/projects/<number>`), set this to that user login. If the Project URL is organization-owned (`/orgs/<org>/projects/<number>`), set it to that organization login.
 - `ONEFLOW_PROJECT_PUBLIC_MODE` — optional; set to `true` to omit internal notes and relative drill-down links from the synced draft-item body
 
 ## Public-mode guidance
