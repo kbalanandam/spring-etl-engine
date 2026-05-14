@@ -39,6 +39,18 @@ The sync currently supports:
 - `Status` as a **single-select** or **text** field
 - `Priority`, `Epic`, `Milestone`, and `Dependency` as **single-select** or **text** fields
 
+### Important `Milestone` note
+
+GitHub Projects also exposes a built-in field named `Milestone` with data type `MILESTONE`.
+That built-in field is **not** the same as the custom execution-board milestone contract and is not currently supported by the sync script.
+
+Use one of these setups:
+
+- preferred: a custom `Milestone` field of type **single-select** or **text**
+- fallback when the built-in field name is already present: a custom `Execution Milestone` field of type **single-select** or **text**
+
+The sync now looks for `Milestone` first and falls back to `Execution Milestone` when needed.
+
 For single-select fields, the Project options must already contain the values used in the Markdown table.
 
 Recommended `Status` options:

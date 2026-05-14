@@ -46,6 +46,34 @@ class SyncProjectBoardTests(unittest.TestCase):
 
         self.assertEqual(errors, filtered)
 
+    def test_resolve_project_field_uses_supported_execution_milestone_alias(self) -> None:
+        fields = {
+            "Milestone": sync_project_board.ProjectField(
+                field_id="field-milestone-built-in",
+                name="Milestone",
+                data_type="MILESTONE",
+                options_by_name={},
+            ),
+            "Execution Milestone": sync_project_board.ProjectField(
+                field_id="field-execution-milestone",
+                name="Execution Milestone",
+                data_type="SINGLE_SELECT",
+                options_by_name={"M1": "opt-m1"},
+            ),
+        }
+
+        resolved_name, field, unsupported_field = sync_project_board.resolve_project_field(
+            fields,
+            ("Milestone", "Execution Milestone"),
+            supported_types=sync_project_board.SUPPORTED_PROJECT_FIELD_TYPES,
+        )
+
+        self.assertEqual("Execution Milestone", resolved_name)
+        self.assertIsNotNone(field)
+        self.assertEqual("SINGLE_SELECT", field.data_type)
+        self.assertIsNotNone(unsupported_field)
+        self.assertEqual("MILESTONE", unsupported_field.data_type)
+
     def test_parse_backlog_items_reads_current_execution_board(self) -> None:
         markdown = textwrap.dedent(
             """

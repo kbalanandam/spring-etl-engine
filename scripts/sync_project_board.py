@@ -53,6 +53,9 @@ class ExistingProjectItem:
     body: str
 
 
+SUPPORTED_PROJECT_FIELD_TYPES = {"SINGLE_SELECT", "TEXT"}
+
+
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
@@ -170,6 +173,26 @@ def build_project_body(item: BacklogItem, public_mode: bool) -> str:
 def extract_sync_marker(body: str) -> str | None:
     match = SYNC_MARKER_PATTERN.search(body or "")
     return match.group(1).strip() if match else None
+
+
+def resolve_project_field(
+    fields: dict[str, ProjectField],
+    candidate_names: tuple[str, ...],
+    supported_types: set[str] | None = None,
+) -> tuple[str | None, ProjectField | None, ProjectField | None]:
+    unsupported_match: ProjectField | None = None
+    supported_types = supported_types or set()
+
+    for name in candidate_names:
+        field = fields.get(name)
+        if field is None:
+            continue
+        if not supported_types or field.data_type in supported_types:
+            return name, field, unsupported_match
+        if unsupported_match is None:
+            unsupported_match = field
+
+    return None, None, unsupported_match
 
 
 class GitHubProjectClient:
@@ -508,11 +531,11 @@ def sync_items(
     actions = 0
 
     field_mapping = {
-        "Status": lambda item: item.status,
-        "Priority": lambda item: item.priority,
-        "Epic": lambda item: item.epic,
-        "Milestone": lambda item: item.milestone,
-        "Dependency": lambda item: item.dependency,
+        "Status": (("Status",), lambda item: item.status),
+        "Priority": (("Priority",), lambda item: item.priority),
+        "Epic": (("Epic",), lambda item: item.epic),
+        "Milestone": (("Milestone", "Execution Milestone"), lambda item: item.milestone),
+        "Dependency": (("Dependency",), lambda item: item.dependency),
     }
 
     for item in items:
@@ -537,14 +560,32 @@ def sync_items(
             if not dry_run:
                 client.update_draft_issue(existing.content_id, desired_title, desired_body)
 
-        for field_name, value_getter in field_mapping.items():
-            field = fields.get(field_name)
+        for field_name, (candidate_names, value_getter) in field_mapping.items():
+            resolved_name, field, unsupported_field = resolve_project_field(
+                fields,
+                candidate_names,
+                supported_types=SUPPORTED_PROJECT_FIELD_TYPES,
+            )
             if field is None:
-                print(f"WARN  {item.backlog_id}: project field '{field_name}' is missing; skipping.")
+                if unsupported_field is not None:
+                    if field_name == "Milestone" and unsupported_field.data_type == "MILESTONE":
+                        print(
+                            f"WARN  {item.backlog_id}: project field '{unsupported_field.name}' uses unsupported type 'MILESTONE'; "
+                            "create a custom text or single-select field named 'Execution Milestone' (or replace the built-in field) and rerun."
+                        )
+                    else:
+                        print(
+                            f"WARN  {item.backlog_id}: project field '{unsupported_field.name}' uses unsupported type "
+                            f"'{unsupported_field.data_type}'; skipping."
+                        )
+                else:
+                    print(
+                        f"WARN  {item.backlog_id}: project field '{field_name}' is missing; looked for {list(candidate_names)}; skipping."
+                    )
                 continue
 
             field_value = value_getter(item)
-            print(f"FIELD {item.backlog_id}: {field_name} = {field_value}")
+            print(f"FIELD {item.backlog_id}: {resolved_name} = {field_value}")
             actions += 1
             if not dry_run and existing is not None:
                 client.update_field_value(project_id, existing.item_id, field, field_value)
