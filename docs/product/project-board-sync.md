@@ -76,7 +76,7 @@ Use a Personal Access Token that can update Project V2 items. For private reposi
 ### Variables
 
 - `ONEFLOW_PROJECT_NUMBER` — the numeric project number from the Project URL, for example `3`
-- `ONEFLOW_PROJECT_OWNER` — optional; defaults to the repository owner when omitted
+- `ONEFLOW_PROJECT_OWNER` — optional; defaults to the repository owner when omitted. If the Project URL is user-owned (`/users/<login>/projects/<number>`), set this to that user login. If the Project URL is organization-owned (`/orgs/<org>/projects/<number>`), set it to that organization login.
 - `ONEFLOW_PROJECT_PUBLIC_MODE` — optional; set to `true` to omit internal notes and relative drill-down links from the synced draft-item body
 
 ## Public-mode guidance

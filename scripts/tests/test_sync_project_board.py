@@ -15,6 +15,37 @@ SPEC.loader.exec_module(sync_project_board)
 
 
 class SyncProjectBoardTests(unittest.TestCase):
+    def test_filter_graphql_errors_ignores_expected_owner_not_found(self) -> None:
+        errors = [
+            {
+                "type": "NOT_FOUND",
+                "path": ["organization"],
+                "message": "Could not resolve to an Organization.",
+            },
+            {
+                "type": "NOT_FOUND",
+                "path": ["user"],
+                "message": "Could not resolve to a User.",
+            },
+        ]
+
+        filtered = sync_project_board.filter_graphql_errors(errors, {"user", "organization"})
+
+        self.assertEqual([], filtered)
+
+    def test_filter_graphql_errors_keeps_non_tolerated_errors(self) -> None:
+        errors = [
+            {
+                "type": "FORBIDDEN",
+                "path": ["user", "projectV2"],
+                "message": "Resource not accessible.",
+            }
+        ]
+
+        filtered = sync_project_board.filter_graphql_errors(errors, {"user", "organization"})
+
+        self.assertEqual(errors, filtered)
+
     def test_parse_backlog_items_reads_current_execution_board(self) -> None:
         markdown = textwrap.dedent(
             """

@@ -178,7 +178,12 @@ class GitHubProjectClient:
         self.owner = owner
         self.project_number = project_number
 
-    def graphql(self, query: str, variables: dict[str, Any]) -> dict[str, Any]:
+    def graphql(
+        self,
+        query: str,
+        variables: dict[str, Any],
+        tolerated_not_found_roots: set[str] | None = None,
+    ) -> dict[str, Any]:
         payload = json.dumps({"query": query, "variables": variables}).encode("utf-8")
         request = urllib.request.Request(
             url="https://api.github.com/graphql",
@@ -197,8 +202,9 @@ class GitHubProjectClient:
             details = exc.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"GitHub GraphQL request failed with HTTP {exc.code}: {details}") from exc
 
-        if parsed.get("errors"):
-            raise RuntimeError(f"GitHub GraphQL returned errors: {json.dumps(parsed['errors'], indent=2)}")
+        errors = filter_graphql_errors(parsed.get("errors") or [], tolerated_not_found_roots or set())
+        if errors:
+            raise RuntimeError(f"GitHub GraphQL returned errors: {json.dumps(errors, indent=2)}")
 
         return parsed["data"]
 
@@ -250,7 +256,11 @@ query($login: String!, $number: Int!) {
 }
 """
 
-        data = self.graphql(fields_query, {"login": self.owner, "number": self.project_number})
+        data = self.graphql(
+            fields_query,
+            {"login": self.owner, "number": self.project_number},
+            tolerated_not_found_roots={"user", "organization"},
+        )
         project = (data.get("user") or {}).get("projectV2") or (data.get("organization") or {}).get("projectV2")
         if project is None:
             raise RuntimeError(
@@ -337,6 +347,7 @@ query($login: String!, $number: Int!, $after: String) {
             page = self.graphql(
                 items_query,
                 {"login": self.owner, "number": self.project_number, "after": cursor},
+                tolerated_not_found_roots={"user", "organization"},
             )
             connection = ((page.get("user") or {}).get("projectV2") or (page.get("organization") or {}).get("projectV2"))["items"]
             for node in connection["nodes"]:
@@ -470,6 +481,20 @@ def print_parse_summary(items: list[BacklogItem]) -> None:
     print(f"Parsed {len(items)} execution-board items from {BACKLOG_SOURCE_PATH}.")
     for item in items:
         print(f" - {item.backlog_id}: {item.status} / {item.priority} / {item.milestone} :: {item.item}")
+
+
+def filter_graphql_errors(errors: list[dict[str, Any]], tolerated_not_found_roots: set[str]) -> list[dict[str, Any]]:
+    remaining: list[dict[str, Any]] = []
+    for error in errors:
+        path = error.get("path") or []
+        if (
+            error.get("type") == "NOT_FOUND"
+            and path
+            and path[0] in tolerated_not_found_roots
+        ):
+            continue
+        remaining.append(error)
+    return remaining
 
 
 def sync_items(
