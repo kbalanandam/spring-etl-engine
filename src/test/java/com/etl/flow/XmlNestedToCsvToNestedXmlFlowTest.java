@@ -1,12 +1,15 @@
 package com.etl.flow;
 
 import com.etl.common.util.GeneratedModelClassResolver;
+import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.common.util.ResolvedModelMetadata;
+import com.etl.config.ColumnConfig;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.config.target.CsvTargetConfig;
+import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.config.target.XmlTargetConfig;
 import com.etl.generation.xml.build.XmlJobScopedGenerationResult;
@@ -62,6 +65,7 @@ class XmlNestedToCsvToNestedXmlFlowTest {
         SourceWrapper sourceWrapper = mapper.readValue(scenarioDir.resolve(jobConfig.getSourceConfigPath()).toFile(), SourceWrapper.class);
         TargetWrapper targetWrapper = mapper.readValue(scenarioDir.resolve(jobConfig.getTargetConfigPath()).toFile(), TargetWrapper.class);
         ProcessorConfig processorConfig = mapper.readValue(scenarioDir.resolve(jobConfig.getProcessorConfigPath()).toFile(), ProcessorConfig.class);
+        applyDerivedPackages(jobConfig, scenarioDir, sourceWrapper, targetWrapper);
 
         XmlSourceConfig xmlSourceConfig = (XmlSourceConfig) sourceWrapper.getSources().stream()
                 .filter(source -> "TagValidationSource".equals(source.getSourceName()))
@@ -87,10 +91,10 @@ class XmlNestedToCsvToNestedXmlFlowTest {
 
         compile(generationResult.allGeneratedFiles(), Path.of("target", "test-classes"));
 
-        Class<?> xmlSourceRecordClass = Class.forName(xmlSourceConfig.getPackageName() + "." + xmlSourceConfig.getRecordElement());
-        Class<?> csvTargetClass = Class.forName(csvTargetConfig.getPackageName() + "." + csvTargetConfig.getTargetName());
-        Class<?> csvSourceRecordClass = Class.forName(csvSourceConfig.getPackageName() + "." + csvSourceConfig.getSourceName());
-        Class<?> xmlTargetRecordClass = Class.forName(xmlTargetConfig.getPackageName() + "." + xmlTargetConfig.getRecordElement());
+        Class<Object> xmlSourceRecordClass = GeneratedModelClassResolver.resolveSourceClass(xmlSourceConfig);
+        Class<?> csvTargetClass = GeneratedModelClassResolver.resolveTargetProcessingClass(csvTargetConfig);
+        Class<Object> csvSourceRecordClass = GeneratedModelClassResolver.resolveSourceClass(csvSourceConfig);
+        Class<?> xmlTargetRecordClass = GeneratedModelClassResolver.resolveTargetProcessingClass(xmlTargetConfig);
         assertNotNull(xmlSourceRecordClass);
         assertNotNull(csvTargetClass);
         assertNotNull(csvSourceRecordClass);
@@ -101,7 +105,7 @@ class XmlNestedToCsvToNestedXmlFlowTest {
         DynamicWriterFactory writerFactory = new DynamicWriterFactory(List.of(new CsvDynamicWriter(), new XmlDynamicWriter()));
 
         ResolvedModelMetadata firstStepMetadata = GeneratedModelClassResolver.resolveMetadata(xmlSourceConfig, csvTargetConfig);
-        ItemReader<Object> firstStepReader = readerFactory.createReader(xmlSourceConfig, (Class<Object>) xmlSourceRecordClass);
+        ItemReader<Object> firstStepReader = readerFactory.createReader(xmlSourceConfig, xmlSourceRecordClass);
         ItemProcessor<Object, Object> firstStepProcessor = processorFactory.getProcessor(processorConfig, xmlSourceConfig, csvTargetConfig, firstStepMetadata);
         ItemWriter<Object> firstStepWriter = writerFactory.createWriter(csvTargetConfig, csvTargetClass);
 
@@ -138,7 +142,7 @@ class XmlNestedToCsvToNestedXmlFlowTest {
         assertTrue(intermediateCsv.contains("0056,1300,0003518358,7064AFP,US,KS,4773316"));
 
         ResolvedModelMetadata secondStepMetadata = GeneratedModelClassResolver.resolveMetadata(csvSourceConfig, xmlTargetConfig);
-        ItemReader<Object> secondStepReader = readerFactory.createReader(csvSourceConfig, (Class<Object>) csvSourceRecordClass);
+        ItemReader<Object> secondStepReader = readerFactory.createReader(csvSourceConfig, csvSourceRecordClass);
         ItemProcessor<Object, Object> secondStepProcessor = processorFactory.getProcessor(processorConfig, csvSourceConfig, xmlTargetConfig, secondStepMetadata);
         ItemWriter<Object> secondStepWriter = writerFactory.createWriter(xmlTargetConfig, xmlTargetRecordClass);
 
@@ -220,8 +224,74 @@ class XmlNestedToCsvToNestedXmlFlowTest {
                         .replace("filePath: output/intermediate/tag-validation-intermediate.csv", "filePath: " + toYamlPath(intermediateCsv))
                         .replace("filePath: output/tag-validation-roundtrip.xml", "filePath: " + toYamlPath(outputFile))
         );
+        Files.writeString(
+                scenarioDir.resolve("job-config.yaml"),
+                Files.readString(scenarioDir.resolve("job-config.yaml"))
+                        .replace("name: xml-nested-to-csv-to-nested-xml", "name: xml-nested-to-csv-to-nested-xml-flow-proof")
+        );
 
         return scenarioDir;
+    }
+
+    private void applyDerivedPackages(JobConfig jobConfig,
+                                      Path scenarioDir,
+                                      SourceWrapper sourceWrapper,
+                                      TargetWrapper targetWrapper) {
+        String jobName = JobScopedPackageNameResolver.deriveJobName(jobConfig, scenarioDir);
+        if (sourceWrapper.getSources() != null) {
+            for (var sourceConfig : sourceWrapper.getSources()) {
+                if (sourceConfig.getPackageName() == null || sourceConfig.getPackageName().isBlank()) {
+                    sourceConfig.setPackageName(JobScopedPackageNameResolver.resolveSourcePackage(jobName));
+                }
+            }
+        }
+        if (targetWrapper.getTargets() != null) {
+            List<TargetConfig> defaultedTargets = new ArrayList<>();
+            for (var target : targetWrapper.getTargets()) {
+                if (target instanceof CsvTargetConfig csvTargetConfig) {
+                    if (csvTargetConfig.getPackageName() == null || csvTargetConfig.getPackageName().isBlank()) {
+                        defaultedTargets.add(new CsvTargetConfig(
+                                csvTargetConfig.getTargetName(),
+                                JobScopedPackageNameResolver.resolveTargetPackage(jobName),
+                                copyFields(csvTargetConfig),
+                                csvTargetConfig.getFilePath(),
+                                csvTargetConfig.getDelimiter(),
+                                csvTargetConfig.isIncludeHeader()
+                        ));
+                    } else {
+                        defaultedTargets.add(csvTargetConfig);
+                    }
+                } else {
+                    XmlTargetConfig xmlTargetConfig = (XmlTargetConfig) target;
+                    if (xmlTargetConfig.getPackageName() == null || xmlTargetConfig.getPackageName().isBlank()) {
+                        defaultedTargets.add(new XmlTargetConfig(
+                                xmlTargetConfig.getTargetName(),
+                                JobScopedPackageNameResolver.resolveTargetPackage(jobName),
+                                copyFields(xmlTargetConfig),
+                                xmlTargetConfig.getFilePath(),
+                                xmlTargetConfig.getRootElement(),
+                                xmlTargetConfig.getRecordElement(),
+                                xmlTargetConfig.getModelDefinitionPath()
+                        ));
+                    } else {
+                        defaultedTargets.add(xmlTargetConfig);
+                    }
+                }
+            }
+            targetWrapper.setTargets(defaultedTargets);
+        }
+    }
+
+    private List<ColumnConfig> copyFields(TargetConfig targetConfig) {
+        if (targetConfig.getFields() == null) {
+            return null;
+        }
+        return targetConfig.getFields().stream().map(field -> {
+            ColumnConfig column = new ColumnConfig();
+            column.setName(field.getName());
+            column.setType(field.getType());
+            return column;
+        }).toList();
     }
 
     private void copyDirectory(Path source, Path target) throws Exception {

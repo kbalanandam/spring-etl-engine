@@ -74,8 +74,8 @@ class XmlSourceToJsonTargetFlowTest {
 
         compile(generationResult.allGeneratedFiles(), Path.of("target", "test-classes"));
 
-        Class<?> sourceRecordClass = Class.forName(sourceConfig.getPackageName() + "." + sourceConfig.getRecordElement());
-        Class<?> targetRecordClass = Class.forName(targetConfig.getPackageName() + "." + targetConfig.getTargetName());
+        Class<?> sourceRecordClass = GeneratedModelClassResolver.resolveSourceClass(sourceConfig);
+        Class<?> targetRecordClass = GeneratedModelClassResolver.resolveTargetProcessingClass(targetConfig);
         assertNotNull(sourceRecordClass);
         assertNotNull(targetRecordClass);
 
@@ -148,6 +148,11 @@ class XmlSourceToJsonTargetFlowTest {
                 scenarioDir.resolve("target-config.yaml"),
                 Files.readString(scenarioDir.resolve("target-config.yaml"))
                         .replaceFirst("(?m)^\\s*filePath:.*$", "    filePath: " + Matcher.quoteReplacement(toYamlPath(outputFile)))
+        );
+        Files.writeString(
+                scenarioDir.resolve("job-config.yaml"),
+                Files.readString(scenarioDir.resolve("job-config.yaml"))
+                        .replace("name: xml-to-json-events", "name: xml-to-json-events-flow-proof")
         );
 
         return scenarioDir;

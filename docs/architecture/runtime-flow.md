@@ -8,7 +8,7 @@ For a format-specific operational deep dive, continue in [`csv-to-xml-runtime-fl
 
 For the target next-direction runtime contract, where one selected scenario becomes the only normal execution boundary and model generation/resolution becomes scenario-scoped, continue in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
 
-For repository-provided preserved bundles, explicit runtime and build-time generation entry points now resolve directly against the checked-in `config-jobs/...` bundle tree, while legacy `config-scenarios/...` paths remain temporarily available as deprecated backward-compatibility aliases.
+For repository-provided preserved bundles, the explicit runtime `etl.config.job` entry path and the build-time generation entry point resolve against the checked-in `config-jobs/...` bundle tree, while legacy `config-scenarios/...` job-config paths remain temporarily available as deprecated backward-compatibility aliases at that entry boundary only.
 
 ## Status
 
@@ -74,7 +74,7 @@ sequenceDiagram
     App->>Loader: resolve selected business scenario
     Loader->>Loader: read etl.config.job
     Loader->>Loader: fail fast if missing unless demo fallback is enabled
-    Loader->>Loader: resolve source/target/processor paths and explicit steps
+    Loader->>Loader: trim and resolve source/target/processor paths plus explicit steps
     Loader->>Loader: validate selected relational configs early and reject placeholder values
     Loader->>Loader: validate selected processor config for the scenario
     Loader->>Resolver: validate required generated model classes for selected steps

@@ -101,12 +101,6 @@ public class ConfigLoader {
 		this.transformEvaluator = transformEvaluator;
 	}
 
-    /**
-     * ConfigLoader is a Spring configuration class that loads YAML configuration
-     * files for source, target, and processor configurations. It uses Jackson's
-     * ObjectMapper to read the YAML files and convert them into Java objects.
-     */
-
     @Bean
     SourceWrapper sourceWrapper() {
 		try {
@@ -230,7 +224,7 @@ public class ConfigLoader {
 		}
 	}
 
-	private ObjectMapper buildYamlMapper() {
+	private static ObjectMapper buildYamlMapper() {
 		ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
 		mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 		mapper.findAndRegisterModules();
@@ -246,9 +240,11 @@ public class ConfigLoader {
 	}
 
 	private <T> T loadYamlConfig(String configuredPath, String fallbackClasspathResource, Class<T> targetType, ObjectMapper mapper) throws IOException {
-		String resolvedConfiguredPath = ConfigBundlePathAliasResolver.resolveExistingPath(configuredPath);
-		File externalFile = new File(resolvedConfiguredPath);
-		if (externalFile.exists() && externalFile.isFile()) {
+		String resolvedConfiguredPath = configuredPath == null ? null : configuredPath.trim();
+		File externalFile = resolvedConfiguredPath == null || resolvedConfiguredPath.isBlank()
+				? null
+				: new File(resolvedConfiguredPath);
+		if (externalFile != null && externalFile.exists() && externalFile.isFile()) {
 			logger.info("Loading {} from external YAML file: {}", targetType.getSimpleName(), resolvedConfiguredPath);
 			if (logger.isDebugEnabled()) {
 				logger.debug("YAML content from {}:\n{}", resolvedConfiguredPath, readString(externalFile.toPath()));
@@ -268,9 +264,11 @@ public class ConfigLoader {
 	}
 
 	private <T> T loadRequiredExternalYamlConfig(String configuredPath, Class<T> targetType, ObjectMapper mapper) throws IOException {
-		String resolvedConfiguredPath = ConfigBundlePathAliasResolver.resolveExistingPath(configuredPath);
-		File externalFile = new File(resolvedConfiguredPath);
-		if (!externalFile.exists() || !externalFile.isFile()) {
+		String resolvedConfiguredPath = configuredPath == null ? null : configuredPath.trim();
+		File externalFile = resolvedConfiguredPath == null || resolvedConfiguredPath.isBlank()
+				? null
+				: new File(resolvedConfiguredPath);
+		if (externalFile == null || !externalFile.exists() || !externalFile.isFile()) {
 			throw new IOException("Required YAML file not found: " + configuredPath);
 		}
 
@@ -378,7 +376,7 @@ public class ConfigLoader {
 		);
 	}
 
-	private String requireExplicitJobName(JobConfig jobConfig, Path jobConfigPath) {
+	private static String requireExplicitJobName(JobConfig jobConfig, Path jobConfigPath) {
 		try {
 			return JobScopedPackageNameResolver.requireExplicitJobName(jobConfig, jobConfigPath);
 		} catch (IllegalStateException e) {
@@ -386,7 +384,7 @@ public class ConfigLoader {
 		}
 	}
 
-	private String resolveSelectedJobConfigPath(String configuredJobConfigPath) {
+	private static String resolveSelectedJobConfigPath(String configuredJobConfigPath) {
 		String resolvedPath = ConfigBundlePathAliasResolver.resolveExistingPath(configuredJobConfigPath);
 		if (configuredJobConfigPath != null
 				&& !configuredJobConfigPath.isBlank()
@@ -444,17 +442,8 @@ public class ConfigLoader {
 	private List<JobConfig.JobStepConfig> synthesizeDemoSteps(SourceWrapper sourceWrapper,
 	                                                        TargetWrapper targetWrapper,
 	                                                        ProcessorConfig processorConfig) {
-		List<? extends com.etl.config.source.SourceConfig> sources = sourceWrapper.getSources();
-		List<com.etl.config.target.TargetConfig> targets = targetWrapper.getTargets();
-		if (sources == null || sources.isEmpty()) {
-			throw new ConfigException("Demo fallback source configuration contains no sources.");
-		}
-		if (targets == null || targets.isEmpty()) {
-			throw new ConfigException("Demo fallback target configuration contains no targets.");
-		}
-		if (sources.size() != targets.size()) {
-			throw new ConfigException("Demo fallback requires the same number of sources and targets because it synthesizes step definitions by index.");
-		}
+		List<? extends SourceConfig> sources = sourceWrapper.getSources();
+		List<TargetConfig> targets = requireDemoFallbackTargets(targetWrapper, sources);
 
 		List<JobConfig.JobStepConfig> synthesizedSteps = new ArrayList<>();
 		for (int i = 0; i < sources.size(); i++) {
@@ -471,6 +460,20 @@ public class ConfigLoader {
 		}
 
 		return List.copyOf(synthesizedSteps);
+	}
+
+	private static List<TargetConfig> requireDemoFallbackTargets(TargetWrapper targetWrapper, List<? extends SourceConfig> sources) {
+		List<TargetConfig> targets = targetWrapper.getTargets();
+		if (sources == null || sources.isEmpty()) {
+			throw new ConfigException("Demo fallback source configuration contains no sources.");
+		}
+		if (targets == null || targets.isEmpty()) {
+			throw new ConfigException("Demo fallback target configuration contains no targets.");
+		}
+		if (sources.size() != targets.size()) {
+			throw new ConfigException("Demo fallback requires the same number of sources and targets because it synthesizes step definitions by index.");
+		}
+		return targets;
 	}
 
 	private void validateSelectedGeneratedModelClasses(SourceWrapper sourceWrapper,
@@ -515,7 +518,7 @@ public class ConfigLoader {
 		}
 	}
 
-	private String defaultJobPath(String jobPath) {
+	private static String defaultJobPath(String jobPath) {
 		return jobPath == null || jobPath.isBlank() ? "selected job-config" : jobPath.trim();
 	}
 
@@ -541,7 +544,7 @@ public class ConfigLoader {
 		}
 	}
 
-	private void ensureProcessorMappingExists(ProcessorConfig processorConfig,
+	private static void ensureProcessorMappingExists(ProcessorConfig processorConfig,
 	                                       String stepName,
 	                                       String sourceName,
 	                                       String targetName) {
@@ -556,7 +559,7 @@ public class ConfigLoader {
 		}
 	}
 
-	private Set<String> sourceNames(SourceWrapper sourceWrapper) {
+	private static Set<String> sourceNames(SourceWrapper sourceWrapper) {
 		Set<String> names = new HashSet<>();
 		if (sourceWrapper.getSources() != null) {
 			for (int i = 0; i < sourceWrapper.getSources().size(); i++) {
@@ -567,7 +570,7 @@ public class ConfigLoader {
 		return names;
 	}
 
-	private Set<String> targetNames(TargetWrapper targetWrapper) {
+	private static Set<String> targetNames(TargetWrapper targetWrapper) {
 		Set<String> names = new HashSet<>();
 		if (targetWrapper.getTargets() != null) {
 			for (int i = 0; i < targetWrapper.getTargets().size(); i++) {
@@ -578,7 +581,7 @@ public class ConfigLoader {
 		return names;
 	}
 
-	private String requireNonBlank(String value, String propertyName) {
+	private static String requireNonBlank(String value, String propertyName) {
 		if (value == null || value.isBlank()) {
 			throw new ConfigException("Missing required property '" + propertyName + "'.");
 		}
@@ -664,7 +667,7 @@ public class ConfigLoader {
 		}
 	}
 
-	private void applyDefaultSourcePackages(SourceWrapper sourceWrapper, String scenarioName) {
+	private static void applyDefaultSourcePackages(SourceWrapper sourceWrapper, String scenarioName) {
 		if (sourceWrapper == null || sourceWrapper.getSources() == null) {
 			return;
 		}
@@ -677,7 +680,7 @@ public class ConfigLoader {
 		}
 	}
 
-	private void applyDefaultTargetPackages(TargetWrapper targetWrapper, String scenarioName) {
+	private static void applyDefaultTargetPackages(TargetWrapper targetWrapper, String scenarioName) {
 		if (targetWrapper == null || targetWrapper.getTargets() == null) {
 			return;
 		}
@@ -689,7 +692,7 @@ public class ConfigLoader {
 		targetWrapper.setTargets(List.copyOf(defaultedTargets));
 	}
 
-	private TargetConfig applyDefaultTargetPackage(TargetConfig targetConfig, String scenarioName) {
+	private static TargetConfig applyDefaultTargetPackage(TargetConfig targetConfig, String scenarioName) {
 		if (targetConfig == null || hasText(targetConfig.getPackageName())) {
 			return targetConfig;
 		}
@@ -739,18 +742,19 @@ public class ConfigLoader {
 		return targetConfig;
 	}
 
-	private String resolveReferencedPath(Path jobConfigDirectory, String configuredPath, String propertyName) {
+	private static String resolveReferencedPath(Path jobConfigDirectory, String configuredPath, String propertyName) {
 		if (configuredPath == null || configuredPath.isBlank()) {
 			throw new ConfigException("JobConfig missing required property '" + propertyName + "'");
 		}
 
-		Path path = Path.of(configuredPath);
+		String normalizedPath = configuredPath.trim();
+		Path path = Path.of(normalizedPath);
 		return path.isAbsolute()
 				? path.normalize().toString()
 				: jobConfigDirectory.resolve(path).normalize().toString();
 	}
 
-	private Path parentDirectory(String resolvedConfigPath) {
+	private static Path parentDirectory(String resolvedConfigPath) {
 		Path absolutePath = Path.of(resolvedConfigPath).toAbsolutePath().normalize();
 		Path parent = absolutePath.getParent();
 		return parent == null ? absolutePath : parent;
@@ -783,7 +787,7 @@ public class ConfigLoader {
 		}
 	}
 
-	private void normalizeTargetConfigPaths(TargetWrapper targetWrapper, Path configDirectory) {
+	private static void normalizeTargetConfigPaths(TargetWrapper targetWrapper, Path configDirectory) {
 		if (targetWrapper == null || targetWrapper.getTargets() == null) {
 			return;
 		}
@@ -795,7 +799,7 @@ public class ConfigLoader {
 		targetWrapper.setTargets(List.copyOf(normalizedTargets));
 	}
 
-	private TargetConfig normalizeTargetConfig(TargetConfig targetConfig, Path configDirectory) {
+	private static TargetConfig normalizeTargetConfig(TargetConfig targetConfig, Path configDirectory) {
 		if (targetConfig instanceof CsvTargetConfig csvTargetConfig) {
 			return new CsvTargetConfig(
 					csvTargetConfig.getTargetName(),
@@ -831,7 +835,7 @@ public class ConfigLoader {
 		return targetConfig;
 	}
 
-	private void normalizeProcessorConfigPaths(ProcessorConfig processorConfig, Path configDirectory) {
+	private static void normalizeProcessorConfigPaths(ProcessorConfig processorConfig, Path configDirectory) {
 		if (processorConfig == null || processorConfig.getRejectHandling() == null) {
 			return;
 		}
@@ -840,7 +844,7 @@ public class ConfigLoader {
 		);
 	}
 
-	private List<ColumnConfig> copyColumns(List<? extends FieldDefinition> fields) {
+	private static List<ColumnConfig> copyColumns(List<? extends FieldDefinition> fields) {
 		if (fields == null || fields.isEmpty()) {
 			return List.of();
 		}
@@ -855,7 +859,7 @@ public class ConfigLoader {
 		return List.copyOf(columns);
 	}
 
-	private String resolveScenarioPath(Path configDirectory, String configuredPath) {
+	private static String resolveScenarioPath(Path configDirectory, String configuredPath) {
 		if (configuredPath == null || configuredPath.isBlank()) {
 			return configuredPath;
 		}
@@ -872,7 +876,7 @@ public class ConfigLoader {
 		return configDirectory.resolve(path).normalize().toString();
 	}
 
-	private boolean isWorkingDirectoryRelativeCompatibilityPath(Path path) {
+	private static boolean isWorkingDirectoryRelativeCompatibilityPath(Path path) {
 		if (path.getNameCount() == 0) {
 			return false;
 		}
@@ -883,11 +887,11 @@ public class ConfigLoader {
 				|| "target".equals(firstSegment);
 	}
 
-	private String defaultName(String configuredName) {
+	private static String defaultName(String configuredName) {
 		return configuredName == null || configuredName.isBlank() ? "unnamed" : configuredName.trim();
 	}
 
-	private boolean hasText(String value) {
+	private static boolean hasText(String value) {
 		return value != null && !value.isBlank();
 	}
 
@@ -935,7 +939,7 @@ public class ConfigLoader {
 		}
 	}
 
-	private void validateRejectHandling(ProcessorConfig config) {
+	private static void validateRejectHandling(ProcessorConfig config) {
 		ProcessorConfig.RejectHandling rejectHandling = config.getRejectHandling();
 		if (rejectHandling == null || !rejectHandling.isEnabled()) {
 			return;
@@ -979,7 +983,7 @@ public class ConfigLoader {
 		}
 	}
 
-	private boolean allowsDerivedFieldWithoutSource(ProcessorConfig.FieldMapping fieldMapping) {
+	private static boolean allowsDerivedFieldWithoutSource(ProcessorConfig.FieldMapping fieldMapping) {
 		return fieldMapping != null
 				&& fieldMapping.getTransforms() != null
 				&& !fieldMapping.getTransforms().isEmpty()
@@ -987,7 +991,7 @@ public class ConfigLoader {
 				&& "expression".equalsIgnoreCase(fieldMapping.getTransforms().get(0).getType());
 	}
 
-	private void validateRuleFailureAction(ProcessorConfig config,
+	private static void validateRuleFailureAction(ProcessorConfig config,
 	                                    ProcessorConfig.EntityMapping entityMapping,
 	                                    ProcessorConfig.FieldMapping fieldMapping,
 	                                    ProcessorConfig.FieldRule rule) {

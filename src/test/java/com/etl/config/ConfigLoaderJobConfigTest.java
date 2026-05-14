@@ -225,6 +225,76 @@ class ConfigLoaderJobConfigTest {
         assertEquals(scenarioDir.resolve("rejects").toAbsolutePath().normalize().toString(), processorConfig.getRejectHandling().getOutputPath());
     }
 
+  @Test
+  void trimsReferencedConfigPathsBeforeResolvingThemRelativeToJobConfig() throws IOException {
+    Path scenarioDir = tempDir.resolve("trimmed-relative-config-paths");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.createDirectories(scenarioDir.resolve("output"));
+    Files.writeString(scenarioDir.resolve("input/customers.csv"), "id,name\n1,Alice\n");
+
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+            sources:
+              - format: csv
+                sourceName: Customers
+                packageName: com.etl.model.source
+                filePath: input/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+                  - name: name
+                    type: String
+            """);
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+            targets:
+              - format: csv
+                targetName: CustomersOut
+                packageName: com.etl.model.target
+                filePath: output/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+                  - name: name
+                    type: String
+            """);
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+            type: default
+            mappings:
+              - source: Customers
+                target: CustomersOut
+                fields:
+                  - from: id
+                    to: id
+                  - from: name
+                    to: name
+            """);
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+            name: trimmed-relative-config-paths
+            sourceConfigPath:   source-config.yaml  
+            targetConfigPath:   target-config.yaml  
+            processorConfigPath:   processor-config.yaml  
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+    SourceWrapper sourceWrapper = loader.sourceWrapper();
+    TargetWrapper targetWrapper = loader.targetWrapper();
+    ProcessorConfig processorConfig = loader.processorConfig();
+
+    assertEquals("trimmed-relative-config-paths", metadata.scenarioName());
+    assertEquals("Customers", sourceWrapper.getSources().get(0).getSourceName());
+    assertEquals("CustomersOut", targetWrapper.getTargets().get(0).getTargetName());
+    assertEquals("Customers", processorConfig.getMappings().get(0).getSource());
+  }
+
     @Test
     void derivesDefaultPackagesWhenExplicitJobOmitsSourceAndJsonTargetPackageNames() throws IOException {
         Path scenarioDir = tempDir.resolve("xml-to-json-events");
@@ -908,6 +978,32 @@ class ConfigLoaderJobConfigTest {
     RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
     assertEquals("customer-load", metadata.scenarioName());
     assertEquals(canonicalScenarioDir.resolve("job-config.yaml").toAbsolutePath().normalize().toString(), metadata.jobConfigPath());
+  }
+
+  @Test
+  void doesNotResolveLegacyBundleAliasForReferencedYamlLoadsInsideConfigLoader() throws Exception {
+    Path canonicalSourceConfig = tempDir.resolve("src/main/resources/config-jobs/customer-load/source-config.yaml");
+    Files.createDirectories(canonicalSourceConfig.getParent());
+    Files.writeString(canonicalSourceConfig, "sources:\n  - format: csv\n    sourceName: Customers\n");
+
+    Path requestedAliasSourceConfig = tempDir.resolve("src/main/resources/config-scenarios/customer-load/source-config.yaml");
+
+    ConfigLoader loader = new ConfigLoader();
+
+    var method = ConfigLoader.class.getDeclaredMethod("loadRequiredExternalYamlConfig", String.class, Class.class);
+    method.setAccessible(true);
+
+    IOException exception = assertThrows(IOException.class,
+            () -> {
+              try {
+                method.invoke(loader, requestedAliasSourceConfig.toString(), SourceWrapper.class);
+              } catch (java.lang.reflect.InvocationTargetException e) {
+                throw e.getCause();
+              }
+            });
+
+    assertTrue(exception.getMessage().contains("Required YAML file not found"));
+    assertTrue(exception.getMessage().contains(requestedAliasSourceConfig.toString()));
   }
 
   @Test

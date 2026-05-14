@@ -3,7 +3,6 @@ package com.etl.job.listener;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.etl.common.util.ConfigBundlePathAliasResolver;
 import com.etl.config.exception.ConfigException;
 import com.etl.config.ColumnConfig;
 import com.etl.config.processor.ProcessorConfig;
@@ -370,13 +369,9 @@ class LoggingContextListenerTest {
 
     private static String resourcePath(String resourceName) {
         try {
-            String resolvedResourceName = ConfigBundlePathAliasResolver.resolveExistingResourceName(
-                    LoggingContextListenerTest.class.getClassLoader(),
-                    resourceName
-            );
             return Path.of(Objects.requireNonNull(
-                    LoggingContextListenerTest.class.getClassLoader().getResource(resolvedResourceName),
-                    () -> "Missing test resource: " + resolvedResourceName
+              LoggingContextListenerTest.class.getClassLoader().getResource(resourceName),
+              () -> "Missing test resource: " + resourceName
             ).toURI()).toString();
         } catch (URISyntaxException e) {
             throw new IllegalStateException("Failed to resolve test resource: " + resourceName, e);
