@@ -52,7 +52,7 @@ This keeps the docs readable for new authors while still keeping them executable
 
 Use this reading order when authoring or reviewing one scenario:
 
-1. [`Job config reference`](job-config.md) — start here; this is the primary entry point for one selected run
+1. [`Job config reference`](job-config.md) — start here; this is the primary entry point for one selected run, including the shipped optional `isActive` startup guardrail on `job-config.yaml`
 2. one source reference such as [`CSV source reference`](source/csv-source.md), [`XML source reference`](source/xml-source.md), or [`Relational source reference`](source/relational-source.md)
 3. one target reference such as [`CSV target reference`](target/csv-target.md), [`JSON target reference`](target/json-target.md), [`XML target reference`](target/xml-target.md), or [`Relational target reference`](target/relational-target.md)
 4. [`Default processor reference`](processor/default-processor.md) — define field mappings, transforms, and rules

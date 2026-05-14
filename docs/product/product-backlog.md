@@ -170,7 +170,7 @@ This table is the day-to-day execution view for the current product stage.
 |---|---|---|---|---|---|---|---|
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
-| [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Ready | M1 | A2 | Future `job-config.yaml isActive` contract should fail fast in `ConfigLoader` with job-aware startup errors; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
+| [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Done | M1 | A2 | Shipped through optional top-level `job-config.yaml -> isActive`, with fail-fast `ConfigLoader` startup errors before referenced config resolution; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
 | [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | In Progress | M2 | A2 | Explicit job mode now ships derived package defaults, required non-blank job names, and first naming guardrails for cross-step handoff reuse plus normalization collisions; remaining work is the broader bridge tightening and package-free config direction described in [`Generated model naming standard`](../architecture/generated-model-naming-standard.md) |
 | [A5](backlog-items/A5-relational-source-column-alias-contract.md) | Add relational source column alias contract and reader mapping | Epic A | P2 | Deferred | M2 | none | Parked for later review so relational reads can support source-column-to-property differences without disturbing the current phase-1 baseline |
 | T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
@@ -313,7 +313,7 @@ Make each run explicit, predictable, and less fragile.
 ### Backlog
 - [x] Replace positional source-target pairing with explicit step pairing or step definitions
 - [x] Validate scenario completeness before job start
-- [ ] Add job-level activation guardrail so `isActive: false` blocks the selected job before wiring
+- [x] Add job-level activation guardrail so `isActive: false` blocks the selected job before wiring
 - [ ] Complete the remaining generated-model naming and validation standard after the shipped optional-`packageName` bridge for explicit jobs
 - [ ] Add a relational source column alias contract so selected database column names can differ from generated/runtime property names without ad hoc query-only workarounds
 - [ ] Add stronger config validation error messages for operators

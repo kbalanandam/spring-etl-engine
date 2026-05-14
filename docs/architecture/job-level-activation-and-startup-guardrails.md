@@ -2,14 +2,14 @@
 
 ## Purpose
 
-This note captures the future direction for a small but important runtime guardrail: allow one selected `job-config.yaml` to be marked inactive and fail startup before the job is wired.
+This note captures the shipped first slice of a small but important runtime guardrail: allow one selected `job-config.yaml` to be marked inactive and fail startup before the job is wired.
 
-It exists as a backlog-oriented architecture note so the product can add job enable/disable behavior without weakening the current strict explicit-job runtime model.
+It preserves the architecture rationale for the shipped job enable/disable behavior without weakening the current strict explicit-job runtime model.
 
 ## Status
 
-- Classification: **Future direction**
-- The Mermaid diagrams in this document describe the preferred future direction, not a shipped runtime path today.
+- Classification: **Current runtime**
+- The Mermaid diagrams in this document now describe the shipped first-slice runtime guardrail.
 
 ## Scope
 
@@ -50,7 +50,7 @@ The first version of this feature should stay small and preserve the existing ex
 
 ## Flow
 
-Future-only, not shipped today: this diagram shows the intended target shape.
+This diagram shows the shipped first-slice guardrail shape.
 
 ```mermaid
 flowchart TD
@@ -67,9 +67,9 @@ flowchart TD
     J --> K[Stop before step wiring and execution]
 ```
 
-## Proposed contract
+## Shipped contract
 
-The preferred first contract is an optional top-level field on `job-config.yaml`:
+The shipped first contract is an optional top-level field on `job-config.yaml`:
 
 ```yaml
 name: customer-load
@@ -92,9 +92,9 @@ steps:
 - there is no alternate job selection and no silent skip
 - demo fallback behavior is unchanged and remains a separate concern
 
-## Preferred validation point
+## Validation point
 
-The preferred enforcement point is `ConfigLoader`, immediately after parsing the selected `job-config.yaml` and before referenced config paths are resolved.
+The shipped enforcement point is `ConfigLoader`, immediately after parsing the selected `job-config.yaml` and before referenced config paths are resolved.
 
 That placement is preferred because:
 
@@ -107,8 +107,8 @@ That placement is preferred because:
 
 ## Key Components / Classes
 
-- `src/main/java/com/etl/config/job/JobConfig.java` — future home of optional `isActive`
-- `src/main/java/com/etl/config/ConfigLoader.java` — preferred fail-fast guardrail location
+- `src/main/java/com/etl/config/job/JobConfig.java` — home of optional `isActive`
+- `src/main/java/com/etl/config/ConfigLoader.java` — fail-fast guardrail location
 - `src/main/java/com/etl/config/BatchConfig.java` — should remain untouched by ensuring inactive jobs never reach step assembly
 - `src/main/java/com/etl/config/exception/ConfigException.java` — likely base category for an inactive-job startup failure
 - `docs/config/job-config.md` — contract documentation that must stay aligned with the field and default behavior
@@ -134,7 +134,7 @@ That placement is preferred because:
 
 ## Impact on Existing Architecture
 
-This future change would be additive to the current runtime contract.
+This shipped change is additive to the current runtime contract.
 
 It should:
 
@@ -160,14 +160,14 @@ That keeps the evidence model honest: the job did not run; it was blocked before
 
 ## Testing / Validation Expectations
 
-When this feature is implemented, the minimum validation should include:
+The shipped implementation now includes the following minimum validation expectations:
 
 - `ConfigLoader` test coverage for omitted `isActive`
 - `ConfigLoader` test coverage for `isActive: true`
 - `ConfigLoader` test coverage for `isActive: false`
 - assertion that inactive jobs fail before downstream config resolution or step assembly proceeds
-- one integration-oriented startup test confirming the failure is operator-readable and job-aware
-- matching updates to `docs/config/job-config.md`, `docs/config/README.md`, `README.md`, and a relevant runtime architecture note
+- operator-readable failure text that includes the selected job identity and resolved `job-config.yaml` path
+- matching updates to `docs/config/job-config.md`, `README.md`, and this runtime architecture note
 
 The repository verification workflow should still pass after the implementation and documentation updates are applied.
 

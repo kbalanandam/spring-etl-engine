@@ -271,9 +271,9 @@ class ConfigLoaderJobConfigTest {
             """);
     Files.writeString(scenarioDir.resolve("job-config.yaml"), """
             name: trimmed-relative-config-paths
-            sourceConfigPath:   source-config.yaml  
-            targetConfigPath:   target-config.yaml  
-            processorConfigPath:   processor-config.yaml  
+            sourceConfigPath:   source-config.yaml
+            targetConfigPath:   target-config.yaml
+            processorConfigPath:   processor-config.yaml
             steps:
               - name: customers-step
                 source: Customers
@@ -912,6 +912,103 @@ class ConfigLoaderJobConfigTest {
     ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
     assertTrue(messageChain(exception).contains("require a non-blank 'name'"));
     assertTrue(messageChain(exception).contains(jobConfig.toString()));
+  }
+
+  @Test
+  void failsFastWhenSelectedExplicitJobIsInactiveBeforeReferencedConfigsAreResolved() throws IOException {
+    Path scenarioDir = tempDir.resolve("inactive-job");
+    Files.createDirectories(scenarioDir);
+
+    Path jobConfig = scenarioDir.resolve("job-config.yaml");
+    Files.writeString(jobConfig, """
+            name: inactive-job
+            isActive: false
+            sourceConfigPath: missing-source-config.yaml
+            targetConfigPath: missing-target-config.yaml
+            processorConfigPath: missing-processor-config.yaml
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::sourceWrapper);
+    String messages = messageChain(exception);
+
+    assertTrue(messages.contains("Selected job 'inactive-job' is inactive"));
+    assertTrue(messages.contains(jobConfig.toAbsolutePath().normalize().toString()));
+    assertFalse(messages.contains("missing-source-config.yaml"));
+  }
+
+  @Test
+  void preservesCurrentExplicitJobBehaviorWhenIsActiveIsTrue() throws IOException {
+    Path scenarioDir = tempDir.resolve("active-job");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.createDirectories(scenarioDir.resolve("output"));
+    Files.writeString(scenarioDir.resolve("input/customers.csv"), "id,name\n1,Alice\n");
+
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+            sources:
+              - format: csv
+                sourceName: Customers
+                packageName: com.etl.model.source
+                filePath: input/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+                  - name: name
+                    type: String
+            """);
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+            targets:
+              - format: csv
+                targetName: CustomersOut
+                packageName: com.etl.model.target
+                filePath: output/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+                  - name: name
+                    type: String
+            """);
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+            type: default
+            mappings:
+              - source: Customers
+                target: CustomersOut
+                fields:
+                  - from: id
+                    to: id
+                  - from: name
+                    to: name
+            """);
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+            name: active-job
+            isActive: true
+            sourceConfigPath: source-config.yaml
+            targetConfigPath: target-config.yaml
+            processorConfigPath: processor-config.yaml
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+
+    assertEquals("active-job", metadata.scenarioName());
+    assertEquals(1, metadata.steps().size());
+    assertEquals("customers-step", metadata.steps().get(0).getName());
   }
 
   @Test

@@ -300,6 +300,8 @@ For the target direction where scenario descriptors and step links become the st
 
 `ConfigLoader` does not auto-discover scenario folders. Exactly one config set is selected for a run.
 
+For explicit job-config startup, the selected `job-config.yaml` may now also declare `isActive: false`. When it does, `ConfigLoader` fails fast before referenced source/target/processor YAMLs are resolved or steps are wired.
+
 When explicit `job-config.yaml` loading rebases the selected source, target, and processor YAMLs:
 
 - `job-config.yaml` references still resolve from the selected job-config folder

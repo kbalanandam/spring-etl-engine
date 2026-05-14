@@ -229,6 +229,7 @@ Example `job-config.yaml`:
 
 ```yaml
 name: csv-to-sqlserver
+isActive: true
 sourceConfigPath: source-config.yaml
 targetConfigPath: target-config.yaml
 processorConfigPath: processor-config.yaml
@@ -282,7 +283,7 @@ mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.con
 
 In this mode, the app does **not** auto-discover other scenarios or sibling config sets. It only loads the three files referenced by the job config and executes the explicit `steps` in the order declared.
 
-If `etl.config.job` is missing, unreadable, malformed, omits `steps`, or references missing source/target/processor artifacts, startup fails fast.
+If `etl.config.job` is missing, unreadable, malformed, declares `isActive: false`, omits `steps`, or references missing source/target/processor artifacts, startup fails fast.
 
 For explicit `etl.config.job` runs, startup validates the selected source, target, and processor config before step execution begins. Processor config validation now runs before generated-model class checks, so malformed processor mappings or rule settings surface as scenario-aware configuration errors instead of being masked by unrelated generated-model failures.
 

@@ -336,6 +336,7 @@ public class ConfigLoader {
 		JobConfig jobConfig = mapper.readValue(jobConfigFile, JobConfig.class);
 		Path jobConfigDirectory = jobConfigFile.getAbsoluteFile().getParentFile().toPath();
 		String scenarioName = requireExplicitJobName(jobConfig, jobConfigFile.toPath());
+		requireActiveSelectedJob(jobConfig, scenarioName, jobConfigFile.toPath());
 		String resolvedSourceConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getSourceConfigPath(), "sourceConfigPath");
 		String resolvedTargetConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getTargetConfigPath(), "targetConfigPath");
 		String resolvedProcessorConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getProcessorConfigPath(), "processorConfigPath");
@@ -381,6 +382,14 @@ public class ConfigLoader {
 			return JobScopedPackageNameResolver.requireExplicitJobName(jobConfig, jobConfigPath);
 		} catch (IllegalStateException e) {
 			throw new ConfigException(e.getMessage(), e);
+		}
+	}
+
+	private static void requireActiveSelectedJob(JobConfig jobConfig, String scenarioName, Path jobConfigPath) {
+		if (jobConfig != null && Boolean.FALSE.equals(jobConfig.getIsActive())) {
+			throw new ConfigException("Selected job '" + defaultName(scenarioName) + "' is inactive in "
+					+ jobConfigPath.toAbsolutePath().normalize()
+					+ ". Set 'isActive: true' or select a different job-config.yaml.");
 		}
 	}
 

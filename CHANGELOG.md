@@ -18,6 +18,7 @@ and this project adheres to **Semantic Versioning**.
 - Added focused `customer-load` flow-proof coverage through `CsvSourceToXmlTargetFlowTest`, plus refreshed scenario-reference coverage for preserved job bundles and hierarchy-logging coverage for descriptor-backed run evidence.
 
 ### Changed
+- Explicit job-config startup now honors an optional top-level `job-config.yaml -> isActive` flag and fails fast before downstream config resolution when the selected job is inactive.
 - Source and target `packageName` values can now be omitted across the active config-loading path, with job-scoped defaults still derived from the selected job identity for compatibility.
 - Explicit `job-config.yaml` runs now require a non-blank `name` on the active generated-model naming path; folder-name fallback is no longer used for runtime/build-time package derivation.
 - Explicit job runtime loading and build-time generation now also fail fast on generated-name collisions after logical-name normalization and on cross-step handoff names consumed before an earlier step produces them.
