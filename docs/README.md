@@ -19,7 +19,7 @@ As features grow, the goal is to keep architectural intent in the repository ins
 
 Use these short definitions as the shared vocabulary for the rest of the docs:
 
-- **job bundle** — one runnable config folder for one use case. The checked-in preserved bundle root is `src/main/resources/config-jobs/`. Developer-local private bundles should be copied from those preserved examples into the git-ignored repo-root [`private-jobs/`](../private-jobs/README.md), preferably grouped as `private-jobs/<collection>/<job-bundle>/`. Legacy `config-scenarios/...` paths remain temporarily available as deprecated compatibility aliases.
+- **job bundle** — one runnable config folder for one use case. The checked-in preserved bundle root is `src/main/resources/config-jobs/`. Baseline YAML files under `src/main/resources/` remain simple demo-fallback defaults, not the primary preserved-scenario authoring path. Developer-local private bundles should be copied from those preserved examples into the git-ignored repo-root [`private-jobs/`](../private-jobs/README.md), preferably grouped as `private-jobs/<collection>/<job-bundle>/config/`. Legacy `config-scenarios/...` paths remain temporarily available as deprecated compatibility aliases.
 - **`job-config.yaml`** — the run entry point that selects config files and ordered steps for one scenario; see [`config/job-config.md`](config/job-config.md)
 - **main flow** — the top-level reusable business flow executed inside one selected scenario; see [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md)
 - **subflow** — a reusable grouped phase inside one main flow, containing one or more ordered steps; see [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md)
@@ -116,25 +116,26 @@ For every significant enhancement, add or update:
 
 ### Product tracking
 - [`product/product-backlog.md`](product/product-backlog.md) — step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including scheduler/orchestration work inside the same single product roadmap
-- **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)** — live GitHub Project board for active product execution tracking across `Todo`, `In Progress`, and `Done`, with optional one-way sync from the `Current Execution Board` table in `product/product-backlog.md`
+- **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)** — live GitHub Project projection of the `Current Execution Board` table in `product/product-backlog.md`, with optional one-way sync for active execution tracking
 - [`product/project-board-sync.md`](product/project-board-sync.md) — setup and operating guide for syncing the `Current Execution Board` Markdown table into the GitHub Project without maintaining both views manually
 - `product/backlog-items/` — lightweight per-item drill-down pages linked from execution-board entries when an item needs fuller scope, acceptance criteria, and implementation notes
 - [`product/github-promotion.md`](product/github-promotion.md) — approved GitHub-facing About text, tagline, topic guidance, and positioning guardrails for OneFlow
 
 ### Scenario examples
-- `src/main/resources/config-jobs/csv-validation-reject-archive/` — preferred entry path for the preserved CSV validation, rejected-record output, and archive-on-success slice
-- `src/main/resources/config-jobs/csv-to-nested-xml/` — preferred entry path for the preserved explicit job proving CSV source mapping into a nested XML target through a generated target model definition
-- `src/main/resources/config-jobs/csv-to-sqlserver/` — preferred entry path for the preserved CSV source to SQL Server target example without changing the default resource YAMLs
-- `src/main/resources/config-jobs/xml-to-csv-events/` — preferred entry path for the realistic flat XML source to CSV target baseline run
-- `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/` — preferred entry path for the nested XML source flattening example using the shared nested XML path
-- `src/main/resources/config-jobs/xml-nested-tag-validation/` — preferred entry path for the nested XML source to generated XML target example
-- `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/` — preferred entry path for the preserved explicit multi-step roundtrip example
-- `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/` — preferred entry path for the preserved roundtrip example with XML archive-on-success
-- `src/main/resources/config-jobs/customer-load/` — preferred entry path for the customer-only ETL example
-- `src/main/resources/config-jobs/department-load/` — preferred entry path for the department-only ETL example
-- `src/main/resources/config-jobs/cust-dept-load/` — preferred entry path for the multi-step customer + department ETL example
+Representative preserved bundles live under `src/main/resources/config-jobs/`, including:
 
-Those `config-jobs` paths now point at the checked-in preserved bundles directly. Use repo-root [`private-jobs/`](../private-jobs/README.md) only as a developer-local git-ignored workspace for private bundles that must not be committed; in normal repository history, only the guidance file there should be visible. Older `config-scenarios/...` references remain temporarily supported as deprecated compatibility aliases.
+- `csv-validation-reject-archive/`
+- `csv-to-nested-xml/`
+- `csv-to-sqlserver/`
+- `xml-to-csv-events/`
+- `xml-to-json-events/`
+- `xml-nested-to-csv-to-nested-xml/`
+- `customer-load/`
+- `cust-dept-load/`
+
+Treat `src/main/resources/config-jobs/` as the canonical checked-in preserved-bundle root. Use repo-root [`private-jobs/`](../private-jobs/README.md) only as a developer-local git-ignored workspace for copied private bundles that must not be committed; in normal repository history, only the guidance file there should be visible.
+
+For the canonical maintained scenario inventory and per-bundle notes, use [`config/README.md#scenario-examples`](config/README.md#scenario-examples).
 
 ## Maintenance rules
 

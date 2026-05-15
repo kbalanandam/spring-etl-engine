@@ -2,9 +2,9 @@
 
 ## Executive Dashboard
 
-Active execution tracking lives in the GitHub Project **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)**.
+The GitHub Project **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)** is the live projected execution view for this backlog.
 
-This document remains the strategic/reference product backlog and milestone view.
+This document remains the canonical product backlog, milestone view, and execution-board source of truth.
 
 ## Purpose
 
@@ -181,7 +181,7 @@ This table is the day-to-day execution view for the current product stage.
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
 | [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Done | M1 | A2 | Shipped through optional top-level `job-config.yaml -> isActive`, with fail-fast `ConfigLoader` startup errors before referenced config resolution; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
-| [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | In Progress | M2 | A2 | Explicit job mode now ships derived package defaults, required non-blank job names, and first naming guardrails for cross-step handoff reuse plus normalization collisions; remaining work is the broader bridge tightening and package-free config direction described in [`Generated model naming standard`](../architecture/generated-model-naming-standard.md) |
+| [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | In Progress | M2 | A2 | Explicit job mode now ships derived package defaults, required non-blank job names, and first naming guardrails for cross-step handoff reuse plus normalization collisions; authored `packageName` remains deprecated bridge behavior while the remaining work continues the broader bridge tightening and package-free config direction described in [`Generated model naming standard`](../architecture/generated-model-naming-standard.md) |
 | [A5](backlog-items/A5-relational-source-column-alias-contract.md) | Add relational source column alias contract and reader mapping | Epic A | P2 | Deferred | M2 | none | Parked for later review so relational reads can support source-column-to-property differences without disturbing the current phase-1 baseline |
 | T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
@@ -324,7 +324,7 @@ Make each run explicit, predictable, and less fragile.
 - [x] Replace positional source-target pairing with explicit step pairing or step definitions
 - [x] Validate scenario completeness before job start
 - [x] Add job-level activation guardrail so `isActive: false` blocks the selected job before wiring
-- [ ] Complete the remaining generated-model naming and validation standard after the shipped optional-`packageName` bridge for explicit jobs
+- [ ] Complete the remaining generated-model naming and validation standard after the shipped deprecated `packageName` bridge for explicit jobs
 - [ ] Add a relational source column alias contract so selected database column names can differ from generated/runtime property names without ad hoc query-only workarounds
 - [ ] Add stronger config validation error messages for operators
 - [ ] Make step definitions more business-meaningful and less index-driven
@@ -701,7 +701,7 @@ Update this backlog when:
 
 Keep the backlog honest:
 
-- move items to done only when they are genuinely operational
+- move items to `Done` only when they are genuinely operational
 - prefer fewer clear backlog items over a huge wish list
 - link major backlog progress to architecture docs, ADRs, and changelog updates
 

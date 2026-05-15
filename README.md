@@ -90,7 +90,7 @@ The near-term product focus is to make these recurring concerns consistent acros
 - CSV, XML, and phase-1 relational source paths plus CSV, JSON, XML, and phase-1 relational target paths
 - source validation plus processor-side validation rules
 - processor-side `valueMap` cleanup and `expression`-based derived fields through the active `transforms[]` contract
-- optional job-scoped generated package derivation when source or target configs omit `packageName`
+- explicit-job package derivation from `job-config.yaml -> name` when source or target configs omit `packageName`, with authored `packageName` retained only as deprecated bridge behavior
 - rejected-record output and archive-on-success for the current CSV-focused hardening slice
 - machine-readable run and step evidence for operators and verification
 - descriptor-backed main-flow/subflow planning evidence plus blocked-subflow summaries layered on top of the current flat ordered-step runtime
@@ -178,14 +178,19 @@ Start here:
  ├── src/main/resources
  │    ├── application.properties
  │    ├── application-dev.properties
- │    ├── source-config.yaml
- │    ├── target-config.yaml
- │    ├── processor-config.yaml
- │    ├── validation-config.yaml  # Deprecated legacy validation resource
- │    └── demo-input/      # Bundled fallback sample CSV files
+ │    ├── source-config.yaml       # Simple baseline demo-fallback source config
+ │    ├── target-config.yaml       # Simple baseline demo-fallback target config
+ │    ├── processor-config.yaml    # Simple baseline demo-fallback processor config
+ │    ├── validation-config.yaml   # Deprecated legacy validation resource
+ │    ├── config-jobs/             # Checked-in preserved runnable job bundles
+ │    └── demo-input/              # Bundled fallback sample input files
  ├── src/test
  │    ├── java/            # Unit and integration tests
  │    └── resources/       # Test datasets
+ ├── docs/                 # Product, config, architecture, and ADR documentation
+ ├── private-jobs/         # Git-ignored developer-local private job bundles (README only tracked)
+ ├── scripts/              # Verification, sync, and maintenance scripts
+ ├── logs/                 # Runtime log output by scenario/date
  ├── README.md
  ├── pom.xml
  └── LICENSE
@@ -206,9 +211,9 @@ Prerequisites:
 
 Choose one of the following ways to run the project:
 
-1. **Use the repo-provided config** under `src/main/resources/` or point to your own external config files.
-2. **Use one explicit job config** if you want a single file to choose the source/target/processor YAMLs for the run.
-3. **Use the bundled fallback config** if you want to try the project immediately from the repository.
+1. **Use one preserved job bundle** under `src/main/resources/config-jobs/` and run it through `etl.config.job`.
+2. **Copy a preserved bundle into** [`private-jobs/`](private-jobs/README.md) **for developer-local or environment-specific work**.
+3. **Use demo fallback mode** only if you want the fastest local smoke/demo run from the baseline YAML files under `src/main/resources/`.
 
 If you want the fastest first run without preparing an external scenario bundle, go directly to **Demo fallback mode** below and enable the explicit fallback flag.
 
@@ -255,10 +260,14 @@ Use the bundle root that matches your need:
 Preserved business-scenario examples include:
 
 - `customer-load`
-- `department-load`
-- `cust-dept-load`
+- `csv-validation-reject-archive`
+- `xml-to-csv-events`
+- `xml-to-json-events`
+- `xml-nested-to-csv-to-nested-xml`
 - `csv-to-sqlserver`
 - `relational-to-relational`
+
+For the fuller preserved scenario list and notes on which bundle best matches each use case, see [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples).
 
 Run with:
 
@@ -346,6 +355,8 @@ When `etl.config.allow-demo-fallback=true` and `etl.config.job` is not set, the 
 - `src/main/resources/target-config.yaml`
 - `src/main/resources/processor-config.yaml`
 
+Those baseline files are intentionally simple demo defaults. Normal scenario authoring should live in one selected job bundle under `src/main/resources/config-jobs/` or a copied private bundle under [`private-jobs/`](private-jobs/README.md).
+
 Current bundled demo sample paths:
 
 - input: `src/main/resources/demo-input/Customers.csv`
@@ -392,12 +403,12 @@ Expected fallback output files:
 - `target/departments.xml`
 
 ## Usage
-1. Define your source configuration in `source-config.yaml`.
-2. Define your target configuration in `target-config.yaml`.
-3. Define field mappings in `processor-config.yaml`.
-4. Prefer running the application with an explicit `etl.config.job` scenario selection.
-5. Use `etl.config.allow-demo-fallback=true` only for local/demo fallback runs.
-6. Review the generated output files in the configured target directory.
+1. Start from a preserved job bundle under `src/main/resources/config-jobs/`.
+2. Update that bundle's `job-config.yaml`, `source-config.yaml`, `target-config.yaml`, and `processor-config.yaml` for your scenario.
+3. Prefer running the application with an explicit `etl.config.job=<path-to-job-config.yaml>` selection.
+4. Copy the preserved bundle into [`private-jobs/`](private-jobs/README.md) when you need private inputs, environment-specific settings, or customer-specific values that must not be committed.
+5. Use `etl.config.allow-demo-fallback=true` only for local/demo fallback runs based on the simple baseline YAML files under `src/main/resources/`.
+6. Review the generated output, reject, and archive files in the locations configured by the selected bundle.
 
 ## Validation path note
 
@@ -477,15 +488,36 @@ Optional parameters:
 - `-SkipSmoke` — generate the report from automated tests only
 - `-KeepLatestCount <N>` — control how many timestamped report snapshots are retained in `target/`
 
-## Example Mapping
-```yaml
-source: customer.csv
-fields:
-  - source: id
-    target: customerId
-  - source: first_name
-    target: firstName
+## Example job bundle
+
+The normal runnable unit is one selected job bundle, for example:
+
+```text
+src/main/resources/config-jobs/customer-load/
+  job-config.yaml
+  source-config.yaml
+  target-config.yaml
+  processor-config.yaml
 ```
+
+Minimal `job-config.yaml` example:
+
+```yaml
+name: customer-load
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: customers-to-xml-step
+    source: Customers
+    target: CustomersXml
+```
+
+For current field-level config examples, use:
+
+- [`docs/config/job-config.md`](docs/config/job-config.md)
+- [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md)
+- [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples)
 
 ## License
 This project is licensed under the **MIT License**.
