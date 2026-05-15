@@ -8,6 +8,7 @@ import com.etl.config.source.FileSourceConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.source.XmlSourceConfig;
+import com.etl.common.util.ConfigPackageNamePropertyValidator;
 import com.etl.common.util.ConfigBundlePathAliasResolver;
 import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.JobScopedPackageNameResolver;
@@ -40,6 +41,7 @@ import org.springframework.context.annotation.Configuration;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -106,13 +108,24 @@ public class ConfigLoader {
 		try {
 			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
 			if (runtimeConfig.requireExternalConfigs()) {
-				SourceWrapper sourceWrapper = loadRequiredExternalYamlConfig(runtimeConfig.sourceConfigPath(), SourceWrapper.class);
+				SourceWrapper sourceWrapper = loadRequiredExternalYamlConfig(
+						runtimeConfig.sourceConfigPath(),
+						SourceWrapper.class,
+						buildYamlMapper(),
+						selectedJobSourcePackageContract(runtimeConfig.scenarioName())
+				);
 				normalizeSourceConfigPaths(sourceWrapper, parentDirectory(runtimeConfig.sourceConfigPath()));
 				applyDefaultSourcePackages(sourceWrapper, runtimeConfig.scenarioName());
 				return sourceWrapper;
 			}
-			SourceWrapper sourceWrapper = loadYamlConfig(runtimeConfig.sourceConfigPath(), "source-config.yaml", SourceWrapper.class);
-			applyDefaultSourcePackages(sourceWrapper, runtimeConfig.scenarioName());
+			SourceWrapper sourceWrapper = loadYamlConfig(
+					runtimeConfig.sourceConfigPath(),
+					"source-config.yaml",
+					SourceWrapper.class,
+					buildYamlMapper(),
+					directSourcePackageContract()
+			);
+			applyDirectConfigSourcePackages(sourceWrapper);
 			return sourceWrapper;
 		} catch (ConfigException e) {
 			throw e;
@@ -126,13 +139,24 @@ public class ConfigLoader {
 		try {
 			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
 			if (runtimeConfig.requireExternalConfigs()) {
-				TargetWrapper targetWrapper = loadRequiredExternalYamlConfig(runtimeConfig.targetConfigPath(), TargetWrapper.class);
+				TargetWrapper targetWrapper = loadRequiredExternalYamlConfig(
+						runtimeConfig.targetConfigPath(),
+						TargetWrapper.class,
+						buildYamlMapper(),
+						selectedJobTargetPackageContract(runtimeConfig.scenarioName())
+				);
 				normalizeTargetConfigPaths(targetWrapper, parentDirectory(runtimeConfig.targetConfigPath()));
 				applyDefaultTargetPackages(targetWrapper, runtimeConfig.scenarioName());
 				return targetWrapper;
 			}
-			TargetWrapper targetWrapper = loadYamlConfig(runtimeConfig.targetConfigPath(), "target-config.yaml", TargetWrapper.class);
-			applyDefaultTargetPackages(targetWrapper, runtimeConfig.scenarioName());
+			TargetWrapper targetWrapper = loadYamlConfig(
+					runtimeConfig.targetConfigPath(),
+					"target-config.yaml",
+					TargetWrapper.class,
+					buildYamlMapper(),
+					directTargetPackageContract()
+			);
+			applyDirectConfigTargetPackages(targetWrapper);
 			return targetWrapper;
 		} catch (ConfigException e) {
 			throw e;
@@ -232,24 +256,34 @@ public class ConfigLoader {
 	}
 
 	private <T> T loadYamlConfig(String configuredPath, String fallbackClasspathResource, Class<T> targetType) throws IOException {
-		return loadYamlConfig(configuredPath, fallbackClasspathResource, targetType, buildYamlMapper());
+		return loadYamlConfig(configuredPath, fallbackClasspathResource, targetType, buildYamlMapper(), null);
 	}
 
 	private <T> T loadRequiredExternalYamlConfig(String configuredPath, Class<T> targetType) throws IOException {
-		return loadRequiredExternalYamlConfig(configuredPath, targetType, buildYamlMapper());
+		return loadRequiredExternalYamlConfig(configuredPath, targetType, buildYamlMapper(), null);
 	}
 
 	private <T> T loadYamlConfig(String configuredPath, String fallbackClasspathResource, Class<T> targetType, ObjectMapper mapper) throws IOException {
+		return loadYamlConfig(configuredPath, fallbackClasspathResource, targetType, mapper, null);
+	}
+
+	private <T> T loadYamlConfig(String configuredPath,
+	                           String fallbackClasspathResource,
+	                           Class<T> targetType,
+	                           ObjectMapper mapper,
+	                           PackageNameContract packageNameContract) throws IOException {
 		String resolvedConfiguredPath = configuredPath == null ? null : configuredPath.trim();
 		File externalFile = resolvedConfiguredPath == null || resolvedConfiguredPath.isBlank()
 				? null
 				: new File(resolvedConfiguredPath);
 		if (externalFile != null && externalFile.exists() && externalFile.isFile()) {
 			logger.info("Loading {} from external YAML file: {}", targetType.getSimpleName(), resolvedConfiguredPath);
+			String yamlContent = readString(externalFile.toPath());
 			if (logger.isDebugEnabled()) {
-				logger.debug("YAML content from {}:\n{}", resolvedConfiguredPath, readString(externalFile.toPath()));
+				logger.debug("YAML content from {}:\n{}", resolvedConfiguredPath, yamlContent);
 			}
-			return mapper.readValue(externalFile, targetType);
+			validateUnsupportedPackageNameProperties(mapper, yamlContent, resolvedConfiguredPath, targetType, packageNameContract);
+			return mapper.readValue(yamlContent, targetType);
 		}
 
 		logger.warn("Configured YAML file not found at {}. Falling back to classpath resource: {}", configuredPath, fallbackClasspathResource);
@@ -259,11 +293,20 @@ public class ConfigLoader {
 		}
 
 		try (InputStream inputStream = classPathResource.getInputStream()) {
-			return mapper.readValue(inputStream, targetType);
+			String yamlContent = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+			validateUnsupportedPackageNameProperties(mapper, yamlContent, fallbackClasspathResource, targetType, packageNameContract);
+			return mapper.readValue(yamlContent, targetType);
 		}
 	}
 
 	private <T> T loadRequiredExternalYamlConfig(String configuredPath, Class<T> targetType, ObjectMapper mapper) throws IOException {
+		return loadRequiredExternalYamlConfig(configuredPath, targetType, mapper, null);
+	}
+
+	private <T> T loadRequiredExternalYamlConfig(String configuredPath,
+	                                           Class<T> targetType,
+	                                           ObjectMapper mapper,
+	                                           PackageNameContract packageNameContract) throws IOException {
 		String resolvedConfiguredPath = configuredPath == null ? null : configuredPath.trim();
 		File externalFile = resolvedConfiguredPath == null || resolvedConfiguredPath.isBlank()
 				? null
@@ -273,10 +316,12 @@ public class ConfigLoader {
 		}
 
 		logger.info("Loading {} from job-config referenced YAML file: {}", targetType.getSimpleName(), resolvedConfiguredPath);
+		String yamlContent = readString(externalFile.toPath());
 		if (logger.isDebugEnabled()) {
-			logger.debug("YAML content from {}:\n{}", resolvedConfiguredPath, readString(externalFile.toPath()));
+			logger.debug("YAML content from {}:\n{}", resolvedConfiguredPath, yamlContent);
 		}
-		return mapper.readValue(externalFile, targetType);
+		validateUnsupportedPackageNameProperties(mapper, yamlContent, resolvedConfiguredPath, targetType, packageNameContract);
+		return mapper.readValue(yamlContent, targetType);
 	}
 
 	private ResolvedRuntimeConfig resolveRuntimeConfig() throws IOException {
@@ -308,8 +353,8 @@ public class ConfigLoader {
 			}
 
 			logger.warn("No 'etl.config.job' was provided. Demo fallback is enabled, so the runtime will use direct config paths and may fall back to bundled classpath YAML resources. This mode is intended for local/demo use only.");
-			SourceWrapper demoSourceWrapper = loadYamlConfig(sourceConfigPath, "source-config.yaml", SourceWrapper.class);
-			TargetWrapper demoTargetWrapper = loadYamlConfig(targetConfigPath, "target-config.yaml", TargetWrapper.class);
+			SourceWrapper demoSourceWrapper = loadYamlConfig(sourceConfigPath, "source-config.yaml", SourceWrapper.class, buildYamlMapper(), directSourcePackageContract());
+			TargetWrapper demoTargetWrapper = loadYamlConfig(targetConfigPath, "target-config.yaml", TargetWrapper.class, buildYamlMapper(), directTargetPackageContract());
 			ProcessorConfig demoProcessorConfig = loadYamlConfig(processorConfigPath, "processor-config.yaml", ProcessorConfig.class, buildYamlMapper());
 			validateProcessorConfig(demoProcessorConfig, "demo-fallback", processorConfigPath);
 			return new ResolvedRuntimeConfig(
@@ -340,8 +385,18 @@ public class ConfigLoader {
 		String resolvedSourceConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getSourceConfigPath(), "sourceConfigPath");
 		String resolvedTargetConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getTargetConfigPath(), "targetConfigPath");
 		String resolvedProcessorConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getProcessorConfigPath(), "processorConfigPath");
-		SourceWrapper explicitSourceWrapper = loadRequiredExternalYamlConfig(resolvedSourceConfigPath, SourceWrapper.class);
-		TargetWrapper explicitTargetWrapper = loadRequiredExternalYamlConfig(resolvedTargetConfigPath, TargetWrapper.class);
+		SourceWrapper explicitSourceWrapper = loadRequiredExternalYamlConfig(
+				resolvedSourceConfigPath,
+				SourceWrapper.class,
+				mapper,
+				selectedJobSourcePackageContract(scenarioName)
+		);
+		TargetWrapper explicitTargetWrapper = loadRequiredExternalYamlConfig(
+				resolvedTargetConfigPath,
+				TargetWrapper.class,
+				mapper,
+				selectedJobTargetPackageContract(scenarioName)
+		);
 		ProcessorConfig explicitProcessorConfig = loadRequiredExternalYamlConfig(resolvedProcessorConfigPath, ProcessorConfig.class, mapper);
 		normalizeSourceConfigPaths(explicitSourceWrapper, parentDirectory(resolvedSourceConfigPath));
 		normalizeTargetConfigPaths(explicitTargetWrapper, parentDirectory(resolvedTargetConfigPath));
@@ -354,14 +409,6 @@ public class ConfigLoader {
 		validateSelectedTargetConfigs(explicitTargetWrapper, scenarioName, resolvedTargetConfigPath);
 		validateProcessorConfig(explicitProcessorConfig, scenarioName, resolvedProcessorConfigPath);
 		List<JobConfig.JobStepConfig> resolvedSteps = resolveExplicitSteps(jobConfig, explicitSourceWrapper, explicitTargetWrapper, explicitProcessorConfig);
-		warnOnDeprecatedGeneratedPackageDrift(
-				explicitSourceWrapper,
-				explicitTargetWrapper,
-				resolvedSteps,
-				scenarioName,
-				Path.of(resolvedSourceConfigPath),
-				Path.of(resolvedTargetConfigPath)
-		);
 		SelectedJobNamingValidator.validate(scenarioName, explicitSourceWrapper, explicitTargetWrapper, resolvedSteps);
 		validateSelectedGeneratedModelClasses(explicitSourceWrapper, explicitTargetWrapper, resolvedSteps, scenarioName, jobConfigFile.getAbsolutePath());
 
@@ -531,6 +578,93 @@ public class ConfigLoader {
 		return jobPath == null || jobPath.isBlank() ? "selected job-config" : jobPath.trim();
 	}
 
+	private static PackageNameContract selectedJobSourcePackageContract(String scenarioName) {
+		return new PackageNameContract(
+				"Selected job '" + defaultName(scenarioName) + "'",
+				"the selected job",
+				JobScopedPackageNameResolver.resolveSourcePackage(scenarioName),
+				"from job-config.yaml -> name"
+		);
+	}
+
+	private static PackageNameContract selectedJobTargetPackageContract(String scenarioName) {
+		return new PackageNameContract(
+				"Selected job '" + defaultName(scenarioName) + "'",
+				"the selected job",
+				JobScopedPackageNameResolver.resolveTargetPackage(scenarioName),
+				"from job-config.yaml -> name"
+		);
+	}
+
+	private static PackageNameContract directSourcePackageContract() {
+		return new PackageNameContract(
+				"Direct-config runtime",
+				"runtime",
+				"com.etl.model.source",
+				"internally"
+		);
+	}
+
+	private static PackageNameContract directTargetPackageContract() {
+		return new PackageNameContract(
+				"Direct-config runtime",
+				"runtime",
+				"com.etl.model.target",
+				"internally"
+		);
+	}
+
+	private static <T> void validateUnsupportedPackageNameProperties(ObjectMapper mapper,
+	                                                               String yamlContent,
+	                                                               String configLocation,
+	                                                               Class<T> targetType,
+	                                                               PackageNameContract packageNameContract) throws IOException {
+		if (packageNameContract == null) {
+			return;
+		}
+
+		if (SourceWrapper.class.equals(targetType)) {
+			ConfigPackageNamePropertyValidator.requireNoSourcePackageNameProperties(
+					mapper,
+					yamlContent,
+					configLocation,
+					packageNameContract.contextDescription,
+					packageNameContract.derivationOwnerDescription,
+					packageNameContract.derivedPackageName,
+					packageNameContract.derivationSourceDescription
+			);
+		}
+
+		if (TargetWrapper.class.equals(targetType)) {
+			ConfigPackageNamePropertyValidator.requireNoTargetPackageNameProperties(
+					mapper,
+					yamlContent,
+					configLocation,
+					packageNameContract.contextDescription,
+					packageNameContract.derivationOwnerDescription,
+					packageNameContract.derivedPackageName,
+					packageNameContract.derivationSourceDescription
+			);
+		}
+	}
+
+	private static final class PackageNameContract {
+		private final String contextDescription;
+		private final String derivationOwnerDescription;
+		private final String derivedPackageName;
+		private final String derivationSourceDescription;
+
+		private PackageNameContract(String contextDescription,
+		                          String derivationOwnerDescription,
+		                          String derivedPackageName,
+		                          String derivationSourceDescription) {
+			this.contextDescription = contextDescription;
+			this.derivationOwnerDescription = derivationOwnerDescription;
+			this.derivedPackageName = derivedPackageName;
+			this.derivationSourceDescription = derivationSourceDescription;
+		}
+	}
+
 	private void validateSelectedTargetConfigs(TargetWrapper targetWrapper, String scenarioName, String targetConfigPath) {
 		if (targetWrapper == null || targetWrapper.getTargets() == null) {
 			return;
@@ -605,77 +739,6 @@ public class ConfigLoader {
 		applyDefaultTargetPackages(targetWrapper, scenarioName);
 	}
 
-	private void warnOnDeprecatedGeneratedPackageDrift(SourceWrapper sourceWrapper,
-	                                                TargetWrapper targetWrapper,
-	                                                List<JobConfig.JobStepConfig> resolvedSteps,
-	                                                String scenarioName,
-	                                                Path sourceConfigPath,
-	                                                Path targetConfigPath) {
-		Set<String> selectedSourceNames = new HashSet<>();
-		Set<String> selectedTargetNames = new HashSet<>();
-		if (resolvedSteps != null) {
-			for (JobConfig.JobStepConfig step : resolvedSteps) {
-				if (step == null) {
-					continue;
-				}
-				if (step.getSource() != null && !step.getSource().isBlank()) {
-					selectedSourceNames.add(step.getSource().trim());
-				}
-				if (step.getTarget() != null && !step.getTarget().isBlank()) {
-					selectedTargetNames.add(step.getTarget().trim());
-				}
-			}
-		}
-
-		String derivedSourcePackage = JobScopedPackageNameResolver.resolveSourcePackage(scenarioName);
-		java.util.Map<String, SourceConfig> selectedSourcesByName = new java.util.LinkedHashMap<>();
-		if (sourceWrapper != null && sourceWrapper.getSources() != null) {
-			for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
-				if (sourceConfig != null && sourceConfig.getSourceName() != null && !sourceConfig.getSourceName().isBlank()) {
-					selectedSourcesByName.put(sourceConfig.getSourceName().trim(), sourceConfig);
-				}
-			}
-		}
-		for (String sourceName : selectedSourceNames) {
-			SourceConfig sourceConfig = selectedSourcesByName.get(sourceName);
-			if (sourceConfig != null
-					&& JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(sourceConfig.getPackageName(), derivedSourcePackage)) {
-					logger.warn(JobScopedPackageNameResolver.buildPackageDriftWarning(
-							"source config",
-							sourceConfig.getSourceName(),
-							scenarioName,
-							sourceConfigPath,
-							sourceConfig.getPackageName(),
-							derivedSourcePackage
-					));
-			}
-		}
-
-		String derivedTargetPackage = JobScopedPackageNameResolver.resolveTargetPackage(scenarioName);
-		java.util.Map<String, TargetConfig> selectedTargetsByName = new java.util.LinkedHashMap<>();
-		if (targetWrapper != null && targetWrapper.getTargets() != null) {
-			for (TargetConfig targetConfig : targetWrapper.getTargets()) {
-				if (targetConfig != null && targetConfig.getTargetName() != null && !targetConfig.getTargetName().isBlank()) {
-					selectedTargetsByName.put(targetConfig.getTargetName().trim(), targetConfig);
-				}
-			}
-		}
-		for (String targetName : selectedTargetNames) {
-			TargetConfig targetConfig = selectedTargetsByName.get(targetName);
-			if (targetConfig != null
-					&& JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(targetConfig.getPackageName(), derivedTargetPackage)) {
-				logger.warn(JobScopedPackageNameResolver.buildPackageDriftWarning(
-						"target config",
-						targetConfig.getTargetName(),
-						scenarioName,
-						targetConfigPath,
-						targetConfig.getPackageName(),
-						derivedTargetPackage
-				));
-			}
-		}
-	}
-
 	private static void applyDefaultSourcePackages(SourceWrapper sourceWrapper, String scenarioName) {
 		if (sourceWrapper == null || sourceWrapper.getSources() == null) {
 			return;
@@ -683,8 +746,18 @@ public class ConfigLoader {
 
 		String defaultSourcePackage = JobScopedPackageNameResolver.resolveSourcePackage(scenarioName);
 		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
-			if (!hasText(sourceConfig.getPackageName())) {
-				sourceConfig.setPackageName(defaultSourcePackage);
+			sourceConfig.setPackageName(defaultSourcePackage);
+		}
+	}
+
+	private static void applyDirectConfigSourcePackages(SourceWrapper sourceWrapper) {
+		if (sourceWrapper == null || sourceWrapper.getSources() == null) {
+			return;
+		}
+
+		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
+			if (sourceConfig != null) {
+				sourceConfig.setPackageName("com.etl.model.source");
 			}
 		}
 	}
@@ -701,8 +774,71 @@ public class ConfigLoader {
 		targetWrapper.setTargets(List.copyOf(defaultedTargets));
 	}
 
+	private static void applyDirectConfigTargetPackages(TargetWrapper targetWrapper) {
+		if (targetWrapper == null || targetWrapper.getTargets() == null) {
+			return;
+		}
+
+		List<TargetConfig> defaultedTargets = new ArrayList<>();
+		for (TargetConfig targetConfig : targetWrapper.getTargets()) {
+			defaultedTargets.add(applyDirectConfigTargetPackage(targetConfig));
+		}
+		targetWrapper.setTargets(List.copyOf(defaultedTargets));
+	}
+
+	private static TargetConfig applyDirectConfigTargetPackage(TargetConfig targetConfig) {
+		if (targetConfig == null) {
+			return targetConfig;
+		}
+
+		String defaultTargetPackage = "com.etl.model.target";
+		if (targetConfig instanceof CsvTargetConfig csvTargetConfig) {
+			return new CsvTargetConfig(
+					csvTargetConfig.getTargetName(),
+					defaultTargetPackage,
+					copyColumns(csvTargetConfig.getFields()),
+					csvTargetConfig.getFilePath(),
+					csvTargetConfig.getDelimiter(),
+					csvTargetConfig.isIncludeHeader()
+			);
+		}
+		if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
+			return new JsonTargetConfig(
+					jsonTargetConfig.getTargetName(),
+					defaultTargetPackage,
+					copyColumns(jsonTargetConfig.getFields()),
+					jsonTargetConfig.getFilePath()
+			);
+		}
+		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
+			return new XmlTargetConfig(
+					xmlTargetConfig.getTargetName(),
+					defaultTargetPackage,
+					copyColumns(xmlTargetConfig.getFields()),
+					xmlTargetConfig.getFilePath(),
+					xmlTargetConfig.getRootElement(),
+					xmlTargetConfig.getRecordElement(),
+					xmlTargetConfig.getModelDefinitionPath()
+			);
+		}
+		if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
+			return new RelationalTargetConfig(
+					relationalTargetConfig.getTargetName(),
+					defaultTargetPackage,
+					copyColumns(relationalTargetConfig.getFields()),
+					relationalTargetConfig.getConnection(),
+					relationalTargetConfig.getTable(),
+					relationalTargetConfig.getSchema(),
+					relationalTargetConfig.getWriteMode().name(),
+					relationalTargetConfig.getBatchSize()
+			);
+		}
+
+		return targetConfig;
+	}
+
 	private static TargetConfig applyDefaultTargetPackage(TargetConfig targetConfig, String scenarioName) {
-		if (targetConfig == null || hasText(targetConfig.getPackageName())) {
+		if (targetConfig == null) {
 			return targetConfig;
 		}
 

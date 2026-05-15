@@ -32,7 +32,7 @@ For explicit `job-config.yaml` runs, the runtime and job-scoped generation path 
 - `com.etl.generated.job.xmltojsonevents.source`
 - `com.etl.generated.job.xmltojsonevents.target`
 
-Keep explicit `packageName` only when you need a compatibility override.
+Do not reintroduce explicit `packageName` in this bundle; explicit selected-job runs now fail fast if it is authored.
 
 ## Expected behavior
 

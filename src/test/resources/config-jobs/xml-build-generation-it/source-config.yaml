@@ -1,7 +1,6 @@
 ﻿sources:
   - format: xml
     sourceName: BuildXmlSource
-    packageName: com.etl.generated.maven.it.source
     filePath: src/main/resources/config-jobs/xml-model-spike/nested-sample.xml
     rootElement: TagValidationList
     recordElement: TVLTagDetails

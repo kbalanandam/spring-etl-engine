@@ -26,7 +26,6 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `xml` |
 | `sourceName` | yes | string | Logical source name matched by `processor.mappings[].source` |
-| `packageName` | no in explicit job mode; otherwise effectively required | string | Deprecated bridge field for the generated source package. When omitted for an explicit `job-config.yaml` run, runtime/build-time default to `com.etl.generated.job.<normalized-job-name>.source` |
 | `filePath` | yes | string | XML input file path |
 | `archive` | no | object | Optional archive-on-success settings for file-based XML sources |
 | `archive.enabled` | yes, when `archive` is present | boolean | Enables moving the original file after successful step completion |
@@ -54,7 +53,7 @@ Prefer one consistent XML source shape for both simple and nested XML:
 - use `flatteningStrategy` to explain runtime behavior instead of inventing different YAML layouts
 - prefer `modelDefinitionPath` as the structural source of truth for new XML scenarios
 - keep inline `fields` only for intentionally simple or compatibility-style flat XML configs
-- omit `packageName` in explicit job mode unless you are keeping it temporarily for compatibility during migration
+- do not author `packageName`; runtime/build-time derive package identity internally and now reject the property when it is present
 
 ## Minimum valid shape
 
@@ -104,7 +103,7 @@ sources:
 
 Notes:
 
-- `packageName` is omitted on purpose
+- no authored `packageName` appears because package identity is derived internally
 - runtime derives `com.etl.generated.job.<normalized-job-name>.source`
 - `flatteningStrategy` could also be omitted here because the default is `DirectXml`, but keeping it explicit is clearer
 
@@ -163,6 +162,7 @@ Notes:
 - the YAML shape is the same as simple XML
 - the only important runtime difference is `flatteningStrategy: NestedXml`
 - keep the nested structure in `modelDefinitionPath`; do not duplicate a partial nested structure in inline `fields`
+- for selected-job bundles, the external `modelDefinitionPath` YAML should preserve structure only; do not author `packageName` there because job-scoped generation injects the derived package internally
 
 This mirrors preserved bundle patterns such as:
 
@@ -191,7 +191,7 @@ Notes:
 - this is still the same XML source contract; only runtime extraction changes
 - prefer `DirectXml` or `NestedXml` first, and use `JobSpecificXml` only when a shared strategy cannot represent the source correctly
 
-### Pattern E — flat compatibility form with inline fields
+### Pattern E — flat inline-fields form
 
 This remains supported for older/simple flat XML jobs.
 
@@ -199,7 +199,6 @@ This remains supported for older/simple flat XML jobs.
 sources:
   - format: xml
     sourceName: Events
-    packageName: com.etl.generated.job.xmltocsvevents.source
     filePath: src/main/resources/demo-input/Events.xml
     rootElement: Events
     recordElement: Event
@@ -223,7 +222,6 @@ This mirrors:
 - `sources:` is the required root for the source YAML file.
 - `format: xml` selects the XML reader path.
 - `sourceName` is the name referenced from processor mappings and `job-config.yaml` steps.
-- `packageName` points to the generated Java model package. In explicit job mode it is now a deprecated bridge field and may be omitted so the runtime uses `com.etl.generated.job.<normalized-job-name>.source`.
 - `filePath` points to the XML file to read.
 - `rootElement` is the expected XML document root.
 - `recordElement` is the fragment counted and streamed as one runtime record.
@@ -269,19 +267,18 @@ All XML source variants start with the same orchestration path:
 
 - In explicit `job-config.yaml` mode, relative paths resolve from the folder containing the referenced config file, not from the repo root.
 - That rule applies to `filePath`, `modelDefinitionPath`, `validation.schemaPath`, `validation.rejectPath`, and `archive.successPath`.
-- When `packageName` is omitted in explicit job mode, the runtime derives a stable package using the selected non-blank job name from `job-config.yaml`.
+- In explicit job mode, the runtime derives a stable package using the selected non-blank job name from `job-config.yaml`.
 - The derived default is `com.etl.generated.job.<normalized-job-name>.source`.
 
-## `packageName` deprecation direction
+## `packageName` direction
 
-The long-term authoring direction is to remove `packageName` from normal XML source config usage.
+XML source YAML is now package-free on every supported runtime path.
 
 Current guidance:
 
-- for new explicit job bundles, omit `packageName`
-- treat explicit `packageName` as a compatibility bridge only
-- keep runtime/build-time package identity derived from the selected job name rather than from Java-specific authored YAML
-- expect a later A4 slice to tighten handling for conflicting authored `packageName` values before the field is removed from the config contract entirely
+- for explicit job bundles, runtime/build-time derive `com.etl.generated.job.<normalized-job-name>.source` from `job-config.yaml -> name`
+- for direct-config/demo fallback, runtime applies internal `com.etl.model.source` only after loading a package-free config
+- do not author `packageName`; the runtime now fails fast when the property is present
 
 ## Validation and usage notes
 

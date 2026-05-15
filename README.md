@@ -94,7 +94,7 @@ The near-term product focus is to make these recurring concerns consistent acros
 - CSV, XML, and phase-1 relational source paths plus CSV, JSON, XML, and phase-1 relational target paths
 - source validation plus processor-side validation rules
 - processor-side `valueMap` cleanup and `expression`-based derived fields through the active `transforms[]` contract
-- explicit-job package derivation from `job-config.yaml -> name` when source or target configs omit `packageName`, with authored `packageName` retained only as deprecated bridge behavior
+- explicit-job package derivation from `job-config.yaml -> name`, with source/target `packageName` omitted from selected bundles and explicit selected-job runs failing fast if authored `packageName` is present
 - rejected-record output and archive-on-success for the current CSV-focused hardening slice
 - machine-readable run and step evidence for operators and verification
 - descriptor-backed main-flow/subflow planning evidence plus blocked-subflow summaries layered on top of the current flat ordered-step runtime

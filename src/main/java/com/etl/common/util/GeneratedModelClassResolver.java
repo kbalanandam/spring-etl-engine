@@ -24,8 +24,6 @@ import java.util.List;
  */
 public final class GeneratedModelClassResolver {
 
-  private static final String EXPLICIT_JOB_PACKAGE_HINT = " In explicit job mode this package should be derived during ConfigLoader package defaulting before model resolution.";
-
     private GeneratedModelClassResolver() {
     }
 
@@ -39,12 +37,12 @@ public final class GeneratedModelClassResolver {
     public static String resolveSourceClassName(SourceConfig sourceConfig) {
 		if (sourceConfig instanceof XmlSourceConfig xmlSourceConfig) {
       return qualifyClassName(
-          validatedPackageName(xmlSourceConfig.getPackageName(), "XML source", xmlSourceConfig.getSourceName()),
+          GeneratedModelPackageResolver.resolveSourcePackage(xmlSourceConfig),
           GeneratedModelNamingPolicy.resolveSourceSimpleClassName(xmlSourceConfig)
       );
 		}
     return qualifyClassName(
-        validatedPackageName(sourceConfig.getPackageName(), "source", sourceConfig.getSourceName()),
+        GeneratedModelPackageResolver.resolveSourcePackage(sourceConfig),
         GeneratedModelNamingPolicy.resolveSourceSimpleClassName(sourceConfig)
     );
     }
@@ -58,7 +56,7 @@ public final class GeneratedModelClassResolver {
     public static String resolveSourceRootClassName(SourceConfig sourceConfig) {
         if (sourceConfig instanceof XmlSourceConfig xmlSourceConfig) {
       return qualifyClassName(
-          validatedPackageName(xmlSourceConfig.getPackageName(), "XML source", xmlSourceConfig.getSourceName()),
+          GeneratedModelPackageResolver.resolveSourcePackage(xmlSourceConfig),
           GeneratedModelNamingPolicy.resolveSourceRootSimpleClassName(xmlSourceConfig)
       );
         }
@@ -108,12 +106,12 @@ public final class GeneratedModelClassResolver {
     public static String resolveTargetWriteClassName(TargetConfig targetConfig) {
         if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
       return qualifyClassName(
-          validatedPackageName(xmlTargetConfig.getPackageName(), "XML target", xmlTargetConfig.getTargetName()),
+          GeneratedModelPackageResolver.resolveTargetPackage(xmlTargetConfig),
           GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(xmlTargetConfig)
       );
         }
     return qualifyClassName(
-        validatedPackageName(targetConfig.getPackageName(), "target", targetConfig.getTargetName()),
+        GeneratedModelPackageResolver.resolveTargetPackage(targetConfig),
         GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(targetConfig)
     );
     }
@@ -128,12 +126,12 @@ public final class GeneratedModelClassResolver {
     public static String resolveTargetProcessingClassName(TargetConfig targetConfig) {
         if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
       return qualifyClassName(
-          validatedPackageName(xmlTargetConfig.getPackageName(), "XML target", xmlTargetConfig.getTargetName()),
+          GeneratedModelPackageResolver.resolveTargetPackage(xmlTargetConfig),
           GeneratedModelNamingPolicy.resolveTargetProcessingSimpleClassName(xmlTargetConfig)
       );
         }
     return qualifyClassName(
-        validatedPackageName(targetConfig.getPackageName(), "target", targetConfig.getTargetName()),
+        GeneratedModelPackageResolver.resolveTargetPackage(targetConfig),
         GeneratedModelNamingPolicy.resolveTargetProcessingSimpleClassName(targetConfig)
     );
     }
@@ -242,7 +240,7 @@ public final class GeneratedModelClassResolver {
      * wrapper instantiation aligned with generated source output.</p>
      */
     public static String resolveXmlWrapperFieldName(XmlTargetConfig targetConfig) {
-		String packageName = validatedPackageName(targetConfig.getPackageName(), "XML target", targetConfig.getTargetName());
+		String packageName = GeneratedModelPackageResolver.resolveTargetPackage(targetConfig);
         return GeneratedModelNamingPolicy.resolveWrapperFieldName(
                 packageName,
                 requireNonBlank(targetConfig.getRecordElement(), "recordElement", "XML target", targetConfig.getTargetName()),
@@ -341,30 +339,6 @@ public final class GeneratedModelClassResolver {
   }
 
   /**
-   * Validates that the configured generated-model package is non-blank and structurally valid.
-   */
-  private static String validatedPackageName(String value, String configType, String configName) {
-    String trimmed = requirePackageName(value, configType, configName);
-    if (!isQualifiedIdentifier(trimmed)) {
-      throw new IllegalArgumentException(configType + " config '" + defaultConfigName(configName) + "' has invalid "
-          + "packageName='" + trimmed + "'. Expected a dot-separated Java package name." + EXPLICIT_JOB_PACKAGE_HINT);
-    }
-    return trimmed;
-  }
-
-  /**
-   * Requires a non-blank generated-model package name before class resolution continues.
-   */
-  private static String requirePackageName(String value, String configType, String configName) {
-    if (value == null || value.isBlank()) {
-      throw new IllegalArgumentException(configType + " config '" + defaultConfigName(configName)
-          + "' must define a non-blank packageName before generated model class resolution."
-          + EXPLICIT_JOB_PACKAGE_HINT);
-    }
-    return value.trim();
-  }
-
-  /**
    * Requires one non-blank configuration value before generated model resolution continues.
    */
   private static String requireNonBlank(String value, String fieldName, String configType, String configName) {
@@ -379,32 +353,5 @@ public final class GeneratedModelClassResolver {
     return configName == null || configName.isBlank() ? "unnamed" : configName.trim();
   }
 
-  private static boolean isQualifiedIdentifier(String value) {
-    String[] segments = value.split("\\.");
-    if (segments.length == 0) {
-      return false;
-    }
-    for (String segment : segments) {
-      if (!isJavaIdentifier(segment)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  private static boolean isJavaIdentifier(String value) {
-    if (value == null || value.isBlank()) {
-      return false;
-    }
-    if (!Character.isJavaIdentifierStart(value.charAt(0))) {
-      return false;
-    }
-    for (int i = 1; i < value.length(); i++) {
-      if (!Character.isJavaIdentifierPart(value.charAt(i))) {
-        return false;
-      }
-    }
-    return true;
-  }
 }
 

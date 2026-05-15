@@ -14,6 +14,7 @@ import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.JsonTargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.common.util.JobScopedPackageNameResolver;
+import com.etl.common.util.GeneratedModelNamingPolicy;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.processor.validation.NotNullProcessorValidationRule;
 import com.etl.processor.validation.ProcessorValidationRule;
@@ -26,9 +27,14 @@ import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.LoggerFactory;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
+import javax.tools.StandardJavaFileManager;
+import javax.tools.ToolProvider;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -60,7 +66,6 @@ class ConfigLoaderJobConfigTest {
                 sources:
                   - format: csv
                     sourceName: Customers
-                    packageName: com.etl.model.source
                     filePath: input/customers.csv
                     delimiter: ","
                     fields:
@@ -74,7 +79,6 @@ class ConfigLoaderJobConfigTest {
                 targets:
                   - format: csv
                     targetName: CustomersOut
-                    packageName: com.etl.model.target
                     filePath: output/customers.csv
                     delimiter: ","
                     fields:
@@ -113,6 +117,8 @@ class ConfigLoaderJobConfigTest {
         ReflectionTestUtils.setField(loader, "sourceConfigPath", "missing-source.yaml");
         ReflectionTestUtils.setField(loader, "targetConfigPath", "missing-target.yaml");
         ReflectionTestUtils.setField(loader, "processorConfigPath", "missing-processor.yaml");
+
+        ensureSelectedJobFlatModels("csv-to-csv-test", List.of("Customers"), List.of("CustomersOut"));
 
         RunConfigurationMetadata runConfigurationMetadata = loader.runConfigurationMetadata();
         SourceWrapper sourceWrapper = loader.sourceWrapper();
@@ -159,7 +165,6 @@ class ConfigLoaderJobConfigTest {
                 sources:
                   - format: csv
                     sourceName: Customers
-                    packageName: com.etl.model.source
                     filePath: input/customers.csv
                     delimiter: ","
                     fields:
@@ -173,7 +178,6 @@ class ConfigLoaderJobConfigTest {
                 targets:
                   - format: csv
                     targetName: CustomersOut
-                    packageName: com.etl.model.target
                     filePath: output/customers.csv
                     delimiter: ","
                     fields:
@@ -213,6 +217,8 @@ class ConfigLoaderJobConfigTest {
         ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
         ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+        ensureSelectedJobFlatModels("csv-roundtrip", List.of("Customers"), List.of("CustomersOut"));
+
         SourceWrapper sourceWrapper = loader.sourceWrapper();
         TargetWrapper targetWrapper = loader.targetWrapper();
         ProcessorConfig processorConfig = loader.processorConfig();
@@ -236,7 +242,6 @@ class ConfigLoaderJobConfigTest {
             sources:
               - format: csv
                 sourceName: Customers
-                packageName: com.etl.model.source
                 filePath: input/customers.csv
                 delimiter: ","
                 fields:
@@ -249,7 +254,6 @@ class ConfigLoaderJobConfigTest {
             targets:
               - format: csv
                 targetName: CustomersOut
-                packageName: com.etl.model.target
                 filePath: output/customers.csv
                 delimiter: ","
                 fields:
@@ -284,6 +288,8 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+    ensureSelectedJobFlatModels("trimmed-relative-config-paths", List.of("Customers"), List.of("CustomersOut"));
+
     RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
     SourceWrapper sourceWrapper = loader.sourceWrapper();
     TargetWrapper targetWrapper = loader.targetWrapper();
@@ -312,7 +318,6 @@ class ConfigLoaderJobConfigTest {
                 """);
 
         Files.writeString(scenarioDir.resolve("definitions/events-source-model.yaml"), """
-                packageName: ignored.by.runtime.bundle
                 rootElement: Events
                 recordElement: Event
                 fields:
@@ -420,7 +425,6 @@ class ConfigLoaderJobConfigTest {
         </xs:schema>
         """);
     Files.writeString(scenarioDir.resolve("definitions/events-source-model.yaml"), """
-        packageName: ignored.by.runtime.bundle
         rootElement: Events
         recordElement: Event
         fields:
@@ -497,7 +501,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Customers
-          packageName: com.etl.model.source
           filePath: %s
           delimiter: ","
           fields:
@@ -543,6 +546,8 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+    ensureSelectedJobFlatSourceModels("csv-to-json-derived-package", List.of("Customers"));
+
     ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
     String messages = messageChain(exception);
 
@@ -553,7 +558,7 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
-  void warnsWhenExplicitGeneratedPackageNameDiffersFromSelectedJobDerivedPackage() throws IOException {
+  void failsFastWhenExplicitSelectedJobProvidesPackageName() throws IOException {
     Path scenarioDir = tempDir.resolve("xml-to-json-events-warning");
     Files.createDirectories(scenarioDir.resolve("input"));
     Files.createDirectories(scenarioDir.resolve("output"));
@@ -601,25 +606,22 @@ class ConfigLoaderJobConfigTest {
             target: EventsJson
         """);
 
-    ListAppender<ILoggingEvent> appender = attachConfigLoaderAppender();
     ConfigLoader loader = new ConfigLoader();
     ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    String messages = messageChain(exception);
 
-    assertEquals("xml-to-json-events-warning", metadata.scenarioName());
-    assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("source config 'Events'")
-            && event.getFormattedMessage().contains("com.etl.generated.job.xmltojsonevents.source")
-            && event.getFormattedMessage().contains("com.etl.generated.job.xmltojsoneventswarning.source")
-            && event.getFormattedMessage().contains("still honored for compatibility")));
-    assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("target config 'EventsJson'")
-            && event.getFormattedMessage().contains("com.etl.generated.job.xmltojsonevents.target")
-            && event.getFormattedMessage().contains("com.etl.generated.job.xmltojsoneventswarning.target")));
+    assertTrue(messages.contains("Selected job 'xml-to-json-events-warning' does not allow explicit packageName"));
+    assertTrue(messages.contains("source config 'Events'"));
+    assertTrue(messages.contains("com.etl.generated.job.xmltojsonevents.source"));
+    assertTrue(messages.contains("com.etl.generated.job.xmltojsoneventswarning.source"));
+    assertTrue(messages.contains("Remove packageName"));
   }
 
   @Test
-  void categorizesInvalidGeneratedModelPackageMetadataWithScenarioAndStepContext() throws IOException {
+  void categorizesMissingGeneratedTargetClassWithScenarioAndStepContext() throws IOException {
     Path sourceFile = tempDir.resolve("customers.csv");
     Files.writeString(sourceFile, "id,name\n1,John Doe\n");
     Path sourceConfig = tempDir.resolve("source-config.yaml");
@@ -631,7 +633,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Customers
-          packageName: com.etl.model.source
           filePath: %s
           delimiter: ","
           fields:
@@ -644,7 +645,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: json
           targetName: CustomersJson
-          packageName: com.etl.invalid-package
           filePath: output/customers.json
           fields:
             - name: id
@@ -664,7 +664,7 @@ class ConfigLoaderJobConfigTest {
               to: name
       """);
     Files.writeString(jobConfig, """
-      name: invalid-generated-model-package
+      name: missing-generated-model-target
       sourceConfigPath: source-config.yaml
       targetConfigPath: target-config.yaml
       processorConfigPath: processor-config.yaml
@@ -678,15 +678,17 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+    ensureSelectedJobFlatSourceModels("missing-generated-model-target", List.of("Customers"));
+
     ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
     String messages = messageChain(exception);
 
-    assertTrue(messages.contains("Invalid generated model configuration for scenario 'invalid-generated-model-package'"));
+    assertTrue(messages.contains("Invalid generated model configuration for scenario 'missing-generated-model-target'"));
     assertTrue(messages.contains(jobConfig.toString()));
     assertTrue(messages.contains("step='customers-step'"));
     assertTrue(messages.contains("source='Customers'"));
     assertTrue(messages.contains("target='CustomersJson'"));
-    assertTrue(messages.contains("invalid packageName='com.etl.invalid-package'"));
+    assertTrue(messages.contains("Target model class not found"));
     assertFalse(messages.contains("Failed to resolve runtime configuration metadata"));
   }
 
@@ -703,7 +705,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: CustomersIntermediate
-          packageName: com.etl.model.source
           filePath: %s
           delimiter: ","
           fields:
@@ -713,7 +714,6 @@ class ConfigLoaderJobConfigTest {
               type: String
         - format: csv
           sourceName: IngressCustomers
-          packageName: com.etl.model.source
           filePath: %s
           delimiter: ","
           fields:
@@ -726,7 +726,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: json
           targetName: FinalCustomersJson
-          packageName: com.etl.model.target
           filePath: output/customers.json
           fields:
             - name: id
@@ -735,7 +734,6 @@ class ConfigLoaderJobConfigTest {
               type: String
         - format: json
           targetName: CustomersIntermediate
-          packageName: com.etl.model.target
           filePath: output/intermediate.json
           fields:
             - name: id
@@ -842,6 +840,60 @@ class ConfigLoaderJobConfigTest {
     assertTrue(sourceWrapper.getSources() != null && !sourceWrapper.getSources().isEmpty());
     assertTrue(targetWrapper.getTargets() != null && !targetWrapper.getTargets().isEmpty());
     assertTrue(processorConfig.getMappings() != null && !processorConfig.getMappings().isEmpty());
+    assertEquals("com.etl.model.source", sourceWrapper.getSources().get(0).getPackageName());
+    assertEquals("com.etl.model.target", targetWrapper.getTargets().get(0).getPackageName());
+  }
+
+  @Test
+  void failsFastWhenDirectConfigProvidesPackageName() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+
+    Files.writeString(sourceConfig, """
+        sources:
+          - format: csv
+            sourceName: Customers
+            packageName: com.etl.model.source
+            filePath: input/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: String
+        """);
+    Files.writeString(targetConfig, """
+        targets:
+          - format: json
+            targetName: CustomersJson
+            filePath: output/customers.json
+            fields:
+              - name: id
+                type: String
+        """);
+    Files.writeString(processorConfig, """
+        type: default
+        mappings:
+          - source: Customers
+            target: CustomersJson
+            fields:
+              - from: id
+                to: id
+        """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", "");
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", true);
+    ReflectionTestUtils.setField(loader, "sourceConfigPath", sourceConfig.toString());
+    ReflectionTestUtils.setField(loader, "targetConfigPath", targetConfig.toString());
+    ReflectionTestUtils.setField(loader, "processorConfigPath", processorConfig.toString());
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::sourceWrapper);
+    String messages = messageChain(exception);
+
+    assertTrue(messages.contains("Direct-config runtime does not allow explicit packageName"));
+    assertTrue(messages.contains("source config 'Customers'"));
+    assertTrue(messages.contains("com.etl.model.source"));
+    assertTrue(messages.contains("Remove packageName"));
   }
 
   @Test
@@ -863,7 +915,6 @@ class ConfigLoaderJobConfigTest {
             sources:
               - format: csv
                 sourceName: Customers
-                packageName: com.etl.model.source
                 filePath: input/customers.csv
                 delimiter: ","
                 fields:
@@ -875,7 +926,6 @@ class ConfigLoaderJobConfigTest {
             targets:
               - format: csv
                 targetName: CustomersOut
-                packageName: com.etl.model.target
                 filePath: output/customers.csv
                 delimiter: ","
                 fields:
@@ -955,7 +1005,6 @@ class ConfigLoaderJobConfigTest {
             sources:
               - format: csv
                 sourceName: Customers
-                packageName: com.etl.model.source
                 filePath: input/customers.csv
                 delimiter: ","
                 fields:
@@ -968,7 +1017,6 @@ class ConfigLoaderJobConfigTest {
             targets:
               - format: csv
                 targetName: CustomersOut
-                packageName: com.etl.model.target
                 filePath: output/customers.csv
                 delimiter: ","
                 fields:
@@ -1004,6 +1052,8 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+    ensureSelectedJobFlatModels("active-job", List.of("Customers"), List.of("CustomersOut"));
+
     RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
 
     assertEquals("active-job", metadata.scenarioName());
@@ -1022,7 +1072,6 @@ class ConfigLoaderJobConfigTest {
         sources:
           - format: csv
             sourceName: Customers
-            packageName: com.etl.model.source
             filePath: input/customers.csv
             delimiter: ","
             fields:
@@ -1035,7 +1084,6 @@ class ConfigLoaderJobConfigTest {
         targets:
           - format: csv
             targetName: CustomersOut
-            packageName: com.etl.model.target
             filePath: output/customers.csv
             delimiter: ","
             fields:
@@ -1067,6 +1115,8 @@ class ConfigLoaderJobConfigTest {
         """);
 
     Path requestedAliasJobConfig = tempDir.resolve("src/main/resources/config-scenarios/customer-load/job-config.yaml");
+
+    ensureSelectedJobFlatModels("customer-load", List.of("Customers"), List.of("CustomersOut"));
 
     ConfigLoader loader = new ConfigLoader();
     ReflectionTestUtils.setField(loader, "jobConfigPath", requestedAliasJobConfig.toString());
@@ -1144,9 +1194,9 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.invokeMethod(loader, "applyJobScopedPackageDefaults", sourceWrapper, targetWrapper, "csv-to-nested-xml");
 
     assertEquals("com.etl.generated.job.csvtonestedxml.source", sourceWrapper.getSources().get(0).getPackageName());
-    assertEquals("com.example.explicit.source", sourceWrapper.getSources().get(1).getPackageName());
+    assertEquals("com.etl.generated.job.csvtonestedxml.source", sourceWrapper.getSources().get(1).getPackageName());
     assertEquals("com.etl.generated.job.csvtonestedxml.target", targetWrapper.getTargets().get(0).getPackageName());
-    assertEquals("com.example.explicit.target", targetWrapper.getTargets().get(1).getPackageName());
+    assertEquals("com.etl.generated.job.csvtonestedxml.target", targetWrapper.getTargets().get(1).getPackageName());
   }
 
   @Test
@@ -1160,7 +1210,6 @@ class ConfigLoaderJobConfigTest {
             sources:
               - format: csv
                 sourceName: Customers
-                packageName: com.etl.model.source
                 filePath: input/customers.csv
                 delimiter: ","
                 fields:
@@ -1171,7 +1220,6 @@ class ConfigLoaderJobConfigTest {
             targets:
               - format: csv
                 targetName: CustomersOut
-                packageName: com.etl.model.target
                 filePath: output/customers.csv
                 delimiter: ","
                 fields:
@@ -1213,7 +1261,6 @@ class ConfigLoaderJobConfigTest {
             sources:
               - format: csv
                 sourceName: Customers
-                packageName: com.etl.model.source
                 filePath: input/customers.csv
                 delimiter: ","
                 fields:
@@ -1224,7 +1271,6 @@ class ConfigLoaderJobConfigTest {
             targets:
               - format: csv
                 targetName: CustomersOut
-                packageName: com.etl.model.target
                 filePath: output/customers.csv
                 delimiter: ","
                 fields:
@@ -1270,7 +1316,6 @@ class ConfigLoaderJobConfigTest {
             sources:
               - format: csv
                 sourceName: Customers
-                packageName: com.etl.model.source
                 filePath: input/customers.csv
                 delimiter: ","
                 fields:
@@ -1278,7 +1323,6 @@ class ConfigLoaderJobConfigTest {
                     type: int
               - format: csv
                 sourceName: Department
-                packageName: com.etl.model.source
                 filePath: input/departments.csv
                 delimiter: ","
                 fields:
@@ -1289,7 +1333,6 @@ class ConfigLoaderJobConfigTest {
             targets:
               - format: csv
                 targetName: CustomersOut
-                packageName: com.etl.model.target
                 filePath: output/customers.csv
                 delimiter: ","
                 fields:
@@ -1297,7 +1340,6 @@ class ConfigLoaderJobConfigTest {
                     type: int
               - format: csv
                 targetName: DepartmentsOut
-                packageName: com.etl.model.target
                 filePath: output/departments.csv
                 delimiter: ","
                 fields:
@@ -1351,7 +1393,6 @@ class ConfigLoaderJobConfigTest {
             sources:
               - format: csv
                 sourceName: Customers
-                packageName: com.etl.model.source
                 filePath: input/customers.csv
                 delimiter: ","
                 fields:
@@ -1364,7 +1405,6 @@ class ConfigLoaderJobConfigTest {
             targets:
               - format: relational
                 targetName: CustomersSql
-                packageName: com.etl.model.target
                 schema: dbo
                 table: Customers
                 writeMode: insert
@@ -1438,7 +1478,6 @@ class ConfigLoaderJobConfigTest {
         sources:
           - format: csv
             sourceName: Events
-            packageName: com.etl.model.source
             filePath: input/events.csv
             delimiter: ","
             fields:
@@ -1449,7 +1488,6 @@ class ConfigLoaderJobConfigTest {
         targets:
           - format: csv
             targetName: EventsCsv
-            packageName: com.etl.model.target
             filePath: output/events.csv
             delimiter: ","
             fields:
@@ -1500,7 +1538,6 @@ class ConfigLoaderJobConfigTest {
         sources:
           - format: csv
             sourceName: Customers
-            packageName: com.etl.model.source
             filePath: %s
             delimiter: ","
             fields:
@@ -1513,7 +1550,6 @@ class ConfigLoaderJobConfigTest {
         targets:
           - format: csv
             targetName: MissingTarget
-            packageName: com.etl.generated.missing.target
             filePath: output/missing-target.csv
             delimiter: ","
             fields:
@@ -1571,7 +1607,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Customers
-          packageName: com.etl.model.source
           filePath: %s
           delimiter: ","
           fields:
@@ -1582,7 +1617,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: csv
           targetName: Customers
-          packageName: com.etl.model.target
           filePath: output/customers.csv
           delimiter: ","
           fields:
@@ -1632,7 +1666,6 @@ class ConfigLoaderJobConfigTest {
         sources:
           - format: csv
             sourceName: Events
-            packageName: com.etl.model.source
             filePath: input/events.csv
             delimiter: ","
             fields:
@@ -1643,7 +1676,6 @@ class ConfigLoaderJobConfigTest {
         targets:
           - format: csv
             targetName: EventsCsv
-            packageName: com.etl.model.target
             filePath: output/events.csv
             delimiter: ","
             fields:
@@ -1694,7 +1726,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Events
-          packageName: com.etl.model.source
           filePath: %s
           delimiter: ","
           validation:
@@ -1710,7 +1741,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: csv
           targetName: EventsCsv
-          packageName: com.etl.model.target
           filePath: output/events.csv
           delimiter: ","
           fields:
@@ -1745,6 +1775,8 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+    ensureSelectedJobFlatModels("csv-file-validation-success", List.of("Events"), List.of("EventsCsv"));
+
     RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
     SourceWrapper sourceWrapper = loader.sourceWrapper();
 
@@ -1763,7 +1795,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Events
-          packageName: com.etl.model.source
           filePath: input/events.csv
           delimiter: ","
           fields:
@@ -1774,7 +1805,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: csv
           targetName: EventsCsv
-          packageName: com.etl.model.target
           filePath: output/events.csv
           delimiter: ","
           fields:
@@ -1815,6 +1845,8 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+    ensureSelectedJobFlatModels("custom-rule-spi", List.of("Events"), List.of("EventsCsv"));
+
     ProcessorConfig loadedProcessorConfig = loader.processorConfig();
 
     assertEquals("startsWith", loadedProcessorConfig.getMappings().get(0).getFields().get(0).getRules().get(0).getType());
@@ -1831,7 +1863,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Customers
-          packageName: com.etl.model.source
           filePath: input/customers.csv
           delimiter: ","
           fields:
@@ -1844,7 +1875,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: csv
           targetName: CustomersOut
-          packageName: com.etl.model.target
           filePath: output/customers.csv
           delimiter: ","
           fields:
@@ -1877,6 +1907,8 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+    ensureSelectedJobFlatModels("expression-derived-field", List.of("Customers"), List.of("CustomersOut"));
+
     ProcessorConfig loadedProcessorConfig = loader.processorConfig();
 
     ProcessorConfig.FieldMapping fieldMapping = loadedProcessorConfig.getMappings().get(0).getFields().get(0);
@@ -1897,7 +1929,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Customers
-          packageName: com.etl.model.source
           filePath: input/customers.csv
           delimiter: ","
           fields:
@@ -1908,7 +1939,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: csv
           targetName: CustomersOut
-          packageName: com.etl.model.target
           filePath: output/customers.csv
           delimiter: ","
           fields:
@@ -1957,7 +1987,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Events
-          packageName: com.etl.model.source
           filePath: input/events.csv
           delimiter: ","
           fields:
@@ -1970,7 +1999,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: csv
           targetName: EventsCsv
-          packageName: com.etl.model.target
           filePath: output/events.csv
           delimiter: ","
           fields:
@@ -2013,6 +2041,8 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+    ensureSelectedJobFlatModels("duplicate-rule", List.of("Events"), List.of("EventsCsv"));
+
     ProcessorConfig loadedProcessorConfig = loader.processorConfig();
 
     assertEquals("duplicate", loadedProcessorConfig.getMappings().get(0).getFields().get(0).getRules().get(0).getType());
@@ -2030,7 +2060,6 @@ class ConfigLoaderJobConfigTest {
         sources:
           - format: csv
             sourceName: Events
-            packageName: com.etl.model.source
             filePath: input/events.csv
             delimiter: ","
             fields:
@@ -2043,7 +2072,6 @@ class ConfigLoaderJobConfigTest {
         targets:
           - format: csv
             targetName: EventsCsv
-            packageName: com.etl.model.target
             filePath: output/events.csv
             delimiter: ","
             fields:
@@ -2099,7 +2127,6 @@ class ConfigLoaderJobConfigTest {
         sources:
           - format: csv
             sourceName: Events
-            packageName: com.etl.model.source
             filePath: input/events.csv
             delimiter: ","
             fields:
@@ -2114,7 +2141,6 @@ class ConfigLoaderJobConfigTest {
         targets:
           - format: csv
             targetName: EventsCsv
-            packageName: com.etl.model.target
             filePath: output/events.csv
             delimiter: ","
             fields:
@@ -2162,6 +2188,8 @@ class ConfigLoaderJobConfigTest {
       ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
       ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+      ensureSelectedJobFlatModels("duplicate-order-by", List.of("Events"), List.of("EventsCsv"));
+
       ProcessorConfig loadedProcessorConfig = loader.processorConfig();
 
       ProcessorConfig.FieldRule rule = loadedProcessorConfig.getMappings().get(0).getFields().get(0).getRules().get(0);
@@ -2183,7 +2211,6 @@ class ConfigLoaderJobConfigTest {
         sources:
           - format: csv
             sourceName: Events
-            packageName: com.etl.model.source
             filePath: input/events.csv
             delimiter: ","
             fields:
@@ -2196,7 +2223,6 @@ class ConfigLoaderJobConfigTest {
         targets:
           - format: csv
             targetName: EventsCsv
-            packageName: com.etl.model.target
             filePath: output/events.csv
             delimiter: ","
             fields:
@@ -2235,6 +2261,8 @@ class ConfigLoaderJobConfigTest {
       ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
       ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+      ensureSelectedJobFlatModels("duplicate-order-by-missing-order", List.of("Events"), List.of("EventsCsv"));
+
       ProcessorConfig loadedProcessorConfig = loader.processorConfig();
 
         ProcessorConfig.FieldRule rule = loadedProcessorConfig.getMappings().get(0).getFields().get(0).getRules().get(0);
@@ -2253,7 +2281,6 @@ class ConfigLoaderJobConfigTest {
         sources:
           - format: csv
             sourceName: Events
-            packageName: com.etl.model.source
             filePath: input/events.csv
             delimiter: ","
             fields:
@@ -2266,7 +2293,6 @@ class ConfigLoaderJobConfigTest {
         targets:
           - format: csv
             targetName: EventsCsv
-            packageName: com.etl.model.target
             filePath: output/events.csv
             delimiter: ","
             fields:
@@ -2333,7 +2359,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: xml
           sourceName: CustomersXml
-          packageName: com.etl.model.source.xml
           filePath: %s
           rootElement: Customers
           recordElement: Customer
@@ -2347,7 +2372,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: csv
           targetName: CustomersCsv
-          packageName: com.etl.model.target
           filePath: output/customers.csv
           delimiter: ","
           fields:
@@ -2408,7 +2432,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: xml
           sourceName: CustomersXml
-          packageName: com.etl.model.source.xml
           filePath: %s
           rootElement: Customers
           recordElement: Customer
@@ -2422,7 +2445,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: csv
           targetName: CustomersCsv
-          packageName: com.etl.model.target
           filePath: output/customers.csv
           delimiter: ","
           fields:
@@ -2457,6 +2479,9 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+    ensureSelectedJobXmlSourceModels("xml-source-validation-success", List.of("CustomersXml"));
+    ensureSelectedJobFlatTargetModels("xml-source-validation-success", List.of("CustomersCsv"));
+
     RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
     SourceWrapper sourceWrapper = loader.sourceWrapper();
 
@@ -2485,7 +2510,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: xml
           sourceName: CustomersXml
-          packageName: com.etl.generated.missing.source
           filePath: %s
           rootElement: Customers
           recordElement: Customer
@@ -2499,7 +2523,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: xml
           targetName: CustomersXmlTarget
-          packageName: com.etl.model.target
           filePath: output/customers.xml
           rootElement: Customers
           recordElement: Customer
@@ -2537,7 +2560,7 @@ class ConfigLoaderJobConfigTest {
 
     ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
     assertTrue(messageChain(exception).contains("XML source root class not found"));
-    assertTrue(messageChain(exception).contains("com.etl.generated.missing.source.Customers"));
+    assertTrue(messageChain(exception).contains(JobScopedPackageNameResolver.resolveSourcePackage("xml-generated-source-package-missing") + ".CustomersXmlXmlRoot"));
   }
 
   @Test
@@ -2561,7 +2584,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: xml
           sourceName: CustomersXml
-          packageName: com.etl.generated.missing.nested.source
           filePath: %s
           rootElement: Customers
           recordElement: Customer
@@ -2576,7 +2598,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: csv
           targetName: CustomersCsv
-          packageName: com.etl.model.target
           filePath: output/customers.csv
           delimiter: ","
           fields:
@@ -2613,7 +2634,7 @@ class ConfigLoaderJobConfigTest {
 
     ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
     assertTrue(messageChain(exception).contains("XML source record class not found"));
-    assertTrue(messageChain(exception).contains("com.etl.generated.missing.nested.source.Customer"));
+    assertTrue(messageChain(exception).contains(JobScopedPackageNameResolver.resolveSourcePackage("nested-xml-generated-record-missing") + ".CustomersXmlXmlRecord"));
     assertFalse(messageChain(exception).contains("XML source root class not found"));
   }
 
@@ -2638,7 +2659,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: xml
           sourceName: CustomersXml
-          packageName: com.etl.model.source.xml
           filePath: %s
           rootElement: Customers
           recordElement: Customer
@@ -2652,7 +2672,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: xml
           targetName: CustomersXmlTarget
-          packageName: com.etl.model.target
           filePath: output/customers.xml
           rootElement: Customers
           recordElement: Customer
@@ -2688,6 +2707,9 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
+    ensureSelectedJobXmlSourceModels("xml-generated-packages-present", List.of("CustomersXml"));
+    ensureSelectedJobXmlTargetModels("xml-generated-packages-present", List.of("CustomersXmlTarget"));
+
     RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
     assertEquals("xml-generated-packages-present", metadata.scenarioName());
   }
@@ -2705,7 +2727,6 @@ class ConfigLoaderJobConfigTest {
       sources:
         - format: csv
           sourceName: Events
-          packageName: com.etl.model.source
           filePath: %s
           delimiter: ","
           validation:
@@ -2721,7 +2742,6 @@ class ConfigLoaderJobConfigTest {
       targets:
         - format: csv
           targetName: EventsCsv
-          packageName: com.etl.model.target
           filePath: output/events.csv
           delimiter: ","
           fields:
@@ -2772,7 +2792,6 @@ class ConfigLoaderJobConfigTest {
         sources:
           - format: csv
             sourceName: Events
-            packageName: com.etl.model.source
             filePath: input/events.csv
             delimiter: ","
             archive:
@@ -2785,7 +2804,6 @@ class ConfigLoaderJobConfigTest {
         targets:
           - format: csv
             targetName: EventsCsv
-            packageName: com.etl.model.target
             filePath: output/events.csv
             delimiter: ","
             fields:
@@ -2829,20 +2847,9 @@ class ConfigLoaderJobConfigTest {
     Files.writeString(scenarioDir.resolve("input/events.xml"), "<Events><Event><id>1</id></Event></Events>");
     Files.writeString(scenarioDir.resolve("definitions/events-source-model.yaml"), "type: xml\n");
 
-    XmlSourceConfig xmlSourceConfig = new XmlSourceConfig();
-    xmlSourceConfig.setSourceName("EventsXml");
-    xmlSourceConfig.setPackageName("com.etl.model.source");
-    xmlSourceConfig.setFilePath("input/events.xml");
-    xmlSourceConfig.setRootElement("Events");
-    xmlSourceConfig.setRecordElement("Event");
-    xmlSourceConfig.setModelDefinitionPath("definitions/events-source-model.yaml");
-    var archive = new com.etl.config.source.FileArchiveConfig();
-    archive.setEnabled(true);
-    archive.setSuccessPath("archive/success/");
-    archive.setNamePattern("{originalName}-{timestamp}");
-    xmlSourceConfig.setArchive(archive);
+      XmlSourceConfig xmlSourceConfig = getXmlSourceConfig();
 
-    SourceWrapper sourceWrapper = new SourceWrapper();
+      SourceWrapper sourceWrapper = new SourceWrapper();
     sourceWrapper.setSources(List.of(xmlSourceConfig));
 
     ConfigLoader loader = new ConfigLoader();
@@ -2852,6 +2859,190 @@ class ConfigLoaderJobConfigTest {
     assertEquals(scenarioDir.resolve("definitions/events-source-model.yaml").normalize().toString(), xmlSourceConfig.getModelDefinitionPath());
     assertNotNull(xmlSourceConfig.getArchive());
     assertEquals(scenarioDir.resolve("archive/success").normalize().toString(), xmlSourceConfig.getArchive().getSuccessPath());
+  }
+
+    private XmlSourceConfig getXmlSourceConfig() {
+        XmlSourceConfig xmlSourceConfig = new XmlSourceConfig();
+        xmlSourceConfig.setSourceName("EventsXml");
+        xmlSourceConfig.setPackageName("com.etl.model.source");
+        xmlSourceConfig.setFilePath("input/events.xml");
+        xmlSourceConfig.setRootElement("Events");
+        xmlSourceConfig.setRecordElement("Event");
+        xmlSourceConfig.setModelDefinitionPath("definitions/events-source-model.yaml");
+        var archive = new com.etl.config.source.FileArchiveConfig();
+        archive.setEnabled(true);
+        archive.setSuccessPath("archive/success/");
+        archive.setNamePattern("{originalName}-{timestamp}");
+        xmlSourceConfig.setArchive(archive);
+        return xmlSourceConfig;
+    }
+
+    private void ensureSelectedJobFlatModels(String jobName, List<String> sourceNames, List<String> targetNames) throws IOException {
+    ensureSelectedJobFlatSourceModels(jobName, sourceNames);
+    ensureSelectedJobFlatTargetModels(jobName, targetNames);
+  }
+
+  private void ensureSelectedJobFlatSourceModels(String jobName, List<String> sourceNames) throws IOException {
+    List<Path> javaFiles = new ArrayList<>();
+    String packageName = JobScopedPackageNameResolver.resolveSourcePackage(jobName);
+    for (String sourceName : sourceNames) {
+      javaFiles.add(writeMinimalClass(packageName, GeneratedModelNamingPolicy.resolveFlatSimpleClassName(sourceName)));
+    }
+    compileGeneratedSources(javaFiles);
+  }
+
+  private void ensureSelectedJobFlatTargetModels(String jobName, List<String> targetNames) throws IOException {
+    List<Path> javaFiles = new ArrayList<>();
+    String packageName = JobScopedPackageNameResolver.resolveTargetPackage(jobName);
+    for (String targetName : targetNames) {
+      javaFiles.add(writeMinimalClass(packageName, GeneratedModelNamingPolicy.resolveFlatSimpleClassName(targetName)));
+    }
+    compileGeneratedSources(javaFiles);
+  }
+
+  private void ensureSelectedJobXmlSourceModels(String jobName, List<String> sourceNames) throws IOException {
+    List<Path> javaFiles = new ArrayList<>();
+    String packageName = JobScopedPackageNameResolver.resolveSourcePackage(jobName);
+    for (String sourceName : sourceNames) {
+      javaFiles.add(writeMinimalClass(packageName, GeneratedModelNamingPolicy.resolveXmlRootSimpleClassName(sourceName)));
+      javaFiles.add(writeMinimalClass(packageName, GeneratedModelNamingPolicy.resolveXmlRecordSimpleClassName(sourceName)));
+    }
+    compileGeneratedSources(javaFiles);
+  }
+
+  private void ensureSelectedJobXmlTargetModels(String jobName, List<String> targetNames) throws IOException {
+    List<Path> javaFiles = new ArrayList<>();
+    String packageName = JobScopedPackageNameResolver.resolveTargetPackage(jobName);
+    for (String targetName : targetNames) {
+      javaFiles.add(writeMinimalClass(packageName, GeneratedModelNamingPolicy.resolveXmlRootSimpleClassName(targetName)));
+      javaFiles.add(writeMinimalClass(packageName, GeneratedModelNamingPolicy.resolveXmlRecordSimpleClassName(targetName)));
+    }
+    compileGeneratedSources(javaFiles);
+  }
+
+  private Path writeMinimalClass(String packageName, String simpleClassName) throws IOException {
+    Path sourceRoot = tempDir.resolve("generated-test-models-src");
+    Path packageDirectory = sourceRoot.resolve(packageName.replace('.', '/'));
+    Files.createDirectories(packageDirectory);
+    Path javaFile = packageDirectory.resolve(simpleClassName + ".java");
+    Files.writeString(javaFile, """
+        package %s;
+
+        public class %s {
+          private Integer id;
+          private Integer sequenceNo;
+          private String name;
+          private String email;
+          private String eventTime;
+          private String description;
+          private String firstName;
+          private String lastName;
+          private String fullName;
+          private String eventCode;
+
+          public Integer getId() {
+            return id;
+          }
+
+          public void setId(Integer id) {
+            this.id = id;
+          }
+
+          public Integer getSequenceNo() {
+            return sequenceNo;
+          }
+
+          public void setSequenceNo(Integer sequenceNo) {
+            this.sequenceNo = sequenceNo;
+          }
+
+          public String getName() {
+            return name;
+          }
+
+          public void setName(String name) {
+            this.name = name;
+          }
+
+          public String getEmail() {
+            return email;
+          }
+
+          public void setEmail(String email) {
+            this.email = email;
+          }
+
+          public String getEventTime() {
+            return eventTime;
+          }
+
+          public void setEventTime(String eventTime) {
+            this.eventTime = eventTime;
+          }
+
+          public String getDescription() {
+            return description;
+          }
+
+          public void setDescription(String description) {
+            this.description = description;
+          }
+
+          public String getFirstName() {
+            return firstName;
+          }
+
+          public void setFirstName(String firstName) {
+            this.firstName = firstName;
+          }
+
+          public String getLastName() {
+            return lastName;
+          }
+
+          public void setLastName(String lastName) {
+            this.lastName = lastName;
+          }
+
+          public String getFullName() {
+            return fullName;
+          }
+
+          public void setFullName(String fullName) {
+            this.fullName = fullName;
+          }
+
+          public String getEventCode() {
+            return eventCode;
+          }
+
+          public void setEventCode(String eventCode) {
+            this.eventCode = eventCode;
+          }
+        }
+        """.formatted(packageName, simpleClassName));
+    return javaFile;
+  }
+
+  private void compileGeneratedSources(List<Path> javaFiles) throws IOException {
+    if (javaFiles == null || javaFiles.isEmpty()) {
+      return;
+    }
+    JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
+    assertNotNull(compiler, "A JDK is required to compile generated test support classes.");
+    Path classRoot = Path.of("target", "test-classes");
+    Files.createDirectories(classRoot);
+    List<String> options = List.of(
+        "-d", classRoot.toString(),
+        "-classpath", System.getProperty("java.class.path", "")
+    );
+    try (StandardJavaFileManager fileManager = compiler.getStandardFileManager(null, null, null)) {
+      Iterable<? extends JavaFileObject> compilationUnits = fileManager.getJavaFileObjectsFromFiles(
+          javaFiles.stream().map(Path::toFile).toList()
+      );
+      Boolean success = compiler.getTask(null, fileManager, null, options, null, compilationUnits).call();
+      assertEquals(Boolean.TRUE, success, "Generated selected-job test support classes must compile successfully.");
+    }
   }
 
   private String messageChain(Throwable throwable) {

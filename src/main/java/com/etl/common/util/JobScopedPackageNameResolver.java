@@ -5,11 +5,12 @@ import com.etl.config.job.JobConfig;
 import java.nio.file.Path;
 
 /**
- * Resolves compatibility-first defaults for job-scoped generated model packages.
+ * Resolves selected-job generated model packages from the explicit job identity.
  * <p>
- * Explicit packageName values in source/target configs still win. When a selected
- * explicit job omits packageName, the runtime and build-time generation paths can
- * derive a stable default package from the selected job identity.
+ * On the active explicit-job path, source/target package names are derived internally from
+ * {@code job-config.yaml -> name}. Authored source/target {@code packageName} values are no
+ * longer part of that contract and now fail fast so runtime lookup and build-time generation
+ * stay deterministic.
  * </p>
  */
 public final class JobScopedPackageNameResolver {
@@ -65,31 +66,43 @@ public final class JobScopedPackageNameResolver {
         return resolvePackage(jobName, "target");
     }
 
-    public static boolean usesDerivedJobScopedPackage(String packageName) {
-        return packageName != null && packageName.trim().startsWith(BASE_PACKAGE + ".");
+    public static boolean hasExplicitPackageName(String packageName) {
+        return packageName != null && !packageName.isBlank();
     }
 
-    public static boolean isDeprecatedBridgePackageDrift(String packageName, String derivedPackageName) {
-        if (packageName == null || packageName.isBlank() || derivedPackageName == null || derivedPackageName.isBlank()) {
-            return false;
+    public static void requireNoExplicitSelectedJobPackageName(String configType,
+                                                               String logicalName,
+                                                               String jobName,
+                                                               Path configPath,
+                                                               String authoredPackageName,
+                                                               String derivedPackageName) {
+        if (!hasExplicitPackageName(authoredPackageName)) {
+            return;
         }
-        String authoredPackage = packageName.trim();
-        return usesDerivedJobScopedPackage(authoredPackage)
-                && !authoredPackage.equals(derivedPackageName.trim());
+
+        throw new IllegalStateException(buildExplicitPackageNameNotAllowedMessage(
+                configType,
+                logicalName,
+                jobName,
+                configPath,
+                authoredPackageName,
+                derivedPackageName
+        ));
     }
 
-    public static String buildPackageDriftWarning(String configType,
-                                                  String logicalName,
-                                                  String jobName,
-                                                  Path configPath,
-                                                  String authoredPackageName,
-                                                  String derivedPackageName) {
+    public static String buildExplicitPackageNameNotAllowedMessage(String configType,
+                                                                   String logicalName,
+                                                                   String jobName,
+                                                                   Path configPath,
+                                                                   String authoredPackageName,
+                                                                   String derivedPackageName) {
         return "Selected job '" + defaultValue(jobName, DEFAULT_JOB_NAME)
-                + "' uses a deprecated explicit packageName bridge for " + defaultValue(configType, "config")
+                + "' does not allow explicit packageName for " + defaultValue(configType, "config")
                 + " '" + defaultValue(logicalName, "unnamed") + "' in " + defaultPath(configPath)
                 + ": authored packageName='" + defaultValue(authoredPackageName, "")
-                + "' differs from the derived package '" + defaultValue(derivedPackageName, "")
-                + "'. The authored value is still honored for compatibility, but new and updated explicit job bundles should omit packageName so generated-model package derivation stays anchored to job-config.yaml name.";
+                + "'. Remove packageName so the selected job derives generated package '"
+                + defaultValue(derivedPackageName, "")
+                + "' from job-config.yaml -> name.";
     }
 
     public static String normalizeJobPackageSegment(String jobName) {

@@ -30,10 +30,29 @@ public class RelationalSourceConfig extends SourceConfig {
         super();
     }
 
+    public RelationalSourceConfig(String sourceName,
+                                  String packageName,
+                                  List<ColumnConfig> fields,
+                                  RelationalConnectionConfig connection,
+                                  String table,
+                                  String schema,
+                                  String query,
+                                  String countQuery,
+                                  Integer fetchSize,
+                                  Integer maxRows) {
+        super(sourceName, packageName, fields);
+        this.connection = connection;
+        this.table = table;
+        this.schema = schema;
+        this.query = query;
+        this.countQuery = countQuery;
+        this.fetchSize = fetchSize;
+        this.maxRows = maxRows;
+    }
+
     @JsonCreator
     public RelationalSourceConfig(
             @JsonProperty("sourceName") String sourceName,
-            @JsonProperty("packageName") String packageName,
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("connection") RelationalConnectionConfig connection,
             @JsonProperty("table") String table,
@@ -43,14 +62,7 @@ public class RelationalSourceConfig extends SourceConfig {
             @JsonProperty("fetchSize") Integer fetchSize,
             @JsonProperty("maxRows") Integer maxRows
     ) {
-        super(sourceName, packageName, fields);
-        this.connection = connection;
-        this.table = table;
-        this.schema = schema;
-        this.query = query;
-        this.countQuery = countQuery;
-        this.fetchSize = fetchSize;
-        this.maxRows = maxRows;
+        this(sourceName, null, fields, connection, table, schema, query, countQuery, fetchSize, maxRows);
     }
 
     public RelationalConnectionConfig getConnection() {

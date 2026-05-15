@@ -16,7 +16,6 @@ class TargetConfigPolymorphicDeserializationTest {
                 targets:
                   - format: xml
                     targetName: CustomersXml
-                    packageName: com.etl.model.target
                     filePath: output/customers.xml
                     rootElement: Customers
                     recordElement: Customer
@@ -34,6 +33,7 @@ class TargetConfigPolymorphicDeserializationTest {
         assertEquals("Customers", xmlTarget.getRootElement());
         assertEquals("Customer", xmlTarget.getRecordElement());
         assertEquals("definitions/customer-target-model.yaml", xmlTarget.getModelDefinitionPath());
+        assertNull(xmlTarget.getPackageName());
         assertNull(xmlTarget.getFields());
     }
 
@@ -43,7 +43,6 @@ class TargetConfigPolymorphicDeserializationTest {
                 targets:
                   - format: relational
                     targetName: CustomersSql
-                    packageName: com.etl.model.target
                     schema: dbo
                     table: customers
                     writeMode: insert
@@ -76,6 +75,7 @@ class TargetConfigPolymorphicDeserializationTest {
         assertEquals(WriteMode.INSERT, relationalTarget.getWriteMode());
         assertEquals("sqlserver", relationalTarget.getConnection().getVendor());
         assertEquals("dbo", relationalTarget.getEffectiveSchema());
+        assertNull(relationalTarget.getPackageName());
     }
 
     @Test

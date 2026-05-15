@@ -4,7 +4,8 @@ import java.util.List;
  * Standalone XML model definition used by the XML model generation spike.
  *
  * <p>The same structural definition can be used to generate source-side or target-side
- * XML classes by changing the configured package name.</p>
+ * XML classes by changing the configured package name. When {@code packageName} is omitted,
+ * the standalone loader may derive a deterministic fallback from the definition file path.</p>
  */
 public class XmlModelDefinition {
     private String packageName;

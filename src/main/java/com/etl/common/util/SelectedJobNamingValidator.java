@@ -167,7 +167,7 @@ public final class SelectedJobNamingValidator {
     }
 
     private static List<String> generatedSourceClassNames(SourceConfig sourceConfig) {
-        String packageName = requireNonBlank(sourceConfig.getPackageName(), "packageName");
+        String packageName = GeneratedModelPackageResolver.resolveSourcePackage(sourceConfig);
         List<String> classNames = new ArrayList<>();
         classNames.add(packageName + "." + GeneratedModelNamingPolicy.resolveSourceSimpleClassName(sourceConfig));
         if (sourceConfig instanceof XmlSourceConfig xmlSourceConfig) {
@@ -177,7 +177,7 @@ public final class SelectedJobNamingValidator {
     }
 
     private static List<String> generatedTargetClassNames(TargetConfig targetConfig) {
-        String packageName = requireNonBlank(targetConfig.getPackageName(), "packageName");
+        String packageName = GeneratedModelPackageResolver.resolveTargetPackage(targetConfig);
         List<String> classNames = new ArrayList<>();
         classNames.add(packageName + "." + GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(targetConfig));
         if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {

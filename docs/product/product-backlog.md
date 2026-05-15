@@ -189,8 +189,9 @@ This table is the day-to-day execution view for the current product stage.
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
 | [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Done | M1 | A2 | Shipped through optional top-level `job-config.yaml -> isActive`, with fail-fast `ConfigLoader` startup errors before referenced config resolution; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
-| [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | In Progress | M2 | A2 | Explicit job mode now ships derived package defaults, required non-blank job names, and first naming guardrails for cross-step handoff reuse plus normalization collisions; authored `packageName` remains deprecated bridge behavior while the remaining work continues the broader bridge tightening and package-free config direction described in [`Generated model naming standard`](../architecture/generated-model-naming-standard.md) |
+| [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | Done | M2 | A2 | Shipped selected-job contract: package-free source/target YAML, required non-blank job names, centralized package resolution, collision and handoff guardrails, standardized generated headers, and XML `XmlRecord` / `XmlRoot` class-shape separation on the active path |
 | [A5](backlog-items/A5-relational-source-column-alias-contract.md) | Add relational source column alias contract and reader mapping | Epic A | P2 | Deferred | M2 | none | Parked for later review so relational reads can support source-column-to-property differences without disturbing the current phase-1 baseline |
+| [A6](backlog-items/A6-retire-internal-generated-model-package-bridge.md) | Retire remaining internal generated-model package bridge | Epic A | P2 | Ready | M2 | A4 | Follow-on technical cleanup: remove config-object package cache/state, narrow demo-fallback/internal compatibility defaults, and retire remaining bridge-era labels or helper seams without reopening authored `packageName` as supported config |
 | T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | T2 | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
@@ -227,12 +228,12 @@ This table is the day-to-day execution view for the current product stage.
 
 Use this section as the near-term sequencing view behind the execution board:
 
-1. `A4` first, to finish the generated-model naming and package-derivation contract before more feature breadth increases rework.
-2. `T3` next, once the generated-model contract is tighter and the remaining naming drift risk is reduced.
-3. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, not a redesign of the shipped duplicate baseline.
-4. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
-5. Keep `E2` as the next portability/documentation step.
-6. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
+1. `T3` next, now that the generated-model naming and package-derivation contract is shipped on the active path.
+2. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, not a redesign of the shipped duplicate baseline.
+3. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
+4. Keep `E2` as the next portability/documentation step.
+5. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
+6. Keep [`A6`](backlog-items/A6-retire-internal-generated-model-package-bridge.md) available as a contained technical cleanup when reducing remaining internal compatibility seams becomes worthwhile.
 7. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
@@ -335,7 +336,8 @@ Make each run explicit, predictable, and less fragile.
 - [x] Replace positional source-target pairing with explicit step pairing or step definitions
 - [x] Validate scenario completeness before job start
 - [x] Add job-level activation guardrail so `isActive: false` blocks the selected job before wiring
-- [ ] Complete the remaining generated-model naming and validation standard after the shipped deprecated `packageName` bridge for explicit jobs
+- [x] Complete the generated-model naming and package-derivation standard for the shipped active selected-job contract
+- [ ] Retire the remaining internal generated-model package bridge after the shipped contract is complete
 - [ ] Add a relational source column alias contract so selected database column names can differ from generated/runtime property names without ad hoc query-only workarounds
 - [ ] Add stronger config validation error messages for operators
 - [ ] Make step definitions more business-meaningful and less index-driven
@@ -682,11 +684,11 @@ Exit signal:
 
 Use this as the condensed near-term priority order:
 
-1. `A4` — generated-model naming and package-derivation completion
-2. `T3` — conditional transformation rules
-3. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
-4. `E2` — packaged-run guidance
-5. `X1` / `X2` — SFTP contract and first inbound slice
+1. `T3` — conditional transformation rules
+2. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
+3. `E2` — packaged-run guidance
+4. `X1` / `X2` — SFTP contract and first inbound slice
+5. `A6` — contained internal generated-model bridge retirement
 6. `F1` / `S1` / `S2` — restartability and scheduler baseline
 7. `V3` / `V4` / `G1` — reporting, release gating, and secure config
 

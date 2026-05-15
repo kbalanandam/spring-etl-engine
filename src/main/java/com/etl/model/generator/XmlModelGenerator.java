@@ -1,6 +1,7 @@
 package com.etl.model.generator;
 
 import com.etl.common.util.GeneratedModelNamingPolicy;
+import com.etl.common.util.GeneratedModelPackageResolver;
 import com.etl.config.FieldDefinition;
 import com.etl.config.ModelConfig;
 import com.etl.config.ModelPathConfig;
@@ -71,7 +72,7 @@ public class XmlModelGenerator<T extends ModelConfig> implements ModelGenerator<
         if (config.getModelType() == ModelType.TARGET && config instanceof XmlTargetConfig xmlTarget) {
 			wrapperClassName = GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(xmlTarget);
 			recordClassName = GeneratedModelNamingPolicy.resolveTargetProcessingSimpleClassName(xmlTarget);
-            packageName = xmlTarget.getPackageName();
+			packageName = GeneratedModelPackageResolver.resolveTargetPackage(xmlTarget);
             rootElement = xmlTarget.getRootElement();
             recordElement = xmlTarget.getRecordElement();
             fields = xmlTarget.getFields();
@@ -79,7 +80,7 @@ public class XmlModelGenerator<T extends ModelConfig> implements ModelGenerator<
         } else if (config.getModelType() == ModelType.SOURCE && config instanceof XmlSourceConfig xmlSource) {
 									wrapperClassName = GeneratedModelNamingPolicy.resolveSourceRootSimpleClassName(xmlSource);
 									recordClassName = GeneratedModelNamingPolicy.resolveSourceSimpleClassName(xmlSource);
-            packageName = xmlSource.getPackageName();
+			packageName = GeneratedModelPackageResolver.resolveSourcePackage(xmlSource);
             rootElement = xmlSource.getRootElement();
             recordElement = xmlSource.getRecordElement();
             fields = xmlSource.getFields();

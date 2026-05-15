@@ -155,7 +155,7 @@ Main-flow and subflow evidence is still future architecture.
 
 ### 5. Bridge-era generation assumptions still exist
 
-The codebase now supports build-time and scenario-scoped generation for XML plus selected flat CSV and relational source/target models. Explicit job runs can also derive default source/target package names from the selected `job-config.yaml` identity when `packageName` is omitted, which reduces repeated YAML package declarations. Cleanup is still incomplete because some checked-in bridge classes remain in the handwritten source tree and some preserved bundles still keep explicit package aliases for compatibility.
+The codebase now supports build-time and scenario-scoped generation for XML plus selected flat CSV and relational source/target models. The active explicit-job path now derives source/target generated packages internally from the selected non-blank `job-config.yaml -> name` and fails fast if authored `packageName` is still present. Cleanup is still incomplete because some bridge-oriented code/documentation remains and final field-removal work is not finished yet.
 
 ### 6. No reusable component catalog or identity layer
 

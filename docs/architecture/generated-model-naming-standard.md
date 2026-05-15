@@ -1,26 +1,33 @@
 # Generated model naming standard and package-free config direction
 
-- Status: Future direction with shipped bridge baseline
-- Last updated: 2026-05-13
+- Status: Shipped selected-job naming/package baseline; follow-on internal bridge cleanup tracked separately
+- Last updated: 2026-05-15
 
 ## Purpose
 
-This note freezes the preferred naming logic to implement after the first shipped bridge that made `packageName` optional in the active explicit-job path.
+This note records the shipped selected-job naming/package contract and the follow-on direction for retiring any remaining internal compatibility bridge.
 
 The goal is to make generated model identity deterministic from the selected job bundle and logical config names, not from Java-specific YAML fields.
 
-It remains a design-first conclusion document for the remaining naming-standard slice. The active runtime and build-time bridge already derive default source and target packages for explicit `job-config.yaml` runs when `packageName` is omitted, and the active path now also requires a non-blank `job-config.yaml -> name` instead of falling back to the folder name. The broader naming, validation, XML class-shape, and legacy-bridge tightening described here is not fully shipped yet.
+The active runtime and build-time explicit-job path already derives source and target packages internally, requires a non-blank `job-config.yaml -> name` instead of falling back to the folder name, fails fast if authored `packageName` is present, and uses the shared `XmlRecord` / `XmlRoot` class-shape contract on the active path.
+
+Remaining internal cleanup now belongs to the follow-on bridge-retirement item rather than blocking the shipped A4 contract, for example:
+
+- config objects still temporarily cache resolved package identity internally
+- direct-config/demo fallback still injects legacy package defaults so preserved demo behavior keeps working
+- the standalone XML model-definition spike loader still derives a fallback package from the definition path
+- broader future class-naming cleanup outside the shipped selected-job path can continue independently of the now-complete product contract
 
 ## Why this needs a standard first
 
-Today the runtime and build-time generation path already derive default packages when explicit `job-config.yaml` runs omit `packageName`:
+Today the runtime and build-time generation path already derive packages for explicit `job-config.yaml` runs:
 
 - source default package: `com.etl.generated.job.<normalized-job-name>.source`
 - target default package: `com.etl.generated.job.<normalized-job-name>.target`
 
 That is a useful bridge, but the current generated-model contract still has two important limitations:
 
-1. authored configs can still override package naming with Java-specific `packageName` values
+1. the field still exists in config classes even though the active explicit-job path rejects it
 2. generated class simple names still come from `sourceName`, `targetName`, `rootElement`, and `recordElement` directly, so the naming contract is still too implicit across runtime, generation, and docs
 
 One developer-local TVL-style private-job example under `private-jobs/<collection>/xml-nested-to-csv-tag-validation/` shows the gap clearly:
@@ -51,8 +58,10 @@ For explicit job mode, the selected `job-config.yaml` `name` should become effec
 Current shipped baseline:
 
 - explicit runtime and build-time generation now fail fast if `job-config.yaml -> name` is blank
+- selected-job `source-config.yaml`, `target-config.yaml`, and runtime-owned XML `modelDefinitionPath` YAML now omit authored `packageName`
+- the legacy standalone XML model-definition spike path now derives a deterministic fallback package from the definition file path when `packageName` is omitted, instead of treating handwritten package values as part of the preferred contract
 
-Preferred remaining direction:
+Shipped direction:
 
 - new or updated explicit job bundles **must** provide a non-blank `name`
 - folder-name fallback is no longer used on the active explicit-job runtime/build-time naming path
@@ -256,7 +265,12 @@ Preferred direction:
 4. XML writer behavior keeps its existing distinction between target processing class and target write/root class
 5. runtime flow role such as `Intermediate` remains available for validation and documentation, but it does not change the simple class name formula
 
-## Supporting validation required before `packageName` removal
+Current bridge progress:
+
+- shared package validation/resolution is now centralized behind a dedicated generated-model package resolver instead of being reimplemented across each runtime/generator caller
+- config objects still temporarily cache the resolved package as compatibility state after loader defaulting; follow-on A6 cleanup can remove that field once the remaining bridge paths are retired
+
+## Supporting validation required before final `packageName` field removal
 
 The implementation should add or tighten these validations as part of the same slice.
 
@@ -274,10 +288,10 @@ The implementation should add or tighten these validations as part of the same s
    - if a target is consumed later as a source, the shared business artifact should reuse the same logical name
    - forward references should fail fast: a source cannot claim an intermediate role from a target that has not been produced yet
 
-4. **Legacy `packageName` bridge rule**
-   - during the transition, if `packageName` is still present and equals the derived value, accept it as deprecated bridge behavior
-   - if authored `packageName` differs from the derived value but still uses the `com.etl.generated.job...` bridge shape, log a warning that includes the selected job name, config path, authored package, and derived package while still honoring the authored value for compatibility
-   - move to fail-fast mismatch handling only after preserved bundles and migration guidance no longer depend on authored bridge values
+4. **Legacy `packageName` cleanup rule**
+   - on the active explicit-job path, fail fast whenever authored `packageName` is present
+   - keep operator-facing errors specific enough to show the selected job name, config path, logical config name, and derived package
+   - treat any remaining `packageName` handling outside the explicit-job path as cleanup work, not as part of the preferred contract
 
 5. **XML structural validation**
    - `rootElement` and `recordElement` remain required for XML source/target configs
@@ -290,34 +304,33 @@ The implementation should add or tighten these validations as part of the same s
 
 ## Recommended rollout
 
-### Phase 1: bridge without silent drift
+### Phase 1: package-free explicit-job baseline
 
 Shipped baseline today:
 
-- explicit `job-config.yaml` runs can already omit source and target `packageName`
+- explicit `job-config.yaml` runs are now package-free and derive source and target packages internally
 - runtime config loading and build-time generation already derive canonical packages as `...source` and `...target`
 - preserved examples can now demonstrate package-free authored config on the active path
 
 Remaining work in this phase:
 
-- keep reading `packageName` for compatibility
-- derive the canonical package anyway
+- keep package lookup centralized while the field still exists in config classes
 - fail fast when `packageName` or config-derived class-name segments are blank or invalid so resolver/runtime errors stay explicit instead of surfacing later as malformed `Class.forName` lookups
 - fail when selected logical names would collapse to the same generated class within the same selected source/target package
 - fail when a logical handoff name is consumed in an earlier ordered step before any step has produced it as a target
 - keep current compatibility for same-step `source == target` patterns used by shipped single-step bundles such as `customer-load`
-- warn now when an authored `com.etl.generated.job...` package drifts from the package derived from the selected job name, while still honoring the authored value as a deprecated bridge
-- warn later when `packageName` is present but redundant even when it already matches the derived package, and tighten conflicting legacy `packageName` handling in a follow-up A4 slice
 - update preserved bundles to omit `packageName`
 
-### Phase 2: remove authored `packageName`
+### Phase 2: remove the field from config docs and examples
 
-- first mark `packageName` as a deprecated bridge field in config reference docs and preserved examples
-- prefer omitted values everywhere on the explicit-job path
-- keep one intentionally documented deprecated bridge example only if it still helps migration/testing
-- promote the current warning-only mismatch messages into fail-fast validation only after preserved bundles and operator migration guidance are ready
-- drop `packageName` from config docs and examples
-- stop binding it in source/target config classes
+- keep config docs explicit that package identity still exists, but it is derived rather than authored
+- preserved selected-job YAML and runtime-owned XML definition YAML are package-free, and runtime config docs now describe authored `packageName` as unsupported rather than normal authoring
+- keep all runtime lookup on the centralized derived naming policy
+
+### Phase 3: follow-on internal bridge retirement
+
+- the follow-on cleanup can remove config-class package cache/state when downstream callers no longer depend on it
+- any leftover non-explicit handling that still reads, derives, or backfills package identity is now tracked separately from the shipped contract
 - keep all runtime lookup on the centralized derived naming policy
 
 ### Recommended operator/developer messaging during deprecation
@@ -344,10 +357,10 @@ This note does **not** choose:
 
 ## Decision summary
 
-For the remaining work beyond the shipped bridge, the preferred logic to implement is:
+For the shipped selected-job contract, the implemented logic is:
 
 1. require explicit job bundles to provide `job-config.yaml -> name`
-2. make `packageName` a deprecated bridge field and then remove it from authored source/target configs
+2. keep explicit-job configs package-free and reject authored `packageName` before deserialization
 3. keep packages derived as `...source` and `...target`
 4. keep `Source`, `Intermediate`, and `Target` as runtime flow terminology, not as class-name markers
 5. generate class names as `<NormalizedLogicalName><Shape>`

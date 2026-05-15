@@ -4,6 +4,7 @@ import com.etl.config.FieldDefinition;
 import com.etl.config.ModelConfig;
 import com.etl.enums.ModelFormat;
 import com.etl.enums.ModelType;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
@@ -40,13 +41,7 @@ public abstract class SourceConfig implements ModelConfig {
     private String sourceName;
 
     /**
-     * The package name associated with the source.
-     * -- GETTER --
-     *  Returns the package name associated with the source.
-     * -- SETTER --
-     *  Setter for packageName (for YAML binding and manual setting).
-
-
+     * Internal generated package associated with the source after runtime defaulting/derivation.
      */
 
     private String packageName;
@@ -98,7 +93,8 @@ public abstract class SourceConfig implements ModelConfig {
     return packageName;
   }
 
-  public void setPackageName(String packageName) {
+  @JsonIgnore
+   public void setPackageName(String packageName) {
     this.packageName = packageName;
   }
 

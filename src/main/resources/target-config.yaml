@@ -1,6 +1,5 @@
 targets:
   - format: xml
-    packageName: com.etl.model.target
     filePath: target/
     targetName: Customers
     rootElement: Customers
@@ -14,7 +13,6 @@ targets:
         type: String
 
   - format: xml
-    packageName: com.etl.model.target
     filePath: target/
     targetName: Departments
     rootElement: Departments

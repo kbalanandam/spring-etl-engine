@@ -1,6 +1,7 @@
 package com.etl.generation.xml.build;
 
 import com.etl.common.util.ConfigBundlePathAliasResolver;
+import com.etl.common.util.ConfigPackageNamePropertyValidator;
 import com.etl.common.util.GeneratedModelNamingPolicy;
 import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.common.util.SelectedJobNamingValidator;
@@ -81,15 +82,34 @@ public class XmlJobScopedGenerationService {
 
         JobConfig jobConfig = yamlMapper.readValue(normalizedJobConfigPath.toFile(), JobConfig.class);
         Path jobDirectory = Objects.requireNonNull(normalizedJobConfigPath.getParent(), "Job config parent directory must exist.");
-            String jobName = JobScopedPackageNameResolver.requireExplicitJobName(jobConfig, normalizedJobConfigPath);
+        String jobName = JobScopedPackageNameResolver.requireExplicitJobName(jobConfig, normalizedJobConfigPath);
         Path sourceConfigPath = resolveReferencedPath(jobDirectory, jobConfig.getSourceConfigPath(), "sourceConfigPath");
         Path targetConfigPath = resolveReferencedPath(jobDirectory, jobConfig.getTargetConfigPath(), "targetConfigPath");
 
-        SourceWrapper sourceWrapper = yamlMapper.readValue(sourceConfigPath.toFile(), SourceWrapper.class);
-        TargetWrapper targetWrapper = yamlMapper.readValue(targetConfigPath.toFile(), TargetWrapper.class);
+        String sourceYaml = Files.readString(sourceConfigPath);
+        String targetYaml = Files.readString(targetConfigPath);
+        ConfigPackageNamePropertyValidator.requireNoSourcePackageNameProperties(
+                yamlMapper,
+                sourceYaml,
+                sourceConfigPath.toString(),
+                "Selected job '" + jobName + "'",
+                "the selected job",
+                JobScopedPackageNameResolver.resolveSourcePackage(jobName),
+                "from job-config.yaml -> name"
+        );
+        ConfigPackageNamePropertyValidator.requireNoTargetPackageNameProperties(
+                yamlMapper,
+                targetYaml,
+                targetConfigPath.toString(),
+                "Selected job '" + jobName + "'",
+                "the selected job",
+                JobScopedPackageNameResolver.resolveTargetPackage(jobName),
+                "from job-config.yaml -> name"
+        );
+        SourceWrapper sourceWrapper = yamlMapper.readValue(sourceYaml, SourceWrapper.class);
+        TargetWrapper targetWrapper = yamlMapper.readValue(targetYaml, TargetWrapper.class);
         applyJobScopedPackageDefaults(sourceWrapper, targetWrapper, jobName);
         List<JobConfig.JobStepConfig> steps = requireSteps(jobConfig);
-        warnOnDeprecatedGeneratedPackageDrift(sourceWrapper, targetWrapper, steps, jobName, sourceConfigPath, targetConfigPath);
         SelectedJobNamingValidator.validate(jobName, sourceWrapper, targetWrapper, steps);
 
         Map<String, SourceConfig> sourcesByName = indexSources(sourceWrapper);
@@ -136,76 +156,6 @@ public class XmlJobScopedGenerationService {
         applyDefaultTargetPackages(targetWrapper, jobName);
     }
 
-    private void warnOnDeprecatedGeneratedPackageDrift(SourceWrapper sourceWrapper,
-                                                       TargetWrapper targetWrapper,
-                                                       List<JobConfig.JobStepConfig> steps,
-                                                       String jobName,
-                                                       Path sourceConfigPath,
-                                                       Path targetConfigPath) {
-        Set<String> selectedSourceNames = new LinkedHashSet<>();
-        Set<String> selectedTargetNames = new LinkedHashSet<>();
-        if (steps != null) {
-            for (JobConfig.JobStepConfig step : steps) {
-                if (step == null) {
-                    continue;
-                }
-                if (step.getSource() != null && !step.getSource().isBlank()) {
-                    selectedSourceNames.add(step.getSource().trim());
-                }
-                if (step.getTarget() != null && !step.getTarget().isBlank()) {
-                    selectedTargetNames.add(step.getTarget().trim());
-                }
-            }
-        }
-
-        String derivedSourcePackage = JobScopedPackageNameResolver.resolveSourcePackage(jobName);
-        Map<String, SourceConfig> selectedSourcesByName = new LinkedHashMap<>();
-        if (sourceWrapper != null && sourceWrapper.getSources() != null) {
-            for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
-                if (sourceConfig != null && sourceConfig.getSourceName() != null && !sourceConfig.getSourceName().isBlank()) {
-                    selectedSourcesByName.put(sourceConfig.getSourceName().trim(), sourceConfig);
-                }
-            }
-        }
-        for (String sourceName : selectedSourceNames) {
-            SourceConfig sourceConfig = selectedSourcesByName.get(sourceName);
-            if (sourceConfig != null
-                    && JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(sourceConfig.getPackageName(), derivedSourcePackage)) {
-                    logger.warn(JobScopedPackageNameResolver.buildPackageDriftWarning(
-                            "source config",
-                            sourceConfig.getSourceName(),
-                            jobName,
-                            sourceConfigPath,
-                            sourceConfig.getPackageName(),
-                            derivedSourcePackage
-                    ));
-            }
-        }
-
-        String derivedTargetPackage = JobScopedPackageNameResolver.resolveTargetPackage(jobName);
-        Map<String, TargetConfig> selectedTargetsByName = new LinkedHashMap<>();
-        if (targetWrapper != null && targetWrapper.getTargets() != null) {
-            for (TargetConfig targetConfig : targetWrapper.getTargets()) {
-                if (targetConfig != null && targetConfig.getTargetName() != null && !targetConfig.getTargetName().isBlank()) {
-                    selectedTargetsByName.put(targetConfig.getTargetName().trim(), targetConfig);
-                }
-            }
-        }
-        for (String targetName : selectedTargetNames) {
-            TargetConfig targetConfig = selectedTargetsByName.get(targetName);
-            if (targetConfig != null
-                    && JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(targetConfig.getPackageName(), derivedTargetPackage)) {
-                logger.warn(JobScopedPackageNameResolver.buildPackageDriftWarning(
-                        "target config",
-                        targetConfig.getTargetName(),
-                        jobName,
-                        targetConfigPath,
-                        targetConfig.getPackageName(),
-                        derivedTargetPackage
-                ));
-            }
-        }
-    }
 
     private void applyDefaultSourcePackages(SourceWrapper sourceWrapper, String jobName) {
         if (sourceWrapper == null || sourceWrapper.getSources() == null) {
@@ -214,9 +164,7 @@ public class XmlJobScopedGenerationService {
 
         String defaultSourcePackage = JobScopedPackageNameResolver.resolveSourcePackage(jobName);
         for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
-            if (!hasText(sourceConfig.getPackageName())) {
-                sourceConfig.setPackageName(defaultSourcePackage);
-            }
+            sourceConfig.setPackageName(defaultSourcePackage);
         }
     }
 
@@ -232,7 +180,7 @@ public class XmlJobScopedGenerationService {
     }
 
     private TargetConfig applyDefaultTargetPackage(TargetConfig targetConfig, String jobName) {
-        if (targetConfig == null || hasText(targetConfig.getPackageName())) {
+        if (targetConfig == null) {
             return targetConfig;
         }
 

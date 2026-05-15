@@ -17,11 +17,11 @@ public class CsvTargetConfig extends TargetConfig {
     private final boolean includeHeader;
 
     public CsvTargetConfig(
-            @JsonProperty("targetName") String targetName,
-            @JsonProperty("packageName") String packageName,
-            @JsonProperty("fields") List<ColumnConfig> fields,
-            @JsonProperty("filePath") String filePath,
-            @JsonProperty("delimiter") String delimiter
+            String targetName,
+            String packageName,
+            List<ColumnConfig> fields,
+            String filePath,
+            String delimiter
     ) {
         this(targetName, packageName, fields, filePath, delimiter, false);
     }
@@ -43,16 +43,12 @@ public class CsvTargetConfig extends TargetConfig {
     @JsonCreator
     public CsvTargetConfig(
             @JsonProperty("targetName") String targetName,
-            @JsonProperty("packageName") String packageName,
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("filePath") String filePath,
             @JsonProperty("delimiter") String delimiter,
             @JsonProperty("includeHeader") Boolean includeHeader
     ) {
-        super(targetName, packageName, fields);
-        this.filePath = filePath;
-        this.delimiter = resolveDelimiter(delimiter);
-        this.includeHeader = includeHeader != null && includeHeader;
+        this(targetName, null, fields, filePath, delimiter, includeHeader != null && includeHeader);
     }
 
     private static String resolveDelimiter(String delimiter) {

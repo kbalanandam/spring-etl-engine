@@ -1,4 +1,3 @@
-packageName: ignored.by.runtime.bundle
 rootElement: TagValidationList
 recordElement: TVLTagDetails
 fields:
