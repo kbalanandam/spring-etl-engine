@@ -31,6 +31,7 @@ Use these short definitions as the shared vocabulary for the rest of the docs:
 - **factory** — a runtime component that creates the correct reader, writer, or processor implementation from the selected config type
 - **resolver** — a runtime component that selects the correct metadata or implementation for the current step, such as model classes or relational vendor behavior
 - **database dialect** — the relational abstraction that keeps vendor-specific SQL behavior behind one `relational` format instead of creating vendor-per-format modeling
+- **control plane** — the future optional scheduler/watcher/UI layer that triggers and observes OneFlow jobs, persists operational history, and resolves back to the same selected `job-config.yaml` contract rather than replacing the ETL core runtime boundary; external schedulers/orchestrators should remain equally valid launchers of that same contract
 
 ## How to navigate these docs
 
@@ -40,7 +41,7 @@ Start with the path that matches your goal:
 |---|---|---|
 | run or configure one scenario | [`config/README.md`](config/README.md) | [`config/job-config.md`](config/job-config.md) and one preserved or private job bundle |
 | understand the shipped runtime flow | [`architecture/runtime-flow.md`](architecture/runtime-flow.md) | [`architecture/runtime-flow-walkthrough.html`](architecture/runtime-flow-walkthrough.html) for the hierarchy-aware product-flow walkthrough, [`architecture/csv-to-xml-runtime-flow.md`](architecture/csv-to-xml-runtime-flow.md) for a flow-level operational deep dive, and [`architecture/overview.md`](architecture/overview.md) |
-| understand the next runtime architecture target | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) | [`architecture/1-4-to-next-architecture-classification.md`](architecture/1-4-to-next-architecture-classification.md) |
+| understand the next runtime architecture target | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) | [`architecture/control-plane-worker-boundary.md`](architecture/control-plane-worker-boundary.md) and [`architecture/1-4-to-next-architecture-classification.md`](architecture/1-4-to-next-architecture-classification.md) |
 | understand main flow / subflow composition | [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) and [`config/job-config.md`](config/job-config.md) |
 | understand how simple and complex flows normalize into one model | [`architecture/flow-normalization-rules.md`](architecture/flow-normalization-rules.md) | [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) and [`config/job-config.md`](config/job-config.md) |
 | assess the gap from shipped runtime to the reusable scenario model | [`architecture/runtime-to-scenario-gap-assessment.md`](architecture/runtime-to-scenario-gap-assessment.md) | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) and [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) |
@@ -75,6 +76,9 @@ For every significant enhancement, add or update:
 - [`architecture/runtime-to-scenario-gap-assessment.md`](architecture/runtime-to-scenario-gap-assessment.md) — current-state versus target-state gap assessment for reusable components evolving into scenario-driven execution
 - [`architecture/1-4-to-next-architecture-classification.md`](architecture/1-4-to-next-architecture-classification.md) — transition map for classifying current 1.4.x code into reuse, bridge, legacy, and remove buckets during the next architecture shift
 - [`architecture/runtime-flow.md`](architecture/runtime-flow.md) — end-to-end ETL runtime flow
+- [`architecture/control-plane-worker-boundary.md`](architecture/control-plane-worker-boundary.md) — future boundary between the mandatory ETL core worker and optional scheduler, watcher, persistence, and UI layers
+- [`architecture/control-plane-operational-data-model.md`](architecture/control-plane-operational-data-model.md) — conceptual retained data model for optional scheduler, watcher, trigger, run, step, artifact, and recovery-lineage history
+- [`architecture/control-plane-local-relational-schema.md`](architecture/control-plane-local-relational-schema.md) — SQLite-first local relational schema direction for optional control-plane history with later PostgreSQL or SQL Server portability
 - [`architecture/csv-to-xml-runtime-flow.md`](architecture/csv-to-xml-runtime-flow.md) — operational deep dive for the shipped CSV source to XML target runtime path, including nested XML, hardening hooks, staged publication, and evidence
 - [`architecture/runtime-flow-walkthrough.html`](architecture/runtime-flow-walkthrough.html) — lightweight animated HTML walkthrough of the shipped runtime path with `MainFlow -> SubFlow -> Step` product-flow context
 - [`architecture/job-level-activation-and-startup-guardrails.md`](architecture/job-level-activation-and-startup-guardrails.md) — shipped job-level `isActive` contract and fail-fast startup guardrail for inactive selected jobs
@@ -102,6 +106,9 @@ For every significant enhancement, add or update:
 - [`adr/0004-use-explicit-job-config-for-business-scenario-selection.md`](adr/0004-use-explicit-job-config-for-business-scenario-selection.md)
 - [`adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md`](adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
 - [`adr/0006-separate-source-validation-and-processor-rule-spis.md`](adr/0006-separate-source-validation-and-processor-rule-spis.md)
+- [`adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
+- [`adr/0008-formalize-control-plane-and-etl-worker-boundary.md`](adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
+- [`adr/0009-formalize-sqlite-first-local-control-plane-persistence.md`](adr/0009-formalize-sqlite-first-local-control-plane-persistence.md)
 - [`adr/TEMPLATE.md`](adr/TEMPLATE.md) — template for future ADRs
 
 ### Configuration references
@@ -115,7 +122,7 @@ For every significant enhancement, add or update:
 - [`config/processor/default-processor.md`](config/processor/default-processor.md) — default processor mapping contract
 
 ### Product tracking
-- [`product/product-backlog.md`](product/product-backlog.md) — step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including scheduler/orchestration work inside the same single product roadmap
+- [`product/product-backlog.md`](product/product-backlog.md) — step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including optional scheduler/control-plane capabilities that grow around the independently runnable ETL core without becoming mandatory for teams that use external orchestration
 - **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)** — live GitHub Project projection of the `Current Execution Board` table in `product/product-backlog.md`, with optional one-way sync for active execution tracking
 - [`product/project-board-sync.md`](product/project-board-sync.md) — setup and operating guide for syncing the `Current Execution Board` Markdown table into the GitHub Project without maintaining both views manually
 - `product/backlog-items/` — lightweight per-item drill-down pages linked from execution-board entries when an item needs fuller scope, acceptance criteria, and implementation notes
@@ -186,6 +193,8 @@ Create or update docs when a change:
 The relational database support topic is now started in [`architecture/relational-db-support.md`](architecture/relational-db-support.md).
 
 The product-direction baseline is now captured in [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md). Use it to judge whether a proposed change fits the current ETL-first phase or should wait for a later platform phase.
+
+The ETL-core-versus-control-plane boundary is now captured in [`architecture/control-plane-worker-boundary.md`](architecture/control-plane-worker-boundary.md). Use it to keep optional scheduler, watcher, persistence, and UI work from becoming a mandatory runtime dependency or a second launch contract.
 
 The first shipped CSV file-ingestion hardening slice is now captured in [`architecture/file-ingestion-hardening.md`](architecture/file-ingestion-hardening.md), with broader future expansion still preserved there as architecture guidance.
 

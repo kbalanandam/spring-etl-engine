@@ -52,6 +52,8 @@ This document does not lock in:
 - a final search product such as OpenSearch or PostgreSQL full-text
 - any vector database or AI provider choice
 
+The current preferred first local persistence direction for optional retained control-plane history is frozen separately in [`ADR-0009`](../adr/0009-formalize-sqlite-first-local-control-plane-persistence.md), while broader observability storage choices remain open.
+
 ## Context
 
 The current product is a config-driven ETL engine built around:
@@ -108,6 +110,8 @@ Each job run should eventually preserve at least:
 - config identity or version where relevant
 - high-level read/write/skip/error counts
 - shipped operator-facing run totals that distinguish first ingress, final published output, and intermediate handoff movement
+
+For the broader future retained control-plane entity model that should hold those job-history concepts together with schedules, watchers, trigger events, artifact lineage, and recovery anchors, continue in [`control-plane-operational-data-model.md`](control-plane-operational-data-model.md).
 
 ### 2. Step history
 Each step should preserve at least:

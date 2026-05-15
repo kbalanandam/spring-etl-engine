@@ -18,6 +18,10 @@ The near-term goal is to become the default internal runtime for repeatable file
 
 In product terms, OneFlow gives teams one focused runtime for orchestrating, validating, and delivering those scenarios without rebuilding file-flow and ETL plumbing for each project.
 
+That runtime should remain independently runnable through explicit `job-config.yaml` selection even as future scheduler/control-plane and operator-UI capabilities are added around it. The intended growth path is an optional operational layer for scheduling, file watching, monitoring, and persisted run history — not a replacement for the core ETL execution contract.
+
+That also means future built-in scheduling must stay optional for adopters. Teams that prefer an external enterprise scheduler, orchestrator, or platform trigger should be able to launch the same selected-job runtime contract without adopting a OneFlow-native scheduler first.
+
 That means standardizing common concerns such as:
 
 - source and target file handling
@@ -102,6 +106,9 @@ The near-term product focus is to make these recurring concerns consistent acros
 ### Future direction
 
 - broader processor-side transformation maturity beyond the shipped `valueMap` + `expression` transform baseline
+- an optional Java-first control plane for scheduling, file watching, trigger governance, persisted evidence, and a future integrated UI over the ETL core
+- first-class interoperability with external schedulers/orchestrators that trigger the same explicit selected-job runtime when teams do not want the built-in scheduler layer
+- local-first persisted OneFlow operational data, with lightweight relational storage such as SQLite acceptable for early developer/laptop control-plane work before stronger relational deployments are introduced
 - richer fault tolerance, reconciliation, restartability, scheduling, and transport capabilities
 - deeper relational hardening and enterprise verification/reporting maturity
 
@@ -115,7 +122,7 @@ Use this table as the recommended reading order by goal:
 | Run a real scenario | [Explicit job-config mode](#explicit-job-config-mode) | [`docs/config/job-config.md`](docs/config/job-config.md) |
 | Understand the config model | [`docs/config/README.md`](docs/config/README.md) | [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md) |
 | Explore architecture/runtime flow | [Architecture Docs](#architecture-docs) | [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md) |
-| Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
+| Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/control-plane-worker-boundary.md`](docs/architecture/control-plane-worker-boundary.md) and [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
 | Assess current gaps to the reusable scenario model | [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md) | [`docs/architecture/hierarchical-flow-composition.md`](docs/architecture/hierarchical-flow-composition.md) |
 | See preserved runnable examples | `src/main/resources/config-jobs/` | [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples) |
 | Set up a developer-local private job bundle or collection | [`private-jobs/`](private-jobs/README.md) | [Explicit job-config mode](#explicit-job-config-mode) |
@@ -149,6 +156,7 @@ Start here:
 - [`docs/README.md`](docs/README.md)
 - [`docs/architecture/overview.md`](docs/architecture/overview.md)
 - [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md)
+- [`docs/architecture/control-plane-worker-boundary.md`](docs/architecture/control-plane-worker-boundary.md)
 - [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md)
 - [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md)
 - [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md)
@@ -231,6 +239,8 @@ The application supports two runtime policies:
 Use this mode when you want one file to declare exactly which business scenario or config trio a job should run.
 
 This is the default startup contract.
+
+It is also the interoperability contract for future optional scheduler/control-plane work and for external schedulers or orchestrators. Any later trigger layer should launch this same selected-job boundary instead of introducing a different execution model.
 
 Example `job-config.yaml`:
 

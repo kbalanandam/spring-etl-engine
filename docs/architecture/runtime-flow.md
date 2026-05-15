@@ -135,6 +135,8 @@ Read this component view in four layers:
 
 In the shipped runtime, the hierarchy descriptor remains an observability and evidence projection over the explicit ordered step plan. It does not yet introduce separate hierarchical scheduling beyond the existing flat Spring Batch step execution order.
 
+That boundary is also the required interoperability point for future optional control-plane work. Any later built-in scheduler, watcher, or external orchestrator should launch this same selected-job runtime rather than introducing a second execution contract. For the dedicated boundary note that defines that optional-layer rule, continue in [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md).
+
 ## Runtime support and evidence detail
 
 This smaller view shows the secondary runtime pieces that support launch, step hardening, duplicate handling, and lifecycle evidence around the core assembly path.
@@ -325,6 +327,8 @@ For XML sources, explicit startup always requires the generated record class. `X
 Because those planning emits happen during runtime assembly, before the scenario-specific log key is attached to the active file route, they currently appear in `logs/startup/startup.log` rather than the scenario log. The subsequent step-started and step-finished `STEP_EVENT` entries appear in the scenario log after the listener layer restores scenario-scoped MDC values.
 
 This explicit ordered step list is the current shipped composition model for a scenario. A selected scenario may therefore already represent multiple individual flows executed in sequence, and together those steps form the full end-to-end run. Future richer chaining, handoff, or graph-style step relationships should still remain inside one selected scenario contract rather than introducing a separate runtime boundary.
+
+The same rule applies if runs are triggered by something outside the ETL core: native scheduler/control-plane features and third-party orchestrators should both target this explicit selected-scenario path.
 
 - large source => chunk step
 - small source => tasklet step

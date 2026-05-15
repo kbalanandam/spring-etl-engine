@@ -6,6 +6,7 @@
 
 ## Runtime model to preserve
 - The shipped runtime is **one selected scenario per run**: `etl.config.job -> job-config.yaml -> source/target/processor YAML trio -> explicit ordered steps`. Do not add scenario auto-discovery; `ConfigLoader` is intentionally strict (`src/main/java/com/etl/config/ConfigLoader.java`, `docs/config/job-config.md`).
+- Explicit job runs also require a non-blank `job-config.yaml -> name`, and optional `isActive: false` is a shipped fail-fast startup guardrail that blocks the selected job before downstream config resolution (`src/main/java/com/etl/config/job/JobConfig.java`, `docs/config/job-config.md`, `docs/architecture/job-level-activation-and-startup-guardrails.md`).
 - `BatchConfig` assembles the Spring Batch job from `job-config.yaml` `steps[]`; step order is explicit and not inferred from source/target list position (`src/main/java/com/etl/config/BatchConfig.java`).
 - The product now emits a synthesized `MainFlow -> SubFlow -> Step` descriptor for observability, but execution is still a flat ordered Spring Batch plan. Keep that distinction clear (`docs/architecture/runtime-flow.md`).
 - Dynamic runtime dispatch happens through factories, not spread-out conditionals: `DynamicReaderFactory`, `DynamicProcessorFactory`, `DynamicWriterFactory`.
@@ -15,6 +16,8 @@
 - Add new source/target formats by extending config polymorphism (`SourceConfig`, `TargetConfig`), then registering a matching reader/writer and documenting the contract (`docs/architecture/extension-points.md`).
 - Keep field cleanup in processor `transforms[]`, not validation `rules[]`. The shipped processor order is: read -> transforms -> rules -> write (`docs/config/processor/default-processor.md`).
 - The active validation path is **source validation + processor rules**. Do not revive `src/main/java/com/etl/validation/` or `src/main/resources/validation-config.yaml`; both are deprecated.
+- On the explicit-job path, source/target `packageName` is now an optional deprecated bridge. Prefer omitting it in new or updated bundles so `JobScopedPackageNameResolver` derives `com.etl.generated.job.<normalized-job-name>.source|target` from `job-config.yaml -> name`; authored `com.etl.generated.job...` drift only warns for compatibility (`src/main/java/com/etl/common/util/JobScopedPackageNameResolver.java`, `docs/architecture/generated-model-naming-standard.md`).
+- Selected logical source/target names now participate in one job-scoped naming contract: cross-step reuse is only valid for the same-step identity or a downstream handoff produced earlier in the ordered plan, and normalized generated-class collisions fail fast through `SelectedJobNamingValidator` (`src/main/java/com/etl/common/util/SelectedJobNamingValidator.java`).
 - Duplicate winner selection is special: when a `duplicate` rule uses `orderBy`, `BatchConfig` intentionally overrides chunk mode to tasklet mode so final winners are resolved before writing.
 - Many core classes carry `Transition status` markers like `BRIDGE` / `REUSE` / `LEGACY`. Respect them: don’t quietly turn bridge classes such as `ConfigLoader`, `BatchConfig`, or the factories into the final architecture center.
 
@@ -23,6 +26,7 @@
 - Keep baseline defaults under `src/main/resources/` simple and demo-friendly; add new real examples under `config-jobs/` instead of constantly rewriting the baseline YAMLs (`docs/config/README.md`).
 - For multi-step scenarios, follow the existing handoff pattern from `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/`: explicit step order in `job-config.yaml`, intermediate artifact paths declared in config, and downstream-readable formats (for example `includeHeader: true` on intermediate CSV).
 - Relative paths inside `job-config.yaml` resolve from the job-config folder, not the repo root.
+- For developer-local deployable bundles, copy preserved examples into git-ignored `private-jobs/<collection>/<job-bundle>/config/`; keep only `private-jobs/README.md` committed, and keep sibling runtime folders such as `input/`, `output/`, `definitions/`, and `sql/` at the job-bundle root (`private-jobs/README.md`, `docs/config/README.md`).
 
 ## Build, run, verify
 - Tests/CI baseline: `mvn --batch-mode --no-transfer-progress test` (see `.github/workflows/pr-unit-tests.yml`).
@@ -30,6 +34,7 @@
 - Demo fallback exists for local-only use and must be explicitly enabled with `-Detl.config.allow-demo-fallback=true`; strict startup without `etl.config.job` is intentional (`src/main/resources/application.properties`).
 - For XML scenarios that depend on generated job-scoped classes (example: `xml-nested-to-csv-to-nested-xml`), run the Maven `xml-generation` profile first, then execute the jar (`pom.xml`, that scenario’s `README.md`).
 - After code changes, the project-specific verification workflow is `powershell.exe -ExecutionPolicy Bypass -File .\scripts\generate-verification-report.ps1`. It runs `mvn test`, parses Surefire XML, then runs smoke verification via `scripts/verify-recent-changes.ps1`.
+- When cleaning up a copied or obsolete bundle, prefer `scripts/remove-job-bundle.ps1 -JobConfigPath <...job-config.yaml> -WhatIf` over ad hoc deletes; it understands `private-jobs/.../config/` bundle roots plus matching generated sources/classes, requires `-DeleteSharedBundle` for preserved/shared bundles, and skips shared generated packages unless `-ForcePackageCleanup` is supplied (`scripts/remove-job-bundle.ps1`, `private-jobs/README.md`).
 - The smoke script intentionally expects `customer-load` to succeed and `csv-to-sqlserver` to fail fast on placeholder SQL Server values. A failing `csv-to-sqlserver` run can be the correct result.
 - `config-scenarios/...` is now a legacy compatibility alias for older commands and tests; new docs, examples, and preserved bundles should use `config-jobs/...`.
 
@@ -37,9 +42,11 @@
 - Read `logs/startup/startup.log` for startup-time `STEP_PLAN` / `STEP_READY` events; read `logs/<yyyy-MM-dd>/<scenario>.log` for `RUN_EVENT`, `MAIN_FLOW_PLAN`, `SUBFLOW_PLAN`, `STEP_EVENT`, `SUBFLOW_SUMMARY`, and `RUN_SUMMARY` (`src/main/resources/logback-spring.xml`, `docs/architecture/runtime-flow.md`).
 - Scenario logs are keyed from `JobConfig.name`, and explicit `etl.config.job` runs now fail fast when that selected `job-config.yaml` name is blank. MDC fields like `scenario`, `runCorrelationId`, `jobExecutionId`, and `stepName` are part of the expected evidence model.
 - Reject/archive behavior lives on the active step path via `FileIngestionRuntimeSupport` and `FileIngestionHardeningStepListener`; check step-finished evidence for `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath`.
+- For failure and guardrail diagnosis, also watch `RUN_EVENT event=run_requested|run_failed|run_finished`, `JOB_FAILURE event=job_failure`, `SOURCE_VALIDATION event=file_rejected`, and `SUBFLOW_SUMMARY status=BLOCKED`; these distinguish launch failures, categorized job failures, source-file rejection, and downstream subflows blocked by upstream failure (`src/main/java/com/etl/runner/EtlJobRunner.java`, `src/main/java/com/etl/job/listener/JobCompletionNotificationListener.java`, `docs/architecture/job-history-and-operational-observability.md`).
 
 ## Docs + PR rules that are enforced here
 - If you change architecture-sensitive code under `src/main/java/com/etl/config/`, `reader/`, `writer/`, `processor/`, model generation, or core resource YAML/application properties, update a relevant file under `docs/architecture/` or `docs/adr/` in the same change (`.github/workflows/architecture-doc-guard.yml`).
 - Use Markdown + Mermaid for architecture updates; add an ADR when the change introduces a real design decision/tradeoff (`docs/README.md`, `.github/PULL_REQUEST_TEMPLATE.md`).
 - When a config contract changes, update the matching `docs/config/*` page and at least one preserved scenario bundle so the docs remain executable-reference friendly.
+- Treat `docs/product/product-backlog.md` as the canonical execution-board source when product-tracking docs change; keep it aligned with `docs/product/project-board-sync.md`, `scripts/sync_project_board.py`, and `.github/workflows/product-backlog-project-sync.yml` instead of treating the GitHub Project as the source of truth.
 

@@ -56,6 +56,29 @@ Today, the product is primarily focused on:
 
 The broader product vision is larger than ETL alone. Over time, the product may evolve from a config-driven ETL product into an enterprise integration foundation and then a controlled integration abstraction layer between enterprise systems and external third parties.
 
+## Platform layering direction
+
+The intended product layering is:
+
+1. **OneFlow ETL core** — the independently runnable Java/Spring Batch execution engine that already runs one selected `job-config.yaml`
+2. **optional control plane** — a future scheduler/watcher/history layer that launches and observes the same explicit-job runtime without becoming a second orchestration contract
+3. **integrated operator UI** — a future dashboard and control surface over jobs, schedules, watchers, run history, evidence, and recovery workflows
+
+The control plane is important future roadmap work, but it should remain optional from the ETL core point of view. The core runtime must stay directly runnable even when no scheduler, watcher, persistence service, or UI is present.
+
+That optionality also means external enterprise schedulers, workload orchestrators, and platform-native triggers should remain first-class integration choices. A OneFlow-native scheduler should be one supported launcher of the ETL core contract, not the only supported launcher.
+
+For the dedicated boundary note that defines how optional control-plane layers must relate to the worker runtime, continue in [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md).
+
+## Technology stance for that layering
+
+- stay Java-first for the ETL core and the first scheduler/control-plane/backend slices
+- prefer Spring-based implementation for the optional control plane so configuration, runtime metadata, and operational APIs stay close to the current stack
+- allow lightweight local relational persistence such as SQLite for early developer-laptop control-plane work
+- move to stronger relational deployment targets later when retained OneFlow operational data, control-plane concurrency, and UI-backed history become broader operational requirements
+- keep transformation capability as a first-class roadmap track alongside control-plane maturity rather than letting scheduling/operations work dominate product identity
+- preserve a stable explicit-job launch contract so native and external orchestration can target the same ETL runtime boundary
+
 ## Flow
 
 Read this as current baseline + future evolution for the product roadmap.
@@ -165,7 +188,7 @@ Expand beyond connector completeness into stronger integration capability.
 - richer database write semantics
 - expression-based mapping, then conditional transformations, with broader validation, rejected-record/quarantine behavior, and lookup/enrichment patterns after the first file-based validation slice is stable
 - routing and transformation enhancements
-- first in-product scheduling/orchestration controls built on explicit run-state, audit, and operator visibility
+- first optional control-plane capabilities such as scheduling, file watching, persisted operational history, and operator APIs built on explicit run-state, audit, and operator visibility, while preserving external-scheduler interoperability through the same selected-job boundary
 
 ## Phase 3: Enterprise mediation platform
 
@@ -215,7 +238,8 @@ Future phases may add new runtime families or orchestration layers, but they sho
 - New features should strengthen the connector/runtime foundation first.
 - Future enterprise mediation capabilities are in scope for the product direction, but should be introduced deliberately in later phases.
 - Current design decisions should remain future-safe without prematurely forcing middleware-scale abstractions.
-- Scheduler/orchestration capability remains part of the main product roadmap at this stage; it should evolve as a focused capability track inside the ETL product rather than through a separate standalone roadmap.
+- Scheduler/control-plane capability remains part of the main product roadmap at this stage, but it should evolve as an optional operational layer around the ETL core rather than as a prerequisite for normal core execution.
+- External scheduler/orchestrator integration should remain a first-class supported deployment pattern wherever teams do not want the native scheduler layer.
 
 ## Tradeoffs
 
@@ -298,6 +322,7 @@ This roadmap should be read together with:
 
 - `docs/architecture/overview.md`
 - `docs/architecture/runtime-flow.md`
+- `docs/architecture/control-plane-worker-boundary.md`
 - `docs/architecture/extension-points.md`
 - `docs/architecture/relational-db-support.md`
 - `docs/architecture/transformation-capability-roadmap.md`
