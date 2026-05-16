@@ -359,11 +359,19 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertNotIn("Epic page", public_body)
         self.assertIn("## Notes", private_body)
         self.assertIn(
-            "- Epic page: [Epic A — Runtime contract and generated-model governance](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/epics/epic-a-runtime-contract-and-model-governance.md)",
+            "- Epic page: Epic A — Runtime contract and generated-model governance",
             private_body,
         )
         self.assertIn(
-            "- Detail page: [docs/product/backlog-items/A4.md](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/backlog-items/A4.md)",
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/epics/epic-a-runtime-contract-and-model-governance.md",
+            private_body,
+        )
+        self.assertIn(
+            "- Detail page: docs/product/backlog-items/A4.md",
+            private_body,
+        )
+        self.assertIn(
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/backlog-items/A4.md",
             private_body,
         )
 

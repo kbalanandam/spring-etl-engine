@@ -315,12 +315,12 @@ def build_project_body(
         epic_page = resolve_epic_page_target(item, repository_url, repository_ref)
         if epic_page is not None:
             epic_page_label, epic_target = epic_page
-            lines.extend(["", f"- Epic page: [{epic_page_label}]({epic_target})"])
+            lines.extend(["", f"- Epic page: {epic_page_label}", epic_target])
 
         detail_page = resolve_detail_page_target(item, backlog_source_path, repository_url, repository_ref)
         if detail_page is not None:
             detail_label, detail_target = detail_page
-            lines.extend(["", f"- Detail page: [{detail_label}]({detail_target})"])
+            lines.extend(["", f"- Detail page: {detail_label}", detail_target])
 
     if not public_mode and item.notes:
         lines.extend(["", "## Notes", item.notes])
