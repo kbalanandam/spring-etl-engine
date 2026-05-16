@@ -6,13 +6,15 @@ One short paragraph explaining what this item is, why it exists, and the intende
 
 ## Current board status
 
-- Epic: **<Epic>**
+- Epic: **[<Epic>](../epics/<epic-file>.md)**
 - Priority: **<P0 | P1 | P2>**
 - Status: **<Ready | In Progress | Blocked | Done | Deferred>**
 - Milestone: **<M1 | M2 | M3>**
 - Dependency: **<none | item IDs>**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
+
+Use the linked `Epic` entry above to navigate to the shared epic-level product context for this backlog item.
 
 ## Problem
 

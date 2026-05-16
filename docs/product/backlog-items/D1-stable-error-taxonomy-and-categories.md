@@ -6,13 +6,15 @@ Define a stable operator-facing error taxonomy so failures can be grouped, searc
 
 ## Current board status
 
-- Epic: **Epic D**
+- Epic: **[Epic D](../epics/epic-d-error-taxonomy-and-failure-categorization.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M2**
 - Dependency: **C1**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
+
+Use the linked `Epic` entry above to navigate to the shared epic-level product context for this backlog item.
 
 ## Problem
 

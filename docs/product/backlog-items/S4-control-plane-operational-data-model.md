@@ -6,13 +6,15 @@ Define the optional retained operational data model for the future OneFlow contr
 
 ## Current board status
 
-- Epic: **Epic S**
+- Epic: **[Epic S](../epics/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M3**
 - Dependency: **S1, C1, C2**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
+
+Use the linked `Epic` entry above to navigate to the shared epic-level product context for this backlog item.
 
 ## Problem
 

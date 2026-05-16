@@ -6,13 +6,15 @@ Capture the shipped practical CSV reader improvement: preserve the current simpl
 
 ## Current board status
 
-- Epic: **Epic B**
+- Epic: **[Epic B](../epics/epic-b-runtime-hardening-and-file-behavior.md)**
 - Priority: **P2**
 - Status: **Done**
 - Milestone: **M2**
 - Dependency: **none**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
+
+Use the linked `Epic` entry above to navigate to the shared epic-level product context for this backlog item.
 
 ## Problem
 

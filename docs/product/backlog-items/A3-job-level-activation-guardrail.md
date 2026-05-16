@@ -6,13 +6,15 @@ Add a small job-level enable/disable contract so a selected `job-config.yaml` ca
 
 ## Current board status
 
-- Epic: **Epic A**
+- Epic: **[Epic A](../epics/epic-a-runtime-contract-and-model-governance.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M1**
 - Dependency: **A2**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
+
+Use the linked `Epic` entry above to navigate to the shared epic-level product context for this backlog item.
 
 ## Problem
 

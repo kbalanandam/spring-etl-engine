@@ -6,13 +6,15 @@ Add HTML verification reporting from the same shared evidence model already used
 
 ## Current board status
 
-- Epic: **Epic V**
+- Epic: **[Epic V](../epics/epic-v-verification-evidence-and-reporting.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M3**
 - Dependency: **V1, V2**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
+
+Use the linked `Epic` entry above to navigate to the shared epic-level product context for this backlog item.
 
 ## Problem
 

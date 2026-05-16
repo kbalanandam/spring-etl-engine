@@ -6,13 +6,15 @@ Define the first product-level SFTP transport contract and deployment boundary s
 
 ## Current board status
 
-- Epic: **Epic X**
+- Epic: **[Epic X](../epics/epic-x-file-transport-and-sftp-boundary.md)**
 - Priority: **P1**
 - Status: **Ready**
 - Milestone: **M2**
 - Dependency: **E1, C1, G1**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
+
+Use the linked `Epic` entry above to navigate to the shared epic-level product context for this backlog item.
 
 ## Problem
 

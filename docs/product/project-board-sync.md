@@ -28,6 +28,7 @@ Current field mapping:
 | `Epic` | Project field `Epic` |
 | `Milestone` | Project field `Milestone` or fallback field `Execution Milestone` |
 | `Dependency` | Project field `Dependency` |
+| `Epic` page link | draft-item body as a clickable repository link when the epic label resolves to a known epic doc |
 | `ID` detail-page link | draft-item body as a clickable repository link when sync has repository URL context |
 | `Notes` | draft-item body when public-mode sanitization is **not** enabled |
 
@@ -35,12 +36,16 @@ The sync uses an internal marker comment in each draft item body so reruns updat
 
 When a backlog `ID` cell links to a detail page such as `backlog-items/A6-retire-internal-generated-model-package-bridge.md`, the sync now resolves that relative path against the backlog file and renders it in the draft-item body as a clickable absolute repository link. In GitHub Actions this is derived automatically from the workflow repository context; for local/manual sync runs you can also provide an explicit repository URL/ref.
 
+When the execution-board `Epic` value matches one of the maintained epic labels (for example `Epic A`, `Epic T`, or `Epic S`), the sync also renders that `Epic` line in the draft-item body as a clickable link to the matching page under `docs/product/epics/`.
+
 ## Supported project-field shapes
 
 The sync currently supports:
 
 - `Status` as a **single-select** or **text** field
 - `Priority`, `Epic`, `Milestone`, and `Dependency` as **single-select** or **text** fields
+
+The `Epic` Project field still behaves as a normal Project field for grouping/filtering. The clickable epic-doc navigation lives in the synced draft-item body, not in the Project field widget itself.
 
 ### Important `Status` note
 
