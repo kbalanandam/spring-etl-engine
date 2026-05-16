@@ -9,11 +9,13 @@ import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
+from urllib.parse import urlparse
 from pathlib import Path
 from typing import Any
 
 BACKLOG_SECTION_HEADING = "## Current Execution Board"
 BACKLOG_SOURCE_PATH = "docs/product/product-backlog.md"
+DEFAULT_REPOSITORY_REF = "master"
 SYNC_MARKER_PATTERN = re.compile(r"<!--\s*backlog-sync-id:\s*([^\s]+)\s*-->")
 MARKDOWN_LINK_PATTERN = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 CODE_SPAN_PATTERN = re.compile(r"`([^`]+)`")
@@ -74,6 +76,28 @@ SINGLE_SELECT_OPTION_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
+
+
+def resolve_repository_url(cli_value: str | None) -> str | None:
+    candidate = (cli_value or os.environ.get("ONEFLOW_REPOSITORY_URL") or "").strip()
+    if candidate:
+        return candidate.rstrip("/")
+
+    server_url = (os.environ.get("GITHUB_SERVER_URL") or "").strip().rstrip("/")
+    repository = (os.environ.get("GITHUB_REPOSITORY") or "").strip().strip("/")
+    if server_url and repository:
+        return f"{server_url}/{repository}"
+    return None
+
+
+def resolve_repository_ref(cli_value: str | None) -> str:
+    candidate = (cli_value or os.environ.get("ONEFLOW_REPOSITORY_REF") or os.environ.get("GITHUB_REF_NAME") or "").strip()
+    return candidate or DEFAULT_REPOSITORY_REF
+
+
+def is_absolute_url(value: str) -> bool:
+    parsed = urlparse(value)
+    return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
 
 
 def markdown_to_plain_text(value: str) -> str:
@@ -206,10 +230,44 @@ def parse_backlog_items(markdown_text: str) -> list[BacklogItem]:
     return items
 
 
-def build_project_body(item: BacklogItem, public_mode: bool) -> str:
+def resolve_detail_page_target(
+    item: BacklogItem,
+    backlog_source_path: str,
+    repository_url: str | None,
+    repository_ref: str,
+) -> tuple[str, str] | None:
+    if not item.id_link:
+        return None
+
+    link_target = item.id_link.strip()
+    if not link_target:
+        return None
+
+    if is_absolute_url(link_target):
+        return link_target, link_target
+
+    resolved_path = (Path(backlog_source_path).parent / link_target).resolve(strict=False)
+    try:
+        repo_relative_path = resolved_path.relative_to(Path.cwd().resolve())
+    except ValueError:
+        repo_relative_path = Path(backlog_source_path).parent / link_target
+
+    repo_relative_posix = repo_relative_path.as_posix()
+    if repository_url:
+        return repo_relative_posix, f"{repository_url}/blob/{repository_ref}/{repo_relative_posix}"
+    return repo_relative_posix, repo_relative_posix
+
+
+def build_project_body(
+    item: BacklogItem,
+    public_mode: bool,
+    backlog_source_path: str = BACKLOG_SOURCE_PATH,
+    repository_url: str | None = None,
+    repository_ref: str = DEFAULT_REPOSITORY_REF,
+) -> str:
     lines = [
         f"<!-- backlog-sync-id:{item.backlog_id} -->",
-        f"Synced from `{BACKLOG_SOURCE_PATH}`.",
+        f"Synced from `{backlog_source_path}`.",
         "",
         f"- ID: `{item.backlog_id}`",
         f"- Epic: {item.epic}",
@@ -219,8 +277,11 @@ def build_project_body(item: BacklogItem, public_mode: bool) -> str:
         f"- Dependency: {item.dependency}",
     ]
 
-    if item.id_link and not public_mode:
-        lines.extend(["", f"- Detail page: `{item.id_link}`"])
+    if not public_mode:
+        detail_page = resolve_detail_page_target(item, backlog_source_path, repository_url, repository_ref)
+        if detail_page is not None:
+            detail_label, detail_target = detail_page
+            lines.extend(["", f"- Detail page: [{detail_label}]({detail_target})"])
 
     if not public_mode and item.notes:
         lines.extend(["", "## Notes", item.notes])
@@ -641,6 +702,9 @@ def sync_items(
     items: list[BacklogItem],
     dry_run: bool,
     public_mode: bool,
+    backlog_source_path: str = BACKLOG_SOURCE_PATH,
+    repository_url: str | None = None,
+    repository_ref: str = DEFAULT_REPOSITORY_REF,
 ) -> int:
     project_id, fields, existing_items = client.get_project()
     synced_ids = set()
@@ -657,7 +721,13 @@ def sync_items(
 
     for item in items:
         desired_title = item.project_title
-        desired_body = build_project_body(item, public_mode=public_mode)
+        desired_body = build_project_body(
+            item,
+            public_mode=public_mode,
+            backlog_source_path=backlog_source_path,
+            repository_url=repository_url,
+            repository_ref=repository_ref,
+        )
         existing = existing_items.get(item.backlog_id)
         synced_ids.add(item.backlog_id)
 
@@ -728,14 +798,33 @@ def build_argument_parser() -> argparse.ArgumentParser:
         default="GITHUB_TOKEN",
         help="Environment variable name that contains the GitHub token (default: GITHUB_TOKEN).",
     )
+    parser.add_argument(
+        "--repository-url",
+        default=None,
+        help=(
+            "Repository web URL used to build absolute clickable detail-page links "
+            "(default: ONEFLOW_REPOSITORY_URL or GITHUB_SERVER_URL + GITHUB_REPOSITORY when available)."
+        ),
+    )
+    parser.add_argument(
+        "--repository-ref",
+        default=None,
+        help=(
+            "Repository ref/branch used in generated blob links "
+            f"(default: ONEFLOW_REPOSITORY_REF, GITHUB_REF_NAME, or {DEFAULT_REPOSITORY_REF})."
+        ),
+    )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_argument_parser().parse_args(argv)
     backlog_path = Path(args.backlog_file)
+    backlog_source_path = backlog_path.as_posix()
     items = parse_backlog_items(read_text(backlog_path))
     print_parse_summary(items)
+    repository_url = resolve_repository_url(args.repository_url)
+    repository_ref = resolve_repository_ref(args.repository_ref)
 
     token = os.environ.get(args.token_env_var)
     if args.dry_run and (not token or not args.project_owner or not args.project_number):
@@ -752,7 +841,15 @@ def main(argv: list[str] | None = None) -> int:
         raise SystemExit("Missing --project-number (or ONEFLOW_PROJECT_NUMBER).")
 
     client = GitHubProjectClient(token=token, owner=args.project_owner, project_number=args.project_number)
-    actions = sync_items(client, items, dry_run=args.dry_run, public_mode=args.public_mode)
+    actions = sync_items(
+        client,
+        items,
+        dry_run=args.dry_run,
+        public_mode=args.public_mode,
+        backlog_source_path=backlog_source_path,
+        repository_url=repository_url,
+        repository_ref=repository_ref,
+    )
     if args.dry_run:
         print(f"Dry run completed; {actions} project mutations would be attempted.")
     else:
