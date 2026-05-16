@@ -17,17 +17,17 @@ BACKLOG_SECTION_HEADING = "## Current Execution Board"
 BACKLOG_SOURCE_PATH = "docs/product/product-backlog.md"
 DEFAULT_REPOSITORY_REF = "master"
 EPIC_PAGE_BY_LABEL = {
-    "Epic A": "docs/product/epics/epic-a-runtime-contract-and-model-governance.md",
-    "Epic B": "docs/product/epics/epic-b-runtime-hardening-and-file-behavior.md",
-    "Epic C": "docs/product/epics/epic-c-observability-and-run-evidence.md",
-    "Epic D": "docs/product/epics/epic-d-error-taxonomy-and-failure-categorization.md",
-    "Epic E": "docs/product/epics/epic-e-portability-and-packaged-run-guidance.md",
-    "Epic F": "docs/product/epics/epic-f-restartability-and-recovery-semantics.md",
-    "Epic G": "docs/product/epics/epic-g-secret-injection-and-secure-configuration.md",
-    "Epic S": "docs/product/epics/epic-s-scheduling-and-control-plane.md",
-    "Epic T": "docs/product/epics/epic-t-transformation-capability.md",
-    "Epic V": "docs/product/epics/epic-v-verification-evidence-and-reporting.md",
-    "Epic X": "docs/product/epics/epic-x-file-transport-and-sftp-boundary.md",
+    "Epic A": ("Epic A — Runtime contract and generated-model governance", "docs/product/epics/epic-a-runtime-contract-and-model-governance.md"),
+    "Epic B": ("Epic B — Runtime hardening and file behavior", "docs/product/epics/epic-b-runtime-hardening-and-file-behavior.md"),
+    "Epic C": ("Epic C — Observability and run evidence", "docs/product/epics/epic-c-observability-and-run-evidence.md"),
+    "Epic D": ("Epic D — Error taxonomy and failure categorization", "docs/product/epics/epic-d-error-taxonomy-and-failure-categorization.md"),
+    "Epic E": ("Epic E — Portability and packaged-run guidance", "docs/product/epics/epic-e-portability-and-packaged-run-guidance.md"),
+    "Epic F": ("Epic F — Restartability and recovery semantics", "docs/product/epics/epic-f-restartability-and-recovery-semantics.md"),
+    "Epic G": ("Epic G — Secret injection and secure configuration", "docs/product/epics/epic-g-secret-injection-and-secure-configuration.md"),
+    "Epic S": ("Epic S — Scheduling and control plane", "docs/product/epics/epic-s-scheduling-and-control-plane.md"),
+    "Epic T": ("Epic T — Transformation capability", "docs/product/epics/epic-t-transformation-capability.md"),
+    "Epic V": ("Epic V — Verification evidence and reporting", "docs/product/epics/epic-v-verification-evidence-and-reporting.md"),
+    "Epic X": ("Epic X — File transport and SFTP boundary", "docs/product/epics/epic-x-file-transport-and-sftp-boundary.md"),
 }
 SYNC_MARKER_PATTERN = re.compile(r"<!--\s*backlog-sync-id:\s*([^\s]+)\s*-->")
 MARKDOWN_LINK_PATTERN = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
@@ -284,11 +284,12 @@ def resolve_epic_page_target(
     if not epic_label:
         return None
 
-    repo_relative_posix = EPIC_PAGE_BY_LABEL.get(epic_label)
-    if not repo_relative_posix:
+    epic_page = EPIC_PAGE_BY_LABEL.get(epic_label)
+    if not epic_page:
         return None
 
-    return epic_label, build_repository_blob_target(repo_relative_posix, repository_url, repository_ref)
+    epic_page_label, repo_relative_posix = epic_page
+    return epic_page_label, build_repository_blob_target(repo_relative_posix, repository_url, repository_ref)
 
 
 def build_project_body(
@@ -298,19 +299,12 @@ def build_project_body(
     repository_url: str | None = None,
     repository_ref: str = DEFAULT_REPOSITORY_REF,
 ) -> str:
-    epic_line = f"- Epic: {item.epic}"
-    if not public_mode:
-        epic_page = resolve_epic_page_target(item, repository_url, repository_ref)
-        if epic_page is not None:
-            epic_label, epic_target = epic_page
-            epic_line = f"- Epic: [{epic_label}]({epic_target})"
-
     lines = [
         f"<!-- backlog-sync-id:{item.backlog_id} -->",
         f"Synced from `{backlog_source_path}`.",
         "",
         f"- ID: `{item.backlog_id}`",
-        epic_line,
+        f"- Epic: {item.epic}",
         f"- Priority: {item.priority}",
         f"- Status: {item.status}",
         f"- Milestone: {item.milestone}",
@@ -318,6 +312,11 @@ def build_project_body(
     ]
 
     if not public_mode:
+        epic_page = resolve_epic_page_target(item, repository_url, repository_ref)
+        if epic_page is not None:
+            epic_page_label, epic_target = epic_page
+            lines.extend(["", f"- Epic page: [{epic_page_label}]({epic_target})"])
+
         detail_page = resolve_detail_page_target(item, backlog_source_path, repository_url, repository_ref)
         if detail_page is not None:
             detail_label, detail_target = detail_page

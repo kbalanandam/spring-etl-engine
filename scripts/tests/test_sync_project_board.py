@@ -303,7 +303,7 @@ class SyncProjectBoardTests(unittest.TestCase):
             repository_ref="master",
         )
 
-        self.assertEqual("Epic F", label)
+        self.assertEqual("Epic F — Restartability and recovery semantics", label)
         self.assertEqual(
             "https://github.com/kbalanandam/spring-etl-engine/blob/master/"
             "docs/product/epics/epic-f-restartability-and-recovery-semantics.md",
@@ -356,10 +356,10 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertIn("sanitized public projection", public_body)
         self.assertNotIn("## Notes", public_body)
         self.assertNotIn("Detail page", public_body)
-        self.assertNotIn("[Epic A]", public_body)
+        self.assertNotIn("Epic page", public_body)
         self.assertIn("## Notes", private_body)
         self.assertIn(
-            "- Epic: [Epic A](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/epics/epic-a-runtime-contract-and-model-governance.md)",
+            "- Epic page: [Epic A — Runtime contract and generated-model governance](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/epics/epic-a-runtime-contract-and-model-governance.md)",
             private_body,
         )
         self.assertIn(
