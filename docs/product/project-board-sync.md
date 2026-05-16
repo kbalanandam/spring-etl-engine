@@ -28,9 +28,12 @@ Current field mapping:
 | `Epic` | Project field `Epic` |
 | `Milestone` | Project field `Milestone` or fallback field `Execution Milestone` |
 | `Dependency` | Project field `Dependency` |
+| `ID` detail-page link | draft-item body as a clickable repository link when sync has repository URL context |
 | `Notes` | draft-item body when public-mode sanitization is **not** enabled |
 
 The sync uses an internal marker comment in each draft item body so reruns update the same item instead of creating duplicates.
+
+When a backlog `ID` cell links to a detail page such as `backlog-items/A6-retire-internal-generated-model-package-bridge.md`, the sync now resolves that relative path against the backlog file and renders it in the draft-item body as a clickable absolute repository link. In GitHub Actions this is derived automatically from the workflow repository context; for local/manual sync runs you can also provide an explicit repository URL/ref.
 
 ## Supported project-field shapes
 
@@ -98,6 +101,11 @@ Recommended `Priority` options:
 
 The workflow runs when the backlog or sync files change on `master`, and it also supports manual `workflow_dispatch` runs with an optional dry-run mode.
 
+For local/manual sync runs outside GitHub Actions, you can optionally override the generated detail-page link target with:
+
+- `--repository-url <repo-web-url>` or environment variable `ONEFLOW_REPOSITORY_URL`
+- `--repository-ref <branch-or-tag>` or environment variable `ONEFLOW_REPOSITORY_REF`
+
 ## Required GitHub configuration
 
 Configure these repository-level settings before expecting the live projection sync to mutate the Project:
@@ -139,6 +147,7 @@ If you want to exercise a real sync locally, provide a token in `GITHUB_TOKEN` p
 ```powershell
 Set-Location 'C:\spring-etl-engine'
 $env:GITHUB_TOKEN = '<token>'
+$env:ONEFLOW_REPOSITORY_URL = 'https://github.com/kbalanandam/spring-etl-engine'
 python .\scripts\sync_project_board.py --backlog-file docs/product/product-backlog.md --project-owner 'kbalanandam' --project-number 3 --dry-run
 ```
 

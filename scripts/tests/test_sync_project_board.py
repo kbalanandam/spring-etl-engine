@@ -1,5 +1,6 @@
 import importlib.util
 import io
+import os
 import sys
 import tempfile
 import textwrap
@@ -256,6 +257,33 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertEqual("T3", items[1].backlog_id)
         self.assertEqual("Deferred", items[1].status)
 
+    def test_resolve_detail_page_target_builds_absolute_repository_blob_url(self) -> None:
+        item = sync_project_board.BacklogItem(
+            backlog_id="A6",
+            id_link="backlog-items/A6-retire-internal-generated-model-package-bridge.md",
+            item="Retire remaining internal generated-model package bridge",
+            epic="Epic A",
+            priority="P2",
+            status="Deferred",
+            milestone="M2",
+            dependency="A4",
+            notes="",
+        )
+
+        label, target = sync_project_board.resolve_detail_page_target(
+            item,
+            backlog_source_path="docs/product/product-backlog.md",
+            repository_url="https://github.com/kbalanandam/spring-etl-engine",
+            repository_ref="master",
+        )
+
+        self.assertEqual("docs/product/backlog-items/A6-retire-internal-generated-model-package-bridge.md", label)
+        self.assertEqual(
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/"
+            "docs/product/backlog-items/A6-retire-internal-generated-model-package-bridge.md",
+            target,
+        )
+
     def test_build_project_body_omits_internal_notes_in_public_mode(self) -> None:
         item = sync_project_board.BacklogItem(
             backlog_id="A4",
@@ -270,14 +298,42 @@ class SyncProjectBoardTests(unittest.TestCase):
         )
 
         public_body = sync_project_board.build_project_body(item, public_mode=True)
-        private_body = sync_project_board.build_project_body(item, public_mode=False)
+        private_body = sync_project_board.build_project_body(
+            item,
+            public_mode=False,
+            repository_url="https://github.com/kbalanandam/spring-etl-engine",
+            repository_ref="master",
+        )
 
         self.assertIn("<!-- backlog-sync-id:A4 -->", public_body)
         self.assertIn("sanitized public projection", public_body)
         self.assertNotIn("## Notes", public_body)
         self.assertNotIn("Detail page", public_body)
         self.assertIn("## Notes", private_body)
-        self.assertIn("Detail page", private_body)
+        self.assertIn(
+            "- Detail page: [docs/product/backlog-items/A4.md](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/backlog-items/A4.md)",
+            private_body,
+        )
+
+    def test_resolve_repository_url_uses_github_actions_environment_by_default(self) -> None:
+        original_server = os.environ.get("GITHUB_SERVER_URL")
+        original_repository = os.environ.get("GITHUB_REPOSITORY")
+        try:
+            os.environ["GITHUB_SERVER_URL"] = "https://github.com"
+            os.environ["GITHUB_REPOSITORY"] = "kbalanandam/spring-etl-engine"
+
+            repository_url = sync_project_board.resolve_repository_url(None)
+
+            self.assertEqual("https://github.com/kbalanandam/spring-etl-engine", repository_url)
+        finally:
+            if original_server is None:
+                os.environ.pop("GITHUB_SERVER_URL", None)
+            else:
+                os.environ["GITHUB_SERVER_URL"] = original_server
+            if original_repository is None:
+                os.environ.pop("GITHUB_REPOSITORY", None)
+            else:
+                os.environ["GITHUB_REPOSITORY"] = original_repository
 
     def test_cli_dry_run_parses_workspace_file_without_token(self) -> None:
         markdown = textwrap.dedent(
