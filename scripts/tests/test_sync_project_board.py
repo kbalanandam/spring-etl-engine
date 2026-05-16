@@ -284,6 +284,53 @@ class SyncProjectBoardTests(unittest.TestCase):
             target,
         )
 
+    def test_resolve_epic_page_target_builds_absolute_repository_blob_url(self) -> None:
+        item = sync_project_board.BacklogItem(
+            backlog_id="F1",
+            id_link="backlog-items/F1-restart-semantics-per-execution-mode.md",
+            item="Define restart semantics per execution mode",
+            epic="Epic F",
+            priority="P1",
+            status="Deferred",
+            milestone="M2",
+            dependency="A1, C1",
+            notes="",
+        )
+
+        label, target = sync_project_board.resolve_epic_page_target(
+            item,
+            repository_url="https://github.com/kbalanandam/spring-etl-engine",
+            repository_ref="master",
+        )
+
+        self.assertEqual("Epic F — Restartability and recovery semantics", label)
+        self.assertEqual(
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/"
+            "docs/product/epics/epic-f-restartability-and-recovery-semantics.md",
+            target,
+        )
+
+    def test_resolve_epic_page_target_returns_none_for_unknown_epic(self) -> None:
+        item = sync_project_board.BacklogItem(
+            backlog_id="Z1",
+            id_link=None,
+            item="Unknown item",
+            epic="Epic Z",
+            priority="P1",
+            status="Ready",
+            milestone="M1",
+            dependency="none",
+            notes="",
+        )
+
+        self.assertIsNone(
+            sync_project_board.resolve_epic_page_target(
+                item,
+                repository_url="https://github.com/kbalanandam/spring-etl-engine",
+                repository_ref="master",
+            )
+        )
+
     def test_build_project_body_omits_internal_notes_in_public_mode(self) -> None:
         item = sync_project_board.BacklogItem(
             backlog_id="A4",
@@ -309,9 +356,22 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertIn("sanitized public projection", public_body)
         self.assertNotIn("## Notes", public_body)
         self.assertNotIn("Detail page", public_body)
+        self.assertNotIn("Epic page", public_body)
         self.assertIn("## Notes", private_body)
         self.assertIn(
-            "- Detail page: [docs/product/backlog-items/A4.md](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/backlog-items/A4.md)",
+            "- Epic page: Epic A — Runtime contract and generated-model governance",
+            private_body,
+        )
+        self.assertIn(
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/epics/epic-a-runtime-contract-and-model-governance.md",
+            private_body,
+        )
+        self.assertIn(
+            "- Detail page: docs/product/backlog-items/A4.md",
+            private_body,
+        )
+        self.assertIn(
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/backlog-items/A4.md",
             private_body,
         )
 

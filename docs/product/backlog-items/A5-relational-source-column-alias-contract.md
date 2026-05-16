@@ -6,13 +6,15 @@ Capture the next relational reader contract improvement as a deferred backlog it
 
 ## Current board status
 
-- Epic: **Epic A**
+- Epic: **[Epic A](../epics/epic-a-runtime-contract-and-model-governance.md)**
 - Priority: **P2**
 - Status: **Deferred**
 - Milestone: **M2**
 - Dependency: **none**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
+
+Use the linked `Epic` entry above to navigate to the shared epic-level product context for this backlog item.
 
 ## Problem
 

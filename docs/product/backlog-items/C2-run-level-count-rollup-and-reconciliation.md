@@ -6,13 +6,15 @@ Complete the run-level count model so operators can understand overall ETL outco
 
 ## Current board status
 
-- Epic: **Epic C**
+- Epic: **[Epic C](../epics/epic-c-observability-and-run-evidence.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M1**
 - Dependency: **C1**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
+
+Use the linked `Epic` entry above to navigate to the shared epic-level product context for this backlog item.
 
 ## Problem
 

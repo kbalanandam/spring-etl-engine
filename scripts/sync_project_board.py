@@ -16,6 +16,19 @@ from typing import Any
 BACKLOG_SECTION_HEADING = "## Current Execution Board"
 BACKLOG_SOURCE_PATH = "docs/product/product-backlog.md"
 DEFAULT_REPOSITORY_REF = "master"
+EPIC_PAGE_BY_LABEL = {
+    "Epic A": ("Epic A — Runtime contract and generated-model governance", "docs/product/epics/epic-a-runtime-contract-and-model-governance.md"),
+    "Epic B": ("Epic B — Runtime hardening and file behavior", "docs/product/epics/epic-b-runtime-hardening-and-file-behavior.md"),
+    "Epic C": ("Epic C — Observability and run evidence", "docs/product/epics/epic-c-observability-and-run-evidence.md"),
+    "Epic D": ("Epic D — Error taxonomy and failure categorization", "docs/product/epics/epic-d-error-taxonomy-and-failure-categorization.md"),
+    "Epic E": ("Epic E — Portability and packaged-run guidance", "docs/product/epics/epic-e-portability-and-packaged-run-guidance.md"),
+    "Epic F": ("Epic F — Restartability and recovery semantics", "docs/product/epics/epic-f-restartability-and-recovery-semantics.md"),
+    "Epic G": ("Epic G — Secret injection and secure configuration", "docs/product/epics/epic-g-secret-injection-and-secure-configuration.md"),
+    "Epic S": ("Epic S — Scheduling and control plane", "docs/product/epics/epic-s-scheduling-and-control-plane.md"),
+    "Epic T": ("Epic T — Transformation capability", "docs/product/epics/epic-t-transformation-capability.md"),
+    "Epic V": ("Epic V — Verification evidence and reporting", "docs/product/epics/epic-v-verification-evidence-and-reporting.md"),
+    "Epic X": ("Epic X — File transport and SFTP boundary", "docs/product/epics/epic-x-file-transport-and-sftp-boundary.md"),
+}
 SYNC_MARKER_PATTERN = re.compile(r"<!--\s*backlog-sync-id:\s*([^\s]+)\s*-->")
 MARKDOWN_LINK_PATTERN = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
 CODE_SPAN_PATTERN = re.compile(r"`([^`]+)`")
@@ -98,6 +111,12 @@ def resolve_repository_ref(cli_value: str | None) -> str:
 def is_absolute_url(value: str) -> bool:
     parsed = urlparse(value)
     return parsed.scheme in {"http", "https"} and bool(parsed.netloc)
+
+
+def build_repository_blob_target(repo_relative_posix: str, repository_url: str | None, repository_ref: str) -> str:
+    if repository_url:
+        return f"{repository_url}/blob/{repository_ref}/{repo_relative_posix}"
+    return repo_relative_posix
 
 
 def markdown_to_plain_text(value: str) -> str:
@@ -253,9 +272,24 @@ def resolve_detail_page_target(
         repo_relative_path = Path(backlog_source_path).parent / link_target
 
     repo_relative_posix = repo_relative_path.as_posix()
-    if repository_url:
-        return repo_relative_posix, f"{repository_url}/blob/{repository_ref}/{repo_relative_posix}"
-    return repo_relative_posix, repo_relative_posix
+    return repo_relative_posix, build_repository_blob_target(repo_relative_posix, repository_url, repository_ref)
+
+
+def resolve_epic_page_target(
+    item: BacklogItem,
+    repository_url: str | None,
+    repository_ref: str,
+) -> tuple[str, str] | None:
+    epic_label = (item.epic or "").strip()
+    if not epic_label:
+        return None
+
+    epic_page = EPIC_PAGE_BY_LABEL.get(epic_label)
+    if not epic_page:
+        return None
+
+    epic_page_label, repo_relative_posix = epic_page
+    return epic_page_label, build_repository_blob_target(repo_relative_posix, repository_url, repository_ref)
 
 
 def build_project_body(
@@ -278,10 +312,15 @@ def build_project_body(
     ]
 
     if not public_mode:
+        epic_page = resolve_epic_page_target(item, repository_url, repository_ref)
+        if epic_page is not None:
+            epic_page_label, epic_target = epic_page
+            lines.extend(["", f"- Epic page: {epic_page_label}", epic_target])
+
         detail_page = resolve_detail_page_target(item, backlog_source_path, repository_url, repository_ref)
         if detail_page is not None:
             detail_label, detail_target = detail_page
-            lines.extend(["", f"- Detail page: [{detail_label}]({detail_target})"])
+            lines.extend(["", f"- Detail page: {detail_label}", detail_target])
 
     if not public_mode and item.notes:
         lines.extend(["", "## Notes", item.notes])

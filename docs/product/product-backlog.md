@@ -174,6 +174,20 @@ Use this maintenance rule:
 - the execution board is the canonical place for changing `Priority`, `Status`, `Milestone`, and `Dependency`
 - the backlog item page is the place for fuller detail, scope, acceptance criteria, and working notes
 
+Backlog item index: [`docs/product/backlog-items/README.md`](backlog-items/README.md)
+
+### Epic detail pages
+
+When several backlog items belong to the same product capability track, keep the shared product intent, boundary, and related architecture links in a dedicated epic page under `docs/product/epics/`.
+
+Use this maintenance rule:
+
+- the execution board remains the canonical place for changing item-level `Priority`, `Status`, `Milestone`, and `Dependency`
+- the epic page is the place for the shared problem statement, scope boundary, related backlog items, and links to architecture notes that span more than one backlog item
+- the backlog item page is still the place for item-specific scope, acceptance criteria, and working notes
+
+Epic index: [`docs/product/epics/README.md`](epics/README.md)
+
 ---
 
 ## Current Execution Board
@@ -186,43 +200,43 @@ This table is the day-to-day execution view for the current product stage.
 
 | ID | Item | Epic | Priority | Status | Milestone | Dependency | Notes |
 |---|---|---|---|---|---|---|---|
-| A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
-| A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
+| [A1](backlog-items/A1-explicit-step-pairing-and-step-definitions.md) | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
+| [A2](backlog-items/A2-validate-scenario-completeness-before-job-start.md) | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
 | [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Done | M1 | A2 | Shipped through optional top-level `job-config.yaml -> isActive`, with fail-fast `ConfigLoader` startup errors before referenced config resolution; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
-| [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | Done | M2 | A2 | Shipped selected-job contract: package-free source/target YAML, required non-blank job names, centralized package resolution, collision and handoff guardrails, standardized generated headers, and XML `XmlRecord` / `XmlRoot` class-shape separation on the active path |
+| [A4](backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | Done | M2 | A2 | Shipped selected-job contract: package-free source/target YAML, required non-blank job names, centralized package resolution, collision and handoff guardrails, standardized generated headers, and XML `XmlRecord` / `XmlRoot` class-shape separation on the active path |
 | [A5](backlog-items/A5-relational-source-column-alias-contract.md) | Add relational source column alias contract and reader mapping | Epic A | P2 | Deferred | M2 | none | Parked for later review so relational reads can support source-column-to-property differences without disturbing the current phase-1 baseline |
 | [A6](backlog-items/A6-retire-internal-generated-model-package-bridge.md) | Retire remaining internal generated-model package bridge | Epic A | P2 | Deferred | M2 | A4 | Parked for later as optional internal cleanup after higher-priority work; do not reopen authored `packageName` support while it is deferred |
-| T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
-| T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
-| T2 | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
-| T3 | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T2 | Best introduced after expression contract is stable |
+| [T1](backlog-items/T1-field-level-validation-and-first-reject-handling-slice.md) | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
+| [T1a](backlog-items/T1a-processor-transform-spi-and-first-cleaner-normalization-slice.md) | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
+| [T2](backlog-items/T2-expression-based-derived-field-support.md) | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
+| [T3](backlog-items/T3-conditional-transformation-rule-support.md) | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T2 | Best introduced after expression contract is stable |
 | [T4](backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Follow-on hardening beyond the shipped CSV slice: broader quarantine, selectable duplicate storage mode, and XML-native duplicate identity |
 | [T5](backlog-items/T5-reference-set-validation-and-enrichment-baseline.md) | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Frozen first-slice direction: processor-side DB-backed reference-set validation such as agency-code allow-lists before broader enrichment joins |
 | [T6](backlog-items/T6-shared-default-value-and-placeholder-mapping.md) | Add shared default-value and placeholder mapping baseline | Epic T | P1 | Deferred | M2 | T2 | Capture audit-column defaults, provider-backed system date/date-time filling, job-name/constants, and formula-ready placeholders without repeating the same mapping logic in every job bundle |
-| B1 | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
-| B2 | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
-| B3 | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
+| [B1](backlog-items/B1-configurable-skip-policy-support.md) | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
+| [B2](backlog-items/B2-configurable-retry-policy-support.md) | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
+| [B3](backlog-items/B3-archive-processed-source-files-after-success.md) | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
 | [B4](backlog-items/B4-strict-xml-source-validation-and-optional-xsd.md) | Add strict XML source validation mode with optional XSD checks | Epic B | P2 | Done | M2 | none | Shipped as an opt-in XML source-validation slice through `validation.schemaPath`, preserving lightweight structural XML checks as the default baseline while enabling fail-fast XSD validation and whole-file reject behavior |
 | [B5](backlog-items/B5-csv-reader-parsing-hardening.md) | Add CSV parsing hardening with configurable quote/escape behavior | Epic B | P2 | Done | M2 | none | Shipped as a narrow reader hardening slice through optional `parser.quoteCharacter`, preserving the current default CSV behavior while supporting alternate quoted-field contracts |
-| C1 | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Done | M1 | none | `RUN_EVENT` / `RUN_SUMMARY` and step lifecycle evidence are now emitted for selected runs |
+| [C1](backlog-items/C1-machine-readable-run-summary.md) | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Done | M1 | none | `RUN_EVENT` / `RUN_SUMMARY` and step lifecycle evidence are now emitted for selected runs |
 | [C2](backlog-items/C2-run-level-count-rollup-and-reconciliation.md) | Complete run-level source / written / rejected count rollup | Epic C | P1 | Done | M1 | C1 | `RUN_SUMMARY` now emits operator-oriented run-level `sourceCount` / `writtenCount` / `rejectedCount`, with intermediate handoff counts kept separate for multi-step jobs |
 | [D1](backlog-items/D1-stable-error-taxonomy-and-categories.md) | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
-| E1 | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
-| E2 | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Ready | M1 | E1 | Important next portability step |
-| F1 | Define restart semantics per execution mode | Epic F | P1 | Deferred | M2 | A1, C1 | Needs clearer orchestration and run evidence first |
+| [E1](backlog-items/E1-cross-platform-defaults-and-path-handling.md) | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
+| [E2](backlog-items/E2-packaged-run-guidance-for-jar-execution.md) | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Ready | M1 | E1 | Important next portability step |
+| [F1](backlog-items/F1-restart-semantics-per-execution-mode.md) | Define restart semantics per execution mode | Epic F | P1 | Deferred | M2 | A1, C1 | Needs clearer orchestration and run evidence first |
 | [X1](backlog-items/X1-sftp-transport-contract-and-deployment-boundary.md) | Define SFTP transport contract and deployment boundary | Epic X | P1 | Ready | M2 | E1, C1, G1 | Define staged inbound scope, native-vs-MFT modes, and deployment boundaries before implementation |
-| X2 | Add first inbound SFTP staged pull capability | Epic X | P1 | Deferred | M2 | X1, B2, C2 | First slice should stage remote files locally and emit transfer evidence |
-| X3 | Add remote post-success file handling and failure categorization for SFTP | Epic X | P1 | Deferred | M2 | X2, D1 | Add remote move/rename/archive semantics only after the first inbound pull slice is stable |
-| X4 | Define partner-facing transport security rules and optional isolated worker deployment | Epic X | P1 | Deferred | M3 | X1, G1 | Preserve optional external MFT or isolated transport-worker deployment for stronger partner-facing isolation |
+| [X2](backlog-items/X2-first-inbound-sftp-staged-pull-capability.md) | Add first inbound SFTP staged pull capability | Epic X | P1 | Deferred | M2 | X1, B2, C2 | First slice should stage remote files locally and emit transfer evidence |
+| [X3](backlog-items/X3-remote-post-success-file-handling-and-failure-categorization.md) | Add remote post-success file handling and failure categorization for SFTP | Epic X | P1 | Deferred | M2 | X2, D1 | Add remote move/rename/archive semantics only after the first inbound pull slice is stable |
+| [X4](backlog-items/X4-partner-facing-transport-security-and-isolated-worker-boundary.md) | Define partner-facing transport security rules and optional isolated worker deployment | Epic X | P1 | Deferred | M3 | X1, G1 | Preserve optional external MFT or isolated transport-worker deployment for stronger partner-facing isolation |
 | [S1](backlog-items/S1-schedule-model-and-trigger-contract.md) | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Deferred | M2 | A1, C1 | Define the optional control-plane contract without changing the independently runnable ETL core or blocking external scheduler/orchestrator integration |
-| S2 | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Deferred | M2 | S1 | First practical scheduler slice after run-state and audit direction are clearer |
-| S3 | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
+| [S2](backlog-items/S2-time-based-schedule-definitions-with-pause-resume.md) | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Deferred | M2 | S1 | First practical scheduler slice after run-state and audit direction are clearer |
+| [S3](backlog-items/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md) | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
 | [S4](backlog-items/S4-control-plane-operational-data-model.md) | Define control-plane operational data model for schedules, watchers, trigger events, run and step history, artifact lineage, and restartability anchors | Epic S | P1 | Deferred | M3 | S1, C1, C2 | Persist optional scheduler/control-plane history coherently without making it a prerequisite for direct ETL-core execution |
-| G1 | Support secret injection via environment or secure config source | Epic G | P1 | Deferred | M3 | C1 | Important for enterprise readiness, but not first delivery blocker |
-| V1 | Define enterprise verification evidence model and report categories | Epic V | P1 | Done | M3 | C1, C2 | Shared evidence model and phase-1 report categories are defined in the report generator and ADRs |
-| V2 | Generate Markdown verification reports from the shared evidence model | Epic V | P1 | Done | M3 | V1 | Markdown reporting now renders from the shared evidence model |
+| [G1](backlog-items/G1-secret-injection-via-environment-or-secure-config-source.md) | Support secret injection via environment or secure config source | Epic G | P1 | Deferred | M3 | C1 | Important for enterprise readiness, but not first delivery blocker |
+| [V1](backlog-items/V1-enterprise-verification-evidence-model-and-report-categories.md) | Define enterprise verification evidence model and report categories | Epic V | P1 | Done | M3 | C1, C2 | Shared evidence model and phase-1 report categories are defined in the report generator and ADRs |
+| [V2](backlog-items/V2-markdown-verification-reports-from-shared-evidence-model.md) | Generate Markdown verification reports from the shared evidence model | Epic V | P1 | Done | M3 | V1 | Markdown reporting now renders from the shared evidence model |
 | [V3](backlog-items/V3-html-verification-reports-with-drill-down-enterprise-views.md) | Generate HTML verification reports with drill-down enterprise views | Epic V | P1 | Deferred | M3 | V1, V2 | Add richer navigation and drill-down from the same evidence model |
-| V4 | Define verification-report retention, provenance, and release gating rules | Epic V | P2 | Deferred | M3 | V1, V2 | Make verification evidence auditable and usable for milestone and release decisions |
+| [V4](backlog-items/V4-verification-report-retention-provenance-and-release-gating.md) | Define verification-report retention, provenance, and release gating rules | Epic V | P2 | Deferred | M3 | V1, V2 | Make verification evidence auditable and usable for milestone and release decisions |
 
 ### Current working focus
 

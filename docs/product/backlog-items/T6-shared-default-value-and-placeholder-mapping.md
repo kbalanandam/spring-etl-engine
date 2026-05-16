@@ -6,13 +6,15 @@ Define one explicit config contract for common target-field defaults so jobs can
 
 ## Current board status
 
-- Epic: **Epic T**
+- Epic: **[Epic T](../epics/epic-t-transformation-capability.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M2**
 - Dependency: **T2**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
+
+Use the linked `Epic` entry above to navigate to the shared epic-level product context for this backlog item.
 
 ## Problem
 

@@ -125,7 +125,8 @@ For every significant enhancement, add or update:
 - [`product/product-backlog.md`](product/product-backlog.md) — step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including optional scheduler/control-plane capabilities that grow around the independently runnable ETL core without becoming mandatory for teams that use external orchestration
 - **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)** — live GitHub Project projection of the `Current Execution Board` table in `product/product-backlog.md`, with optional one-way sync for active execution tracking
 - [`product/project-board-sync.md`](product/project-board-sync.md) — setup and operating guide for syncing the `Current Execution Board` Markdown table into the GitHub Project without maintaining both views manually
-- `product/backlog-items/` — lightweight per-item drill-down pages linked from execution-board entries when an item needs fuller scope, acceptance criteria, and implementation notes
+- [`product/epics/README.md`](product/epics/README.md) — epic-level product pages that group shared intent, boundaries, and related architecture links across multiple backlog items while leaving item status fields in the execution board
+- [`product/backlog-items/README.md`](product/backlog-items/README.md) — complete index and maintenance guide for the per-item drill-down pages linked from execution-board entries
 - [`product/github-promotion.md`](product/github-promotion.md) — approved GitHub-facing About text, tagline, topic guidance, and positioning guardrails for OneFlow
 
 ### Scenario examples

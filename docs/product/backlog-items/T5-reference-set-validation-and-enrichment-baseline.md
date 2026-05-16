@@ -6,7 +6,7 @@ Define the first lookup/enrichment slice on the active processor path, starting 
 
 ## Current board status
 
-- Epic: **Epic T**
+- Epic: **[Epic T](../epics/epic-t-transformation-capability.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M2**
@@ -29,6 +29,8 @@ This freeze is for planning clarity only:
 - it does **not** change `Status: Deferred`
 - it is **not** a shipped config contract today
 - it is **not** part of the active runtime path yet
+
+Use the linked `Epic` entry above to navigate to the shared epic-level product context for this backlog item.
 
 ## Problem
 
