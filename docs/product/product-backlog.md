@@ -191,7 +191,7 @@ This table is the day-to-day execution view for the current product stage.
 | [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Done | M1 | A2 | Shipped through optional top-level `job-config.yaml -> isActive`, with fail-fast `ConfigLoader` startup errors before referenced config resolution; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
 | [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | Done | M2 | A2 | Shipped selected-job contract: package-free source/target YAML, required non-blank job names, centralized package resolution, collision and handoff guardrails, standardized generated headers, and XML `XmlRecord` / `XmlRoot` class-shape separation on the active path |
 | [A5](backlog-items/A5-relational-source-column-alias-contract.md) | Add relational source column alias contract and reader mapping | Epic A | P2 | Deferred | M2 | none | Parked for later review so relational reads can support source-column-to-property differences without disturbing the current phase-1 baseline |
-| [A6](backlog-items/A6-retire-internal-generated-model-package-bridge.md) | Retire remaining internal generated-model package bridge | Epic A | P2 | Ready | M2 | A4 | Follow-on technical cleanup: remove config-object package cache/state, narrow demo-fallback/internal compatibility defaults, and retire remaining bridge-era labels or helper seams without reopening authored `packageName` as supported config |
+| [A6](backlog-items/A6-retire-internal-generated-model-package-bridge.md) | Retire remaining internal generated-model package bridge | Epic A | P2 | Deferred | M2 | A4 | Parked for later as optional internal cleanup after higher-priority work; do not reopen authored `packageName` support while it is deferred |
 | T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | T2 | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
@@ -233,8 +233,7 @@ Use this section as the near-term sequencing view behind the execution board:
 3. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
 4. Keep `E2` as the next portability/documentation step.
 5. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-6. Keep [`A6`](backlog-items/A6-retire-internal-generated-model-package-bridge.md) available as a contained technical cleanup when reducing remaining internal compatibility seams becomes worthwhile.
-7. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
+6. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -688,9 +687,8 @@ Use this as the condensed near-term priority order:
 2. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
 3. `E2` — packaged-run guidance
 4. `X1` / `X2` — SFTP contract and first inbound slice
-5. `A6` — contained internal generated-model bridge retirement
-6. `F1` / `S1` / `S2` — restartability and scheduler baseline
-7. `V3` / `V4` / `G1` — reporting, release gating, and secure config
+5. `F1` / `S1` / `S2` — restartability and scheduler baseline
+6. `V3` / `V4` / `G1` — reporting, release gating, and secure config
 
 ---
 

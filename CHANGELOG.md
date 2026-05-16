@@ -8,6 +8,13 @@ and this project adheres to **Semantic Versioning**.
 
 ---
 
+## [1.6.1] - 2026-05-16
+
+### Changed
+- Maintenance release only: aligned backlog/docs after completing the A4 generated-model naming/package contract, parked A6 as deferred internal cleanup, and refreshed release metadata without introducing a new runtime feature slice.
+
+---
+
 ## [1.6.0] - 2026-05-14
 
 ### Added
@@ -256,5 +263,6 @@ and this project adheres to **Semantic Versioning**.
 - Job, Step, Reader, Processor, Writer bootstrapping.
 
 ---
+
 
 

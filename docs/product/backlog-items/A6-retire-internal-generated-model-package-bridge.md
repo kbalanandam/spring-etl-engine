@@ -2,13 +2,13 @@
 
 ## Summary
 
-Follow the shipped A4 selected-job contract by removing the remaining internal compatibility bridge that still caches or backfills generated-model package identity inside runtime config objects and legacy helper paths.
+Follow the shipped A4 selected-job contract by removing the remaining internal compatibility bridge that still caches or backfills generated-model package identity inside runtime config objects and legacy helper paths. This item is intentionally parked for later, so future work should avoid expanding that bridge while it remains deferred.
 
 ## Current board status
 
 - Epic: **Epic A**
 - Priority: **P2**
-- Status: **Ready**
+- Status: **Deferred**
 - Milestone: **M2**
 - Dependency: **A4**
 
