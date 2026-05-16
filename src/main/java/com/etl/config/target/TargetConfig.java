@@ -24,6 +24,7 @@ import java.util.List;
 public abstract class TargetConfig implements ModelConfig {
 
 	private final String targetName;
+	/** Internal generated package resolved by runtime defaults/derivation. */
 	private final String packageName;
 	private final List<? extends FieldDefinition> fields;
 

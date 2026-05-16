@@ -29,12 +29,23 @@ public class XmlTargetConfig extends TargetConfig {
     @JsonCreator
     public XmlTargetConfig(
             @JsonProperty("targetName") String targetName,
-            @JsonProperty("packageName") String packageName,
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("filePath") String filePath,
             @JsonProperty("rootElement") String rootElement,
             @JsonProperty("recordElement") String recordElement,
             @JsonProperty("modelDefinitionPath") String modelDefinitionPath
+    ) {
+        this(targetName, null, fields, filePath, rootElement, recordElement, modelDefinitionPath);
+    }
+
+    public XmlTargetConfig(
+            String targetName,
+            String packageName,
+            List<ColumnConfig> fields,
+            String filePath,
+            String rootElement,
+            String recordElement,
+            String modelDefinitionPath
     ) {
         super(targetName, packageName, fields);
         this.filePath = filePath;

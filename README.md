@@ -18,6 +18,10 @@ The near-term goal is to become the default internal runtime for repeatable file
 
 In product terms, OneFlow gives teams one focused runtime for orchestrating, validating, and delivering those scenarios without rebuilding file-flow and ETL plumbing for each project.
 
+That runtime should remain independently runnable through explicit `job-config.yaml` selection even as future scheduler/control-plane and operator-UI capabilities are added around it. The intended growth path is an optional operational layer for scheduling, file watching, monitoring, and persisted run history — not a replacement for the core ETL execution contract.
+
+That also means future built-in scheduling must stay optional for adopters. Teams that prefer an external enterprise scheduler, orchestrator, or platform trigger should be able to launch the same selected-job runtime contract without adopting a OneFlow-native scheduler first.
+
 That means standardizing common concerns such as:
 
 - source and target file handling
@@ -90,7 +94,7 @@ The near-term product focus is to make these recurring concerns consistent acros
 - CSV, XML, and phase-1 relational source paths plus CSV, JSON, XML, and phase-1 relational target paths
 - source validation plus processor-side validation rules
 - processor-side `valueMap` cleanup and `expression`-based derived fields through the active `transforms[]` contract
-- optional job-scoped generated package derivation when source or target configs omit `packageName`
+- explicit-job package derivation from `job-config.yaml -> name`, with source/target `packageName` omitted from selected bundles and explicit selected-job runs failing fast if authored `packageName` is present
 - rejected-record output and archive-on-success for the current CSV-focused hardening slice
 - machine-readable run and step evidence for operators and verification
 - descriptor-backed main-flow/subflow planning evidence plus blocked-subflow summaries layered on top of the current flat ordered-step runtime
@@ -102,6 +106,9 @@ The near-term product focus is to make these recurring concerns consistent acros
 ### Future direction
 
 - broader processor-side transformation maturity beyond the shipped `valueMap` + `expression` transform baseline
+- an optional Java-first control plane for scheduling, file watching, trigger governance, persisted evidence, and a future integrated UI over the ETL core
+- first-class interoperability with external schedulers/orchestrators that trigger the same explicit selected-job runtime when teams do not want the built-in scheduler layer
+- local-first persisted OneFlow operational data, with lightweight relational storage such as SQLite acceptable for early developer/laptop control-plane work before stronger relational deployments are introduced
 - richer fault tolerance, reconciliation, restartability, scheduling, and transport capabilities
 - deeper relational hardening and enterprise verification/reporting maturity
 
@@ -115,7 +122,7 @@ Use this table as the recommended reading order by goal:
 | Run a real scenario | [Explicit job-config mode](#explicit-job-config-mode) | [`docs/config/job-config.md`](docs/config/job-config.md) |
 | Understand the config model | [`docs/config/README.md`](docs/config/README.md) | [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md) |
 | Explore architecture/runtime flow | [Architecture Docs](#architecture-docs) | [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md) |
-| Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
+| Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/control-plane-worker-boundary.md`](docs/architecture/control-plane-worker-boundary.md) and [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
 | Assess current gaps to the reusable scenario model | [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md) | [`docs/architecture/hierarchical-flow-composition.md`](docs/architecture/hierarchical-flow-composition.md) |
 | See preserved runnable examples | `src/main/resources/config-jobs/` | [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples) |
 | Set up a developer-local private job bundle or collection | [`private-jobs/`](private-jobs/README.md) | [Explicit job-config mode](#explicit-job-config-mode) |
@@ -149,6 +156,7 @@ Start here:
 - [`docs/README.md`](docs/README.md)
 - [`docs/architecture/overview.md`](docs/architecture/overview.md)
 - [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md)
+- [`docs/architecture/control-plane-worker-boundary.md`](docs/architecture/control-plane-worker-boundary.md)
 - [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md)
 - [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md)
 - [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md)
@@ -178,14 +186,19 @@ Start here:
  ├── src/main/resources
  │    ├── application.properties
  │    ├── application-dev.properties
- │    ├── source-config.yaml
- │    ├── target-config.yaml
- │    ├── processor-config.yaml
- │    ├── validation-config.yaml  # Deprecated legacy validation resource
- │    └── demo-input/      # Bundled fallback sample CSV files
+ │    ├── source-config.yaml       # Simple baseline demo-fallback source config
+ │    ├── target-config.yaml       # Simple baseline demo-fallback target config
+ │    ├── processor-config.yaml    # Simple baseline demo-fallback processor config
+ │    ├── validation-config.yaml   # Deprecated legacy validation resource
+ │    ├── config-jobs/             # Checked-in preserved runnable job bundles
+ │    └── demo-input/              # Bundled fallback sample input files
  ├── src/test
  │    ├── java/            # Unit and integration tests
  │    └── resources/       # Test datasets
+ ├── docs/                 # Product, config, architecture, and ADR documentation
+ ├── private-jobs/         # Git-ignored developer-local private job bundles (README only tracked)
+ ├── scripts/              # Verification, sync, and maintenance scripts
+ ├── logs/                 # Runtime log output by scenario/date
  ├── README.md
  ├── pom.xml
  └── LICENSE
@@ -206,9 +219,9 @@ Prerequisites:
 
 Choose one of the following ways to run the project:
 
-1. **Use the repo-provided config** under `src/main/resources/` or point to your own external config files.
-2. **Use one explicit job config** if you want a single file to choose the source/target/processor YAMLs for the run.
-3. **Use the bundled fallback config** if you want to try the project immediately from the repository.
+1. **Use one preserved job bundle** under `src/main/resources/config-jobs/` and run it through `etl.config.job`.
+2. **Copy a preserved bundle into** [`private-jobs/`](private-jobs/README.md) **for developer-local or environment-specific work**.
+3. **Use demo fallback mode** only if you want the fastest local smoke/demo run from the baseline YAML files under `src/main/resources/`.
 
 If you want the fastest first run without preparing an external scenario bundle, go directly to **Demo fallback mode** below and enable the explicit fallback flag.
 
@@ -226,6 +239,8 @@ The application supports two runtime policies:
 Use this mode when you want one file to declare exactly which business scenario or config trio a job should run.
 
 This is the default startup contract.
+
+It is also the interoperability contract for future optional scheduler/control-plane work and for external schedulers or orchestrators. Any later trigger layer should launch this same selected-job boundary instead of introducing a different execution model.
 
 Example `job-config.yaml`:
 
@@ -255,10 +270,14 @@ Use the bundle root that matches your need:
 Preserved business-scenario examples include:
 
 - `customer-load`
-- `department-load`
-- `cust-dept-load`
+- `csv-validation-reject-archive`
+- `xml-to-csv-events`
+- `xml-to-json-events`
+- `xml-nested-to-csv-to-nested-xml`
 - `csv-to-sqlserver`
 - `relational-to-relational`
+
+For the fuller preserved scenario list and notes on which bundle best matches each use case, see [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples).
 
 Run with:
 
@@ -346,6 +365,8 @@ When `etl.config.allow-demo-fallback=true` and `etl.config.job` is not set, the 
 - `src/main/resources/target-config.yaml`
 - `src/main/resources/processor-config.yaml`
 
+Those baseline files are intentionally simple demo defaults. Normal scenario authoring should live in one selected job bundle under `src/main/resources/config-jobs/` or a copied private bundle under [`private-jobs/`](private-jobs/README.md).
+
 Current bundled demo sample paths:
 
 - input: `src/main/resources/demo-input/Customers.csv`
@@ -392,12 +413,12 @@ Expected fallback output files:
 - `target/departments.xml`
 
 ## Usage
-1. Define your source configuration in `source-config.yaml`.
-2. Define your target configuration in `target-config.yaml`.
-3. Define field mappings in `processor-config.yaml`.
-4. Prefer running the application with an explicit `etl.config.job` scenario selection.
-5. Use `etl.config.allow-demo-fallback=true` only for local/demo fallback runs.
-6. Review the generated output files in the configured target directory.
+1. Start from a preserved job bundle under `src/main/resources/config-jobs/`.
+2. Update that bundle's `job-config.yaml`, `source-config.yaml`, `target-config.yaml`, and `processor-config.yaml` for your scenario.
+3. Prefer running the application with an explicit `etl.config.job=<path-to-job-config.yaml>` selection.
+4. Copy the preserved bundle into [`private-jobs/`](private-jobs/README.md) when you need private inputs, environment-specific settings, or customer-specific values that must not be committed.
+5. Use `etl.config.allow-demo-fallback=true` only for local/demo fallback runs based on the simple baseline YAML files under `src/main/resources/`.
+6. Review the generated output, reject, and archive files in the locations configured by the selected bundle.
 
 ## Validation path note
 
@@ -477,15 +498,36 @@ Optional parameters:
 - `-SkipSmoke` — generate the report from automated tests only
 - `-KeepLatestCount <N>` — control how many timestamped report snapshots are retained in `target/`
 
-## Example Mapping
-```yaml
-source: customer.csv
-fields:
-  - source: id
-    target: customerId
-  - source: first_name
-    target: firstName
+## Example job bundle
+
+The normal runnable unit is one selected job bundle, for example:
+
+```text
+src/main/resources/config-jobs/customer-load/
+  job-config.yaml
+  source-config.yaml
+  target-config.yaml
+  processor-config.yaml
 ```
+
+Minimal `job-config.yaml` example:
+
+```yaml
+name: customer-load
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: customers-to-xml-step
+    source: Customers
+    target: CustomersXml
+```
+
+For current field-level config examples, use:
+
+- [`docs/config/job-config.md`](docs/config/job-config.md)
+- [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md)
+- [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples)
 
 ## License
 This project is licensed under the **MIT License**.

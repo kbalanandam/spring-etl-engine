@@ -134,11 +134,24 @@ public class XmlSourceConfig extends SourceConfig implements FileSourceConfig {
         super();
     }
 
+    public XmlSourceConfig(
+            String sourceName,
+            String packageName,
+            List<ColumnConfig> fields,
+            String filePath,
+            String rootElement,
+            String recordElement
+    ) {
+        super(sourceName, packageName, fields);
+        this.filePath = filePath;
+        this.rootElement = rootElement;
+        this.recordElement = recordElement;
+    }
+
     /**
      * Constructs an XmlSourceConfig with the specified parameters.
      *
      * @param sourceName   the name of the source
-     * @param packageName  the package name for generated classes
      * @param fields       the list of field definitions
      * @param filePath     the XML file path
      * @param rootElement  the root element name
@@ -147,16 +160,12 @@ public class XmlSourceConfig extends SourceConfig implements FileSourceConfig {
     @JsonCreator
     public XmlSourceConfig(
             @JsonProperty("sourceName") String sourceName,
-            @JsonProperty("packageName") String packageName,
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("filePath") String filePath,
             @JsonProperty("rootElement") String rootElement,
             @JsonProperty("recordElement") String recordElement
     ) {
-        super(sourceName, packageName, fields);
-        this.filePath = filePath;
-        this.rootElement = rootElement;
-        this.recordElement = recordElement;
+        this(sourceName, null, fields, filePath, rootElement, recordElement);
     }
 
     @Override

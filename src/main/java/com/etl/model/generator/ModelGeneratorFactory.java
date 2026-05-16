@@ -1,6 +1,7 @@
 package com.etl.model.generator;
 
 import com.etl.common.util.GeneratedModelNamingPolicy;
+import com.etl.common.util.GeneratedModelPackageResolver;
 import com.etl.config.ModelConfig;
 import com.etl.config.ModelPathConfig;
 import com.etl.config.RunConfigurationMetadata;
@@ -299,10 +300,10 @@ public class ModelGeneratorFactory {
 
 	private String resolvePackageName(ModelConfig modelConfig) {
 		if (modelConfig instanceof SourceConfig sourceConfig) {
-			return sourceConfig.getPackageName();
+			return GeneratedModelPackageResolver.resolveSourcePackage(sourceConfig);
 		}
 		if (modelConfig instanceof TargetConfig targetConfig) {
-			return targetConfig.getPackageName();
+			return GeneratedModelPackageResolver.resolveTargetPackage(targetConfig);
 		}
 		return null;
 	}

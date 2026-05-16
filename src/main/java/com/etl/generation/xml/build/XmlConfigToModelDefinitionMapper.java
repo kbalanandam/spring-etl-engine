@@ -1,6 +1,7 @@
 package com.etl.generation.xml.build;
 
 import com.etl.common.util.GeneratedModelNamingPolicy;
+import com.etl.common.util.GeneratedModelPackageResolver;
 import com.etl.common.util.ValidationUtils;
 import com.etl.config.FieldDefinition;
 import com.etl.config.source.XmlSourceConfig;
@@ -19,7 +20,7 @@ public class XmlConfigToModelDefinitionMapper {
     public XmlModelDefinition fromSourceConfig(XmlSourceConfig config) {
         ValidationUtils.requireNonNull(config, "XmlSourceConfig must not be null.");
         return toDefinition(
-                config.getPackageName(),
+                GeneratedModelPackageResolver.resolveSourcePackage(config),
                 config.getRootElement(),
                 config.getRecordElement(),
                 GeneratedModelNamingPolicy.resolveXmlRootSimpleClassName(config.getSourceName()),
@@ -31,7 +32,7 @@ public class XmlConfigToModelDefinitionMapper {
     public XmlModelDefinition fromTargetConfig(XmlTargetConfig config) {
         ValidationUtils.requireNonNull(config, "XmlTargetConfig must not be null.");
         return toDefinition(
-                config.getPackageName(),
+                GeneratedModelPackageResolver.resolveTargetPackage(config),
                 config.getRootElement(),
                 config.getRecordElement(),
                 GeneratedModelNamingPolicy.resolveXmlRootSimpleClassName(config.getTargetName()),

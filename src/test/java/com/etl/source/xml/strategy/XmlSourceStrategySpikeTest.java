@@ -39,6 +39,7 @@ class XmlSourceStrategySpikeTest {
     @Test
     void directStrategyFlattensSimpleGeneratedXml() throws Exception {
         ScenarioArtifacts artifacts = generateAndLoad("simple-source-model.yaml");
+        assertEquals("com.etl.generated.job.xmlmodelspike.simple.source", artifacts.result().packageName());
         Object wrapper = unmarshal(artifacts.classLoader(), artifacts.rootClass(), scenarioPath("simple-sample.xml"));
 
         XmlSourceConfig config = xmlConfig(
@@ -62,6 +63,7 @@ class XmlSourceStrategySpikeTest {
     @Test
     void nestedStrategyFlattensNestedGeneratedXmlWithAutoAndMappedModes() throws Exception {
         ScenarioArtifacts artifacts = generateAndLoad("nested-source-model.yaml");
+        assertEquals("com.etl.generated.job.xmlmodelspike.nested.source", artifacts.result().packageName());
         Object wrapper = unmarshal(artifacts.classLoader(), artifacts.rootClass(), scenarioPath("nested-sample.xml"));
 
         XmlSourceConfig config = xmlConfig(

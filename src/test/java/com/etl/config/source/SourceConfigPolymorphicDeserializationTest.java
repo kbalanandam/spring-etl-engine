@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SourceConfigPolymorphicDeserializationTest {
@@ -18,7 +19,6 @@ class SourceConfigPolymorphicDeserializationTest {
                 sources:
                   - format: relational
                     sourceName: Customers
-                    packageName: com.etl.model.source
                     table: customers
                     schema: dbo
                     fetchSize: 200
@@ -50,6 +50,7 @@ class SourceConfigPolymorphicDeserializationTest {
         assertEquals(200, relationalSource.getFetchSize());
         assertEquals(1000, relationalSource.getMaxRows());
         assertEquals("h2", relationalSource.getConnection().getVendor());
+        assertNull(relationalSource.getPackageName());
     }
 
     @Test
@@ -58,7 +59,6 @@ class SourceConfigPolymorphicDeserializationTest {
         sources:
           - format: csv
             sourceName: Events
-            packageName: com.etl.model.source
             filePath: input/events.csv
             delimiter: ","
             skipHeader: false
@@ -92,6 +92,7 @@ class SourceConfigPolymorphicDeserializationTest {
         assertEquals('\'', csvSource.resolveQuoteCharacter());
         assertFalse(csvSource.getValidation().isAllowEmpty());
         assertTrue(csvSource.getValidation().isRequireHeaderMatch());
+        assertNull(csvSource.getPackageName());
     }
 
     @Test
@@ -100,7 +101,6 @@ class SourceConfigPolymorphicDeserializationTest {
         sources:
           - format: xml
             sourceName: CustomersXml
-            packageName: com.etl.model.source
             filePath: input/customers.xml
             rootElement: Customers
             recordElement: Customer
@@ -134,5 +134,6 @@ class SourceConfigPolymorphicDeserializationTest {
         assertEquals("NestedXml", xmlSource.getFlatteningStrategy());
         assertEquals("customerXmlSourceStrategy", xmlSource.getJobSpecificStrategyBean());
         assertEquals("definitions/customer-source-model.yaml", xmlSource.getModelDefinitionPath());
+        assertNull(xmlSource.getPackageName());
     }
 }

@@ -2,15 +2,18 @@
 
 ## Executive Dashboard
 
-Active execution tracking lives in the GitHub Project **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)**.
+The GitHub Project **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)** is the live projected execution view for this backlog.
 
-This document remains the strategic/reference product backlog and milestone view.
+This document remains the canonical product backlog, milestone view, and execution-board source of truth.
 
 ## Purpose
 
 This document preserves the product goal for `spring-etl-engine` from the starting point to the current state, and from the current state toward an enterprise-grade ETL product.
 
 It is the single product roadmap and execution backlog for the product at this stage. Capabilities such as scheduling/orchestration should be tracked here as dedicated epics, not maintained in separate standalone roadmaps unless they later become truly independent platform products.
+It covers both the independently runnable ETL core and the optional control-plane capabilities that may grow around it.
+
+Anything beyond the ETL core should be treated as additive and optional. If a team prefers to integrate `spring-etl-engine` with an external enterprise scheduler, orchestrator, or control framework, that should remain a supported product direction rather than an exception.
 
 It is intentionally different from the architecture roadmap:
 
@@ -38,6 +41,10 @@ Build a config-driven ETL product that can reliably:
 
 The near-term product mission is to become the default internal runtime for repeatable file-based integration scenarios by reducing repetitive custom ETL code and standardizing scenario orchestration, validation, duplicate handling, reject/archive behavior, and common transport-oriented file flow concerns.
 
+That ETL core should remain directly runnable even before later scheduler, watcher, persisted-history, or integrated-UI work is introduced.
+
+Future built-in scheduling therefore must stay optional: the product should work both with a native control plane and with external trigger/orchestration systems that launch the same explicit selected-job runtime contract.
+
 ---
 
 ## Current Product Snapshot
@@ -61,6 +68,7 @@ The product already has a meaningful engineering foundation:
 - improved path portability for tests and default demo runtime behavior
 - fail-fast relational placeholder validation for selected scenario configs
 - repeatable verification reporting with categorized Markdown evidence output
+- a clear path to layer optional scheduler/control-plane capabilities around that runtime instead of making them prerequisites for normal ETL execution
 
 ### Current maturity assessment
 
@@ -181,8 +189,9 @@ This table is the day-to-day execution view for the current product stage.
 | A1 | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | A2 | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
 | [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Done | M1 | A2 | Shipped through optional top-level `job-config.yaml -> isActive`, with fail-fast `ConfigLoader` startup errors before referenced config resolution; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
-| [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | In Progress | M2 | A2 | Explicit job mode now ships derived package defaults, required non-blank job names, and first naming guardrails for cross-step handoff reuse plus normalization collisions; remaining work is the broader bridge tightening and package-free config direction described in [`Generated model naming standard`](../architecture/generated-model-naming-standard.md) |
+| [A4](./backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | Done | M2 | A2 | Shipped selected-job contract: package-free source/target YAML, required non-blank job names, centralized package resolution, collision and handoff guardrails, standardized generated headers, and XML `XmlRecord` / `XmlRoot` class-shape separation on the active path |
 | [A5](backlog-items/A5-relational-source-column-alias-contract.md) | Add relational source column alias contract and reader mapping | Epic A | P2 | Deferred | M2 | none | Parked for later review so relational reads can support source-column-to-property differences without disturbing the current phase-1 baseline |
+| [A6](backlog-items/A6-retire-internal-generated-model-package-bridge.md) | Retire remaining internal generated-model package bridge | Epic A | P2 | Deferred | M2 | A4 | Parked for later as optional internal cleanup after higher-priority work; do not reopen authored `packageName` support while it is deferred |
 | T1 | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | T1a | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | T2 | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
@@ -205,9 +214,10 @@ This table is the day-to-day execution view for the current product stage.
 | X2 | Add first inbound SFTP staged pull capability | Epic X | P1 | Deferred | M2 | X1, B2, C2 | First slice should stage remote files locally and emit transfer evidence |
 | X3 | Add remote post-success file handling and failure categorization for SFTP | Epic X | P1 | Deferred | M2 | X2, D1 | Add remote move/rename/archive semantics only after the first inbound pull slice is stable |
 | X4 | Define partner-facing transport security rules and optional isolated worker deployment | Epic X | P1 | Deferred | M3 | X1, G1 | Preserve optional external MFT or isolated transport-worker deployment for stronger partner-facing isolation |
-| [S1](backlog-items/S1-schedule-model-and-trigger-contract.md) | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Deferred | M2 | A1, C1 | Keep scheduler work inside the main product roadmap; establish scope before implementation |
+| [S1](backlog-items/S1-schedule-model-and-trigger-contract.md) | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Deferred | M2 | A1, C1 | Define the optional control-plane contract without changing the independently runnable ETL core or blocking external scheduler/orchestrator integration |
 | S2 | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Deferred | M2 | S1 | First practical scheduler slice after run-state and audit direction are clearer |
 | S3 | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
+| [S4](backlog-items/S4-control-plane-operational-data-model.md) | Define control-plane operational data model for schedules, watchers, trigger events, run and step history, artifact lineage, and restartability anchors | Epic S | P1 | Deferred | M3 | S1, C1, C2 | Persist optional scheduler/control-plane history coherently without making it a prerequisite for direct ETL-core execution |
 | G1 | Support secret injection via environment or secure config source | Epic G | P1 | Deferred | M3 | C1 | Important for enterprise readiness, but not first delivery blocker |
 | V1 | Define enterprise verification evidence model and report categories | Epic V | P1 | Done | M3 | C1, C2 | Shared evidence model and phase-1 report categories are defined in the report generator and ADRs |
 | V2 | Generate Markdown verification reports from the shared evidence model | Epic V | P1 | Done | M3 | V1 | Markdown reporting now renders from the shared evidence model |
@@ -218,13 +228,12 @@ This table is the day-to-day execution view for the current product stage.
 
 Use this section as the near-term sequencing view behind the execution board:
 
-1. `A4` first, to finish the generated-model naming and package-derivation contract before more feature breadth increases rework.
-2. `T3` next, once the generated-model contract is tighter and the remaining naming drift risk is reduced.
-3. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, not a redesign of the shipped duplicate baseline.
-4. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
-5. Keep `E2` as the next portability/documentation step.
-6. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-7. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
+1. `T3` next, now that the generated-model naming and package-derivation contract is shipped on the active path.
+2. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, not a redesign of the shipped duplicate baseline.
+3. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
+4. Keep `E2` as the next portability/documentation step.
+5. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
+6. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -282,6 +291,8 @@ Still deferred after that:
 
 Scheduler/orchestration remains part of this same roadmap as **Epic S**. It should become active only after the product has clearer run-state, audit, and restartability foundations.
 
+Even when that work becomes active, it should stay layered around the ETL core rather than inside its required runtime boundary. Native scheduling is a future optional product capability, not a requirement for clients that already standardize on external orchestration.
+
 Avoid starting new `P1` or `P2` items while `P0` items remain open unless the higher-priority item is genuinely blocked.
 
 ---
@@ -324,7 +335,8 @@ Make each run explicit, predictable, and less fragile.
 - [x] Replace positional source-target pairing with explicit step pairing or step definitions
 - [x] Validate scenario completeness before job start
 - [x] Add job-level activation guardrail so `isActive: false` blocks the selected job before wiring
-- [ ] Complete the remaining generated-model naming and validation standard after the shipped optional-`packageName` bridge for explicit jobs
+- [x] Complete the generated-model naming and package-derivation standard for the shipped active selected-job contract
+- [ ] Retire the remaining internal generated-model package bridge after the shipped contract is complete
 - [ ] Add a relational source column alias contract so selected database column names can differ from generated/runtime property names without ad hoc query-only workarounds
 - [ ] Add stronger config validation error messages for operators
 - [ ] Make step definitions more business-meaningful and less index-driven
@@ -465,25 +477,33 @@ Add a controlled near-term transport capability for repeated file pickup and del
 
 ---
 
-## Epic S — Scheduling and orchestration capability
+## Epic S — Scheduling and control-plane capability
 
 ### Goal
-Add controlled job-trigger capability as part of the ETL product itself, while keeping scheduler evolution inside the main roadmap instead of creating a separate scheduler roadmap or pseudo-product too early.
+Add controlled trigger and operator-control capability around the ETL core while keeping scheduler evolution inside the main roadmap instead of creating a separate scheduler roadmap or pseudo-product too early.
+
+That capability must remain optional from the ETL core point of view and must not make OneFlow-native scheduling mandatory for adopters that already have an external scheduler or orchestrator.
 
 ### Backlog
 - [ ] Define schedule model and trigger contract for scenario-based execution
 - [ ] Add time-based schedule definitions with timezone awareness where needed
+- [ ] Add file-watcher trigger management under the same trigger-control contract
 - [ ] Add pause/resume and disable controls per schedule
 - [ ] Define overlap policy for already-running jobs (skip, defer, reject, or queue)
 - [ ] Define missed-run handling policy after downtime or blackout periods
 - [ ] Add basic trigger audit trail and schedule-to-run traceability
+- [ ] Define the retained control-plane operational data model for schedules, watchers, trigger events, run / step history, artifact lineage, and restartability anchors
+- [ ] Persist control-plane history in a local-first relational store for developer/laptop use, with stronger relational deployment targets later
 - [ ] Document the boundary between scheduling, orchestration, retry, and restartability
+- [ ] Document the external-scheduler interoperability contract so third-party schedulers/orchestrators can launch the same selected-job runtime without feature loss in the core path
 
 ### Done criteria
 - schedules are explicit, testable, and tied to scenario/job execution contracts
 - operators can tell why a scheduled run started, skipped, or was blocked
 - pause/resume, overlap, and missed-run behavior are documented and observable
-- scheduler scope stays aligned with the main ETL roadmap
+- retained scheduler/control-plane history is defined clearly enough to support later UI, audit, and recovery work without becoming a mandatory ETL-core dependency
+- scheduler/control-plane scope stays aligned with the main ETL roadmap and does not replace direct ETL-core execution
+- external schedulers/orchestrators remain first-class launch options through the same selected-job contract
 
 ---
 
@@ -634,7 +654,7 @@ Focus:
 - reconciliation
 - stronger diagnostics
 - restart/rerun semantics
-- first scheduler/orchestration controls built on top of explicit run-state and audit foundations
+- first optional scheduler/control-plane controls built on top of explicit run-state and audit foundations
 
 Exit signal:
 - operations support can answer what failed, why, and what to do next
@@ -648,7 +668,7 @@ Focus:
 - scale validation
 - enterprise verification reporting and release evidence
 - operational controls
-- advanced schedule control, missed-run policy, and trigger evidence
+- advanced schedule control, watcher governance, missed-run policy, persisted operational evidence, and trigger history
 
 Current state:
 - verification reporting direction is now established through `Epic V`, ADR-0005, categorized Markdown reporting, and a shared verification evidence model
@@ -663,13 +683,12 @@ Exit signal:
 
 Use this as the condensed near-term priority order:
 
-1. `A4` — generated-model naming and package-derivation completion
-2. `T3` — conditional transformation rules
-3. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
-4. `E2` — packaged-run guidance
-5. `X1` / `X2` — SFTP contract and first inbound slice
-6. `F1` / `S1` / `S2` — restartability and scheduler baseline
-7. `V3` / `V4` / `G1` — reporting, release gating, and secure config
+1. `T3` — conditional transformation rules
+2. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
+3. `E2` — packaged-run guidance
+4. `X1` / `X2` — SFTP contract and first inbound slice
+5. `F1` / `S1` / `S2` — restartability and scheduler baseline
+6. `V3` / `V4` / `G1` — reporting, release gating, and secure config
 
 ---
 
@@ -701,7 +720,7 @@ Update this backlog when:
 
 Keep the backlog honest:
 
-- move items to done only when they are genuinely operational
+- move items to `Done` only when they are genuinely operational
 - prefer fewer clear backlog items over a huge wish list
 - link major backlog progress to architecture docs, ADRs, and changelog updates
 

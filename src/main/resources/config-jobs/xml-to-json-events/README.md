@@ -32,7 +32,7 @@ For explicit `job-config.yaml` runs, the runtime and job-scoped generation path 
 - `com.etl.generated.job.xmltojsonevents.source`
 - `com.etl.generated.job.xmltojsonevents.target`
 
-Keep explicit `packageName` only when you need a compatibility override.
+Do not reintroduce explicit `packageName` in this bundle; explicit selected-job runs now fail fast if it is authored.
 
 ## Expected behavior
 
@@ -49,6 +49,6 @@ Keep explicit `packageName` only when you need a compatibility override.
 
 ```powershell
 mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-jobs/xml-to-json-events/job-config.yaml" -DskipTests package
- java "-Detl.config.job=src/main/resources/config-jobs/xml-to-json-events/job-config.yaml" -jar target/spring-etl-engine-1.6.0.jar
+ java "-Detl.config.job=src/main/resources/config-jobs/xml-to-json-events/job-config.yaml" -jar target/spring-etl-engine-1.6.1.jar
 ```
 

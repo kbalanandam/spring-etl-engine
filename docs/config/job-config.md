@@ -49,7 +49,7 @@ steps:
 
 ### Single-step example walkthrough
 
-- `name` identifies the selected scenario in logs, evidence, and default generated package derivation when source or target `packageName` is omitted.
+- `name` identifies the selected scenario in logs, evidence, and generated package derivation for package-free explicit source/target configs.
 - Keep `name` non-blank for every explicit job bundle; the active generated-model contract now fails fast when it is blank.
 - `isActive` is optional. When omitted, explicit startup treats the selected job as active. Set `isActive: false` only when you want startup to fail fast before referenced configs are resolved.
 - `sourceConfigPath` points to the source bundle for this run and is resolved relative to the `job-config.yaml` folder when written as a relative path.
@@ -112,8 +112,8 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - The runtime does not scan scenario folders automatically; one run explicitly chooses one `job-config.yaml`.
 - Explicit `etl.config.job` runs now also require a non-blank `name` so generated-model naming stays deterministic and does not fall back to the job folder name.
 - The optional top-level `isActive` flag defaults to `true`; when it is explicitly `false`, `ConfigLoader` now stops before referenced source/target/processor configs are resolved or steps are wired.
-- `name` is the selected bundle identity shown in logs and metadata. When the selected source or target config omits `packageName`, explicit job runs derive default packages as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`.
-- If an explicit source or target config still authors a deprecated bridge package under `com.etl.generated.job...` that does not match the package derived from `name`, runtime/build-time startup now logs a warning with the selected job name, config path, logical config name, authored package, and derived package, while still honoring the authored value for compatibility.
+- `name` is the selected bundle identity shown in logs and metadata. Explicit job runs derive source and target packages as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`.
+- If a selected source or target config still authors `packageName`, runtime/build-time startup now fails fast with the selected job name, config path, logical config name, and the derived package the selected job would have used.
 - During explicit startup, the selected source and target configs are validated first, then the selected processor config is validated before generated-model class checks run.
 - Processor-config validation failures in explicit runs are surfaced with the selected scenario name and processor-config path so operators can identify the broken scenario bundle quickly.
 - Generated-model naming/package failures in explicit runs are surfaced as config errors with the selected scenario name, job-config path, and the failing `step` / `source` / `target` so support can narrow model-resolution issues quickly.
@@ -123,8 +123,8 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - Every `steps[].source` value must match a configured `sourceName` in the selected source config file.
 - Every `steps[].target` value must match a configured `targetName` in the selected target config file.
 - If `isActive: false` is set on the selected explicit job, startup stops before downstream config resolution as a configuration failure rather than silently skipping execution.
-- In explicit job mode, `packageName` in the selected source/target config is now optional. When omitted, the runtime and build-time generation path derive it from the selected non-blank `job-config.yaml` name using a normalized lowercase alphanumeric segment.
-- Explicit authored `packageName` values that already use the deprecated `com.etl.generated.job...` bridge shape should either match that derived package or be removed. Mismatches no longer fail immediately, but they now produce a startup/generation warning so operators can clean them up before the bridge is tightened further.
+- In explicit job mode, selected source/target config files no longer support `packageName`. The runtime and build-time generation path derive package identity from the selected non-blank `job-config.yaml` name using a normalized lowercase alphanumeric segment.
+- Remove authored `packageName` from explicit bundles instead of trying to keep it aligned manually; selected-job startup now fails immediately when the property is present so naming cannot drift silently.
 - Selected logical names must still remain stable enough to avoid generated-class collisions after normalization. Different names such as `Customer Feed` and `Customer-Feed` can now fail fast if they would generate the same class in the same selected job side.
 - The selected processor config must contain a matching mapping for each source/target pair used by the selected steps.
 - A multi-step scenario can reuse one processor config file with multiple mappings; runtime picks the mapping by `source` and `target` names, not by list position.

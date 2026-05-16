@@ -52,7 +52,7 @@ Generate the job-scoped XML classes first, then run the scenario:
 ```powershell
 Set-Location 'C:\spring-etl-engine'
 mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml" -DskipTests package
- java "-Detl.config.job=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml" -jar target/spring-etl-engine-1.6.0.jar
+ java "-Detl.config.job=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml" -jar target/spring-etl-engine-1.6.1.jar
 ```
 
 ## Rerun note

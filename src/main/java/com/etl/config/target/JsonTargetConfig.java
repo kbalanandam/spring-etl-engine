@@ -12,15 +12,23 @@ public class JsonTargetConfig extends TargetConfig {
 
     private final String filePath;
 
-    @JsonCreator
     public JsonTargetConfig(
-            @JsonProperty("targetName") String targetName,
-            @JsonProperty("packageName") String packageName,
-            @JsonProperty("fields") List<ColumnConfig> fields,
-            @JsonProperty("filePath") String filePath
+            String targetName,
+            String packageName,
+            List<ColumnConfig> fields,
+            String filePath
     ) {
         super(targetName, packageName, fields);
         this.filePath = filePath;
+    }
+
+    @JsonCreator
+    public JsonTargetConfig(
+            @JsonProperty("targetName") String targetName,
+            @JsonProperty("fields") List<ColumnConfig> fields,
+            @JsonProperty("filePath") String filePath
+    ) {
+        this(targetName, null, fields, filePath);
     }
 
     public String getFilePath() {

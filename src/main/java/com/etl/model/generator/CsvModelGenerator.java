@@ -1,6 +1,7 @@
 package com.etl.model.generator;
 
 import com.etl.common.util.GeneratedModelNamingPolicy;
+import com.etl.common.util.GeneratedModelPackageResolver;
 import com.etl.common.util.StringUtils;
 import com.etl.config.FieldDefinition;
 import com.etl.config.ModelConfig;
@@ -69,7 +70,7 @@ public class CsvModelGenerator<T extends ModelConfig> implements ModelGenerator<
         if (object instanceof SourceConfig sourceCfg) {
 
             className = GeneratedModelNamingPolicy.resolveSourceSimpleClassName(sourceCfg);
-            packageName = sourceCfg.getPackageName();
+            packageName = GeneratedModelPackageResolver.resolveSourcePackage(sourceCfg);
             fields = sourceCfg.getFields();
             modelType = ModelType.SOURCE;
 
@@ -78,7 +79,7 @@ public class CsvModelGenerator<T extends ModelConfig> implements ModelGenerator<
         } else if (object instanceof TargetConfig targetCfg) {
 
             className = GeneratedModelNamingPolicy.resolveTargetWriteSimpleClassName(targetCfg);
-            packageName = targetCfg.getPackageName();
+            packageName = GeneratedModelPackageResolver.resolveTargetPackage(targetCfg);
             fields = targetCfg.getFields();
             modelType = ModelType.TARGET;
 

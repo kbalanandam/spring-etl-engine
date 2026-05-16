@@ -7,6 +7,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JobScopedPackageNameResolverTest {
@@ -37,38 +38,36 @@ class JobScopedPackageNameResolverTest {
     }
 
     @Test
-    void detectsDeprecatedBridgePackageDriftWhenAuthoredGeneratedPackageDiffersFromDerivedPackage() {
+    void failsFastWhenExplicitPackageNameIsProvidedOnSelectedJobPath() {
         String derivedPackage = JobScopedPackageNameResolver.resolveSourcePackage("events-job");
 
-        assertTrue(JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(
-                "com.etl.generated.job.events.source",
-                derivedPackage
-        ));
-
-        String warning = JobScopedPackageNameResolver.buildPackageDriftWarning(
-                "source config",
-                "Events",
-                "events-job",
-                Path.of("config-jobs", "events-job", "source-config.yaml"),
-                "com.etl.generated.job.events.source",
-                derivedPackage
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> JobScopedPackageNameResolver.requireNoExplicitSelectedJobPackageName(
+                        "source config",
+                        "Events",
+                        "events-job",
+                        Path.of("config-jobs", "events-job", "source-config.yaml"),
+                        "com.etl.generated.job.events.source",
+                        derivedPackage
+                )
         );
 
-        assertTrue(warning.contains("source config 'Events'"));
-        assertTrue(warning.contains("config-jobs"));
-        assertTrue(warning.contains("com.etl.generated.job.events.source"));
-        assertTrue(warning.contains(derivedPackage));
-        assertTrue(warning.contains("still honored for compatibility"));
+        String message = exception.getMessage();
+
+        assertTrue(message.contains("source config 'Events'"));
+        assertTrue(message.contains("config-jobs"));
+        assertTrue(message.contains("com.etl.generated.job.events.source"));
+        assertTrue(message.contains(derivedPackage));
+        assertTrue(message.contains("does not allow explicit packageName"));
+        assertTrue(message.contains("Remove packageName"));
     }
 
     @Test
-    void ignoresMatchingDerivedPackagesAndLegacyNonGeneratedPackages() {
-        String derivedPackage = JobScopedPackageNameResolver.resolveTargetPackage("events-job");
-
-        assertFalse(JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift(derivedPackage, derivedPackage));
-        assertFalse(JobScopedPackageNameResolver.isDeprecatedBridgePackageDrift("com.etl.model.target", derivedPackage));
-        assertTrue(JobScopedPackageNameResolver.usesDerivedJobScopedPackage("com.etl.generated.job.events.target"));
-        assertFalse(JobScopedPackageNameResolver.usesDerivedJobScopedPackage("com.etl.model.target"));
+    void ignoresBlankPackageNameWhenSelectedJobDerivesPackageInternally() {
+        assertFalse(JobScopedPackageNameResolver.hasExplicitPackageName(null));
+        assertFalse(JobScopedPackageNameResolver.hasExplicitPackageName("   "));
+        assertTrue(JobScopedPackageNameResolver.hasExplicitPackageName("com.etl.model.target"));
     }
 }
 

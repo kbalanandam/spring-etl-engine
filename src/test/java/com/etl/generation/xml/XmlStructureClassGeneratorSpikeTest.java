@@ -30,6 +30,10 @@ class XmlStructureClassGeneratorSpikeTest {
                 generator.generate(loader.load(scenarioPath("nested-source-model.yaml")), sourceRoot),
                 generator.generate(loader.load(scenarioPath("nested-target-model.yaml")), sourceRoot)
         );
+        assertEquals("com.etl.generated.job.xmlmodelspike.simple.source", results.get(0).packageName());
+        assertEquals("com.etl.generated.job.xmlmodelspike.simple.target", results.get(1).packageName());
+        assertEquals("com.etl.generated.job.xmlmodelspike.nested.source", results.get(2).packageName());
+        assertEquals("com.etl.generated.job.xmlmodelspike.nested.target", results.get(3).packageName());
         List<Path> generatedFiles = new ArrayList<>();
         for (XmlModelGenerationResult result : results) {
             generatedFiles.addAll(result.generatedFiles());

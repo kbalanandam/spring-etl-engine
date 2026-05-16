@@ -1,4 +1,3 @@
-packageName: ignored.by.maven.profile
 rootElement: TagValidationList
 recordElement: TVLTagDetails
 fields:

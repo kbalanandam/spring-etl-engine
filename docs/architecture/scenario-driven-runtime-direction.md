@@ -396,6 +396,10 @@ Examples:
 
 A future UI, API, scheduler, or catalog may select scenarios by short name, tags, ownership, schedule, or operational grouping.
 
+Those capabilities may also live in an optional control-plane service rather than inside the ETL worker runtime itself.
+
+External schedulers and orchestrators are equally valid at this boundary, as long as they resolve back to the same selected-scenario contract instead of introducing a different launch/runtime model.
+
 That is acceptable **only if** those views resolve back to the same underlying scenario contract:
 
 - one selected scenario
@@ -404,6 +408,12 @@ That is acceptable **only if** those views resolve back to the same underlying s
 - one scenario runtime descriptor
 
 UI should be a view and control surface over the scenario model, not a replacement contract that bypasses it.
+
+The directly runnable path through `etl.config.job` therefore remains a first-class execution entry even if a future control plane, watcher service, scheduler, or UI is added around it.
+
+The same rule applies to external orchestration: enterprise schedulers, workload platforms, or deployment-native trigger systems should be able to launch this exact boundary without adopting OneFlow-native scheduling first.
+
+For the dedicated note that defines the optional-control-plane versus mandatory-worker boundary around that rule, continue in [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md).
 
 ### 4. Richer transformations stay inside shared extension seams
 
@@ -511,7 +521,7 @@ This direction should **not** change the main reusable seams:
 ## Risks and watchpoints
 
 - XML job-scoped generation is a stronger starting point today than CSV/relational parity, so generation maturity must be extended before legacy deletion
-- UI or scheduler work may accidentally introduce a second scenario contract unless the docs stay explicit
+- UI, built-in scheduler, or external orchestration integration may accidentally introduce a second scenario contract unless the docs stay explicit
 - richer transformation work may drift into scenario-specific code if the shared processor/source seams are not protected
 - hardening too aggressively before scenario-scoped generation is proven could break preserved flows without a stable replacement
 
@@ -521,7 +531,7 @@ This scenario-driven model is still compatible with:
 
 - richer transformation maturity such as expressions, conditions, and enrichment
 - relational hardening and future vendor growth
-- schedule-driven execution
+- schedule-driven execution, whether provided by an optional native control plane or by external orchestration
 - UI catalog or operator views over scenarios and runs
 - API-triggered scenario selection
 - richer multi-step chaining where one step output can become the next step input inside the same selected scenario
@@ -535,6 +545,7 @@ Those capabilities should layer on top of the same scenario contract rather than
 - [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md)
 - [`Flow normalization rules`](flow-normalization-rules.md)
 - [`Runtime flow`](runtime-flow.md)
+- [`Control plane and worker boundary`](control-plane-worker-boundary.md)
 - [`1.4-to-next architecture classification`](1-4-to-next-architecture-classification.md)
 - [`ETL product evolution roadmap`](etl-product-evolution-roadmap.md)
 - [`Transformation capability roadmap`](transformation-capability-roadmap.md)

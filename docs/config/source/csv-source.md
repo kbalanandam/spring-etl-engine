@@ -18,7 +18,6 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `csv` |
 | `sourceName` | yes | string | Logical source name used in processor mapping lookup |
-| `packageName` | no in explicit job mode; otherwise yes | string | Deprecated bridge field for generated source model naming. When omitted for an explicit `job-config.yaml` run, the runtime derives `com.etl.generated.job.<normalized-job-name>.source` |
 | `filePath` | yes | string | CSV file path |
 | `delimiter` | yes | string | Field delimiter, usually `,` |
 | `skipHeader` | no | boolean | Whether the runtime skips the first CSV line as a header row; defaults to `true` |
@@ -93,7 +92,7 @@ sources:
         type: String
 ```
 
-`packageName` is optional in explicit job mode and should be treated as a deprecated bridge field. When omitted, the runtime derives `com.etl.generated.job.<normalized-job-name>.source` automatically.
+`packageName` is no longer a supported CSV source property. The runtime derives `com.etl.generated.job.<normalized-job-name>.source` for explicit jobs and applies the internal demo fallback source package only in direct-config compatibility mode.
 
 ## Example
 
@@ -150,7 +149,7 @@ sources:
 
 In that example:
 
-- `packageName` is intentionally omitted
+- no authored `packageName` appears because package identity is derived internally
 - `skipHeader` is omitted and still defaults to `true`
 - `validation`, `archive`, and `parser` are all optional and omitted
 
@@ -161,7 +160,6 @@ Read the examples top to bottom:
 - `sources:` is the required file root for source config bundles.
 - `format: csv` selects the CSV reader path.
 - `sourceName` is the logical name used by `processor.mappings[].source` and by `job-config.yaml` step selection.
-- `packageName` is a deprecated bridge field for the generated source model package; in explicit job mode prefer omitting it so runtime derives `com.etl.generated.job.<normalized-job-name>.source`.
 - `filePath` is the CSV file to read.
 - `delimiter` declares the incoming CSV separator.
 - `skipHeader: true` means the reader treats the first line as a header row and skips it before data mapping begins. When omitted, it defaults to `true`.
@@ -187,7 +185,7 @@ The important authoring rule is choice, not accumulation:
 - add `validation` only when file-level checks are needed
 - add `archive` only when the original file should be moved after success
 - add `parser.quoteCharacter` only when the incoming CSV contract needs it
-- omit `packageName` in explicit job mode when the default job-scoped package is acceptable
+- do not author `packageName`; runtime derives package identity internally and now rejects the property when it is present
 
 ## Usage notes
 
@@ -206,9 +204,8 @@ The important authoring rule is choice, not accumulation:
 - Archive behavior is part of the shared file-source contract and applies after successful step completion when enabled for the active source config.
 - If archive is enabled, `archive.successPath` is required.
 - The preserved first-slice example is `src/main/resources/config-jobs/csv-validation-reject-archive/source-config.yaml`.
-- For explicit job-config runs, `packageName` may be omitted and defaults to scenario/job-scoped generated classes such as `com.etl.generated.job.<normalized-job-name>.source`.
-- Treat explicit `packageName` as a deprecated compatibility bridge on the active path, not as the preferred authoring style for new bundles.
-- If you keep `packageName` explicit during migration, prefer scenario/job-scoped generated classes rather than shared handwritten `com.etl.model.source` packages.
+- For explicit job-config runs, the runtime always derives scenario/job-scoped generated classes such as `com.etl.generated.job.<normalized-job-name>.source`.
+- Source YAML no longer supports authored `packageName`; direct-config/demo fallback still applies internal `com.etl.model.source` only after loading a package-free config.
 
 ## Current limitations
 

@@ -4,7 +4,7 @@
 
 This repository now supports a one-way sync from the `## Current Execution Board` table in [`product-backlog.md`](product-backlog.md) into the GitHub Project **OneFlow Executive Dashboard**.
 
-The intent is to keep the Markdown execution board as the canonical planning surface while letting the GitHub Project act as the live operational view.
+The intent is to keep the Markdown execution board as the canonical execution-planning surface while letting the GitHub Project act as the live projected execution view.
 
 ## Source-of-truth rule
 
@@ -26,7 +26,7 @@ Current field mapping:
 | `Status` | Project field `Status` |
 | `Priority` | Project field `Priority` |
 | `Epic` | Project field `Epic` |
-| `Milestone` | Project field `Milestone` |
+| `Milestone` | Project field `Milestone` or fallback field `Execution Milestone` |
 | `Dependency` | Project field `Dependency` |
 | `Notes` | draft-item body when public-mode sanitization is **not** enabled |
 
@@ -100,7 +100,7 @@ The workflow runs when the backlog or sync files change on `master`, and it also
 
 ## Required GitHub configuration
 
-Configure these repository-level settings before expecting the live sync to mutate the Project:
+Configure these repository-level settings before expecting the live projection sync to mutate the Project:
 
 ### Secret
 
@@ -157,4 +157,4 @@ Remove `--dry-run` only after the Project fields and token are confirmed.
 3. Let the workflow sync the GitHub Project projection
 4. Use the Project for filtering, board views, and stakeholder visibility
 
-That keeps the backlog narrative and the execution board aligned without maintaining the same state manually in two places.
+That keeps the canonical execution board and the live Project projection aligned without maintaining the same state manually in two places.

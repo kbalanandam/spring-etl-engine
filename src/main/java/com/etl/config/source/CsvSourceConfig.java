@@ -96,7 +96,6 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
      * Constructs a new {@code CsvSourceConfig} instance.
      *
      * @param sourceName   the name of the source
-     * @param packageName  the package name for generated code
      * @param fields       the list of column definitions for the CSV
      * @param filePath     the path to the CSV file
      * @param delimiter    the delimiter used in the CSV file
@@ -104,12 +103,21 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
     @JsonCreator
     public CsvSourceConfig(
             @JsonProperty("sourceName") String sourceName,
-            @JsonProperty("packageName") String packageName,
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("filePath") String filePath,
       @JsonProperty("delimiter") String delimiter
     ) {
-    this(sourceName, packageName, fields, filePath, delimiter, null, null, true);
+    this(sourceName, null, fields, filePath, delimiter, null, null, true);
+    }
+
+    public CsvSourceConfig(
+            String sourceName,
+            String packageName,
+            List<ColumnConfig> fields,
+            String filePath,
+            String delimiter
+    ) {
+        this(sourceName, packageName, fields, filePath, delimiter, null, null, true);
     }
 
     public CsvSourceConfig(

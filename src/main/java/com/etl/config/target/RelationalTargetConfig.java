@@ -17,10 +17,25 @@ public class RelationalTargetConfig extends TargetConfig {
     private final WriteMode writeMode;
     private final Integer batchSize;
 
+    public RelationalTargetConfig(String targetName,
+                                  String packageName,
+                                  List<ColumnConfig> fields,
+                                  RelationalConnectionConfig connection,
+                                  String table,
+                                  String schema,
+                                  String writeMode,
+                                  Integer batchSize) {
+        super(targetName, packageName, fields);
+        this.connection = connection;
+        this.table = table;
+        this.schema = schema;
+        this.writeMode = writeMode == null || writeMode.isBlank() ? WriteMode.INSERT : WriteMode.fromString(writeMode);
+        this.batchSize = batchSize == null || batchSize <= 0 ? 100 : batchSize;
+    }
+
     @JsonCreator
     public RelationalTargetConfig(
             @JsonProperty("targetName") String targetName,
-            @JsonProperty("packageName") String packageName,
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("connection") RelationalConnectionConfig connection,
             @JsonProperty("table") String table,
@@ -28,12 +43,7 @@ public class RelationalTargetConfig extends TargetConfig {
             @JsonProperty("writeMode") String writeMode,
             @JsonProperty("batchSize") Integer batchSize
     ) {
-        super(targetName, packageName, fields);
-        this.connection = connection;
-        this.table = table;
-        this.schema = schema;
-        this.writeMode = writeMode == null || writeMode.isBlank() ? WriteMode.INSERT : WriteMode.fromString(writeMode);
-        this.batchSize = batchSize == null || batchSize <= 0 ? 100 : batchSize;
+        this(targetName, null, fields, connection, table, schema, writeMode, batchSize);
     }
 
   public RelationalConnectionConfig getConnection() {

@@ -133,7 +133,6 @@ The first proposed archive shape is intentionally small and file-source specific
 sources:
   - format: csv
     sourceName: Events
-    packageName: com.etl.generated.job.fileingestionhardening.source
     filePath: input/events.csv
     delimiter: ","
     archive:
@@ -148,6 +147,8 @@ sources:
       - name: description
         type: String
 ```
+
+`packageName` is omitted on purpose here. On the active explicit selected-job path, source/target generated packages are derived internally from `job-config.yaml -> name`, and authored `packageName` now fails fast.
 
 ### Proposed archive semantics
 
