@@ -176,6 +176,17 @@ Use this maintenance rule:
 
 Backlog item index: [`docs/product/backlog-items/README.md`](backlog-items/README.md)
 
+### Backlog navigation shortcuts
+
+Use these links when you want to browse the backlog by capability area instead of scanning the full execution board table:
+
+- Full item browse index: [`docs/product/backlog-items/README.md`](backlog-items/README.md)
+- Epic browse index: [`docs/product/epics/README.md`](epics/README.md)
+- Near-term runtime and transformation work: [`Epic A`](epics/epic-a-runtime-contract-and-model-governance.md), [`Epic B`](epics/epic-b-runtime-hardening-and-file-behavior.md), [`Epic T`](epics/epic-t-transformation-capability.md), [`Epic P`](epics/epic-p-source-native-parser-maturity.md)
+- Portability and transport direction: [`Epic E`](epics/epic-e-portability-and-packaged-run-guidance.md), [`Epic X`](epics/epic-x-file-transport-and-sftp-boundary.md)
+- Scheduling and restart direction: [`Epic S`](epics/epic-s-scheduling-and-control-plane.md), [`Epic F`](epics/epic-f-restartability-and-recovery-semantics.md)
+- Evidence, security, and release readiness: [`Epic C`](epics/epic-c-observability-and-run-evidence.md), [`Epic D`](epics/epic-d-error-taxonomy-and-failure-categorization.md), [`Epic G`](epics/epic-g-secret-injection-and-secure-configuration.md), [`Epic V`](epics/epic-v-verification-evidence-and-reporting.md)
+
 ### Epic detail pages
 
 When several backlog items belong to the same product capability track, keep the shared product intent, boundary, and related architecture links in a dedicated epic page under `docs/product/epics/`.
@@ -218,11 +229,18 @@ This table is the day-to-day execution view for the current product stage.
 | [B3](backlog-items/B3-archive-processed-source-files-after-success.md) | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
 | [B4](backlog-items/B4-strict-xml-source-validation-and-optional-xsd.md) | Add strict XML source validation mode with optional XSD checks | Epic B | P2 | Done | M2 | none | Shipped as an opt-in XML source-validation slice through `validation.schemaPath`, preserving lightweight structural XML checks as the default baseline while enabling fail-fast XSD validation and whole-file reject behavior |
 | [B5](backlog-items/B5-csv-reader-parsing-hardening.md) | Add CSV parsing hardening with configurable quote/escape behavior | Epic B | P2 | Done | M2 | none | Shipped as a narrow reader hardening slice through optional `parser.quoteCharacter`, preserving the current default CSV behavior while supporting alternate quoted-field contracts |
+| [B6](backlog-items/B6-shared-zip-unzip-service-boundary-for-file-based-source-preparation-and-archive-packaging.md) | Add a shared zip/unzip service boundary for file-based source preparation and archive packaging | Epic B | P1 | Deferred | M2 | B3, E1 | Track zip/unzip as one reusable OneFlow-owned service boundary that can be called whenever needed, with the first product slice focused on unzipping file-based inputs before processing and zipping archive artifacts after success |
+| [P1](backlog-items/P1-freeze-parser-roadmap-around-csv-and-xml-maturity.md) | Freeze parser roadmap around CSV and XML source-native maturity | Epic P | P1 | Deferred | M2 | none | Create one explicit parser-capability track for CSV/XML-first growth, keep it source-native, and leave JSON source parsing off the active board until a real contract is justified |
+| [P2](backlog-items/P2-expand-csv-parser-strictness-and-malformed-row-categorization.md) | Expand CSV parser strictness and malformed-row categorization on the read path | Epic P | P1 | Deferred | M2 | B5, P1 | Future CSV parser growth should stay on tokenization, quoting/escaping strictness, and malformed-row categorization before runtime-record creation |
+| [P3](backlog-items/P3-expand-xml-parser-maturity-for-namespace-and-fragment-contracts.md) | Expand XML parser maturity for namespace-aware and fragment-contract scenarios | Epic P | P1 | Deferred | M2 | B4, P1 | Future XML parser growth should stay on source-native fragment interpretation needed by preserved scenarios, not processor-side business rules |
+| [P4](backlog-items/P4-prove-csv-and-xml-parser-maturity-through-preserved-scenarios-and-verification.md) | Prove CSV and XML parser maturity through preserved scenarios and verification | Epic P | P1 | Deferred | M2 | P2, P3 | Use preserved scenario bundles and verification evidence as the freeze gate before opening new parser families; JSON source parsing remains intentionally later |
+| [P5](backlog-items/P5-native-parser-adoptability-and-sidecar-integration-readiness.md) | Define native parser adoptability and CSV-first sidecar integration readiness | Epic P | P2 | Deferred | M3 | P4, E1 | Preserve a future native-parser path only behind the Java reader seam, with CSV-first sidecar integration preferred over rushed JNI-first coupling |
 | [C1](backlog-items/C1-machine-readable-run-summary.md) | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Done | M1 | none | `RUN_EVENT` / `RUN_SUMMARY` and step lifecycle evidence are now emitted for selected runs |
 | [C2](backlog-items/C2-run-level-count-rollup-and-reconciliation.md) | Complete run-level source / written / rejected count rollup | Epic C | P1 | Done | M1 | C1 | `RUN_SUMMARY` now emits operator-oriented run-level `sourceCount` / `writtenCount` / `rejectedCount`, with intermediate handoff counts kept separate for multi-step jobs |
 | [D1](backlog-items/D1-stable-error-taxonomy-and-categories.md) | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
 | [E1](backlog-items/E1-cross-platform-defaults-and-path-handling.md) | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
 | [E2](backlog-items/E2-packaged-run-guidance-for-jar-execution.md) | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Ready | M1 | E1 | Important next portability step |
+| [E3](backlog-items/E3-centralize-brand-naming-and-doc-refresh.md) | Centralize product-brand naming and doc refresh automation | Epic E | P2 | Deferred | M2 | none | Define one product-facing brand source of truth and a controlled refresh path for brand-facing docs/copy only, while keeping `spring-etl-engine` as the stable technical identity |
 | [F1](backlog-items/F1-restart-semantics-per-execution-mode.md) | Define restart semantics per execution mode | Epic F | P1 | Deferred | M2 | A1, C1 | Needs clearer orchestration and run evidence first |
 | [X1](backlog-items/X1-sftp-transport-contract-and-deployment-boundary.md) | Define SFTP transport contract and deployment boundary | Epic X | P1 | Ready | M2 | E1, C1, G1 | Define staged inbound scope, native-vs-MFT modes, and deployment boundaries before implementation |
 | [X2](backlog-items/X2-first-inbound-sftp-staged-pull-capability.md) | Add first inbound SFTP staged pull capability | Epic X | P1 | Deferred | M2 | X1, B2, C2 | First slice should stage remote files locally and emit transfer evidence |
@@ -246,8 +264,12 @@ Use this section as the near-term sequencing view behind the execution board:
 2. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, not a redesign of the shipped duplicate baseline.
 3. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
 4. Keep `E2` as the next portability/documentation step.
-5. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-6. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
+5. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
+6. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
+7. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
+8. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
+9. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
+10. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -378,13 +400,39 @@ Handle bad data and transient failures in a controlled way.
 - [x] Add processed-source-file archiving after successful runs
 - [x] Add an optional strict XML source-validation mode with XSD/schema checks for scenarios that need stronger source contracts
 - [x] Add CSV parsing hardening for quoted/escaped field handling while preserving today's simple default reader contract
+- [ ] Add a shared zip/unzip service boundary that OneFlow can call whenever needed, with the first product slice covering file-based source preparation and archive packaging without tying compressed-artifact behavior to one parser implementation
 - [ ] Define fail-fast vs tolerate-and-report rules per scenario type
 
 ### Done criteria
 - invalid-row handling is explicit to operators
 - processed-source lifecycle behavior is explicit and documented
+- shared zip/unzip service behavior is explicit, scoped, and documented, with supported file-based scenarios proving the first shipped slice
 - failure-mode choices are scenario-appropriate and testable
 - preserved file scenarios prove accepted, rejected, and archived outcomes together
+
+---
+
+## Epic P — Source-native parser maturity
+
+### Goal
+Make parser growth explicit, source-native, and disciplined so OneFlow first proves a few real business scenarios on the existing Java runtime and real files, then matures CSV and XML parsing further without turning parsing into a second ETL core.
+
+### Backlog
+- [ ] Prove the existing Java runtime on a small set of real-file scenario bundles such as XML -> CSV, XML -> JSON, CSV -> relational target, and preserved multi-step handoff flows
+- [ ] Freeze the parser roadmap around CSV/XML-first source-native maturity and explicit non-goals
+- [ ] Expand CSV parser strictness only where tokenization, quoting/escaping, or malformed-row categorization need stronger real-world behavior
+- [ ] Expand XML parser maturity only where preserved scenarios need namespace-aware or stricter fragment interpretation before normal runtime records exist
+- [ ] Prove parser maturity through preserved CSV/XML scenario bundles and verification evidence before opening new parser-family scope
+- [ ] Define native-parser adoptability and a CSV-first sidecar integration contract without committing to a shipped native parser path too early
+- [ ] Keep JSON source parsing explicitly out of the active parser backlog until a concrete source contract and preserved scenario require it
+
+### Done criteria
+- parser work is tracked in one explicit product epic instead of being scattered through unrelated hardening items
+- the current Java runtime is proven on a few preserved real-file business scenarios before broader parser-scope pressure is reopened
+- CSV/XML parser growth stays clearly limited to source-native parsing and source validation concerns
+- preserved scenario bundles and verification evidence show parser maturity on realistic CSV/XML inputs
+- any future native parser direction remains behind the Java reader seam and prefers sidecar-style integration over deep runtime coupling by default
+- JSON source parsing remains a future candidate rather than an implied current-phase commitment
 
 ---
 
@@ -459,6 +507,7 @@ Make local, CI, and deployment usage more consistent across environments.
 ### Backlog
 - [x] Finalize cross-platform defaults and path handling rules
 - [ ] Add packaged-run guidance for jar execution with scenario configs
+- [ ] Centralize product-brand naming and define a controlled doc refresh path for rebrandable product-facing copy while preserving `spring-etl-engine` as the technical identity
 - [ ] Separate repo-demo mode from external-runtime mode more cleanly
 - [ ] Document expected directory conventions for local and deployed runs
 - [ ] Add smoke checks for packaged runtime paths where practical
@@ -466,6 +515,7 @@ Make local, CI, and deployment usage more consistent across environments.
 ### Done criteria
 - run expectations are documented for IDE, Maven, and packaged jar modes
 - demo and external-runtime behavior are clearly separated
+- rebrandable product-facing names are centralized and refreshable without changing technical identifiers accidentally
 - scenario execution instructions are portable
 
 ---
@@ -700,9 +750,10 @@ Use this as the condensed near-term priority order:
 1. `T3` — conditional transformation rules
 2. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
 3. `E2` — packaged-run guidance
-4. `X1` / `X2` — SFTP contract and first inbound slice
-5. `F1` / `S1` / `S2` — restartability and scheduler baseline
-6. `V3` / `V4` / `G1` — reporting, release gating, and secure config
+4. `Epic P` — first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
+5. `X1` / `X2` — SFTP contract and first inbound slice
+6. `F1` / `S1` / `S2` — restartability and scheduler baseline
+7. `V3` / `V4` / `G1` — reporting, release gating, and secure config
 
 ---
 

@@ -24,6 +24,7 @@ EPIC_PAGE_BY_LABEL = {
     "Epic E": ("Epic E — Portability and packaged-run guidance", "docs/product/epics/epic-e-portability-and-packaged-run-guidance.md"),
     "Epic F": ("Epic F — Restartability and recovery semantics", "docs/product/epics/epic-f-restartability-and-recovery-semantics.md"),
     "Epic G": ("Epic G — Secret injection and secure configuration", "docs/product/epics/epic-g-secret-injection-and-secure-configuration.md"),
+    "Epic P": ("Epic P — Source-native parser maturity", "docs/product/epics/epic-p-source-native-parser-maturity.md"),
     "Epic S": ("Epic S — Scheduling and control plane", "docs/product/epics/epic-s-scheduling-and-control-plane.md"),
     "Epic T": ("Epic T — Transformation capability", "docs/product/epics/epic-t-transformation-capability.md"),
     "Epic V": ("Epic V — Verification evidence and reporting", "docs/product/epics/epic-v-verification-evidence-and-reporting.md"),

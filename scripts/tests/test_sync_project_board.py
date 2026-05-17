@@ -310,6 +310,32 @@ class SyncProjectBoardTests(unittest.TestCase):
             target,
         )
 
+    def test_resolve_epic_page_target_supports_parser_epic(self) -> None:
+        item = sync_project_board.BacklogItem(
+            backlog_id="P1",
+            id_link="backlog-items/P1-freeze-parser-roadmap-around-csv-and-xml-maturity.md",
+            item="Freeze parser roadmap around CSV and XML source-native maturity",
+            epic="Epic P",
+            priority="P1",
+            status="Deferred",
+            milestone="M2",
+            dependency="none",
+            notes="",
+        )
+
+        label, target = sync_project_board.resolve_epic_page_target(
+            item,
+            repository_url="https://github.com/kbalanandam/spring-etl-engine",
+            repository_ref="master",
+        )
+
+        self.assertEqual("Epic P — Source-native parser maturity", label)
+        self.assertEqual(
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/"
+            "docs/product/epics/epic-p-source-native-parser-maturity.md",
+            target,
+        )
+
     def test_resolve_epic_page_target_returns_none_for_unknown_epic(self) -> None:
         item = sync_project_board.BacklogItem(
             backlog_id="Z1",
