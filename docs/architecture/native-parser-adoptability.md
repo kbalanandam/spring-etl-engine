@@ -86,6 +86,10 @@ Read that diagram with one strict rule:
 
 The preferred future design is a Java reader adapter that talks to a native parser running out of process.
 
+The first concrete protocol target for that direction should be the narrow CSV-first shape documented in [`CSV native parser sidecar protocol`](csv-native-parser-sidecar-protocol.md).
+
+The Java-side lifecycle and generated-model handoff contract for that direction is documented in [`Java native parser reader adapter contract`](java-native-parser-reader-adapter-contract.md).
+
 Recommended shape:
 
 ```mermaid
@@ -182,9 +186,10 @@ Reject designs where native parser work becomes the home for:
 ## Related docs
 
 - [`oneflow-file-parser-capabilities.md`](oneflow-file-parser-capabilities.md)
+- [`csv-native-parser-sidecar-protocol.md`](csv-native-parser-sidecar-protocol.md)
+- [`java-native-parser-reader-adapter-contract.md`](java-native-parser-reader-adapter-contract.md)
 - [`extension-points.md`](extension-points.md)
 - [`runtime-flow.md`](runtime-flow.md)
-- [`../adr/0010-keep-native-parsers-behind-java-reader-boundary.md`](../adr/0010-keep-native-parsers-behind-java-reader-boundary.md)
 
 ## Bottom line
 
@@ -195,4 +200,3 @@ The runtime contract must still read as:
 **validate source -> parse source-native structure -> emit runtime record -> transform -> validate/reject -> write**
 
 not as a native-parser-centered ETL engine.
-

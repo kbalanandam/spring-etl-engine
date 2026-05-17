@@ -11,6 +11,14 @@ Use it when discussing parser growth, new source-native parsing options, or form
 - Classification: **Current baseline + future evolution**
 - The Mermaid diagram below shows the intended parser boundary on top of the shipped runtime baseline.
 
+## Current planning stance
+
+- the active parser-planning track is intentionally frozen around **CSV and XML source-native maturity**
+- before widening parser scope further, OneFlow should first prove the existing Java runtime on a few preserved real-file scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the explicit multi-step nested XML roundtrip bundles
+- parser growth should focus on realistic CSV/XML scenarios first, using preserved scenario proof and verification evidence before widening parser-family scope
+- a general **JSON source parser** remains a future candidate only after the CSV/XML parser baseline is stronger and a concrete preserved source contract exists
+- future non-Java parser engines remain admissible only behind the existing Java reader seam; see [`Native parser adoptability`](native-parser-adoptability.md)
+
 ## Core boundary rule
 
 OneFlow file parsers must stay responsible for **source-native structure and token interpretation only**.
@@ -243,6 +251,9 @@ Use the surrounding docs like this:
 - [`runtime-flow.md`](runtime-flow.md) — end-to-end execution order
 - [`extension-points.md`](extension-points.md) — where reader/validator/processor/writer seams live
 - [`file-ingestion-hardening.md`](file-ingestion-hardening.md) — validation, reject, archive, and hardening direction
+- [`native-parser-adoptability.md`](native-parser-adoptability.md) — future boundary for adopting C/C++ or other native parser engines without replacing the Java reader/runtime seam
+- [`csv-native-parser-sidecar-protocol.md`](csv-native-parser-sidecar-protocol.md) — first concrete CSV-first sidecar protocol sketch for future native parser adoption while preserving the Java reader seam
+- [`java-native-parser-reader-adapter-contract.md`](java-native-parser-reader-adapter-contract.md) — Java-side `DynamicReader` / `ItemStreamReader` contract for future sidecar-backed native parsers, including lifecycle, checkpoint, and generated-model handoff rules
 - [`transformation-capability-roadmap.md`](transformation-capability-roadmap.md) — what must stay in processor-side transformation instead of migrating into parsing
 - [`../config/source/csv-source.md`](../config/source/csv-source.md) and [`../config/source/xml-source.md`](../config/source/xml-source.md) — field-level source config contracts
 

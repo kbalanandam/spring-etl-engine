@@ -296,6 +296,12 @@ Current guidance:
 - No source-level XML duplicate contract yet
 - Inline `fields` works only for flat/simple structures; nested structures should stay in `modelDefinitionPath`
 
+## Related design note
+
+The broader file-ingestion hardening direction, including future XML-oriented validation and malformed-input growth, is documented in [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md).
+
+The parser-boundary rule for what XML parsing should and should not own is documented in [`OneFlow file parser capabilities and boundaries`](../../architecture/oneflow-file-parser-capabilities.md).
+
 ## Build-time generation command
 
 Use the XML generation profile when the selected job needs generated XML classes:
