@@ -24,6 +24,7 @@ Epic pages should also link back to the matching backlog item pages so the navig
 - [`Epic A — Runtime contract and generated-model governance`](epic-a-runtime-contract-and-model-governance.md)
 - [`Epic T — Transformation capability`](epic-t-transformation-capability.md)
 - [`Epic B — Runtime hardening and file behavior`](epic-b-runtime-hardening-and-file-behavior.md)
+- [`Epic P — Source-native parser maturity`](epic-p-source-native-parser-maturity.md)
 - [`Epic C — Observability and run evidence`](epic-c-observability-and-run-evidence.md)
 - [`Epic D — Error taxonomy and failure categorization`](epic-d-error-taxonomy-and-failure-categorization.md)
 - [`Epic E — Portability and packaged-run guidance`](epic-e-portability-and-packaged-run-guidance.md)

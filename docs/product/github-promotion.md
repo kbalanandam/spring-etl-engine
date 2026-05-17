@@ -115,3 +115,5 @@ If GitHub-facing language changes materially, update this file together with:
 - `docs/README.md`
 - any future visual/social copy that is meant to reflect the current approved product positioning
 
+Future product renames or broader brand-wording refresh work should be tracked through [`E3 — Centralize product-brand naming and doc refresh automation`](backlog-items/E3-centralize-brand-naming-and-doc-refresh.md) rather than handled as an ad hoc repository-wide replace.
+
