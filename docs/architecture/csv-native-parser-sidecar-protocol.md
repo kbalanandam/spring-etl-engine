@@ -38,6 +38,8 @@ while leaving Java responsible for:
 - runtime categorization and evidence
 - processor, writer, and orchestration behavior
 
+The concrete Java-side adapter responsibilities for this protocol are documented in [`Java native parser reader adapter contract`](java-native-parser-reader-adapter-contract.md).
+
 ## Non-goals
 
 This protocol is **not** for:
@@ -272,9 +274,9 @@ If this direction ever becomes active, keep the rollout narrow:
 ## Related docs
 
 - [`native-parser-adoptability.md`](native-parser-adoptability.md)
+- [`java-native-parser-reader-adapter-contract.md`](java-native-parser-reader-adapter-contract.md)
 - [`oneflow-file-parser-capabilities.md`](oneflow-file-parser-capabilities.md)
 - [`extension-points.md`](extension-points.md)
-- [`../product/backlog-items/P5-native-parser-adoptability-and-sidecar-integration-readiness.md`](../product/backlog-items/P5-native-parser-adoptability-and-sidecar-integration-readiness.md)
 
 ## Bottom line
 

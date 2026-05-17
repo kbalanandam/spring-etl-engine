@@ -111,6 +111,7 @@ The current phase should optimize for:
 ### What belongs in the current phase
 
 - CSV/XML source and target maturity
+- CSV/XML parser maturity on the source-native path, with broader parser-family expansion intentionally deferred
 - RDBMS source and target support
 - Kafka as target
 - validation improvements
@@ -165,6 +166,7 @@ Focus on making the core product reliable and extensible.
 ### Typical features in this phase
 - CSV, XML, relational support
 - Kafka as target
+- explicit CSV/XML parser maturity through source-native reader/validator growth and preserved-scenario proof, while JSON source parsing remains intentionally later
 - improved validation and execution configuration
 - stronger structural transformation, explicit mapping behavior, and transformation-safe orchestration
 - first file-ingestion hardening slices such as field-level validation rules, rejected-record output, and processed-file archiving proven through preserved realistic file scenarios
