@@ -40,12 +40,18 @@ Start with the path that matches your goal:
 | If you want to... | Start here | Then go to |
 |---|---|---|
 | run or configure one scenario | [`config/README.md`](config/README.md) | [`config/job-config.md`](config/job-config.md) and one preserved or private job bundle |
+| browse the architecture folder by topic | [`architecture/README.md`](architecture/README.md) | [`architecture/overview.md`](architecture/overview.md) and [`architecture/runtime-flow.md`](architecture/runtime-flow.md) |
 | understand the shipped runtime flow | [`architecture/runtime-flow.md`](architecture/runtime-flow.md) | [`architecture/runtime-flow-walkthrough.html`](architecture/runtime-flow-walkthrough.html) for the hierarchy-aware product-flow walkthrough, [`architecture/csv-to-xml-runtime-flow.md`](architecture/csv-to-xml-runtime-flow.md) for a flow-level operational deep dive, and [`architecture/overview.md`](architecture/overview.md) |
 | understand the next runtime architecture target | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) | [`architecture/control-plane-worker-boundary.md`](architecture/control-plane-worker-boundary.md) and [`architecture/1-4-to-next-architecture-classification.md`](architecture/1-4-to-next-architecture-classification.md) |
 | understand main flow / subflow composition | [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) and [`config/job-config.md`](config/job-config.md) |
 | understand how simple and complex flows normalize into one model | [`architecture/flow-normalization-rules.md`](architecture/flow-normalization-rules.md) | [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) and [`config/job-config.md`](config/job-config.md) |
 | assess the gap from shipped runtime to the reusable scenario model | [`architecture/runtime-to-scenario-gap-assessment.md`](architecture/runtime-to-scenario-gap-assessment.md) | [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) and [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) |
 | understand validation, transforms, or extension seams | [`architecture/extension-points.md`](architecture/extension-points.md) | [`config/processor/default-processor.md`](config/processor/default-processor.md) |
+| understand parser capability boundaries for file sources | [`architecture/oneflow-file-parser-capabilities.md`](architecture/oneflow-file-parser-capabilities.md) | [`architecture/file-ingestion-hardening.md`](architecture/file-ingestion-hardening.md) and [`config/source/csv-source.md`](config/source/csv-source.md) |
+| understand how future C/C++ parsers can fit without breaking the ETL core boundary | [`architecture/native-parser-adoptability.md`](architecture/native-parser-adoptability.md) | [`architecture/oneflow-file-parser-capabilities.md`](architecture/oneflow-file-parser-capabilities.md) and [`adr/0010-keep-native-parsers-behind-java-reader-boundary.md`](adr/0010-keep-native-parsers-behind-java-reader-boundary.md) |
+| understand the first concrete CSV-first sidecar protocol for future native parsing | [`architecture/csv-native-parser-sidecar-protocol.md`](architecture/csv-native-parser-sidecar-protocol.md) | [`architecture/native-parser-adoptability.md`](architecture/native-parser-adoptability.md) and [`architecture/oneflow-file-parser-capabilities.md`](architecture/oneflow-file-parser-capabilities.md) |
+| understand the Java `ItemStreamReader` adapter contract for future native parsing | [`architecture/java-native-parser-reader-adapter-contract.md`](architecture/java-native-parser-reader-adapter-contract.md) | [`architecture/csv-native-parser-sidecar-protocol.md`](architecture/csv-native-parser-sidecar-protocol.md) and [`architecture/native-parser-adoptability.md`](architecture/native-parser-adoptability.md) |
+| understand parser product planning and the CSV/XML-first freeze | [`product/epics/epic-p-source-native-parser-maturity.md`](product/epics/epic-p-source-native-parser-maturity.md) | [`product/product-backlog.md`](product/product-backlog.md) and [`architecture/oneflow-file-parser-capabilities.md`](architecture/oneflow-file-parser-capabilities.md) |
 | understand relational support | [`architecture/relational-db-support.md`](architecture/relational-db-support.md) | [`config/source/relational-source.md`](config/source/relational-source.md) and [`config/target/relational-target.md`](config/target/relational-target.md) |
 | see what is planned next | [`product/product-backlog.md`](product/product-backlog.md) | [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) |
 
@@ -69,6 +75,7 @@ For every significant enhancement, add or update:
 ## Current baseline docs
 
 ### Architecture
+- [`architecture/README.md`](architecture/README.md) — folder-level index for architecture notes, grouped by topic so the growing design-note set stays navigable
 - [`architecture/overview.md`](architecture/overview.md) — current high-level system architecture
 - [`architecture/scenario-driven-runtime-direction.md`](architecture/scenario-driven-runtime-direction.md) — target next-direction runtime contract for strict scenario-driven execution without compromising future scale, UI views, or richer transformations
 - [`architecture/hierarchical-flow-composition.md`](architecture/hierarchical-flow-composition.md) — frozen working direction for reusable main flows composed from reusable subflows and executable steps under one selected scenario
@@ -87,6 +94,10 @@ For every significant enhancement, add or update:
 - [`architecture/architectural-risks-and-watchpoints.md`](architecture/architectural-risks-and-watchpoints.md) — top architectural risks to watch during roadmap execution
 - [`architecture/etl-product-evolution-roadmap.md`](architecture/etl-product-evolution-roadmap.md) — current ETL-first phase, future enterprise integration direction, and the high-level guide for what belongs now vs later
 - [`architecture/file-ingestion-hardening.md`](architecture/file-ingestion-hardening.md) — first-slice file-ingestion hardening status plus remaining design direction for validation rules, rejected-record output, and processed-file archiving
+- [`architecture/oneflow-file-parser-capabilities.md`](architecture/oneflow-file-parser-capabilities.md) — parser capability boundary for file sources, including what must stay source-native versus what belongs in processor-side ETL behavior
+- [`architecture/native-parser-adoptability.md`](architecture/native-parser-adoptability.md) — future direction for adopting native parser engines, including C/C++, behind the current Java/Spring Batch reader boundary
+- [`architecture/csv-native-parser-sidecar-protocol.md`](architecture/csv-native-parser-sidecar-protocol.md) — concrete CSV-first sidecar protocol sketch for future native parser adoption while preserving the current Java reader/runtime seam
+- [`architecture/java-native-parser-reader-adapter-contract.md`](architecture/java-native-parser-reader-adapter-contract.md) — Java-side contract for future native-parser reader adapters, including lifecycle mapping, checkpoint persistence, and generated-model handoff rules
 - [`architecture/file-ingestion-hardening-checklist.md`](architecture/file-ingestion-hardening-checklist.md) — execution checklist and remaining follow-on considerations around the first file-ingestion hardening slice
 - [`architecture/hardening-documentation-sync-checklist.md`](architecture/hardening-documentation-sync-checklist.md) — implementation-to-documentation sync note for the explicit-scenario hardening changes
 - [`architecture/sftp-transport-capability.md`](architecture/sftp-transport-capability.md) — near-term SFTP transport direction, deployment boundary, security-layer guidance, and first staged inbound scope
@@ -109,6 +120,7 @@ For every significant enhancement, add or update:
 - [`adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
 - [`adr/0008-formalize-control-plane-and-etl-worker-boundary.md`](adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
 - [`adr/0009-formalize-sqlite-first-local-control-plane-persistence.md`](adr/0009-formalize-sqlite-first-local-control-plane-persistence.md)
+- [`adr/0010-keep-native-parsers-behind-java-reader-boundary.md`](adr/0010-keep-native-parsers-behind-java-reader-boundary.md)
 - [`adr/TEMPLATE.md`](adr/TEMPLATE.md) — template for future ADRs
 
 ### Configuration references
@@ -126,6 +138,7 @@ For every significant enhancement, add or update:
 - **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)** — live GitHub Project projection of the `Current Execution Board` table in `product/product-backlog.md`, with optional one-way sync for active execution tracking
 - [`product/project-board-sync.md`](product/project-board-sync.md) — setup and operating guide for syncing the `Current Execution Board` Markdown table into the GitHub Project without maintaining both views manually
 - [`product/epics/README.md`](product/epics/README.md) — epic-level product pages that group shared intent, boundaries, and related architecture links across multiple backlog items while leaving item status fields in the execution board
+- [`product/epics/epic-p-source-native-parser-maturity.md`](product/epics/epic-p-source-native-parser-maturity.md) — parser roadmap freeze for CSV/XML-first source-native maturity, preserved-scenario proof, and explicit JSON-later scope
 - [`product/backlog-items/README.md`](product/backlog-items/README.md) — complete index and maintenance guide for the per-item drill-down pages linked from execution-board entries
 - [`product/github-promotion.md`](product/github-promotion.md) — approved GitHub-facing About text, tagline, topic guidance, and positioning guardrails for OneFlow
 

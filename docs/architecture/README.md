@@ -32,6 +32,17 @@ If you are not sure where to begin, use one of these entry points first:
 - [`oneflow-file-parser-capabilities.md`](oneflow-file-parser-capabilities.md) — parser boundary for file sources (**Current baseline + future evolution**)
 - [`etl-product-evolution-roadmap.md`](etl-product-evolution-roadmap.md) — what belongs now vs later in the product/runtime evolution (**Current baseline + future evolution**)
 
+## Recently added / high-signal notes
+
+Use this short list when you want the newest or most actively discussed architecture topics first:
+
+- [`oneflow-file-parser-capabilities.md`](oneflow-file-parser-capabilities.md) — parser capability boundary for file sources (**Current baseline + future evolution**)
+- [`native-parser-adoptability.md`](native-parser-adoptability.md) — future boundary for C/C++ or other native parser engines (**Future direction**)
+- [`csv-native-parser-sidecar-protocol.md`](csv-native-parser-sidecar-protocol.md) — concrete CSV-first sidecar protocol sketch for future native parsing (**Future direction**)
+- [`java-native-parser-reader-adapter-contract.md`](java-native-parser-reader-adapter-contract.md) — Java-side adapter contract for future sidecar-backed native parsing (**Future direction**)
+- [`generated-model-naming-standard.md`](generated-model-naming-standard.md) — selected-job naming/package standard and bridge-cleanup direction (**Current baseline + future evolution**)
+- [`job-history-and-operational-observability.md`](job-history-and-operational-observability.md) — current observability baseline plus retained-history direction (**Current baseline + future evolution**)
+
 ## Runtime foundations and flow
 
 - [`overview.md`](overview.md) — current high-level system architecture (**Current baseline + future evolution**)

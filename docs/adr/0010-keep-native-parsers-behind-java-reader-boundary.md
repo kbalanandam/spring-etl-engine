@@ -55,5 +55,5 @@ It freezes the architectural rule that any future native parser must remain an i
 See also:
 
 - [`../architecture/native-parser-adoptability.md`](../architecture/native-parser-adoptability.md)
+- [`../architecture/java-native-parser-reader-adapter-contract.md`](../architecture/java-native-parser-reader-adapter-contract.md)
 - [`../architecture/oneflow-file-parser-capabilities.md`](../architecture/oneflow-file-parser-capabilities.md)
-

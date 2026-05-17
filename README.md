@@ -11,6 +11,7 @@
 - `spring-etl-engine` remains the stable technical identity for the repository, codebase, package structure, and technical references.
 - `OneFlow` is the current brand-facing product name for user-facing messaging, visual assets, and GitHub presentation.
 - Future branding changes should update brand-facing copy first and avoid unnecessary renames of technical identifiers unless there is a strong operational reason.
+- Future broader product renames or brand-wording refresh work should follow [`docs/product/github-promotion.md`](docs/product/github-promotion.md) and the tracked backlog path in [`E3 — Centralize product-brand naming and doc refresh automation`](docs/product/backlog-items/E3-centralize-brand-naming-and-doc-refresh.md) rather than a blind repository-wide replace.
 
 ## Product vision
 
@@ -121,7 +122,7 @@ Use this table as the recommended reading order by goal:
 | First local run | [Quick Start](#quick-start) | [Run Modes](#run-modes) |
 | Run a real scenario | [Explicit job-config mode](#explicit-job-config-mode) | [`docs/config/job-config.md`](docs/config/job-config.md) |
 | Understand the config model | [`docs/config/README.md`](docs/config/README.md) | [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md) |
-| Explore architecture/runtime flow | [Architecture Docs](#architecture-docs) | [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md) |
+| Explore architecture/runtime flow | [Architecture Docs](#architecture-docs) | [`docs/architecture/README.md`](docs/architecture/README.md) and [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md) |
 | Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/control-plane-worker-boundary.md`](docs/architecture/control-plane-worker-boundary.md) and [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
 | Assess current gaps to the reusable scenario model | [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md) | [`docs/architecture/hierarchical-flow-composition.md`](docs/architecture/hierarchical-flow-composition.md) |
 | See preserved runnable examples | `src/main/resources/config-jobs/` | [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples) |
@@ -136,9 +137,10 @@ Use the repository docs in this order:
 
 1. **`README.md`** — product landing page, run modes, and first navigation choices
 2. **`docs/README.md`** — docs portal, core terms, and architecture/product navigation
-3. **`docs/config/README.md`** — current supported config contracts and scenario-reading order
-4. **`src/main/resources/config-jobs/`** — preserved runnable example bundles checked in with the repository
-5. **[`private-jobs/`](private-jobs/README.md)** — repo-root developer-local placeholder area for private job bundles; copy preserved examples into it as needed, keep only the guidance file committed, and keep all real bundles git-ignored
+3. **`docs/architecture/README.md`** — topic-grouped index for architecture notes and future-direction design docs
+4. **`docs/config/README.md`** — current supported config contracts and scenario-reading order
+5. **`src/main/resources/config-jobs/`** — preserved runnable example bundles checked in with the repository
+6. **[`private-jobs/`](private-jobs/README.md)** — repo-root developer-local placeholder area for private job bundles; copy preserved examples into it as needed, keep only the guidance file committed, and keep all real bundles git-ignored
 
 Documentation intent is split deliberately:
 
@@ -154,6 +156,7 @@ Architecture and design notes now live in-repo under [`docs/`](docs/README.md).
 Start here:
 
 - [`docs/README.md`](docs/README.md)
+- [`docs/architecture/README.md`](docs/architecture/README.md)
 - [`docs/architecture/overview.md`](docs/architecture/overview.md)
 - [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md)
 - [`docs/architecture/control-plane-worker-boundary.md`](docs/architecture/control-plane-worker-boundary.md)
