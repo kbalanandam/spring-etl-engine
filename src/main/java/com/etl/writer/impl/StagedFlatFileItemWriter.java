@@ -37,7 +37,11 @@ public class StagedFlatFileItemWriter<T> extends FlatFileItemWriter<T> implement
     private boolean failed;
 
     public StagedFlatFileItemWriter(String finalPath) {
-        this.stagedFileLifecycle = new StagedFileLifecycle(finalPath);
+        this(finalPath, false);
+    }
+
+    public StagedFlatFileItemWriter(String finalPath, boolean packageAsZip) {
+        this.stagedFileLifecycle = new StagedFileLifecycle(finalPath, packageAsZip, ".csv");
         setResource(new FileSystemResource(stagedFileLifecycle.stagingPath()));
         setShouldDeleteIfExists(true);
         setAppendAllowed(false);

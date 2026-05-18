@@ -80,6 +80,7 @@ Each folder represents one runnable business or connector scenario, for example:
 
 - `csv-to-sqlserver`
 - `customer-load`
+- `customer-load-zipped`
 - `department-load`
 - `cust-dept-load`
 - future `sqlserver-to-csv`
@@ -179,6 +180,7 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 | `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/` | nested XML -> CSV -> nested XML | Preferred entry path for the preserved explicit multi-step roundtrip bundle |
 | `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/` | nested XML -> CSV -> nested XML | Preferred entry path for the preserved multi-step roundtrip bundle with XML archive-on-success |
 | `src/main/resources/config-jobs/customer-load/` | CSV -> XML | Preferred entry path for the single-step customer-load example |
+| `src/main/resources/config-jobs/customer-load-zipped/` | ZIP-backed CSV -> XML | Preferred entry path for the first preserved unzip-before-read proof on the shared file-source contract, using the minimal `filePath: ...zip` convention and keeping the original ZIP as the reject/archive identity |
 | `src/main/resources/config-jobs/department-load/` | CSV -> XML | Preferred entry path for the single-step department-load example |
 | `src/main/resources/config-jobs/cust-dept-load/` | CSV -> XML + XML | Preferred entry path for the multi-step customer + department example |
 
@@ -186,6 +188,10 @@ Those scenarios together demonstrate:
 - first shipped CSV field validation / reject / archive behavior
 - CSV source mapping into nested XML target structure through `modelDefinitionPath`
 - existing CSV source
+- ZIP-backed file-source preparation inferred from `filePath: ...zip` before normal CSV/XML validation and reading, with default extracted staging under a runtime-owned JVM temp work root instead of beside the input artifact
+- optional zip-on-archive packaging for plain file-backed CSV/XML sources through `archive.packageAsZip`, reusing the same shared ZIP utility boundary as unzip-before-read
+- optional zip-on-reject packaging through `processor-config.yaml -> rejectHandling.packageAsZip`
+- optional zip-on-successful-output packaging through file target `packageAsZip` on CSV, JSON, and XML targets
 - existing XML source
 - default processor mapping
 - CSV target output
@@ -199,7 +205,7 @@ Those scenarios together demonstrate:
 - nested XML source to XML target flow through the next-direction XML generation and flattening path
 - one selected multi-step scenario that hands nested XML -> CSV -> nested XML through an intermediate file inside the same job
 - explicit `job-config.yaml` driven selection
-- single-entity scenarios such as `customer-load` and `department-load`
+- single-entity scenarios such as `customer-load`, `customer-load-zipped`, and `department-load`
 - a multi-entity scenario such as `cust-dept-load` where one selected config set drives multiple ETL steps in one run
 
 For preserved local examples, keep visible runtime artifacts such as final outputs, rejects, archives, and intermediate handoff files under each scenario bundle's `output/` folder when practical. This keeps `input/`, `output/`, and config files together for quick inspection while production runs can still override paths explicitly. Those local `output/` folders are intentionally ignored from Git and excluded from packaged application resources.

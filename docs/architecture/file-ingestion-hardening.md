@@ -49,11 +49,21 @@ Today, the shipped config contract now supports a first file-ingestion hardening
 - duplicate handling for keep-first/reject-later semantics plus ordered winner selection across single-field and composite-key matching
 - explicit rejected-record output configuration in processor config
 - processed-source-file archive configuration in file-based source config
+- convention-based unzip-before-read preparation for ZIP-backed CSV/XML source artifacts through the shared file-source contract, while still treating the configured `filePath` as the original artifact used for reject/archive disposition
+- optional zip-on-archive packaging for plain CSV/XML file sources through the same shared ZIP utility boundary, so archive-on-success can publish one ZIP artifact instead of moving the plain source file directly
+- optional zip-on-reject packaging for processor-owned reject CSV artifacts through `rejectHandling.packageAsZip`, so rejected-record evidence can publish as one ZIP artifact after the reject CSV is finalized
 - explicit CSV source header handling through `skipHeader` so header-bearing handoff files can keep the current default while headerless CSV sources can opt out of first-line skipping
 - opt-in CSV parser quote-character configuration through `CsvSourceConfig.parser.quoteCharacter`, so the active CSV reader and header validator can honor alternate quoted-field contracts while keeping Spring Batch's default `"` behavior when that setting is omitted
 - staged file-target publication for CSV/XML outputs so partial rerun artifacts are not treated as final published outputs
+- optional zip-on-successful-output packaging for CSV, JSON, and XML file targets through target `packageAsZip`, reusing the same staged local artifact and shared ZIP utility boundary once step completion succeeds
 - active staged CSV/XML/JSON writers now also clean failed in-progress `.part` output on the writer path before any final-file promotion can occur, while keeping the same publish-on-success semantics for completed steps
 - accepted vs rejected record artifact semantics for the preserved CSV proof scenario
+
+The preserved unzip-before-read proof is `src/main/resources/config-jobs/customer-load-zipped/`, which keeps the familiar flat `CSV -> XML` flow while proving that the runtime can infer ZIP preparation directly from `filePath: input/Customers.zip`, extract one readable CSV file before normal validation, counting, and reading begin, and still reserve the optional `unzip` block for advanced overrides such as multi-entry selection.
+
+That ZIP behavior now sits behind the shared `com.etl.common.util.ZipFileUtility` boundary rather than a file-runtime-local helper. The current shipped callers are still the file-source preparation and archive-on-success paths, but the utility is intentionally transport-agnostic for any later OneFlow feature that has a staged local file artifact, such as a future SFTP ingress flow that needs the same zip/unzip behavior after download.
+
+The shared ZIP boundary now also preserves ZIP-specific low-level exception types such as extraction vs packaging failures, but those still roll up through the existing outer `config` and `runtime` failure surfaces. That keeps operator-facing category stability intact while giving developers and tests a more precise cause type when a ZIP-specific step fails underneath.
 
 The remaining gaps are now the broader follow-on work beyond that first slice.
 
@@ -101,6 +111,12 @@ For the current shipped slice, archive behavior is available only on file-based 
 - `CsvSourceConfig`
 - `XmlSourceConfig`
 
+The same shared file-source boundary now also owns ZIP preparation for ZIP-backed file inputs, while delegating the actual ZIP extraction/packaging work to the reusable common utility. That keeps archive and unzip centralized on the file-artifact lifecycle instead of drifting into parser-specific logic, without making the ZIP implementation itself CSV/XML-specific.
+
+On the active reader path, that separation now stays explicit: readers such as `CsvDynamicReader` and `XmlDynamicReader` remain responsible for parser setup only after `FileSourceArtifactSupport` has already resolved the readable local file path. This keeps tokenization, fragment streaming, and model mapping separate from ZIP staging and prepared-file lifecycle rules.
+
+Use the naming intentionally on this path: keep `artifact` for lifecycle-owned original/reject/archive identity, and use `file` or `path` for prepared readable working files. That distinction matches the shipped runtime contract where one logical source may involve both the original inbound artifact and a separate prepared readable file.
+
 ### 2. Validation rules belong in the processor config
 
 Validation rules are part of transformation acceptance behavior.
@@ -122,6 +138,8 @@ Future source-transform YAML should be added only for true source-native adaptat
 Rejected-record behavior is part of validation-aware processing.
 
 It should be configured alongside the mapping and validation rules that determine whether a record is accepted or rejected.
+
+The shipped contract now also allows reject publication to stay on that same processor-owned seam when operators want compressed reject artifacts: `rejectHandling.packageAsZip=true` keeps the generated reject CSV as the single ZIP entry and publishes the outer artifact with `.zip` appended when needed.
 
 ## Proposed YAML shape
 
@@ -158,6 +176,23 @@ For the first slice:
 - archive happens only after successful step completion
 - if the step fails technically, the original file remains in place
 - if records are rejected but the step completes successfully, the original file is still archived
+- when `archive.packageAsZip=true`, the runtime writes one ZIP archive artifact that contains the original source file as a single entry and records that ZIP path in `archivedSourcePath`
+- `archive.packageAsZip=true` is only valid for plain file-backed source artifacts; sources that are already `.zip` stay on the existing original-artifact archive path instead of producing double-zipped archives
+
+### Shared unzip-before-read semantics
+
+The first shipped ZIP preparation contract is intentionally narrow:
+
+- ZIP preparation applies automatically when a file-based source `filePath` points to a `.zip` artifact
+- the configured `filePath` still names the original ingress artifact, which may now be a `.zip`
+- the runtime extracts one readable file before normal CSV/XML validation, record counting, and reader consumption begin
+- when `unzip.extractDir` is omitted, the runtime stages that readable file under a runtime-owned JVM temp work root instead of mutating the ingress/input folder
+- `unzip.extractDir` is optional and resolves relative to the selected source-config folder just like other file-based paths when authored
+- when `unzip.entryName` is omitted, the ZIP must contain exactly one file entry
+- when `unzip.entryName` is present, it must match one entry inside the ZIP artifact
+- validation and reader logic consume the extracted readable file, but archive-on-success still moves the original configured artifact
+- after step completion or reject-file validation failure, the prepared extracted file is cleaned up so temporary working copies do not accumulate
+- when the runtime-owned default prepared location is used, cleanup also prunes now-empty prepared directories so repeated runs do not leave empty temp folders behind
 
 ## Processor config proposal
 

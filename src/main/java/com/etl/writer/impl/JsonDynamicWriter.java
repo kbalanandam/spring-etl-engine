@@ -39,7 +39,7 @@ public class JsonDynamicWriter implements DynamicWriter {
     @Override
     public ItemWriter<Object> getWriter(TargetConfig config, Class<?> clazz) {
         JsonTargetConfig jsonConfig = (JsonTargetConfig) config;
-        return new StagedJsonArrayItemWriter<>(resolveOutputPath(jsonConfig), objectMapper);
+        return new StagedJsonArrayItemWriter<>(resolveOutputPath(jsonConfig), objectMapper, jsonConfig.isPackageAsZip());
     }
 
     /**

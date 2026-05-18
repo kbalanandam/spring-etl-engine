@@ -6,6 +6,33 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-05-18
+
+### Added
+- Added a shared unzip-before-read preparation slice for ZIP-backed CSV and XML file sources through the shared file-source artifact boundary, so validation, record counting, and readers can consume one extracted readable file while reject/archive disposition still targets the original configured artifact.
+- Added a preserved `customer-load-zipped` scenario bundle plus focused ZIP-backed validation, reader, flow, and file-ingestion runtime-support coverage for the first shipped compressed-input proof.
+- Added shared zip-on-archive packaging for plain file-backed CSV and XML sources through the same ZIP utility boundary, so archive-on-success can now publish one ZIP artifact containing the original source file as a single entry.
+- Added optional ZIP publication for processor-owned reject CSV artifacts through `processor-config.yaml -> rejectHandling.packageAsZip`, so rejected-record evidence can now publish as one ZIP artifact after the reject file is finalized.
+- Added optional ZIP publication for CSV, JSON, and XML file targets through target `packageAsZip`, so staged successful output can now publish as one ZIP artifact containing the native target file as a single entry.
+- Added a dedicated `docs/architecture/security-test-strategy.md` note defining the phased security test baseline for selected-job guardrails, ZIP/path hardening, CI security scans, release gates, and verification-evidence expectations.
+
+### Changed
+- ZIP-backed file sources now auto-prepare from `filePath: ...zip` by convention, while the optional `unzip` block remains only for advanced overrides such as multi-entry selection or a custom extract directory.
+- File-backed CSV/XML sources now fail fast when `unzip.enabled=true` is authored for a non-`.zip` `filePath`, both during source validation and again on the shared runtime preparation path if validation is bypassed, so explicit unzip remains aligned with real ZIP-backed artifacts instead of acting as a plain-file override.
+- File-backed CSV/XML archive settings now also support `archive.packageAsZip=true` for plain source artifacts, while already-zipped source files continue to archive as their original ZIP artifact and fail fast if double-zipping is requested.
+- Default ZIP extraction now stages prepared readable files under a runtime-owned JVM temp work root instead of beside the ingress/input artifact, while cleanup also prunes now-empty default prepared directories after validation failure or successful step completion.
+- File-source config, runtime-support, and preserved-scenario docs now describe the shipped shared ZIP contract more explicitly, including optional `unzip.extractDir` normalization, prepared-file cleanup, and the active zip-on-archive packaging behavior.
+- Staged file publication now applies the same success-only packaging rule across reject outputs and CSV/JSON/XML target outputs: writers and reject handling still create native files first, and ZIP artifacts are only promoted at the final publication boundary after successful completion.
+- Shared ZIP extraction now detects duplicate matching entries before copy/extraction so a second match cannot write or overwrite prepared artifacts.
+- Shared ZIP packaging now validates destination-path shape more defensively (including directory-target and source/target alias checks) before opening ZIP output streams.
+- Pull request template checklist guidance now explicitly includes security-impact review and credential/token hygiene checks for each proposed change.
+- PR unit-test workflow now includes enforceable security gates in addition to Maven tests: OWASP dependency vulnerability scanning with fail-on-threshold behavior, full-repository-history Gitleaks scanning, and checksum-verified Gitleaks binary installation before secret scanning.
+
+### Fixed
+- Shared ZIP packaging now removes partially created ZIP files when packaging fails, preventing orphaned artifacts on disk.
+- Shared ZIP duplicate-entry diagnostics now avoid collecting every archive entry name in memory and keep constant-size tracking until an error path is needed.
+- Shared ZIP utility Javadocs/comments now document basename-only entry behavior and cleanup expectations more clearly for operators and maintainers.
+
 ---
 
 ## [1.6.1] - 2026-05-16

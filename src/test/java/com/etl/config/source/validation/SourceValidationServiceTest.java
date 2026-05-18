@@ -4,9 +4,12 @@ import com.etl.config.ColumnConfig;
 import com.etl.config.exception.ConfigException;
 import com.etl.config.source.CsvSourceConfig;
 import com.etl.config.source.FileArchiveConfig;
+import com.etl.config.source.FileUnzipConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.enums.ModelFormat;
+import com.etl.exception.ZipExtractionException;
+import com.etl.runtime.FileSourceArtifactSupport;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -15,12 +18,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class SourceValidationServiceTest {
@@ -70,6 +77,280 @@ class SourceValidationServiceTest {
 
 		assertTrue(exception.getMessage().contains("archive"));
 		assertTrue(exception.getMessage().contains("successPath"));
+	}
+
+	@Test
+	void failsFastWhenCsvArchiveZipPackagingTargetsAlreadyZippedSource() {
+		CsvSourceConfig.ArchiveConfig archive = new CsvSourceConfig.ArchiveConfig();
+		archive.setEnabled(true);
+		archive.setSuccessPath(tempDir.resolve("archive").toString());
+		archive.setPackageAsZip(true);
+
+		CsvSourceConfig sourceConfig = csvSource(tempDir.resolve("events.zip"));
+		sourceConfig.setArchive(archive);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("archive.packageAsZip"));
+		assertTrue(exception.getMessage().contains(".zip"));
+	}
+
+	@Test
+	void failsFastWhenXmlArchiveZipPackagingTargetsAlreadyZippedSource() throws IOException {
+		FileArchiveConfig archive = new FileArchiveConfig();
+		archive.setEnabled(true);
+		archive.setSuccessPath(tempDir.resolve("archive").toString());
+		archive.setPackageAsZip(true);
+
+		Path xmlZip = tempDir.resolve("events.zip");
+		Files.writeString(xmlZip, "zip-placeholder");
+		XmlSourceConfig sourceConfig = xmlSource(xmlZip);
+		sourceConfig.setArchive(archive);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("archive.packageAsZip"));
+		assertTrue(exception.getMessage().contains(".zip"));
+	}
+
+	@Test
+	void extractsSingleCsvZipEntryBeforeValidation() throws IOException {
+		Path zipFile = tempDir.resolve("events.zip");
+		writeZip(zipFile, List.of(new ZipTestEntry("events.csv", "id,eventTime\nEVT-1,08:30:00\n")));
+
+		CsvSourceConfig sourceConfig = csvSource(zipFile);
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setAllowEmpty(false);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		assertDoesNotThrow(() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml")));
+
+		assertNotNull(sourceConfig.getPreparedFilePath());
+		Path preparedPath = Path.of(sourceConfig.getPreparedFilePath());
+		assertTrue(preparedPath.endsWith("events.csv"));
+		assertTrue(Files.exists(preparedPath));
+		assertTrue(preparedPath.startsWith(defaultPreparedRoot()));
+		assertFalse(preparedPath.startsWith(tempDir));
+		assertTrue(Files.exists(zipFile));
+	}
+
+	@Test
+	void failsFastWhenCsvExplicitlyEnablesUnzipForNonZipFilePath() throws IOException {
+		Path csvFile = tempDir.resolve("events.csv");
+		Files.writeString(csvFile, "id,eventTime\nEVT-1,08:30:00\n");
+
+		CsvSourceConfig sourceConfig = csvSource(csvFile);
+		FileUnzipConfig unzip = new FileUnzipConfig();
+		unzip.setEnabled(true);
+		sourceConfig.setUnzip(unzip);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("unzip.enabled=true"));
+		assertTrue(exception.getMessage().contains(".zip"));
+		assertNull(sourceConfig.getPreparedFilePath());
+		assertTrue(Files.exists(csvFile));
+	}
+
+	@Test
+	void failsFastWhenCsvZipContainsMultipleEntriesWithoutConfiguredEntryName() throws IOException {
+		Path zipFile = tempDir.resolve("events.zip");
+		writeZip(zipFile, List.of(
+				new ZipTestEntry("events-1.csv", "id,eventTime\nEVT-1,08:30:00\n"),
+				new ZipTestEntry("events-2.csv", "id,eventTime\nEVT-2,09:30:00\n")
+		));
+
+		CsvSourceConfig sourceConfig = csvSource(zipFile);
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setAllowEmpty(false);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("exactly one file entry"));
+		assertInstanceOf(ZipExtractionException.class, exception.getCause());
+		assertNull(sourceConfig.getPreparedFilePath());
+		try (var preparedFiles = Files.find(tempDir, 5,
+				(path, attributes) -> attributes.isRegularFile() && path.getFileName().toString().endsWith(".csv"))) {
+			assertEquals(List.of(), preparedFiles.toList());
+		}
+	}
+
+	@Test
+	void extractsConfiguredXmlZipEntryBeforeStructureValidation() throws IOException {
+		Path zipFile = tempDir.resolve("customers.zip");
+		writeZip(zipFile, List.of(new ZipTestEntry("nested/customers.xml", """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<Customers>
+				  <Customer><id>ABC</id></Customer>
+				</Customers>
+				""")));
+
+		XmlSourceConfig sourceConfig = xmlSource(zipFile);
+		FileUnzipConfig unzip = new FileUnzipConfig();
+		unzip.setEntryName("nested/customers.xml");
+		sourceConfig.setUnzip(unzip);
+
+		SourceValidationService service = new SourceValidationService();
+		assertDoesNotThrow(() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml")));
+
+		assertNotNull(sourceConfig.getPreparedFilePath());
+		Path preparedPath = Path.of(sourceConfig.getPreparedFilePath());
+		assertTrue(preparedPath.endsWith("customers.xml"));
+		assertTrue(Files.exists(preparedPath));
+		assertTrue(preparedPath.startsWith(defaultPreparedRoot()));
+		assertFalse(preparedPath.startsWith(tempDir));
+		assertTrue(Files.exists(zipFile));
+	}
+
+	@Test
+	void failsFastWhenConfiguredExtractDirAlreadyContainsPreparedCsvFile() throws IOException {
+		Path zipFile = tempDir.resolve("events.zip");
+		writeZip(zipFile, List.of(new ZipTestEntry("events.csv", "id,eventTime\nEVT-1,08:30:00\n")));
+		Path configuredExtractDir = tempDir.resolve("prepared");
+		Files.createDirectories(configuredExtractDir);
+		Path existingPreparedFile = configuredExtractDir.resolve("events.csv");
+		Files.writeString(existingPreparedFile, "id,eventTime\nEXISTING,00:00:00\n");
+
+		CsvSourceConfig sourceConfig = csvSource(zipFile);
+		FileUnzipConfig unzip = new FileUnzipConfig();
+		unzip.setExtractDir(configuredExtractDir.toString());
+		sourceConfig.setUnzip(unzip);
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setAllowEmpty(false);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("Refusing to overwrite existing prepared file"));
+		ZipExtractionException extractionFailure = assertInstanceOf(ZipExtractionException.class, exception.getCause());
+		assertTrue(extractionFailure.getMessage().contains("Refusing to overwrite existing prepared file"));
+		assertEquals("id,eventTime\nEXISTING,00:00:00\n", Files.readString(existingPreparedFile));
+		assertNull(sourceConfig.getPreparedFilePath());
+		try (var configuredFiles = Files.list(configuredExtractDir)) {
+			assertEquals(List.of(existingPreparedFile), configuredFiles.toList());
+		}
+	}
+
+	@Test
+	void failsFastWhenConfiguredZipEntryMatchesMultipleEntries() throws IOException {
+		Path zipFile = tempDir.resolve("events.zip");
+		writeZip(zipFile, List.of(
+				new ZipTestEntry("payload/events.csv", "id,eventTime\nEVT-1,08:30:00\n"),
+				new ZipTestEntry("payload\\events.csv", "id,eventTime\nEVT-2,09:45:00\n")
+		));
+
+		CsvSourceConfig sourceConfig = csvSource(zipFile);
+		FileUnzipConfig unzip = new FileUnzipConfig();
+		unzip.setEntryName("payload/events.csv");
+		Path configuredExtractDir = tempDir.resolve("prepared-duplicate-entry");
+		unzip.setExtractDir(configuredExtractDir.toString());
+		sourceConfig.setUnzip(unzip);
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setAllowEmpty(false);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		ZipExtractionException extractionFailure = assertInstanceOf(ZipExtractionException.class, exception.getCause());
+		assertTrue(extractionFailure.getMessage().contains("multiple matching file entries"));
+		assertTrue(extractionFailure.getMessage().contains("payload/events.csv"));
+		assertNull(sourceConfig.getPreparedFilePath());
+		if (Files.exists(configuredExtractDir)) {
+			try (var preparedFiles = Files.list(configuredExtractDir)) {
+				assertEquals(List.of(), preparedFiles.toList());
+			}
+		}
+	}
+
+	@Test
+	void failsFastWhenXmlExplicitlyEnablesUnzipForNonZipFilePath() throws IOException {
+		Path xmlFile = tempDir.resolve("customers.xml");
+		Files.writeString(xmlFile, """
+				<?xml version="1.0" encoding="UTF-8"?>
+				<Customers>
+				  <Customer><id>ABC</id></Customer>
+				</Customers>
+				""");
+
+		XmlSourceConfig sourceConfig = xmlSource(xmlFile);
+		FileUnzipConfig unzip = new FileUnzipConfig();
+		unzip.setEnabled(true);
+		sourceConfig.setUnzip(unzip);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("xml-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("unzip.enabled=true"));
+		assertTrue(exception.getMessage().contains(".zip"));
+		assertNull(sourceConfig.getPreparedFilePath());
+		assertTrue(Files.exists(xmlFile));
+	}
+
+	@Test
+	void rejectsOriginalZipArtifactAndCleansPreparedCsvFileWhenValidationFails() throws IOException {
+		Path zipFile = tempDir.resolve("events.zip");
+		writeZip(zipFile, List.of(new ZipTestEntry("events.csv", "event_id,event_time\nEVT-1,08:30:00\n")));
+		Path rejectDir = tempDir.resolve("rejects");
+
+		CsvSourceConfig sourceConfig = csvSource(zipFile);
+
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setRequireHeaderMatch(true);
+		validation.setAllowEmpty(false);
+		validation.setOnFailure("rejectFile");
+		validation.setRejectPath(rejectDir.toString());
+		sourceConfig.setValidation(validation);
+		Path preparedPath = new FileSourceArtifactSupport().resolveReadablePath(sourceConfig);
+		Path preparedDir = preparedPath.getParent();
+		assertTrue(Files.exists(preparedPath));
+		assertTrue(preparedPath.startsWith(defaultPreparedRoot()));
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("header"));
+		assertTrue(exception.getMessage().contains("moved to reject path"));
+		assertFalse(Files.exists(zipFile));
+		assertFalse(Files.exists(preparedPath));
+		assertFalse(Files.exists(preparedDir));
+		assertNull(sourceConfig.getPreparedFilePath());
+		try (var rejectedFiles = Files.list(rejectDir)) {
+			Path rejected = rejectedFiles.findFirst().orElse(null);
+			assertNotNull(rejected);
+			assertEquals("events.zip", rejected.getFileName().toString());
+		}
 	}
 
 	@Test
@@ -663,6 +944,27 @@ class SourceValidationServiceTest {
 			assertNotNull(rejected);
 			assertEquals(expectedFileName, rejected.getFileName().toString());
 		}
+	}
+
+	private void writeZip(Path zipFile, List<ZipTestEntry> entries) throws IOException {
+		try (ZipOutputStream zipOutputStream = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+			for (ZipTestEntry entry : entries) {
+				zipOutputStream.putNextEntry(new ZipEntry(entry.entryName()));
+				zipOutputStream.write(entry.contents().getBytes());
+				zipOutputStream.closeEntry();
+			}
+		}
+	}
+
+	private Path defaultPreparedRoot() {
+		return Path.of(System.getProperty("java.io.tmpdir"))
+				.toAbsolutePath()
+				.normalize()
+				.resolve("spring-etl-engine")
+				.resolve("prepared-sources");
+	}
+
+	private record ZipTestEntry(String entryName, String contents) {
 	}
 
 	private static final class TestSourceConfig extends SourceConfig {

@@ -42,6 +42,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -55,7 +57,7 @@ class CsvSourceToXmlTargetFlowTest {
 
     @Test
     void runsCustomerLoadCsvSourceThroughSharedProcessorIntoFlatXmlWrapperTarget() throws Exception {
-        Path scenarioDir = prepareScenarioBundle();
+        Path scenarioDir = prepareScenarioBundle("customer-load", false);
         Path generatedSourceRoot = tempDir.resolve("generated-customer-load-sources");
 
         ObjectMapper mapper = yamlMapper();
@@ -67,6 +69,9 @@ class CsvSourceToXmlTargetFlowTest {
 
         CsvSourceConfig sourceConfig = (CsvSourceConfig) sourceWrapper.getSources().get(0);
         XmlTargetConfig targetConfig = (XmlTargetConfig) targetWrapper.getTargets().get(0);
+          assertTrue(sourceConfig.getUnzipConfig() == null,
+              "The preserved zipped scenario should rely on ZIP auto-preparation from filePath without an authored unzip block.");
+          assertTrue(sourceConfig.getUnzipConfig() == null, "The preserved zipped scenario should rely on ZIP auto-preparation without an authored unzip block.");
 
         XmlJobScopedGenerationResult generationResult = new XmlJobScopedGenerationService()
                 .generate(scenarioDir.resolve("job-config.yaml"), generatedSourceRoot);
@@ -139,30 +144,117 @@ class CsvSourceToXmlTargetFlowTest {
         assertTrue(xml.contains("<name>Ravi Kumar</name>"));
     }
 
-    private Path prepareScenarioBundle() throws Exception {
-        Path sourceScenarioDir = Path.of("src", "main", "resources", "config-jobs", "customer-load");
-        Path scenarioDir = tempDir.resolve("customer-load");
+  @Test
+  void runsCustomerLoadZippedCsvSourceThroughSharedProcessorIntoFlatXmlWrapperTarget() throws Exception {
+    Path scenarioDir = prepareScenarioBundle("customer-load-zipped", true);
+    Path generatedSourceRoot = tempDir.resolve("generated-customer-load-zipped-sources");
+
+    ObjectMapper mapper = yamlMapper();
+    JobConfig jobConfig = mapper.readValue(scenarioDir.resolve("job-config.yaml").toFile(), JobConfig.class);
+    SourceWrapper sourceWrapper = mapper.readValue(scenarioDir.resolve(jobConfig.getSourceConfigPath()).toFile(), SourceWrapper.class);
+    TargetWrapper targetWrapper = mapper.readValue(scenarioDir.resolve(jobConfig.getTargetConfigPath()).toFile(), TargetWrapper.class);
+    ProcessorConfig processorConfig = mapper.readValue(scenarioDir.resolve(jobConfig.getProcessorConfigPath()).toFile(), ProcessorConfig.class);
+    applyDerivedPackages(jobConfig, scenarioDir, sourceWrapper, targetWrapper);
+
+    CsvSourceConfig sourceConfig = (CsvSourceConfig) sourceWrapper.getSources().get(0);
+    XmlTargetConfig targetConfig = (XmlTargetConfig) targetWrapper.getTargets().get(0);
+
+    XmlJobScopedGenerationResult generationResult = new XmlJobScopedGenerationService()
+        .generate(scenarioDir.resolve("job-config.yaml"), generatedSourceRoot);
+    compile(generationResult.allGeneratedFiles(), Path.of("target", "test-classes"));
+
+    Class<?> sourceRecordClass = GeneratedModelClassResolver.resolveSourceClass(sourceConfig);
+    Class<?> targetProcessingClass = GeneratedModelClassResolver.resolveTargetProcessingClass(targetConfig);
+    Class<?> targetWriteClass = GeneratedModelClassResolver.resolveTargetWriteClass(targetConfig);
+
+    DynamicReaderFactory readerFactory = new DynamicReaderFactory(List.of(new CsvDynamicReader<>()));
+    DynamicProcessorFactory processorFactory = new DynamicProcessorFactory(Map.of("default", new DefaultDynamicProcessor()));
+    DynamicWriterFactory writerFactory = new DynamicWriterFactory(List.of(new XmlDynamicWriter()));
+
+    ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(sourceConfig, targetConfig);
+    ItemReader<Object> reader = createReader(readerFactory, sourceConfig, sourceRecordClass);
+    ItemProcessor<Object, Object> processor = processorFactory.getProcessor(processorConfig, sourceConfig, targetConfig, metadata);
+    ItemWriter<Object> writer = writerFactory.createWriter(targetConfig, targetWriteClass);
+
+    List<Object> processedItems = new ArrayList<>();
+    ExecutionContext readerContext = new ExecutionContext();
+    if (reader instanceof ItemStream itemStreamReader) {
+      itemStreamReader.open(readerContext);
+    }
+    try {
+      Object sourceItem;
+      while ((sourceItem = reader.read()) != null) {
+        Object processed = processor.process(sourceItem);
+        if (processed != null) {
+          processedItems.add(processed);
+        }
+      }
+    } finally {
+      if (reader instanceof ItemStream itemStreamReader) {
+        itemStreamReader.close();
+      }
+    }
+
+    assertEquals(3, sourceConfig.getRecordCount());
+    assertEquals(3, processedItems.size());
+    assertEquals(targetProcessingClass, processedItems.get(0).getClass());
+    assertTrue(sourceConfig.getPreparedFilePath() != null && !sourceConfig.getPreparedFilePath().isBlank());
+    Path preparedPath = Path.of(sourceConfig.getPreparedFilePath());
+    assertTrue(!preparedPath.equals(Path.of(sourceConfig.getFilePath())),
+        "ZIP-backed processing should keep the original ZIP artifact path distinct from the prepared readable file.");
+    assertTrue(preparedPath.startsWith(defaultPreparedRoot()));
+    assertTrue(!preparedPath.startsWith(scenarioDir.resolve("input").toAbsolutePath().normalize()),
+        "Default ZIP preparation should stage files outside the scenario input directory.");
+    assertTrue(Files.exists(preparedPath));
+
+    Object wrapper = GeneratedModelClassResolver.createWrapper(metadata, processedItems);
+    assertEquals(targetWriteClass, wrapper.getClass());
+    writer.write(new Chunk<>(List.of(wrapper)));
+
+    String xml = Files.readString(Path.of(targetConfig.getFilePath()));
+    assertTrue(xml.contains("<Customers>"));
+    assertTrue(xml.contains("<Customer>"));
+    assertTrue(xml.contains("<id>1</id>"));
+    assertTrue(xml.contains("<name>John Doe</name>"));
+    assertTrue(xml.contains("<email>john.doe@example.com</email>"));
+  }
+
+  private Path defaultPreparedRoot() {
+    return Path.of(System.getProperty("java.io.tmpdir"))
+        .toAbsolutePath()
+        .normalize()
+        .resolve("spring-etl-engine")
+        .resolve("prepared-sources");
+  }
+
+      private Path prepareScenarioBundle(String scenarioName, boolean zippedSource) throws Exception {
+        Path sourceScenarioDir = Path.of("src", "main", "resources", "config-jobs", scenarioName);
+        Path scenarioDir = tempDir.resolve(scenarioName);
         copyDirectory(sourceScenarioDir, scenarioDir);
 
-        Path inputFile = scenarioDir.resolve("input/customers.csv").toAbsolutePath().normalize();
+        Path inputFile = scenarioDir.resolve(zippedSource ? "input/Customers.zip" : "input/customers.csv").toAbsolutePath().normalize();
         Path outputFile = scenarioDir.resolve("output/customers.xml").toAbsolutePath().normalize();
         Files.createDirectories(inputFile.getParent());
         Files.createDirectories(outputFile.getParent());
-        Files.copy(Path.of("src", "main", "resources", "demo-input", "Customers.csv"), inputFile);
+        if (zippedSource) {
+          createZipFromDemoInput(inputFile);
+        } else {
+          Files.copy(Path.of("src", "main", "resources", "demo-input", "Customers.csv"), inputFile);
+        }
 
         Files.writeString(
-                scenarioDir.resolve("source-config.yaml"),
-                Files.readString(scenarioDir.resolve("source-config.yaml"))
-                        .replaceFirst("(?m)^\\s*filePath:.*$", "    filePath: " + Matcher.quoteReplacement(toYamlPath(inputFile)))
+            scenarioDir.resolve("source-config.yaml"),
+            Files.readString(scenarioDir.resolve("source-config.yaml"))
+                .replaceFirst("(?m)^\\s*filePath:.*$", "    filePath: " + Matcher.quoteReplacement(toYamlPath(inputFile)))
         );
         Files.writeString(
-                scenarioDir.resolve("target-config.yaml"),
-                Files.readString(scenarioDir.resolve("target-config.yaml"))
-                        .replaceFirst("(?m)^\\s*filePath:.*$", "    filePath: " + Matcher.quoteReplacement(toYamlPath(outputFile)))
+            scenarioDir.resolve("target-config.yaml"),
+            Files.readString(scenarioDir.resolve("target-config.yaml"))
+                .replaceFirst("(?m)^\\s*filePath:.*$", "    filePath: " + Matcher.quoteReplacement(toYamlPath(outputFile)))
         );
 
         return scenarioDir;
-    }
+      }
 
     private void applyDerivedPackages(JobConfig jobConfig,
                                       Path scenarioDir,
@@ -260,4 +352,13 @@ class CsvSourceToXmlTargetFlowTest {
     private String toYamlPath(Path path) {
         return path.toAbsolutePath().normalize().toString().replace("\\", "/");
     }
+
+  private void createZipFromDemoInput(Path zipPath) throws Exception {
+    Files.createDirectories(zipPath.getParent());
+    try (ZipOutputStream zipOutputStream = new ZipOutputStream(Files.newOutputStream(zipPath))) {
+      zipOutputStream.putNextEntry(new ZipEntry("Customers.csv"));
+      zipOutputStream.write(Files.readAllBytes(Path.of("src", "main", "resources", "demo-input", "Customers.csv")));
+      zipOutputStream.closeEntry();
+    }
+  }
 }

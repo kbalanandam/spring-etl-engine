@@ -42,8 +42,12 @@ public class StagedJsonArrayItemWriter<T> implements ItemStreamWriter<T>, StepEx
     private boolean failed;
 
     public StagedJsonArrayItemWriter(String finalPath, ObjectMapper objectMapper) {
+        this(finalPath, objectMapper, false);
+    }
+
+    public StagedJsonArrayItemWriter(String finalPath, ObjectMapper objectMapper, boolean packageAsZip) {
         this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper;
-        this.stagedFileLifecycle = new StagedFileLifecycle(finalPath);
+        this.stagedFileLifecycle = new StagedFileLifecycle(finalPath, packageAsZip, ".json");
     }
 
     @Override

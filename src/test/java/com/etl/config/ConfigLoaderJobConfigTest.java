@@ -120,7 +120,7 @@ class ConfigLoaderJobConfigTest {
 
         ensureSelectedJobFlatModels("csv-to-csv-test", List.of("Customers"), List.of("CustomersOut"));
 
-        RunConfigurationMetadata runConfigurationMetadata = loader.runConfigurationMetadata();
+        RunConfigurationMetadata runConfigurationMetadata = loader.buildRunConfigurationMetadata();
         SourceWrapper sourceWrapper = loader.sourceWrapper();
         TargetWrapper targetWrapper = loader.targetWrapper();
         ProcessorConfig loadedProcessorConfig = loader.processorConfig();
@@ -128,7 +128,7 @@ class ConfigLoaderJobConfigTest {
                 sourceWrapper,
                 targetWrapper,
                 loadedProcessorConfig,
-                loader.jobRuntimeDescriptorAssembler()
+                    loader.createJobRuntimeDescriptorAssembler()
         );
 
 		assertEquals("csv-to-csv-test", runConfigurationMetadata.scenarioName());
@@ -167,6 +167,10 @@ class ConfigLoaderJobConfigTest {
                     sourceName: Customers
                     filePath: input/customers.csv
                     delimiter: ","
+                    archive:
+                      enabled: true
+                      successPath: archive/success
+                      packageAsZip: true
                     fields:
                       - name: id
                         type: int
@@ -179,6 +183,7 @@ class ConfigLoaderJobConfigTest {
                   - format: csv
                     targetName: CustomersOut
                     filePath: output/customers.csv
+                    packageAsZip: true
                     delimiter: ","
                     fields:
                       - name: id
@@ -192,6 +197,7 @@ class ConfigLoaderJobConfigTest {
                 rejectHandling:
                   enabled: true
                   outputPath: rejects
+                  packageAsZip: true
                 mappings:
                   - source: Customers
                     target: CustomersOut
@@ -227,9 +233,83 @@ class ConfigLoaderJobConfigTest {
         CsvTargetConfig targetConfig = (CsvTargetConfig) targetWrapper.getTargets().get(0);
 
         assertEquals(scenarioDir.resolve("input/customers.csv").toAbsolutePath().normalize().toString(), sourceConfig.getFilePath());
+        assertEquals(scenarioDir.resolve("archive/success").toAbsolutePath().normalize().toString(), sourceConfig.getArchive().getSuccessPath());
+        assertTrue(sourceConfig.getArchive().isPackageAsZip());
         assertEquals(scenarioDir.resolve("output/customers.csv").toAbsolutePath().normalize().toString(), targetConfig.getFilePath());
+        assertTrue(targetConfig.isPackageAsZip());
         assertEquals(scenarioDir.resolve("rejects").toAbsolutePath().normalize().toString(), processorConfig.getRejectHandling().getOutputPath());
+        assertTrue(processorConfig.getRejectHandling().isPackageAsZip());
     }
+
+  @Test
+  void normalizesScenarioRelativeUnzipExtractDirInsideReferencedSourceConfig() throws IOException {
+    Path scenarioDir = tempDir.resolve("csv-zipped-input");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+        sources:
+          - format: csv
+            sourceName: Customers
+            filePath: input/customers.zip
+            delimiter: ","
+            unzip:
+              enabled: true
+              extractDir: working/unzipped
+            fields:
+              - name: id
+                type: int
+              - name: name
+                type: String
+        """);
+
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+        targets:
+          - format: csv
+            targetName: CustomersOut
+            filePath: output/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+              - name: name
+                type: String
+        """);
+
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+        type: default
+        mappings:
+          - source: Customers
+            target: CustomersOut
+            fields:
+              - from: id
+                to: id
+              - from: name
+                to: name
+        """);
+
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+        name: csv-zipped-input
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: customers-step
+            source: Customers
+            target: CustomersOut
+        """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ensureSelectedJobFlatModels("csv-zipped-input", List.of("Customers"), List.of("CustomersOut"));
+
+    SourceWrapper sourceWrapper = loader.sourceWrapper();
+    CsvSourceConfig sourceConfig = (CsvSourceConfig) sourceWrapper.getSources().get(0);
+
+    assertEquals(scenarioDir.resolve("input/customers.zip").toAbsolutePath().normalize().toString(), sourceConfig.getFilePath());
+    assertNotNull(sourceConfig.getUnzipConfig());
+    assertEquals(scenarioDir.resolve("working/unzipped").toAbsolutePath().normalize().toString(), sourceConfig.getUnzipConfig().getExtractDir());
+  }
 
   @Test
   void trimsReferencedConfigPathsBeforeResolvingThemRelativeToJobConfig() throws IOException {
@@ -290,7 +370,7 @@ class ConfigLoaderJobConfigTest {
 
     ensureSelectedJobFlatModels("trimmed-relative-config-paths", List.of("Customers"), List.of("CustomersOut"));
 
-    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+    RunConfigurationMetadata metadata = loader.buildRunConfigurationMetadata();
     SourceWrapper sourceWrapper = loader.sourceWrapper();
     TargetWrapper targetWrapper = loader.targetWrapper();
     ProcessorConfig processorConfig = loader.processorConfig();
@@ -548,7 +628,7 @@ class ConfigLoaderJobConfigTest {
 
     ensureSelectedJobFlatSourceModels("csv-to-json-derived-package", List.of("Customers"));
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     String messages = messageChain(exception);
 
     assertTrue(messages.contains("Target model class not found"));
@@ -610,7 +690,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     String messages = messageChain(exception);
 
     assertTrue(messages.contains("Selected job 'xml-to-json-events-warning' does not allow explicit packageName"));
@@ -680,7 +760,7 @@ class ConfigLoaderJobConfigTest {
 
     ensureSelectedJobFlatSourceModels("missing-generated-model-target", List.of("Customers"));
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     String messages = messageChain(exception);
 
     assertTrue(messages.contains("Invalid generated model configuration for scenario 'missing-generated-model-target'"));
@@ -777,7 +857,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     String messages = messageChain(exception);
 
     assertTrue(messages.contains("CustomersIntermediate"));
@@ -824,7 +904,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "targetConfigPath", "missing-target.yaml");
     ReflectionTestUtils.setField(loader, "processorConfigPath", "missing-processor.yaml");
 
-    RunConfigurationMetadata runConfigurationMetadata = loader.runConfigurationMetadata();
+    RunConfigurationMetadata runConfigurationMetadata = loader.buildRunConfigurationMetadata();
     SourceWrapper sourceWrapper = loader.sourceWrapper();
     TargetWrapper targetWrapper = loader.targetWrapper();
     ProcessorConfig processorConfig = loader.processorConfig();
@@ -959,7 +1039,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     assertTrue(messageChain(exception).contains("require a non-blank 'name'"));
     assertTrue(messageChain(exception).contains(jobConfig.toString()));
   }
@@ -1054,7 +1134,7 @@ class ConfigLoaderJobConfigTest {
 
     ensureSelectedJobFlatModels("active-job", List.of("Customers"), List.of("CustomersOut"));
 
-    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+    RunConfigurationMetadata metadata = loader.buildRunConfigurationMetadata();
 
     assertEquals("active-job", metadata.scenarioName());
     assertEquals(1, metadata.steps().size());
@@ -1122,7 +1202,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", requestedAliasJobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+    RunConfigurationMetadata metadata = loader.buildRunConfigurationMetadata();
     assertEquals("customer-load", metadata.scenarioName());
     assertEquals(canonicalScenarioDir.resolve("job-config.yaml").toAbsolutePath().normalize().toString(), metadata.jobConfigPath());
   }
@@ -1246,7 +1326,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     assertTrue(exception.getMessage().contains("steps"));
   }
 
@@ -1301,7 +1381,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     assertTrue(exception.getMessage().contains("unknown source"));
   }
 
@@ -1378,7 +1458,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     assertTrue(exception.getMessage().contains("duplicate step name"));
   }
 
@@ -1448,7 +1528,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     assertTrue(exception.getMessage().contains("Invalid relational target configuration"));
     assertTrue(exception.getMessage().contains("csv-to-sqlserver"));
     assertTrue(exception.getMessage().contains("CustomersSql"));
@@ -1586,7 +1666,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     assertTrue(messageChain(exception).contains("Invalid processor configuration for scenario 'processor-validation-before-generated-models'"));
     assertTrue(messageChain(exception).contains(processorConfig.toString()));
     assertTrue(messageChain(exception).contains("rejectHandling"));
@@ -1653,6 +1733,74 @@ class ConfigLoaderJobConfigTest {
     ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
     assertTrue(messageChain(exception).contains("onFailure=rejectRecord"));
     assertTrue(messageChain(exception).contains("rejectHandling.enabled"));
+  }
+
+  @Test
+  void failsFastWhenRejectHandlingOutputPathLooksLikeAFilePath() throws IOException {
+    Path sourceFile = tempDir.resolve("customers.csv");
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceFile, "id,name\n1,Alice\n");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: csv
+          sourceName: Customers
+          filePath: %s
+          delimiter: ","
+          fields:
+            - name: id
+              type: String
+            - name: name
+              type: String
+      """.formatted(yamlPath(sourceFile)));
+    Files.writeString(targetConfig, """
+      targets:
+        - format: csv
+          targetName: CustomersOut
+          filePath: output/customers-out.csv
+          delimiter: ","
+          fields:
+            - name: id
+              type: String
+            - name: name
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      rejectHandling:
+        enabled: true
+        outputPath: output/rejects.csv
+      mappings:
+        - source: Customers
+          target: CustomersOut
+          fields:
+            - from: id
+              to: id
+            - from: name
+              to: name
+      """);
+    Files.writeString(jobConfig, """
+      name: reject-output-path-file-style
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: customers-step
+          source: Customers
+          target: CustomersOut
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(messageChain(exception).contains("rejectHandling.outputPath must be a directory-style path"));
+    assertTrue(messageChain(exception).contains("<step-name>-rejects.csv"));
   }
 
   @Test
@@ -1777,7 +1925,7 @@ class ConfigLoaderJobConfigTest {
 
     ensureSelectedJobFlatModels("csv-file-validation-success", List.of("Events"), List.of("EventsCsv"));
 
-    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+    RunConfigurationMetadata metadata = loader.buildRunConfigurationMetadata();
     SourceWrapper sourceWrapper = loader.sourceWrapper();
 
     assertEquals("csv-file-validation-success", metadata.scenarioName());
@@ -2406,7 +2554,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     assertTrue(messageChain(exception).contains("rootElement"));
     assertTrue(messageChain(exception).contains("expected=Customers"));
   }
@@ -2482,7 +2630,7 @@ class ConfigLoaderJobConfigTest {
     ensureSelectedJobXmlSourceModels("xml-source-validation-success", List.of("CustomersXml"));
     ensureSelectedJobFlatTargetModels("xml-source-validation-success", List.of("CustomersCsv"));
 
-    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+    RunConfigurationMetadata metadata = loader.buildRunConfigurationMetadata();
     SourceWrapper sourceWrapper = loader.sourceWrapper();
 
     assertEquals("xml-source-validation-success", metadata.scenarioName());
@@ -2558,7 +2706,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     assertTrue(messageChain(exception).contains("XML source root class not found"));
     assertTrue(messageChain(exception).contains(JobScopedPackageNameResolver.resolveSourcePackage("xml-generated-source-package-missing") + ".CustomersXmlXmlRoot"));
   }
@@ -2632,7 +2780,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     assertTrue(messageChain(exception).contains("XML source record class not found"));
     assertTrue(messageChain(exception).contains(JobScopedPackageNameResolver.resolveSourcePackage("nested-xml-generated-record-missing") + ".CustomersXmlXmlRecord"));
     assertFalse(messageChain(exception).contains("XML source root class not found"));
@@ -2710,7 +2858,7 @@ class ConfigLoaderJobConfigTest {
     ensureSelectedJobXmlSourceModels("xml-generated-packages-present", List.of("CustomersXml"));
     ensureSelectedJobXmlTargetModels("xml-generated-packages-present", List.of("CustomersXmlTarget"));
 
-    RunConfigurationMetadata metadata = loader.runConfigurationMetadata();
+    RunConfigurationMetadata metadata = loader.buildRunConfigurationMetadata();
     assertEquals("xml-generated-packages-present", metadata.scenarioName());
   }
 
@@ -2776,7 +2924,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     assertTrue(messageChain(exception).contains("header"));
     assertTrue(messageChain(exception).contains("expected=[id, eventTime]"));
   }
@@ -2834,7 +2982,7 @@ class ConfigLoaderJobConfigTest {
     ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
     ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
 
-    ConfigException exception = assertThrows(ConfigException.class, loader::runConfigurationMetadata);
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
     assertTrue(exception.getMessage().contains("archive"));
     assertTrue(exception.getMessage().contains("successPath"));
   }

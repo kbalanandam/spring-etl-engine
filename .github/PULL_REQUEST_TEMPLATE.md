@@ -16,6 +16,8 @@ Describe what changed and why.
 ## Checklist
 
 - [ ] I updated tests when needed
+- [ ] I considered security impact (config abuse, path/zip handling, secret leakage, dependency risk) and added or updated checks when needed
+- [ ] I verified no credentials, tokens, or sensitive connection values are committed in this PR
 - [ ] I updated `docs/architecture/*` if runtime/config/flow changed
 - [ ] I updated a Mermaid diagram if control flow changed materially
 - [ ] I added or updated an ADR if this PR introduced a meaningful design decision or tradeoff

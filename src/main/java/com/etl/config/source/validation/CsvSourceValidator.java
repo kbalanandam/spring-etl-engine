@@ -1,8 +1,8 @@
 package com.etl.config.source.validation;
 
-import com.etl.config.source.FileArchiveConfig;
 import com.etl.config.source.CsvSourceConfig;
 import com.etl.config.source.SourceConfig;
+import com.etl.runtime.FileSourceArtifactSupport;
 import org.springframework.stereotype.Component;
 import org.springframework.batch.item.file.transform.DelimitedLineTokenizer;
 
@@ -25,6 +25,8 @@ import java.util.regex.Pattern;
 @Component
 public class CsvSourceValidator implements SourceValidator {
 
+	private final FileSourceArtifactSupport fileSourceArtifactSupport = new FileSourceArtifactSupport();
+
 	@Override
 	public boolean supports(SourceConfig sourceConfig) {
 		return sourceConfig instanceof CsvSourceConfig;
@@ -34,19 +36,9 @@ public class CsvSourceValidator implements SourceValidator {
 	public void validate(SourceConfig sourceConfig, SourceValidationContext context) {
 		CsvSourceConfig csvSourceConfig = (CsvSourceConfig) sourceConfig;
 		csvSourceConfig.validateParserConfiguration();
-		validateArchive(csvSourceConfig);
+		fileSourceArtifactSupport.validateUnzipConfiguration(csvSourceConfig);
+		fileSourceArtifactSupport.validateArchiveConfiguration(csvSourceConfig);
 		validateFileLevelRules(csvSourceConfig);
-	}
-
-	private void validateArchive(CsvSourceConfig csvSourceConfig) {
-		FileArchiveConfig archive = csvSourceConfig.getArchive();
-		if (archive == null || !archive.isEnabled()) {
-			return;
-		}
-
-		if (archive.getSuccessPath() == null || archive.getSuccessPath().isBlank()) {
-			throw new IllegalArgumentException("archive.enabled=true requires a non-blank successPath.");
-		}
 	}
 
 	private void validateFileLevelRules(CsvSourceConfig csvSourceConfig) {
@@ -70,19 +62,11 @@ public class CsvSourceValidator implements SourceValidator {
 
 		validateRejectConfiguration(validation);
 
-		Path filePath = Path.of(csvSourceConfig.getFilePath());
-		if (!Files.exists(filePath)) {
-			throw new IllegalArgumentException("CSV file must exist for validation: " + filePath);
-		}
-		if (!Files.isRegularFile(filePath)) {
-			throw new IllegalArgumentException("CSV file validation requires a regular file path: " + filePath);
-		}
-		if (!Files.isReadable(filePath)) {
-			throw new IllegalArgumentException("CSV file must be readable for validation: " + filePath);
-		}
-		validateFileNamePattern(validation, filePath);
+		Path readableFilePath = fileSourceArtifactSupport.resolveReadablePath(csvSourceConfig);
+		fileSourceArtifactSupport.validateReadableRegularFile(readableFilePath, "CSV file");
+		validateFileNamePattern(validation, readableFilePath, csvSourceConfig);
 
-		validateFileContents(csvSourceConfig, validation, filePath);
+		validateFileContents(csvSourceConfig, validation, readableFilePath);
 	}
 
 	private void validateRejectConfiguration(CsvSourceConfig.ValidationConfig validation) {
@@ -95,7 +79,7 @@ public class CsvSourceValidator implements SourceValidator {
 		}
 	}
 
-	private void validateFileNamePattern(CsvSourceConfig.ValidationConfig validation, Path filePath) {
+	private void validateFileNamePattern(CsvSourceConfig.ValidationConfig validation, Path filePath, CsvSourceConfig csvSourceConfig) {
 		if (validation.getFileNamePattern() == null || validation.getFileNamePattern().isBlank()) {
 			return;
 		}
@@ -105,7 +89,7 @@ public class CsvSourceValidator implements SourceValidator {
 			return;
 		}
 
-		handleValidationFailure(validation, filePath,
+		handleValidationFailure(validation, filePath, csvSourceConfig,
 				"CSV fileNamePattern validation failed. pattern=" + validation.getFileNamePattern() + " fileName=" + fileName);
 	}
 
@@ -116,11 +100,11 @@ public class CsvSourceValidator implements SourceValidator {
 			String firstLine = reader.readLine();
 			if (firstLine == null || firstLine.isBlank()) {
 				if (csvSourceConfig.isSkipHeader() && validation.isRequireHeaderMatch()) {
-					handleValidationFailure(validation, filePath,
+					handleValidationFailure(validation, filePath, csvSourceConfig,
 							"CSV header row is required when validation.requireHeaderMatch=true.");
 				}
 				if (!validation.isAllowEmpty()) {
-					handleValidationFailure(validation, filePath, csvSourceConfig.isSkipHeader()
+					handleValidationFailure(validation, filePath, csvSourceConfig, csvSourceConfig.isSkipHeader()
 							? "CSV file must contain at least one header row and one data row when validation.allowEmpty=false."
 							: "CSV file must contain at least one data row when validation.allowEmpty=false.");
 				}
@@ -133,7 +117,7 @@ public class CsvSourceValidator implements SourceValidator {
 				}
 
 				if (!validation.isAllowEmpty() && !hasDataRows(reader)) {
-					handleValidationFailure(validation, filePath,
+					handleValidationFailure(validation, filePath, csvSourceConfig,
 							"CSV file must contain at least one data row when validation.allowEmpty=false.");
 				}
 			}
@@ -154,17 +138,21 @@ public class CsvSourceValidator implements SourceValidator {
 				.toList();
 
 		if (!actualHeaders.equals(expectedHeaders)) {
-			handleValidationFailure(validation, filePath,
+			handleValidationFailure(validation, filePath, csvSourceConfig,
 					"CSV header does not match configured fields. expected=" + expectedHeaders + " actual=" + actualHeaders);
 		}
 	}
 
-	private void handleValidationFailure(CsvSourceConfig.ValidationConfig validation, Path filePath, String message) {
+	private void handleValidationFailure(CsvSourceConfig.ValidationConfig validation,
+	                                  Path readableFilePath,
+	                                  CsvSourceConfig csvSourceConfig,
+	                                  String message) {
 		if (!"rejectFile".equalsIgnoreCase(normalize(validation.getOnFailure()))) {
 			throw new IllegalArgumentException(message);
 		}
 
-		Path rejectedPath = moveToRejectPath(filePath, validation.getRejectPath());
+		Path rejectedPath = moveToRejectPath(fileSourceArtifactSupport.rejectablePath(csvSourceConfig, readableFilePath), validation.getRejectPath());
+		fileSourceArtifactSupport.cleanupPreparedFile(csvSourceConfig);
 		throw new IllegalArgumentException(message + "; moved to reject path: " + rejectedPath);
 	}
 

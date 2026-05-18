@@ -5,6 +5,8 @@ import com.etl.config.source.FileArchiveConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
 import com.etl.config.source.XmlSourceConfig;
+import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.ZipPackagingException;
 import com.etl.processor.validation.ValidationIssue;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -13,12 +15,18 @@ import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.test.MetaDataInstanceFactory;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class FileIngestionRuntimeSupportTest {
@@ -92,6 +100,245 @@ class FileIngestionRuntimeSupportTest {
         assertTrue(Files.exists(Path.of(archivedPath)));
         assertFalse(Files.exists(sourceFile));
     }
+
+  @Test
+  void packagesRejectArtifactAsZipWhenConfigured() throws Exception {
+    Path sourceFile = tempDir.resolve("events.csv");
+    Files.writeString(sourceFile, "id,eventTime,description\n,25:99:00,bad row\n");
+
+    Path rejectDir = tempDir.resolve("rejects");
+    CsvSourceConfig sourceConfig = new CsvSourceConfig(
+        "Events",
+        "com.etl.model.source",
+        List.of(column("id"), column("eventTime"), column("description")),
+        sourceFile.toString(),
+        ",",
+        null
+    );
+
+    ProcessorConfig processorConfig = new ProcessorConfig();
+    processorConfig.setType("default");
+    ProcessorConfig.RejectHandling rejectHandling = new ProcessorConfig.RejectHandling();
+    rejectHandling.setEnabled(true);
+    rejectHandling.setOutputPath(rejectDir + "\\");
+    rejectHandling.setIncludeReasonColumns(true);
+    rejectHandling.setPackageAsZip(true);
+    processorConfig.setRejectHandling(rejectHandling);
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Events");
+    mapping.setTarget("EventsCsv");
+    mapping.setFields(List.of(field("id", "id"), field("eventTime", "eventTime"), field("description", "description")));
+    processorConfig.setMappings(List.of(mapping));
+
+    FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+    StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+    runtimeSupport.initializeStep(stepExecution, sourceConfig, processorConfig, mapping);
+
+    StepSynchronizationManager.register(stepExecution);
+    try {
+      assertTrue(runtimeSupport.recordRejected(new EventRecord("", "25:99:00", "bad row"), List.of(
+          new ValidationIssue("id", "notNull", "id must not be null")
+      )));
+    } finally {
+      StepSynchronizationManager.close();
+    }
+
+    stepExecution.setExitStatus(ExitStatus.COMPLETED);
+    runtimeSupport.completeStep(stepExecution, sourceConfig);
+
+    Path rejectZip = Path.of(stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.REJECT_OUTPUT_PATH_KEY));
+    assertTrue(rejectZip.getFileName().toString().endsWith(".zip"));
+    assertTrue(Files.exists(rejectZip));
+    assertEquals(1, zipEntryNames(rejectZip).size());
+    String entryName = zipEntryNames(rejectZip).get(0);
+    assertTrue(entryName.endsWith(".csv"));
+    String zippedRejectCsv = readZipEntryContents(rejectZip, entryName);
+    assertTrue(zippedRejectCsv.contains("id,eventTime,description,_rejectField,_rejectRule,_rejectMessage"));
+    assertTrue(zippedRejectCsv.contains("id must not be null"));
+    assertFalse(Files.exists(rejectZip.resolveSibling(entryName)));
+  }
+
+  @Test
+  void treatsExtensionlessRejectOutputPathAsDirectoryWhenPackagingZip() throws Exception {
+    Path sourceFile = tempDir.resolve("events.csv");
+    Files.writeString(sourceFile, "id,eventTime,description\n,25:99:00,bad row\n");
+
+    Path rejectDir = tempDir.resolve("rejects");
+    CsvSourceConfig sourceConfig = new CsvSourceConfig(
+        "Events",
+        "com.etl.model.source",
+        List.of(column("id"), column("eventTime"), column("description")),
+        sourceFile.toString(),
+        ",",
+        null
+    );
+
+    ProcessorConfig processorConfig = new ProcessorConfig();
+    processorConfig.setType("default");
+    ProcessorConfig.RejectHandling rejectHandling = new ProcessorConfig.RejectHandling();
+    rejectHandling.setEnabled(true);
+    rejectHandling.setOutputPath(rejectDir.toString());
+    rejectHandling.setIncludeReasonColumns(true);
+    rejectHandling.setPackageAsZip(true);
+    processorConfig.setRejectHandling(rejectHandling);
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Events");
+    mapping.setTarget("EventsCsv");
+    mapping.setFields(List.of(field("id", "id"), field("eventTime", "eventTime"), field("description", "description")));
+    processorConfig.setMappings(List.of(mapping));
+
+    FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+    StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+    runtimeSupport.initializeStep(stepExecution, sourceConfig, processorConfig, mapping);
+
+    StepSynchronizationManager.register(stepExecution);
+    try {
+      assertTrue(runtimeSupport.recordRejected(new EventRecord("", "25:99:00", "bad row"), List.of(
+          new ValidationIssue("id", "notNull", "id must not be null")
+      )));
+    } finally {
+      StepSynchronizationManager.close();
+    }
+
+    stepExecution.setExitStatus(ExitStatus.COMPLETED);
+    runtimeSupport.completeStep(stepExecution, sourceConfig);
+
+    Path rejectZip = Path.of(stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.REJECT_OUTPUT_PATH_KEY));
+    String expectedFileName = stepExecution.getStepName() + "-rejects.csv.zip";
+    assertEquals(expectedFileName, rejectZip.getFileName().toString());
+    assertTrue(Files.exists(rejectZip));
+    assertEquals(List.of(stepExecution.getStepName() + "-rejects.csv"), zipEntryNames(rejectZip));
+  }
+
+  @Test
+  void packagesArchivedCsvSourceAsZipAfterSuccessfulCompletion() throws Exception {
+    Path sourceFile = tempDir.resolve("events.csv");
+    Files.writeString(sourceFile, "id,eventTime\nEVT-1,08:30:00\n", StandardCharsets.UTF_8);
+
+    Path archiveDir = tempDir.resolve("archive/zipped-output");
+    CsvSourceConfig.ArchiveConfig archive = new CsvSourceConfig.ArchiveConfig();
+    archive.setEnabled(true);
+    archive.setSuccessPath(archiveDir.toString());
+    archive.setNamePattern("{originalName}-{timestamp}");
+    archive.setPackageAsZip(true);
+
+    CsvSourceConfig sourceConfig = new CsvSourceConfig(
+        "Events",
+        "com.etl.model.source",
+        List.of(column("id"), column("eventTime")),
+        sourceFile.toString(),
+        ",",
+        archive
+    );
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Events");
+    mapping.setTarget("EventsCsv");
+    mapping.setFields(List.of(field("id", "id"), field("eventTime", "eventTime")));
+
+    FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+    StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+    runtimeSupport.initializeStep(stepExecution, sourceConfig, new ProcessorConfig(), mapping);
+
+    stepExecution.setExitStatus(ExitStatus.COMPLETED);
+    runtimeSupport.completeStep(stepExecution, sourceConfig);
+
+    Path archivedPath = Path.of(stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.ARCHIVED_SOURCE_PATH_KEY));
+    assertTrue(archivedPath.getFileName().toString().endsWith(".zip"));
+    assertTrue(Files.exists(archivedPath));
+    assertFalse(Files.exists(sourceFile));
+    assertEquals(List.of("events.csv"), zipEntryNames(archivedPath));
+    assertTrue(readZipEntryContents(archivedPath, "events.csv").contains("EVT-1,08:30:00"));
+  }
+
+  @Test
+  void wrapsZipPackagingFailureWithRuntimeExceptionWhenArchivePackagingCannotStart() {
+    Path missingSourceFile = tempDir.resolve("missing-events.csv");
+    Path archiveDir = tempDir.resolve("archive/zipped-output");
+
+    CsvSourceConfig.ArchiveConfig archive = new CsvSourceConfig.ArchiveConfig();
+    archive.setEnabled(true);
+    archive.setSuccessPath(archiveDir.toString());
+    archive.setNamePattern("{originalName}-{timestamp}");
+    archive.setPackageAsZip(true);
+
+    CsvSourceConfig sourceConfig = new CsvSourceConfig(
+        "Events",
+        "com.etl.model.source",
+        List.of(column("id"), column("eventTime")),
+        missingSourceFile.toString(),
+        ",",
+        archive
+    );
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Events");
+    mapping.setTarget("EventsCsv");
+    mapping.setFields(List.of(field("id", "id"), field("eventTime", "eventTime")));
+
+    FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+    StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+    runtimeSupport.initializeStep(stepExecution, sourceConfig, new ProcessorConfig(), mapping);
+
+    stepExecution.setExitStatus(ExitStatus.COMPLETED);
+    RuntimeEtlException exception = assertThrows(
+        RuntimeEtlException.class,
+        () -> runtimeSupport.completeStep(stepExecution, sourceConfig)
+    );
+
+    assertTrue(exception.getMessage().contains("Failed to archive source file"));
+    assertTrue(exception.getCause() instanceof ZipPackagingException);
+  }
+
+  @Test
+  void archivesOriginalZipSourceAndDeletesPreparedExtractedFileAfterSuccessfulCompletion() throws Exception {
+    Path sourceZip = tempDir.resolve("events.zip");
+    writeZip(sourceZip, "events.csv", "id,eventTime\nEVT-1,08:30:00\n");
+
+    Path archiveDir = tempDir.resolve("archive/zipped-success");
+    CsvSourceConfig.ArchiveConfig archive = new CsvSourceConfig.ArchiveConfig();
+    archive.setEnabled(true);
+    archive.setSuccessPath(archiveDir.toString());
+    archive.setNamePattern("{originalName}-{timestamp}");
+
+    CsvSourceConfig sourceConfig = new CsvSourceConfig();
+    sourceConfig.setSourceName("EventsZip");
+    sourceConfig.setPackageName("com.etl.model.source");
+    sourceConfig.setFilePath(sourceZip.toString());
+    sourceConfig.setDelimiter(",");
+    sourceConfig.setFields(List.of(column("id"), column("eventTime")));
+    sourceConfig.setArchive(archive);
+
+    FileSourceArtifactSupport artifactSupport = new FileSourceArtifactSupport();
+    Path extractedCsv = artifactSupport.resolveReadablePath(sourceConfig);
+    Path preparedDir = extractedCsv.getParent();
+    assertTrue(Files.exists(extractedCsv));
+    assertTrue(extractedCsv.startsWith(defaultPreparedRoot()));
+    assertFalse(extractedCsv.startsWith(sourceZip.getParent()));
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("EventsZip");
+    mapping.setTarget("EventsCsv");
+    mapping.setFields(List.of(field("id", "id"), field("eventTime", "eventTime")));
+
+    FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport(artifactSupport);
+    StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+    runtimeSupport.initializeStep(stepExecution, sourceConfig, new ProcessorConfig(), mapping);
+
+    stepExecution.setExitStatus(ExitStatus.COMPLETED);
+    runtimeSupport.completeStep(stepExecution, sourceConfig);
+
+    String archivedPath = stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.ARCHIVED_SOURCE_PATH_KEY);
+    assertFalse(archivedPath.isBlank());
+    assertTrue(Files.exists(Path.of(archivedPath)));
+    assertFalse(Files.exists(sourceZip));
+    assertFalse(Files.exists(extractedCsv));
+    assertFalse(Files.exists(preparedDir));
+    assertEquals(sourceZip.toString(), sourceConfig.getFilePath());
+    assertTrue(sourceConfig.getPreparedFilePath() == null || sourceConfig.getPreparedFilePath().isBlank());
+  }
 
           @Test
           void archivesXmlSourceAfterSuccessfulCompletionWhenArchiveIsEnabled() throws Exception {
@@ -204,6 +451,47 @@ class FileIngestionRuntimeSupportTest {
         column.setType("String");
         return column;
     }
+
+  private Path defaultPreparedRoot() {
+    return Path.of(System.getProperty("java.io.tmpdir"))
+        .toAbsolutePath()
+        .normalize()
+        .resolve("spring-etl-engine")
+        .resolve("prepared-sources");
+  }
+
+  private void writeZip(Path zipFile, String entryName, String contents) throws Exception {
+    try (ZipOutputStream zipOutputStream = new ZipOutputStream(Files.newOutputStream(zipFile))) {
+      zipOutputStream.putNextEntry(new ZipEntry(entryName));
+      zipOutputStream.write(contents.getBytes(StandardCharsets.UTF_8));
+      zipOutputStream.closeEntry();
+    }
+  }
+
+  private List<String> zipEntryNames(Path zipFile) throws Exception {
+    List<String> entryNames = new ArrayList<>();
+    try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
+      ZipEntry entry;
+      while ((entry = zipInputStream.getNextEntry()) != null) {
+        if (!entry.isDirectory()) {
+          entryNames.add(entry.getName());
+        }
+      }
+    }
+    return entryNames;
+  }
+
+  private String readZipEntryContents(Path zipFile, String expectedEntryName) throws Exception {
+    try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
+      ZipEntry entry;
+      while ((entry = zipInputStream.getNextEntry()) != null) {
+        if (!entry.isDirectory() && expectedEntryName.equals(entry.getName())) {
+          return new String(zipInputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+      }
+    }
+    return "";
+  }
 
       private record EventRecord(String id, String eventTime, String description) {
       }

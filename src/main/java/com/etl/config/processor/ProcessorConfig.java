@@ -160,6 +160,7 @@ public class ProcessorConfig {
 		private boolean enabled;
 		private String outputPath;
 		private boolean includeReasonColumns = true;
+		private boolean packageAsZip;
 
 		public boolean isEnabled() {
 			return enabled;
@@ -183,6 +184,14 @@ public class ProcessorConfig {
 
 		public void setIncludeReasonColumns(boolean includeReasonColumns) {
 			this.includeReasonColumns = includeReasonColumns;
+		}
+
+		public boolean isPackageAsZip() {
+			return packageAsZip;
+		}
+
+		public void setPackageAsZip(boolean packageAsZip) {
+			this.packageAsZip = packageAsZip;
 		}
 	}
 

@@ -14,6 +14,7 @@ public class XmlTargetConfig extends TargetConfig {
     private final String rootElement;
     private final String recordElement;
     private final String modelDefinitionPath;
+    private final boolean packageAsZip;
 
     public XmlTargetConfig(
             String targetName,
@@ -23,7 +24,7 @@ public class XmlTargetConfig extends TargetConfig {
             String rootElement,
             String recordElement
     ) {
-        this(targetName, packageName, fields, filePath, rootElement, recordElement, null);
+        this(targetName, packageName, fields, filePath, rootElement, recordElement, null, false);
     }
 
     @JsonCreator
@@ -33,9 +34,11 @@ public class XmlTargetConfig extends TargetConfig {
             @JsonProperty("filePath") String filePath,
             @JsonProperty("rootElement") String rootElement,
             @JsonProperty("recordElement") String recordElement,
-            @JsonProperty("modelDefinitionPath") String modelDefinitionPath
+            @JsonProperty("modelDefinitionPath") String modelDefinitionPath,
+            @JsonProperty("packageAsZip") Boolean packageAsZip
     ) {
-        this(targetName, null, fields, filePath, rootElement, recordElement, modelDefinitionPath);
+        this(targetName, null, fields, filePath, rootElement, recordElement, modelDefinitionPath,
+                packageAsZip != null && packageAsZip);
     }
 
     public XmlTargetConfig(
@@ -47,11 +50,25 @@ public class XmlTargetConfig extends TargetConfig {
             String recordElement,
             String modelDefinitionPath
     ) {
+        this(targetName, packageName, fields, filePath, rootElement, recordElement, modelDefinitionPath, false);
+    }
+
+    public XmlTargetConfig(
+            String targetName,
+            String packageName,
+            List<ColumnConfig> fields,
+            String filePath,
+            String rootElement,
+            String recordElement,
+            String modelDefinitionPath,
+            boolean packageAsZip
+    ) {
         super(targetName, packageName, fields);
         this.filePath = filePath;
         this.rootElement = rootElement;
         this.recordElement = recordElement;
         this.modelDefinitionPath = modelDefinitionPath;
+        this.packageAsZip = packageAsZip;
     }
 
           public String getFilePath() {
@@ -68,6 +85,10 @@ public class XmlTargetConfig extends TargetConfig {
 
           public String getModelDefinitionPath() {
             return modelDefinitionPath;
+          }
+
+          public boolean isPackageAsZip() {
+            return packageAsZip;
           }
 
     @Override

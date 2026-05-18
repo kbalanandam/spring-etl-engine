@@ -42,6 +42,7 @@ Use this short list when you want the newest or most actively discussed architec
 - [`java-native-parser-reader-adapter-contract.md`](java-native-parser-reader-adapter-contract.md) — Java-side adapter contract for future sidecar-backed native parsing (**Future direction**)
 - [`generated-model-naming-standard.md`](generated-model-naming-standard.md) — selected-job naming/package standard and bridge-cleanup direction (**Current baseline + future evolution**)
 - [`job-history-and-operational-observability.md`](job-history-and-operational-observability.md) — current observability baseline plus retained-history direction (**Current baseline + future evolution**)
+- [`security-test-strategy.md`](security-test-strategy.md) — phased security test strategy aligned to selected-job runtime and verification evidence (**Current baseline + future evolution**)
 
 ## Runtime foundations and flow
 
@@ -86,6 +87,7 @@ Use this short list when you want the newest or most actively discussed architec
 - [`job-history-and-operational-observability.md`](job-history-and-operational-observability.md) — current observability baseline plus retained-history direction (**Current baseline + future evolution**)
 - [`ai-assisted-operations-intelligence.md`](ai-assisted-operations-intelligence.md) — future AI-assisted operator-support direction (**Future direction**)
 - [`architectural-risks-and-watchpoints.md`](architectural-risks-and-watchpoints.md) — key risks to watch as the roadmap evolves (**Current baseline + future evolution**)
+- [`security-test-strategy.md`](security-test-strategy.md) — security testing layers, PR gates, evidence model, and rollout plan (**Current baseline + future evolution**)
 
 ## Connector and transport directions
 

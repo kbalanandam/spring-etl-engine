@@ -1,5 +1,6 @@
 package com.etl.writer.impl;
 
+import com.etl.common.util.ZipFileUtility;
 import com.etl.exception.RuntimeEtlException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,7 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.Locale;
 
 /**
  * Shared staged-file publication contract for file-based writers.
@@ -45,21 +47,36 @@ final class StagedFileLifecycle {
     private static final Logger logger = LoggerFactory.getLogger(StagedFileLifecycle.class);
 
     private final Path finalPath;
+    private final Path publishedPath;
     private final Path stagingPath;
+    private final boolean packageAsZip;
+    private final String zipEntryName;
     private boolean streamClosed;
     private boolean stepCompletionSignaled;
 
     StagedFileLifecycle(String finalPath) {
-        this(Path.of(finalPath));
+        this(finalPath, false, null);
     }
 
-    StagedFileLifecycle(Path finalPath) {
-        this.finalPath = finalPath.toAbsolutePath().normalize();
+    StagedFileLifecycle(String finalPath, boolean packageAsZip, String defaultExtension) {
+        this(Path.of(finalPath), packageAsZip, defaultExtension);
+    }
+
+    StagedFileLifecycle(Path configuredPath) {
+        this(configuredPath, false, null);
+    }
+
+    StagedFileLifecycle(Path configuredPath, boolean packageAsZip, String defaultExtension) {
+        Path normalizedConfiguredPath = configuredPath.toAbsolutePath().normalize();
+        this.packageAsZip = packageAsZip;
+        this.finalPath = resolveNativeOutputPath(normalizedConfiguredPath, packageAsZip, defaultExtension);
+        this.publishedPath = resolvePublishedPath(normalizedConfiguredPath, this.finalPath, packageAsZip);
         this.stagingPath = stagingPath(this.finalPath);
+        this.zipEntryName = this.finalPath.getFileName() == null ? "output" : this.finalPath.getFileName().toString();
     }
 
     Path finalPath() {
-        return finalPath;
+        return publishedPath;
     }
 
     Path stagingPath() {
@@ -150,9 +167,12 @@ final class StagedFileLifecycle {
      */
     void deletePublishedOutputIfPresent() {
         try {
-            Files.deleteIfExists(finalPath);
+            Files.deleteIfExists(publishedPath);
+            if (packageAsZip && !publishedPath.equals(finalPath)) {
+                Files.deleteIfExists(finalPath);
+            }
         } catch (IOException e) {
-            throw new RuntimeEtlException("Failed to delete published output '" + finalPath + "'.", e);
+            throw new RuntimeEtlException("Failed to delete published output '" + publishedPath + "'.", e);
         }
     }
 
@@ -167,17 +187,55 @@ final class StagedFileLifecycle {
             return;
         }
         try {
+            if (packageAsZip) {
+                packageStagedOutputAsZip();
+                return;
+            }
+
             Path parent = finalPath.getParent();
             if (parent != null) {
                 Files.createDirectories(parent);
             }
-            try {
-                Files.move(stagingPath, finalPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (AtomicMoveNotSupportedException ex) {
-                Files.move(stagingPath, finalPath, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } catch (IOException e) {
+            promoteStagedFile(stagingPath, finalPath);
+        } catch (IOException | RuntimeException e) {
             throw new RuntimeEtlException("Failed to promote staged output '" + stagingPath + "' to final output '" + finalPath + "'.", e);
+        }
+    }
+
+    private void packageStagedOutputAsZip() throws IOException {
+        Path parent = publishedPath.getParent();
+        if (parent != null) {
+            Files.createDirectories(parent);
+        }
+        Path stagedZipPath = publishedPath.resolveSibling(publishedPath.getFileName().toString() + ".part");
+        try {
+            Files.deleteIfExists(stagedZipPath);
+            ZipFileUtility.packageSingleFile(stagingPath, stagedZipPath, zipEntryName);
+            promoteStagedFile(stagedZipPath, publishedPath);
+            try {
+                Files.delete(stagingPath);
+            } catch (IOException deleteException) {
+                rollbackPublishedArtifactQuietly(publishedPath, deleteException);
+                throw deleteException;
+            }
+        } finally {
+            Files.deleteIfExists(stagedZipPath);
+        }
+    }
+
+    private void promoteStagedFile(Path sourcePath, Path destinationPath) throws IOException {
+        try {
+            Files.move(sourcePath, destinationPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (AtomicMoveNotSupportedException ex) {
+            Files.move(sourcePath, destinationPath, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    private void rollbackPublishedArtifactQuietly(Path path, IOException originalException) {
+        try {
+            Files.deleteIfExists(path);
+        } catch (IOException rollbackException) {
+            originalException.addSuppressed(rollbackException);
         }
     }
 
@@ -206,6 +264,43 @@ final class StagedFileLifecycle {
     private static Path stagingPath(Path finalPath) {
         String fileName = finalPath.getFileName().toString();
         return finalPath.resolveSibling(fileName + ".part");
+    }
+
+    private static Path resolveNativeOutputPath(Path configuredPath, boolean packageAsZip, String defaultExtension) {
+        if (!packageAsZip) {
+            return configuredPath;
+        }
+
+        String fileName = configuredPath.getFileName() == null ? "output" : configuredPath.getFileName().toString();
+        if (!fileName.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+            return configuredPath;
+        }
+
+        String strippedFileName = fileName.substring(0, fileName.length() - 4);
+        String normalizedExtension = normalizeExtension(defaultExtension);
+        if (normalizedExtension != null && !strippedFileName.toLowerCase(Locale.ROOT).endsWith(normalizedExtension)) {
+            strippedFileName = strippedFileName + normalizedExtension;
+        }
+        return configuredPath.resolveSibling(strippedFileName).normalize();
+    }
+
+    private static Path resolvePublishedPath(Path configuredPath, Path nativeOutputPath, boolean packageAsZip) {
+        if (!packageAsZip) {
+            return nativeOutputPath;
+        }
+
+        String configuredFileName = configuredPath.getFileName() == null ? "output" : configuredPath.getFileName().toString();
+        if (configuredFileName.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+            return configuredPath;
+        }
+        return configuredPath.resolveSibling(configuredFileName + ".zip").normalize();
+    }
+
+    private static String normalizeExtension(String extension) {
+        if (extension == null || extension.isBlank()) {
+            return null;
+        }
+        return extension.startsWith(".") ? extension.toLowerCase(Locale.ROOT) : "." + extension.toLowerCase(Locale.ROOT);
     }
 }
 
