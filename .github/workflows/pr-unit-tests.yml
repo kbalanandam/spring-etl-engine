@@ -45,6 +45,7 @@ jobs:
             org.owasp:dependency-check-maven:12.1.0:check \
             -Dformat=HTML,JSON \
             -DoutputDirectory=target/dependency-check-report \
+            -DossIndexAnalyzerEnabled=false \
             -DfailBuildOnCVSS=7 \
             ${EXTRA_ARGS}
 
