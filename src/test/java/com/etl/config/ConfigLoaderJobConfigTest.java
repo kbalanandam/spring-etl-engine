@@ -167,6 +167,10 @@ class ConfigLoaderJobConfigTest {
                     sourceName: Customers
                     filePath: input/customers.csv
                     delimiter: ","
+                    archive:
+                      enabled: true
+                      successPath: archive/success
+                      packageAsZip: true
                     fields:
                       - name: id
                         type: int
@@ -179,6 +183,7 @@ class ConfigLoaderJobConfigTest {
                   - format: csv
                     targetName: CustomersOut
                     filePath: output/customers.csv
+                    packageAsZip: true
                     delimiter: ","
                     fields:
                       - name: id
@@ -192,6 +197,7 @@ class ConfigLoaderJobConfigTest {
                 rejectHandling:
                   enabled: true
                   outputPath: rejects
+                  packageAsZip: true
                 mappings:
                   - source: Customers
                     target: CustomersOut
@@ -227,9 +233,83 @@ class ConfigLoaderJobConfigTest {
         CsvTargetConfig targetConfig = (CsvTargetConfig) targetWrapper.getTargets().get(0);
 
         assertEquals(scenarioDir.resolve("input/customers.csv").toAbsolutePath().normalize().toString(), sourceConfig.getFilePath());
+        assertEquals(scenarioDir.resolve("archive/success").toAbsolutePath().normalize().toString(), sourceConfig.getArchive().getSuccessPath());
+        assertTrue(sourceConfig.getArchive().isPackageAsZip());
         assertEquals(scenarioDir.resolve("output/customers.csv").toAbsolutePath().normalize().toString(), targetConfig.getFilePath());
+        assertTrue(targetConfig.isPackageAsZip());
         assertEquals(scenarioDir.resolve("rejects").toAbsolutePath().normalize().toString(), processorConfig.getRejectHandling().getOutputPath());
+        assertTrue(processorConfig.getRejectHandling().isPackageAsZip());
     }
+
+  @Test
+  void normalizesScenarioRelativeUnzipExtractDirInsideReferencedSourceConfig() throws IOException {
+    Path scenarioDir = tempDir.resolve("csv-zipped-input");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+        sources:
+          - format: csv
+            sourceName: Customers
+            filePath: input/customers.zip
+            delimiter: ","
+            unzip:
+              enabled: true
+              extractDir: working/unzipped
+            fields:
+              - name: id
+                type: int
+              - name: name
+                type: String
+        """);
+
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+        targets:
+          - format: csv
+            targetName: CustomersOut
+            filePath: output/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+              - name: name
+                type: String
+        """);
+
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+        type: default
+        mappings:
+          - source: Customers
+            target: CustomersOut
+            fields:
+              - from: id
+                to: id
+              - from: name
+                to: name
+        """);
+
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+        name: csv-zipped-input
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: customers-step
+            source: Customers
+            target: CustomersOut
+        """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ensureSelectedJobFlatModels("csv-zipped-input", List.of("Customers"), List.of("CustomersOut"));
+
+    SourceWrapper sourceWrapper = loader.sourceWrapper();
+    CsvSourceConfig sourceConfig = (CsvSourceConfig) sourceWrapper.getSources().get(0);
+
+    assertEquals(scenarioDir.resolve("input/customers.zip").toAbsolutePath().normalize().toString(), sourceConfig.getFilePath());
+    assertNotNull(sourceConfig.getUnzipConfig());
+    assertEquals(scenarioDir.resolve("working/unzipped").toAbsolutePath().normalize().toString(), sourceConfig.getUnzipConfig().getExtractDir());
+  }
 
   @Test
   void trimsReferencedConfigPathsBeforeResolvingThemRelativeToJobConfig() throws IOException {

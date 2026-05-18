@@ -799,7 +799,8 @@ public class ConfigLoader {
 					copyColumns(csvTargetConfig.getFields()),
 					csvTargetConfig.getFilePath(),
 					csvTargetConfig.getDelimiter(),
-					csvTargetConfig.isIncludeHeader()
+					csvTargetConfig.isIncludeHeader(),
+					csvTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
@@ -807,7 +808,8 @@ public class ConfigLoader {
 					jsonTargetConfig.getTargetName(),
 					defaultTargetPackage,
 					copyColumns(jsonTargetConfig.getFields()),
-					jsonTargetConfig.getFilePath()
+					jsonTargetConfig.getFilePath(),
+					jsonTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
@@ -818,7 +820,8 @@ public class ConfigLoader {
 					xmlTargetConfig.getFilePath(),
 					xmlTargetConfig.getRootElement(),
 					xmlTargetConfig.getRecordElement(),
-					xmlTargetConfig.getModelDefinitionPath()
+					xmlTargetConfig.getModelDefinitionPath(),
+					xmlTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
@@ -850,7 +853,8 @@ public class ConfigLoader {
 					copyColumns(csvTargetConfig.getFields()),
 					csvTargetConfig.getFilePath(),
 					csvTargetConfig.getDelimiter(),
-					csvTargetConfig.isIncludeHeader()
+					csvTargetConfig.isIncludeHeader(),
+					csvTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
@@ -858,7 +862,8 @@ public class ConfigLoader {
 					jsonTargetConfig.getTargetName(),
 					defaultTargetPackage,
 					copyColumns(jsonTargetConfig.getFields()),
-					jsonTargetConfig.getFilePath()
+					jsonTargetConfig.getFilePath(),
+					jsonTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
@@ -869,7 +874,8 @@ public class ConfigLoader {
 					xmlTargetConfig.getFilePath(),
 					xmlTargetConfig.getRootElement(),
 					xmlTargetConfig.getRecordElement(),
-					xmlTargetConfig.getModelDefinitionPath()
+					xmlTargetConfig.getModelDefinitionPath(),
+					xmlTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
@@ -913,6 +919,9 @@ public class ConfigLoader {
 		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
 			if (sourceConfig instanceof FileSourceConfig fileSourceConfig) {
 				fileSourceConfig.setFilePath(resolveScenarioPath(configDirectory, fileSourceConfig.getFilePath()));
+				if (fileSourceConfig.getUnzipConfig() != null) {
+					fileSourceConfig.getUnzipConfig().setExtractDir(resolveScenarioPath(configDirectory, fileSourceConfig.getUnzipConfig().getExtractDir()));
+				}
 				if (fileSourceConfig.getArchiveConfig() != null) {
 					fileSourceConfig.getArchiveConfig().setSuccessPath(resolveScenarioPath(configDirectory, fileSourceConfig.getArchiveConfig().getSuccessPath()));
 				}
@@ -952,7 +961,8 @@ public class ConfigLoader {
 					copyColumns(csvTargetConfig.getFields()),
 					resolveScenarioPath(configDirectory, csvTargetConfig.getFilePath()),
 					csvTargetConfig.getDelimiter(),
-					csvTargetConfig.isIncludeHeader()
+					csvTargetConfig.isIncludeHeader(),
+					csvTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
@@ -960,7 +970,8 @@ public class ConfigLoader {
 					jsonTargetConfig.getTargetName(),
 					jsonTargetConfig.getPackageName(),
 					copyColumns(jsonTargetConfig.getFields()),
-					resolveScenarioPath(configDirectory, jsonTargetConfig.getFilePath())
+					resolveScenarioPath(configDirectory, jsonTargetConfig.getFilePath()),
+					jsonTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
@@ -971,7 +982,8 @@ public class ConfigLoader {
 					resolveScenarioPath(configDirectory, xmlTargetConfig.getFilePath()),
 					xmlTargetConfig.getRootElement(),
 					xmlTargetConfig.getRecordElement(),
-					resolveScenarioPath(configDirectory, xmlTargetConfig.getModelDefinitionPath())
+					resolveScenarioPath(configDirectory, xmlTargetConfig.getModelDefinitionPath()),
+					xmlTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof RelationalTargetConfig) {

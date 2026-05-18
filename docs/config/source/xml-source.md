@@ -26,11 +26,16 @@ Backed by:
 |---|---|---|---|
 | `format` | yes | string | Must be `xml` |
 | `sourceName` | yes | string | Logical source name matched by `processor.mappings[].source` |
-| `filePath` | yes | string | XML input file path |
+| `filePath` | yes | string | XML input file path, or a ZIP file path containing the readable XML artifact |
+| `unzip` | no | object | Optional advanced ZIP override block; most ZIP-backed XML sources only need `filePath: ...zip` |
+| `unzip.enabled` | no | boolean | Optional compatibility flag; ZIP-backed `filePath` values are prepared automatically even when this is omitted, and authored `true` now requires `filePath` to reference a `.zip` artifact |
+| `unzip.extractDir` | no | string | Optional override for where the extracted XML file is staged; when omitted the runtime uses a runtime-owned JVM temp working directory |
+| `unzip.entryName` | no | string | Optional entry selector for multi-file ZIPs; only needed when the ZIP contains more than one file entry |
 | `archive` | no | object | Optional archive-on-success settings for file-based XML sources |
 | `archive.enabled` | yes, when `archive` is present | boolean | Enables moving the original file after successful step completion |
 | `archive.successPath` | yes, when `archive.enabled=true` | string | Destination directory for the archived source file |
 | `archive.namePattern` | no | string | Archive name pattern supporting `{originalName}` and `{timestamp}` |
+| `archive.packageAsZip` | no | boolean | When `true`, the runtime packages the archived XML artifact into one ZIP file instead of moving the plain file directly |
 | `rootElement` | yes | string | Expected document root element |
 | `recordElement` | yes | string | Repeating fragment element treated as one runtime record |
 | `flatteningStrategy` | no | string | `DirectXml`, `NestedXml`, or `JobSpecificXml`. Defaults to `DirectXml` |
@@ -50,6 +55,7 @@ Backed by:
 Prefer one consistent XML source shape for both simple and nested XML:
 
 - always start with `format`, `sourceName`, `filePath`, `rootElement`, and `recordElement`
+- point `filePath` at either the plain XML file or the ZIP artifact; add `unzip` only when you need an advanced ZIP override such as `entryName` or a custom extract directory
 - use `flatteningStrategy` to explain runtime behavior instead of inventing different YAML layouts
 - prefer `modelDefinitionPath` as the structural source of truth for new XML scenarios
 - keep inline `fields` only for intentionally simple or compatibility-style flat XML configs
@@ -94,7 +100,7 @@ Use this for one repeating XML fragment = one runtime record.
 sources:
   - format: xml
     sourceName: Events
-    filePath: input/events.xml
+    filePath: input/events.zip
     rootElement: Events
     recordElement: Event
     flatteningStrategy: DirectXml
@@ -222,7 +228,12 @@ This mirrors:
 - `sources:` is the required root for the source YAML file.
 - `format: xml` selects the XML reader path.
 - `sourceName` is the name referenced from processor mappings and `job-config.yaml` steps.
-- `filePath` points to the XML file to read.
+- `filePath` points to the XML file to read, or to a ZIP artifact that contains one readable XML file.
+- ZIP-backed `filePath` values are prepared automatically before XML validation, record counting, and reading.
+- `unzip` is optional and only needed when the ZIP needs an advanced override such as a custom staging directory or `unzip.entryName`.
+- if `unzip.enabled: true` is authored explicitly, `filePath` must still point to a `.zip` artifact; using `unzip.enabled=true` with a plain `.xml` path now fails fast during source validation and again on the shared runtime preparation path if validation is bypassed.
+- `unzip.extractDir` overrides where the runtime stages the extracted readable XML file; when omitted the runtime uses a runtime-owned JVM temp working directory.
+- if `unzip.entryName` is omitted, the ZIP must contain exactly one file entry; otherwise set `unzip.entryName` to the entry the runtime should extract.
 - `rootElement` is the expected XML document root.
 - `recordElement` is the fragment counted and streamed as one runtime record.
 - `flatteningStrategy` defaults to `DirectXml` when omitted.
@@ -230,6 +241,8 @@ This mirrors:
 - `modelDefinitionPath` is optional but preferred for new XML jobs, especially nested XML jobs.
 - `fields` is optional and mainly for simple inline flat contracts.
 - `archive` is optional and uses the shared file-source archive behavior.
+- `archive.packageAsZip: true` packages the archived XML file into a ZIP artifact through the shared ZIP utility instead of moving the plain file directly.
+- when `archive.packageAsZip: true`, the runtime keeps the original XML file name as the single ZIP entry name and appends `.zip` to the outer archive file name when needed.
 - `validation` is optional.
 - `validation.fileNamePattern` validates only the file name, not the full path.
 - `validation.schemaPath` is optional; add it only when the file must pass XSD validation before processing.
@@ -267,6 +280,7 @@ All XML source variants start with the same orchestration path:
 
 - In explicit `job-config.yaml` mode, relative paths resolve from the folder containing the referenced config file, not from the repo root.
 - That rule applies to `filePath`, `modelDefinitionPath`, `validation.schemaPath`, `validation.rejectPath`, and `archive.successPath`.
+- It also applies to `unzip.extractDir`.
 - In explicit job mode, the runtime derives a stable package using the selected non-blank job name from `job-config.yaml`.
 - The derived default is `com.etl.generated.job.<normalized-job-name>.source`.
 
@@ -284,6 +298,12 @@ Current guidance:
 
 - `sourceName` must match the selected `processor.mappings[].source` entry.
 - Keep `rootElement` and `recordElement` aligned with the real XML document; mismatches fail during source validation or lead to empty reads.
+- When `filePath` ends in `.zip`, XML validation and reading use the extracted XML file automatically, but archive/reject disposition still applies to the original configured source artifact.
+- If `unzip.enabled=true` is authored explicitly, `filePath` must end in `.zip`; explicit unzip is not a supported override for plain XML files.
+- If `archive.packageAsZip=true`, the archived output is one ZIP file containing the original source file as a single entry.
+- `archive.packageAsZip=true` is only supported for plain file-backed sources; if `filePath` already points to a `.zip` source artifact, the runtime fails fast instead of producing a double-zipped archive.
+- When `unzip.extractDir` is omitted, the default prepared XML file is staged under a runtime-owned JVM temp work root instead of beside the ingress artifact.
+- After successful step completion or reject-file validation cleanup, the runtime deletes the prepared extracted file and prunes any now-empty runtime-owned default prepared directories.
 - For `DirectXml`, runtime validation expects generated XML classes for the configured source package.
 - For `NestedXml`, the generated record class is still required even though the active runtime path does not depend on a root-wrapper class in the same way.
 - Use `modelDefinitionPath` for new nested XML jobs; it is the clearest place to preserve nested structure.
@@ -295,6 +315,7 @@ Current guidance:
 - No XPath-based record selection block yet
 - No source-level XML duplicate contract yet
 - Inline `fields` works only for flat/simple structures; nested structures should stay in `modelDefinitionPath`
+- No multi-entry ZIP extraction policy beyond `unzip.entryName` selecting one file entry
 
 ## Related design note
 

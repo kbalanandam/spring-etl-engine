@@ -68,6 +68,7 @@ class SourceConfigPolymorphicDeserializationTest {
               enabled: true
               successPath: target/archive/success/
               namePattern: "{originalName}-{timestamp}"
+              packageAsZip: true
             validation:
               allowEmpty: false
               requireHeaderMatch: true
@@ -87,6 +88,7 @@ class SourceConfigPolymorphicDeserializationTest {
         assertEquals("Events", csvSource.getSourceName());
         assertEquals("target/archive/success/", csvSource.getArchive().getSuccessPath());
         assertEquals("{originalName}-{timestamp}", csvSource.getArchive().getNamePattern());
+        assertTrue(csvSource.getArchive().isPackageAsZip());
         assertFalse(csvSource.isSkipHeader());
         assertNotNull(csvSource.getParser());
         assertEquals('\'', csvSource.resolveQuoteCharacter());
@@ -108,6 +110,7 @@ class SourceConfigPolymorphicDeserializationTest {
               enabled: true
               successPath: target/archive/xml-success/
               namePattern: "{originalName}-{timestamp}"
+              packageAsZip: true
             flatteningStrategy: NestedXml
             jobSpecificStrategyBean: customerXmlSourceStrategy
             modelDefinitionPath: definitions/customer-source-model.yaml
@@ -131,6 +134,7 @@ class SourceConfigPolymorphicDeserializationTest {
         assertNotNull(xmlSource.getArchive());
         assertTrue(xmlSource.getArchive().isEnabled());
         assertEquals("target/archive/xml-success/", xmlSource.getArchive().getSuccessPath());
+        assertTrue(xmlSource.getArchive().isPackageAsZip());
         assertEquals("NestedXml", xmlSource.getFlatteningStrategy());
         assertEquals("customerXmlSourceStrategy", xmlSource.getJobSpecificStrategyBean());
         assertEquals("definitions/customer-source-model.yaml", xmlSource.getModelDefinitionPath());

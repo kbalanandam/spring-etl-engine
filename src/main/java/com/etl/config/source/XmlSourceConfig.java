@@ -3,7 +3,9 @@ package com.etl.config.source;
 import com.etl.config.ColumnConfig;
 import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.etl.runtime.FileSourceArtifactSupport;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -18,12 +20,16 @@ import javax.xml.stream.XMLStreamReader;
  */
 public class XmlSourceConfig extends SourceConfig implements FileSourceConfig {
 
+  private static final FileSourceArtifactSupport FILE_SOURCE_ARTIFACT_SUPPORT = new FileSourceArtifactSupport();
+
     /** Path to the XML file.
      * -- SETTER --
      *  Sets the file path for the XML source.
      *
      */
     private String filePath;
+
+	private String preparedFilePath;
 
     /** Root element name of the XML.
      * -- SETTER --
@@ -60,12 +66,26 @@ public class XmlSourceConfig extends SourceConfig implements FileSourceConfig {
 
   private FileArchiveConfig archive;
 
+	private FileUnzipConfig unzip;
+
   public String getFilePath() {
     return filePath;
   }
 
   public void setFilePath(String filePath) {
     this.filePath = filePath;
+  }
+
+  @Override
+  @JsonIgnore
+  public String getPreparedFilePath() {
+    return preparedFilePath;
+  }
+
+  @Override
+  @JsonIgnore
+  public void setPreparedFilePath(String preparedFilePath) {
+    this.preparedFilePath = preparedFilePath;
   }
 
   public String getRootElement() {
@@ -122,6 +142,15 @@ public class XmlSourceConfig extends SourceConfig implements FileSourceConfig {
 
   public void setArchive(FileArchiveConfig archive) {
     this.archive = archive;
+  }
+
+  @Override
+  public FileUnzipConfig getUnzipConfig() {
+    return unzip;
+  }
+
+  public void setUnzip(FileUnzipConfig unzip) {
+    this.unzip = unzip;
   }
 
   @Override
@@ -183,7 +212,8 @@ public class XmlSourceConfig extends SourceConfig implements FileSourceConfig {
     public int getRecordCount() throws IOException {
         int count = 0;
         XMLInputFactory factory = XMLInputFactory.newInstance();
-        try (FileInputStream fis = new FileInputStream(filePath)) {
+		String readableFilePath = FILE_SOURCE_ARTIFACT_SUPPORT.resolveReadablePath(this).toString();
+	        try (FileInputStream fis = new FileInputStream(readableFilePath)) {
             XMLStreamReader reader = factory.createXMLStreamReader(fis);
             while (reader.hasNext()) {
                 int event = reader.next();
@@ -195,7 +225,7 @@ public class XmlSourceConfig extends SourceConfig implements FileSourceConfig {
             }
             reader.close();
         } catch (Exception e) {
-            throw new IOException("Failed to count records in XML file: " + filePath, e);
+	            throw new IOException("Failed to count records in XML file: " + readableFilePath, e);
         }
         return count;
     }

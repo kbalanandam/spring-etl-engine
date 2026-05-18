@@ -1,11 +1,13 @@
 package com.etl.runtime;
 
+import com.etl.common.util.ZipFileUtility;
 import com.etl.common.util.ReflectionUtils;
 import com.etl.config.source.FileArchiveConfig;
 import com.etl.config.source.FileSourceConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.ZipPackagingException;
 import com.etl.processor.validation.ValidationIssue;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Component;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -22,6 +25,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -57,6 +61,15 @@ public class FileIngestionRuntimeSupport {
 
 	private final Map<Long, RejectFileState> rejectStateByStepExecutionId = new ConcurrentHashMap<>();
 	private final Map<Long, Map<String, Set<String>>> duplicateValuesByStepExecutionId = new ConcurrentHashMap<>();
+	private final FileSourceArtifactSupport fileSourceArtifactSupport;
+
+	public FileIngestionRuntimeSupport() {
+		this(new FileSourceArtifactSupport());
+	}
+
+	public FileIngestionRuntimeSupport(FileSourceArtifactSupport fileSourceArtifactSupport) {
+		this.fileSourceArtifactSupport = fileSourceArtifactSupport;
+	}
 
 	/**
 	 * Initializes step-scoped reject handling and duplicate tracking state.
@@ -77,8 +90,19 @@ public class FileIngestionRuntimeSupport {
 		}
 
 		Path rejectPath = resolveRejectPath(rejectHandling.getOutputPath(), stepExecution.getStepName(), sourceConfig.getSourceName());
-		stepExecution.getExecutionContext().putString(REJECT_OUTPUT_PATH_KEY, rejectPath.toString());
-		rejectStateByStepExecutionId.put(stepExecution.getId(), new RejectFileState(rejectPath, entityMapping, rejectHandling.isIncludeReasonColumns()));
+		Path writableRejectPath = resolveWritableZipSourcePath(rejectPath, ".csv");
+		Path publishedRejectPath = resolvePublishedZipPath(rejectPath, rejectHandling.isPackageAsZip());
+		stepExecution.getExecutionContext().putString(REJECT_OUTPUT_PATH_KEY, publishedRejectPath.toString());
+		rejectStateByStepExecutionId.put(
+				stepExecution.getId(),
+				new RejectFileState(
+						writableRejectPath,
+						publishedRejectPath,
+						entityMapping,
+						rejectHandling.isIncludeReasonColumns(),
+						rejectHandling.isPackageAsZip()
+				)
+		);
 	}
 
 	/**
@@ -122,13 +146,19 @@ public class FileIngestionRuntimeSupport {
 		if (rejectFileState != null) {
 			try {
 				rejectFileState.close();
+				rejectFileState.packageAsZipIfConfigured();
 			} catch (IOException e) {
 				throw new RuntimeEtlException("Failed to close reject output for step '" + stepExecution.getStepName() + "'.", e);
+			} catch (ZipPackagingException e) {
+				throw new RuntimeEtlException("Failed to package reject output for step '" + stepExecution.getStepName() + "'.", e);
 			}
 		}
 
 		if (ExitStatus.COMPLETED.equals(stepExecution.getExitStatus()) && sourceConfig instanceof FileSourceConfig fileSourceConfig) {
 			archiveSourceIfConfigured(stepExecution, fileSourceConfig);
+		}
+		if (sourceConfig instanceof FileSourceConfig fileSourceConfig) {
+			cleanupPreparedFileIfConfigured(fileSourceConfig);
 		}
 
 		return stepExecution.getExitStatus();
@@ -169,12 +199,13 @@ public class FileIngestionRuntimeSupport {
 	}
 
 	private void archiveSourceIfConfigured(StepExecution stepExecution, FileSourceConfig fileSourceConfig) {
+		fileSourceArtifactSupport.validateArchiveConfiguration(fileSourceConfig);
 		FileArchiveConfig archiveConfig = fileSourceConfig.getArchiveConfig();
 		if (archiveConfig == null || !archiveConfig.isEnabled()) {
 			return;
 		}
 
-		Path sourcePath = Path.of(fileSourceConfig.getFilePath());
+		Path sourcePath = Path.of(fileSourceConfig.getFilePath()).toAbsolutePath().normalize();
 		Path archiveDirectory = Path.of(archiveConfig.getSuccessPath());
 		String originalName = sourcePath.getFileName().toString();
 		String namePattern = archiveConfig.getNamePattern() == null || archiveConfig.getNamePattern().isBlank()
@@ -183,14 +214,62 @@ public class FileIngestionRuntimeSupport {
 		String resolvedName = namePattern
 				.replace("{originalName}", originalName)
 				.replace("{timestamp}", ARCHIVE_TIMESTAMP_FORMATTER.format(LocalDateTime.now()));
+		Path archivedPath = fileSourceArtifactSupport.resolveArchivedPath(archiveDirectory, resolvedName, archiveConfig.isPackageAsZip());
 
 		try {
 			Files.createDirectories(archiveDirectory);
-			Path archivedPath = archiveDirectory.resolve(resolvedName);
-			Files.move(sourcePath, archivedPath, StandardCopyOption.REPLACE_EXISTING);
+			if (archiveConfig.isPackageAsZip()) {
+				archiveSourceAsZip(sourcePath, archivedPath);
+			} else {
+				Files.move(sourcePath, archivedPath, StandardCopyOption.REPLACE_EXISTING);
+			}
 			stepExecution.getExecutionContext().putString(ARCHIVED_SOURCE_PATH_KEY, archivedPath.toString());
-		} catch (IOException e) {
+		} catch (IOException | ZipPackagingException e) {
 			throw new RuntimeEtlException("Failed to archive source file '" + sourcePath + "' for step '" + stepExecution.getStepName() + "'.", e);
+		}
+	}
+
+	private void archiveSourceAsZip(Path sourcePath, Path archivedZipPath) throws IOException {
+		Path stagedZipPath = archivedZipPath.resolveSibling(archivedZipPath.getFileName().toString() + ".part");
+		String entryName = sourcePath.getFileName() == null ? "source" : sourcePath.getFileName().toString();
+
+		try {
+			Files.deleteIfExists(stagedZipPath);
+			ZipFileUtility.packageSingleFile(sourcePath, stagedZipPath, entryName);
+			promoteStagedArchive(stagedZipPath, archivedZipPath);
+			try {
+				Files.delete(sourcePath);
+			} catch (IOException deleteException) {
+				rollbackArchivedZipQuietly(archivedZipPath, deleteException);
+				throw deleteException;
+			}
+		} finally {
+			Files.deleteIfExists(stagedZipPath);
+		}
+	}
+
+	private static void promoteStagedArchive(Path stagedZipPath, Path archivedZipPath) throws IOException {
+		try {
+			Files.move(stagedZipPath, archivedZipPath, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+		} catch (AtomicMoveNotSupportedException e) {
+			Files.move(stagedZipPath, archivedZipPath, StandardCopyOption.REPLACE_EXISTING);
+		}
+	}
+
+	private static void rollbackArchivedZipQuietly(Path archivedZipPath, IOException originalException) {
+		try {
+			Files.deleteIfExists(archivedZipPath);
+		} catch (IOException rollbackException) {
+			originalException.addSuppressed(rollbackException);
+		}
+	}
+
+	private void cleanupPreparedFileIfConfigured(FileSourceConfig fileSourceConfig) {
+		try {
+			fileSourceArtifactSupport.cleanupPreparedFile(fileSourceConfig);
+		} catch (IllegalArgumentException e) {
+			throw new RuntimeEtlException("Failed to clean prepared source file for source '"
+					+ fileSourceConfig.getFilePath() + "'.", e);
 		}
 	}
 
@@ -243,6 +322,31 @@ public class FileIngestionRuntimeSupport {
 				.replaceAll("[^a-zA-Z0-9._-]", "-");
 	}
 
+	private Path resolvePublishedZipPath(Path configuredPath, boolean packageAsZip) {
+		if (!packageAsZip) {
+			return configuredPath.normalize();
+		}
+		String fileName = configuredPath.getFileName() == null ? "rejects.csv" : configuredPath.getFileName().toString();
+		if (fileName.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+			return configuredPath.normalize();
+		}
+		return configuredPath.resolveSibling(fileName + ".zip").normalize();
+	}
+
+	private Path resolveWritableZipSourcePath(Path configuredPath, String defaultExtension) {
+		String fileName = configuredPath.getFileName() == null ? "rejects" : configuredPath.getFileName().toString();
+		if (!fileName.toLowerCase(Locale.ROOT).endsWith(".zip")) {
+			return configuredPath.normalize();
+		}
+
+		String writableFileName = fileName.substring(0, fileName.length() - 4);
+		String normalizedExtension = defaultExtension == null ? "" : defaultExtension.toLowerCase(Locale.ROOT);
+		if (!normalizedExtension.isBlank() && !writableFileName.toLowerCase(Locale.ROOT).endsWith(normalizedExtension)) {
+			writableFileName = writableFileName + normalizedExtension;
+		}
+		return configuredPath.resolveSibling(writableFileName).normalize();
+	}
+
 	private static final class RejectFileState {
 
 		/**
@@ -253,17 +357,23 @@ public class FileIngestionRuntimeSupport {
 		 */
 
 		private final Path rejectPath;
+		private final Path publishedRejectPath;
 		private final ProcessorConfig.EntityMapping entityMapping;
 		private final boolean includeReasonColumns;
+		private final boolean packageAsZip;
 		private BufferedWriter writer;
 		private boolean headerWritten;
 
 		private RejectFileState(Path rejectPath,
+		                       Path publishedRejectPath,
 		                       ProcessorConfig.EntityMapping entityMapping,
-		                       boolean includeReasonColumns) {
+		                       boolean includeReasonColumns,
+		                       boolean packageAsZip) {
 			this.rejectPath = rejectPath;
+			this.publishedRejectPath = publishedRejectPath;
 			this.entityMapping = entityMapping;
 			this.includeReasonColumns = includeReasonColumns;
+			this.packageAsZip = packageAsZip;
 		}
 
 		private void write(Object input, List<ValidationIssue> issues) throws IOException {
@@ -331,6 +441,28 @@ public class FileIngestionRuntimeSupport {
 		private void close() throws IOException {
 			if (writer != null) {
 				writer.close();
+			}
+		}
+
+		private void packageAsZipIfConfigured() throws IOException {
+			if (!packageAsZip || !Files.exists(rejectPath)) {
+				return;
+			}
+
+			Path stagedZipPath = publishedRejectPath.resolveSibling(publishedRejectPath.getFileName().toString() + ".part");
+			String entryName = rejectPath.getFileName() == null ? "rejects.csv" : rejectPath.getFileName().toString();
+			try {
+				Files.deleteIfExists(stagedZipPath);
+				ZipFileUtility.packageSingleFile(rejectPath, stagedZipPath, entryName);
+				promoteStagedArchive(stagedZipPath, publishedRejectPath);
+				try {
+					Files.delete(rejectPath);
+				} catch (IOException deleteException) {
+					rollbackArchivedZipQuietly(publishedRejectPath, deleteException);
+					throw deleteException;
+				}
+			} finally {
+				Files.deleteIfExists(stagedZipPath);
 			}
 		}
 	}

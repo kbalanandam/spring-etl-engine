@@ -152,6 +152,7 @@ Representative preserved bundles live under `src/main/resources/config-jobs/`, i
 - `xml-to-json-events/`
 - `xml-nested-to-csv-to-nested-xml/`
 - `customer-load/`
+- `customer-load-zipped/`
 - `cust-dept-load/`
 
 Treat `src/main/resources/config-jobs/` as the canonical checked-in preserved-bundle root. Use repo-root [`private-jobs/`](../private-jobs/README.md) only as a developer-local git-ignored workspace for copied private bundles that must not be committed; in normal repository history, only the guidance file there should be visible.

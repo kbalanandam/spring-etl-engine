@@ -84,6 +84,7 @@ This is still the best place to begin. Everything else on this page is additive.
 | `rejectHandling.enabled` | yes, when `rejectHandling` is present | boolean | Enables rejected-record output |
 | `rejectHandling.outputPath` | yes, when `rejectHandling.enabled=true` | string | Reject CSV file or directory path |
 | `rejectHandling.includeReasonColumns` | no | boolean | Appends `_rejectField`, `_rejectRule`, and `_rejectMessage` metadata columns when true |
+| `rejectHandling.packageAsZip` | no | boolean | When `true`, the runtime packages the reject CSV as one ZIP artifact and appends `.zip` to the published path when needed |
 | `mappings[].fields[].transforms` | no | list | Optional ordered field-level transform/cleaner chain. Omit the block when no cleanup/normalization is needed |
 | `mappings[].fields[].rules` | no | list | Optional field-level validation rules. If no `duplicate` rule is configured, runtime does not perform duplicate detection for that mapping |
 | `mappings[].fields[].rules[].onFailure` | no | string | Optional validation outcome override: `failStep` or `rejectRecord` |
@@ -131,6 +132,7 @@ rejectHandling:
   enabled: true
   outputPath: target/rejects/
   includeReasonColumns: true
+  packageAsZip: true
 mappings:
   - source: Events
     target: EventsCsv
@@ -154,6 +156,7 @@ mappings:
 - `rejectHandling.enabled: true` turns rejected-record output on.
 - `rejectHandling.outputPath` is the reject artifact location.
 - `rejectHandling.includeReasonColumns: true` appends rejection metadata columns to the reject output.
+- `rejectHandling.packageAsZip: true` publishes the generated reject CSV as one ZIP artifact instead of leaving the plain CSV on disk.
 - `rules` adds validation to one mapped field.
 - `rules[].type: notNull` rejects or fails when the field is missing.
 - `rules[].onFailure: failStep` overrides the default outcome and stops the step immediately for that rule.
@@ -169,6 +172,7 @@ rejectHandling:
   enabled: true
   outputPath: target/rejects/
   includeReasonColumns: true
+  packageAsZip: true
 mappings:
   - source: Events
     target: EventsCsv

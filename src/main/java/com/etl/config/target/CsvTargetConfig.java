@@ -15,6 +15,7 @@ public class CsvTargetConfig extends TargetConfig {
     private final String filePath;
     private final String delimiter;
     private final boolean includeHeader;
+    private final boolean packageAsZip;
 
     public CsvTargetConfig(
             String targetName,
@@ -34,10 +35,23 @@ public class CsvTargetConfig extends TargetConfig {
             String delimiter,
             boolean includeHeader
     ) {
+        this(targetName, packageName, fields, filePath, delimiter, includeHeader, false);
+    }
+
+    public CsvTargetConfig(
+            String targetName,
+            String packageName,
+            List<ColumnConfig> fields,
+            String filePath,
+            String delimiter,
+            boolean includeHeader,
+            boolean packageAsZip
+    ) {
         super(targetName, packageName, fields);
         this.filePath = filePath;
         this.delimiter = resolveDelimiter(delimiter);
         this.includeHeader = includeHeader;
+        this.packageAsZip = packageAsZip;
     }
 
     @JsonCreator
@@ -46,9 +60,11 @@ public class CsvTargetConfig extends TargetConfig {
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("filePath") String filePath,
             @JsonProperty("delimiter") String delimiter,
-            @JsonProperty("includeHeader") Boolean includeHeader
+            @JsonProperty("includeHeader") Boolean includeHeader,
+            @JsonProperty("packageAsZip") Boolean packageAsZip
     ) {
-        this(targetName, null, fields, filePath, delimiter, includeHeader != null && includeHeader);
+        this(targetName, null, fields, filePath, delimiter, includeHeader != null && includeHeader,
+                packageAsZip != null && packageAsZip);
     }
 
     private static String resolveDelimiter(String delimiter) {
@@ -65,6 +81,10 @@ public class CsvTargetConfig extends TargetConfig {
 
           public boolean isIncludeHeader() {
             return includeHeader;
+          }
+
+          public boolean isPackageAsZip() {
+            return packageAsZip;
           }
 
     @Override

@@ -1,0 +1,16 @@
+sources:
+  - format: csv
+    sourceName: Customers
+    filePath: input/Customers.zip
+    delimiter: ","
+    parser:
+      quoteCharacter: '"'
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+      - name: email
+        type: String
+
+

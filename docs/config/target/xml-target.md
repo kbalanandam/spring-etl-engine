@@ -20,6 +20,7 @@ Backed by:
 | `targetName` | yes | string | Logical target name used in processor mapping lookup |
 | `packageName` | no in explicit job mode; otherwise yes | string | Deprecated bridge field for generated target model naming; runtime now validates that the configured XML root and record classes exist in this package during startup. When omitted for an explicit `job-config.yaml` run, the runtime and build-time generation path derive `com.etl.generated.job.<normalized-job-name>.target` |
 | `filePath` | yes | string | XML output file path or output directory |
+| `packageAsZip` | no | boolean | When `true`, the runtime packages the successful XML output as one ZIP artifact and appends `.zip` to the published path when needed |
 | `rootElement` | yes | string | Root container element for the generated XML document |
 | `recordElement` | yes | string | Record element name used for repeated XML items |
 | `fields` | yes for flat XML targets; no when `modelDefinitionPath` is the structural source of truth | list | Ordered list of target properties expected on the generated target model |
@@ -32,6 +33,7 @@ Backed by:
 For new XML target scenarios in this repo, prefer one shared authoring pattern for both simple and nested XML targets:
 
 - keep the top-level XML target fields the same: `format`, `targetName`, `filePath`, `rootElement`, `recordElement`
+- add `packageAsZip` only when the final XML artifact should be published as a ZIP file
 - use `modelDefinitionPath` when the target shape is nested or should come from a structural XML definition
 - keep `fields` for simple flat XML targets; when `modelDefinitionPath` is present for nested XML, prefer the definition file as the single structural source of truth
 
@@ -149,6 +151,7 @@ targets:
   - format: xml
     targetName: EventsXml
     filePath: output/events.xml
+    packageAsZip: true
     rootElement: Events
     recordElement: Event
     fields:
@@ -191,6 +194,7 @@ Read the examples in output-contract order:
 - `targetName` is the logical target identity referenced by processor mappings and job steps.
 - `packageName` is a deprecated bridge field for the generated target package validated during startup; in explicit job mode prefer omitting it to use the job-scoped default package.
 - `filePath` is the XML output artifact path or output directory.
+- `packageAsZip` is optional; when `true`, the successful XML artifact is published as one ZIP file containing the XML document as a single entry.
 - `rootElement` is the document envelope element written around the output.
 - `recordElement` is the repeated XML item element name expected by the writer path.
 - `fields` lists the target object properties that the writer marshals for the flat XML path.
@@ -202,6 +206,7 @@ The important authoring rule is choice, not duplication:
 
 - use inline `fields` when you want the simplest flat XML target contract in one file
 - use `modelDefinitionPath` when an external target model definition should be authoritative
+- add `packageAsZip: true` only when the successful XML output should be zipped after step completion
 - omit `packageName` in explicit job mode when the default job-scoped package is acceptable
 - avoid duplicating overlapping structural fields in both places for nested XML targets
 
@@ -212,6 +217,7 @@ The important authoring rule is choice, not duplication:
 - If `filePath` ends with `/` or points to an existing directory, the writer appends `<targetName>.xml` using a lowercase target name.
 - When the generated target class simple name matches `recordElement`, the runtime streams individual XML record elements under the configured `rootElement`.
 - Otherwise the writer falls back to wrapper/single-object XML output.
+- When `packageAsZip=true`, either XML writer mode packages the successful XML file into one ZIP artifact after step completion instead of leaving the plain XML file as the published result.
 - When `modelDefinitionPath` is provided, job-scoped XML generation uses that structural definition to build nested target model classes for the selected scenario.
 - For explicit job execution, startup now fails fast if the generated XML root or record classes are missing from the configured `packageName`.
 - `fields[].name` values must align with the generated target object properties used during marshalling when the flat `fields` block is present.
@@ -227,6 +233,7 @@ The important authoring rule is choice, not duplication:
 - For nested XML targets, keep the structural shape in the referenced model definition rather than duplicating overlapping fields in both places.
 - If `modelDefinitionPath` is omitted, provide `fields` so flat XML target classes can still be derived directly from `target-config.yaml`.
 - Keep `rootElement` and `recordElement` aligned with the XML structure expected by downstream consumers.
+- Use `packageAsZip=true` when downstream publication expects a compressed XML artifact while keeping the same XML payload contract inside the ZIP.
 - Use a directory-style `filePath` when you want runtime naming from `targetName`; use a file path when the artifact name must be fixed.
 - For chunk-oriented XML output, keep `recordElement` aligned with the generated record class name expected by the writer path.
 

@@ -40,7 +40,7 @@ public class CsvDynamicWriter implements DynamicWriter {
             path += csvConfig.getTargetName().toLowerCase() + ".csv";
         }
 
-        StagedFlatFileItemWriter<Object> writer = new StagedFlatFileItemWriter<>(path);
+        StagedFlatFileItemWriter<Object> writer = new StagedFlatFileItemWriter<>(path, csvConfig.isPackageAsZip());
 
         // Field extraction order comes from target-config.yaml so generated objects are
         // serialized according to the selected bundle contract rather than reflection order.

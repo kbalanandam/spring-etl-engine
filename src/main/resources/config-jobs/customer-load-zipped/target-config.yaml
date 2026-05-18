@@ -1,0 +1,14 @@
+targets:
+  - format: xml
+    targetName: Customers
+    filePath: output/customers.xml
+    rootElement: Customers
+    recordElement: Customer
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+      - name: email
+        type: String
+

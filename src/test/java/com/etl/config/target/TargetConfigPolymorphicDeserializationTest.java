@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TargetConfigPolymorphicDeserializationTest {
 
@@ -17,6 +18,7 @@ class TargetConfigPolymorphicDeserializationTest {
                   - format: xml
                     targetName: CustomersXml
                     filePath: output/customers.xml
+                    packageAsZip: true
                     rootElement: Customers
                     recordElement: Customer
                     modelDefinitionPath: definitions/customer-target-model.yaml
@@ -33,6 +35,7 @@ class TargetConfigPolymorphicDeserializationTest {
         assertEquals("Customers", xmlTarget.getRootElement());
         assertEquals("Customer", xmlTarget.getRecordElement());
         assertEquals("definitions/customer-target-model.yaml", xmlTarget.getModelDefinitionPath());
+        assertTrue(xmlTarget.isPackageAsZip());
         assertNull(xmlTarget.getPackageName());
         assertNull(xmlTarget.getFields());
     }
@@ -85,6 +88,7 @@ class TargetConfigPolymorphicDeserializationTest {
                   - format: json
                     targetName: EventsJson
                     filePath: output/events.json
+                    packageAsZip: true
                     fields:
                       - name: eventCode
                         type: String
@@ -100,6 +104,7 @@ class TargetConfigPolymorphicDeserializationTest {
 
         assertEquals("EventsJson", jsonTarget.getTargetName());
         assertEquals("output/events.json", jsonTarget.getFilePath());
+        assertTrue(jsonTarget.isPackageAsZip());
         assertNull(jsonTarget.getPackageName());
         assertEquals(2, jsonTarget.getFields().size());
     }
@@ -111,6 +116,7 @@ class TargetConfigPolymorphicDeserializationTest {
                   - format: csv
                     targetName: EventsCsv
                     filePath: output/events.csv
+                    packageAsZip: true
                     fields:
                       - name: eventCode
                         type: String
@@ -127,6 +133,7 @@ class TargetConfigPolymorphicDeserializationTest {
         assertEquals("EventsCsv", csvTarget.getTargetName());
         assertEquals("output/events.csv", csvTarget.getFilePath());
         assertEquals(CsvTargetConfig.DEFAULT_DELIMITER, csvTarget.getDelimiter());
+        assertTrue(csvTarget.isPackageAsZip());
     }
 }
 

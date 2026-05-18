@@ -4,7 +4,9 @@ import com.etl.config.ColumnConfig;
 import com.etl.config.FieldDefinition;
 import com.etl.enums.ModelFormat;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.etl.runtime.FileSourceArtifactSupport;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -19,8 +21,12 @@ import java.util.List;
  */
 public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
 
+	private static final FileSourceArtifactSupport FILE_SOURCE_ARTIFACT_SUPPORT = new FileSourceArtifactSupport();
+
     /** Path to the CSV file. */
     private String filePath;
+
+	private String preparedFilePath;
 
     /** Delimiter used in the CSV file. */
     private String delimiter;
@@ -29,6 +35,8 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
   private boolean skipHeader = true;
 
 	private ArchiveConfig archive;
+
+  private FileUnzipConfig unzip;
 
     private ValidationConfig validation;
 
@@ -40,6 +48,18 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
 
   public void setFilePath(String filePath) {
     this.filePath = filePath;
+  }
+
+  @Override
+  @JsonIgnore
+  public String getPreparedFilePath() {
+    return preparedFilePath;
+  }
+
+  @Override
+  @JsonIgnore
+  public void setPreparedFilePath(String preparedFilePath) {
+    this.preparedFilePath = preparedFilePath;
   }
 
   public String getDelimiter() {
@@ -64,6 +84,15 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
 
   public void setArchive(ArchiveConfig archive) {
     this.archive = archive;
+  }
+
+  @Override
+  public FileUnzipConfig getUnzipConfig() {
+    return unzip;
+  }
+
+  public void setUnzip(FileUnzipConfig unzip) {
+    this.unzip = unzip;
   }
 
   @Override
@@ -190,7 +219,8 @@ public class CsvSourceConfig extends SourceConfig implements FileSourceConfig {
     @Override
     public int getRecordCount() throws IOException {
         int count = 0;
-        try (BufferedReader br = new BufferedReader(new FileReader(filePath))) {
+		String readableFilePath = FILE_SOURCE_ARTIFACT_SUPPORT.resolveReadablePath(this).toString();
+	        try (BufferedReader br = new BufferedReader(new FileReader(readableFilePath))) {
             while (br.readLine() != null) {
                 count++;
             }

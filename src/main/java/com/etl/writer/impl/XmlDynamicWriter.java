@@ -58,7 +58,7 @@ public class XmlDynamicWriter implements DynamicWriter {
 			// Record-class writes are chunk-oriented: Spring Batch streams one XML
 			// record at a time under the configured root element and stages the file
 			// until step completion confirms that the output should be promoted.
-			StagedStaxEventItemWriter<Object> writer = new StagedStaxEventItemWriter<>(path);
+			StagedStaxEventItemWriter<Object> writer = new StagedStaxEventItemWriter<>(path, xmlConfig.isPackageAsZip());
 			writer.setRootTagName(xmlConfig.getRootElement());
 			writer.setMarshaller(marshaller);
 			writer.afterPropertiesSet();
@@ -66,7 +66,7 @@ public class XmlDynamicWriter implements DynamicWriter {
 		} else {
 			// Wrapper/root-class writes are tasklet-style: the caller supplies one
 			// already-assembled object graph representing the final XML document.
-			return new SingleObjectXmlWriter(marshaller, path);
+			return new SingleObjectXmlWriter(marshaller, path, xmlConfig.isPackageAsZip());
 		}
 	}
 

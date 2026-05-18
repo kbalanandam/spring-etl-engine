@@ -8,6 +8,7 @@ public class FileArchiveConfig {
 	private boolean enabled;
 	private String successPath;
 	private String namePattern;
+	private boolean packageAsZip;
 
 	public boolean isEnabled() {
 		return enabled;
@@ -31,6 +32,14 @@ public class FileArchiveConfig {
 
 	public void setNamePattern(String namePattern) {
 		this.namePattern = namePattern;
+	}
+
+	public boolean isPackageAsZip() {
+		return packageAsZip;
+	}
+
+	public void setPackageAsZip(boolean packageAsZip) {
+		this.packageAsZip = packageAsZip;
 	}
 }
 
