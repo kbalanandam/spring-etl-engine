@@ -219,6 +219,10 @@ public final class ZipFileUtility {
 	}
 
 	private static void validateEntryResolvesWithinExtractDir(Path realExtractDir, String normalizedEntryName) {
+		if (isAbsoluteLikeEntryName(normalizedEntryName) || hasParentTraversalSegment(normalizedEntryName)) {
+			throw new ZipExtractionException("ZIP entry resolves outside the prepared extract directory: " + normalizedEntryName);
+		}
+
 		Path entryPath;
 		try {
 			entryPath = Path.of(normalizedEntryName);
@@ -230,6 +234,31 @@ public final class ZipFileUtility {
 		if (!resolvedEntryPath.startsWith(realExtractDir)) {
 			throw new ZipExtractionException("ZIP entry resolves outside the prepared extract directory: " + normalizedEntryName);
 		}
+	}
+
+	private static boolean isAbsoluteLikeEntryName(String normalizedEntryName) {
+		if (normalizedEntryName == null) {
+			return false;
+		}
+
+		return normalizedEntryName.startsWith("/")
+				|| normalizedEntryName.startsWith("\\")
+				|| normalizedEntryName.matches("^[A-Za-z]:/.*")
+				|| normalizedEntryName.startsWith("//");
+	}
+
+	private static boolean hasParentTraversalSegment(String normalizedEntryName) {
+		if (normalizedEntryName == null || normalizedEntryName.isBlank()) {
+			return false;
+		}
+
+		String[] segments = normalizedEntryName.split("/");
+		for (String segment : segments) {
+			if ("..".equals(segment)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private static String safeExtractionEntryName(String entryName) {
