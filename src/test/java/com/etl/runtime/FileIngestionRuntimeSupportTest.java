@@ -160,6 +160,59 @@ class FileIngestionRuntimeSupportTest {
   }
 
   @Test
+  void treatsExtensionlessRejectOutputPathAsDirectoryWhenPackagingZip() throws Exception {
+    Path sourceFile = tempDir.resolve("events.csv");
+    Files.writeString(sourceFile, "id,eventTime,description\n,25:99:00,bad row\n");
+
+    Path rejectDir = tempDir.resolve("rejects");
+    CsvSourceConfig sourceConfig = new CsvSourceConfig(
+        "Events",
+        "com.etl.model.source",
+        List.of(column("id"), column("eventTime"), column("description")),
+        sourceFile.toString(),
+        ",",
+        null
+    );
+
+    ProcessorConfig processorConfig = new ProcessorConfig();
+    processorConfig.setType("default");
+    ProcessorConfig.RejectHandling rejectHandling = new ProcessorConfig.RejectHandling();
+    rejectHandling.setEnabled(true);
+    rejectHandling.setOutputPath(rejectDir.toString());
+    rejectHandling.setIncludeReasonColumns(true);
+    rejectHandling.setPackageAsZip(true);
+    processorConfig.setRejectHandling(rejectHandling);
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Events");
+    mapping.setTarget("EventsCsv");
+    mapping.setFields(List.of(field("id", "id"), field("eventTime", "eventTime"), field("description", "description")));
+    processorConfig.setMappings(List.of(mapping));
+
+    FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+    StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+    runtimeSupport.initializeStep(stepExecution, sourceConfig, processorConfig, mapping);
+
+    StepSynchronizationManager.register(stepExecution);
+    try {
+      assertTrue(runtimeSupport.recordRejected(new EventRecord("", "25:99:00", "bad row"), List.of(
+          new ValidationIssue("id", "notNull", "id must not be null")
+      )));
+    } finally {
+      StepSynchronizationManager.close();
+    }
+
+    stepExecution.setExitStatus(ExitStatus.COMPLETED);
+    runtimeSupport.completeStep(stepExecution, sourceConfig);
+
+    Path rejectZip = Path.of(stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.REJECT_OUTPUT_PATH_KEY));
+    String expectedFileName = stepExecution.getStepName() + "-rejects.csv.zip";
+    assertEquals(expectedFileName, rejectZip.getFileName().toString());
+    assertTrue(Files.exists(rejectZip));
+    assertEquals(List.of(stepExecution.getStepName() + "-rejects.csv"), zipEntryNames(rejectZip));
+  }
+
+  @Test
   void packagesArchivedCsvSourceAsZipAfterSuccessfulCompletion() throws Exception {
     Path sourceFile = tempDir.resolve("events.csv");
     Files.writeString(sourceFile, "id,eventTime\nEVT-1,08:30:00\n", StandardCharsets.UTF_8);

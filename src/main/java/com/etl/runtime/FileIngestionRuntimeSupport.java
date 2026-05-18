@@ -309,11 +309,26 @@ public class FileIngestionRuntimeSupport {
 
 	private Path resolveRejectPath(String configuredPath, String stepName, String sourceName) {
 		Path configured = Path.of(configuredPath);
-		if (configuredPath.endsWith("/") || configuredPath.endsWith("\\") || Files.isDirectory(configured)) {
+		if (isDirectoryStyleRejectPath(configuredPath, configured)) {
 			String fileName = sanitize(stepName == null || stepName.isBlank() ? sourceName : stepName) + "-rejects.csv";
 			return configured.resolve(fileName).normalize();
 		}
 		return configured.normalize();
+	}
+
+	private boolean isDirectoryStyleRejectPath(String configuredPath, Path configured) {
+		if (configuredPath.endsWith("/") || configuredPath.endsWith("\\") || Files.isDirectory(configured)) {
+			return true;
+		}
+
+		Path fileName = configured.getFileName();
+		if (fileName == null) {
+			return true;
+		}
+
+		// Config normalization may remove trailing separators, so extensionless leaf names
+		// still represent directory intent for reject output path contracts.
+		return !fileName.toString().contains(".");
 	}
 
 	private String sanitize(String value) {

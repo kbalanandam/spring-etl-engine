@@ -187,6 +187,35 @@ class CsvDynamicWriterTest {
     assertTrue(csv.contains("5005,zip@example.com,Bengaluru,IN"));
   }
 
+  @Test
+  void resolvesDirectoryStyleOutputPathWithoutMalformedConcatenation(@TempDir Path tempDir) throws Exception {
+    Path outputDirectory = tempDir.resolve("csv-output");
+    Files.createDirectories(outputDirectory);
+    CsvTargetConfig config = new CsvTargetConfig(
+        "TagValidationCsvIntermediate",
+        "com.etl.generated.job.xmlnestedcsvroundtrip.target",
+        List.of(column("id"), column("email"), column("city"), column("country")),
+        outputDirectory.toString(),
+        ",",
+        true,
+        true
+    );
+
+    ItemWriter<Object> writer = factory.createWriter(config, CustomerCsvRow.class);
+    FlatFileItemWriter<Object> csvWriter = (FlatFileItemWriter<Object>) writer;
+    csvWriter.open(new ExecutionContext());
+    try {
+      csvWriter.write(new Chunk<>(List.of(new CustomerCsvRow("7007", "path@example.com", "Hyderabad", "IN"))));
+    } finally {
+      csvWriter.close();
+    }
+
+    Path expectedZip = outputDirectory.resolve("tagvalidationcsvintermediate.csv.zip");
+    assertTrue(Files.exists(expectedZip));
+    assertEquals(List.of("tagvalidationcsvintermediate.csv"), zipEntryNames(expectedZip));
+    assertFalse(Files.exists(tempDir.resolve("csv-outputtagvalidationcsvintermediate.csv.zip")));
+  }
+
     @Test
     void doesNotPromoteFinalFileWhenStepFails(@TempDir Path tempDir) throws Exception {
         Path outputFile = tempDir.resolve("customers-failed.csv");

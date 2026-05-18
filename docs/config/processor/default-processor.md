@@ -82,7 +82,7 @@ This is still the best place to begin. Everything else on this page is additive.
 |---|---|---|---|
 | `rejectHandling` | no | object | Optional rejected-record output settings for validation-aware runs |
 | `rejectHandling.enabled` | yes, when `rejectHandling` is present | boolean | Enables rejected-record output |
-| `rejectHandling.outputPath` | yes, when `rejectHandling.enabled=true` | string | Reject CSV file or directory path |
+| `rejectHandling.outputPath` | yes, when `rejectHandling.enabled=true` | string | Reject output directory path; runtime generates the reject file name as `<step-name>-rejects.csv` |
 | `rejectHandling.includeReasonColumns` | no | boolean | Appends `_rejectField`, `_rejectRule`, and `_rejectMessage` metadata columns when true |
 | `rejectHandling.packageAsZip` | no | boolean | When `true`, the runtime packages the reject CSV as one ZIP artifact and appends `.zip` to the published path when needed |
 | `mappings[].fields[].transforms` | no | list | Optional ordered field-level transform/cleaner chain. Omit the block when no cleanup/normalization is needed |
@@ -154,7 +154,8 @@ mappings:
 
 - `rejectHandling` configures where rejected records go when validation rules fail.
 - `rejectHandling.enabled: true` turns rejected-record output on.
-- `rejectHandling.outputPath` is the reject artifact location.
+- `rejectHandling.outputPath` is the reject output directory.
+- Reject filenames are standardized by runtime as `<step-name>-rejects.csv`.
 - `rejectHandling.includeReasonColumns: true` appends rejection metadata columns to the reject output.
 - `rejectHandling.packageAsZip: true` publishes the generated reject CSV as one ZIP artifact instead of leaving the plain CSV on disk.
 - `rules` adds validation to one mapped field.
@@ -274,7 +275,7 @@ Use the expression transform for derived fields and other processor-side value c
 - Use `onFailure: failStep` for business-critical required fields where the scenario should stop immediately and surface a clear exception in the logs.
 - Use `onFailure: rejectRecord` when the rule should send bad records to reject output instead of failing the step. This requires `rejectHandling.enabled=true`.
 - If validation rules reject a record, the default processor returns no accepted item for that row and writes the rejected row to the configured reject output instead.
-- If `rejectHandling.enabled=true`, `rejectHandling.outputPath` is required.
+- If `rejectHandling.enabled=true`, `rejectHandling.outputPath` is required and must be a directory-style path.
 - Explicit scenario runs validate processor mappings, transforms, and rules during startup.
 - Processor-config problems are surfaced before unrelated generated-model validation issues, with scenario-aware failure context for the selected run.
 

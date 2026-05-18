@@ -10,7 +10,8 @@ import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
 import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 import org.springframework.stereotype.Component;
 
-import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Arrays;
 
 /**
@@ -33,12 +34,7 @@ public class CsvDynamicWriter implements DynamicWriter {
 
         CsvTargetConfig csvConfig = (CsvTargetConfig) config;
 
-        String path = csvConfig.getFilePath();
-        // Directory-style CSV targets publish a deterministic file name based on the
-        // logical target name so preserved bundles can keep directory-oriented output paths.
-        if (path.endsWith("/") || new File(path).isDirectory()) {
-            path += csvConfig.getTargetName().toLowerCase() + ".csv";
-        }
+        String path = resolveOutputPath(csvConfig);
 
         StagedFlatFileItemWriter<Object> writer = new StagedFlatFileItemWriter<>(path, csvConfig.isPackageAsZip());
 
@@ -70,5 +66,21 @@ public class CsvDynamicWriter implements DynamicWriter {
         writer.afterPropertiesSet();
 
         return writer;
+    }
+
+    private String resolveOutputPath(CsvTargetConfig csvConfig) {
+        String configuredPath = csvConfig.getFilePath();
+        if (configuredPath == null) {
+            return null;
+        }
+
+        Path configuredOutputPath = Path.of(configuredPath);
+        if (configuredPath.endsWith("/") || configuredPath.endsWith("\\") || Files.isDirectory(configuredOutputPath)) {
+            // Join with Path.resolve so directory-style targets never create malformed names.
+            String defaultFileName = csvConfig.getTargetName().toLowerCase() + ".csv";
+            return configuredOutputPath.resolve(defaultFileName).toString();
+        }
+
+        return configuredPath;
     }
 }

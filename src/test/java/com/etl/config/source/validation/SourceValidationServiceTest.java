@@ -23,6 +23,7 @@ import java.util.zip.ZipOutputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -184,7 +185,7 @@ class SourceValidationServiceTest {
 		);
 
 		assertTrue(exception.getMessage().contains("exactly one file entry"));
-		assertTrue(exception.getCause() instanceof ZipExtractionException);
+		assertInstanceOf(ZipExtractionException.class, exception.getCause());
 		assertNull(sourceConfig.getPreparedFilePath());
 		try (var preparedFiles = Files.find(tempDir, 5,
 				(path, attributes) -> attributes.isRegularFile() && path.getFileName().toString().endsWith(".csv"))) {
@@ -217,6 +218,74 @@ class SourceValidationServiceTest {
 		assertTrue(preparedPath.startsWith(defaultPreparedRoot()));
 		assertFalse(preparedPath.startsWith(tempDir));
 		assertTrue(Files.exists(zipFile));
+	}
+
+	@Test
+	void failsFastWhenConfiguredExtractDirAlreadyContainsPreparedCsvFile() throws IOException {
+		Path zipFile = tempDir.resolve("events.zip");
+		writeZip(zipFile, List.of(new ZipTestEntry("events.csv", "id,eventTime\nEVT-1,08:30:00\n")));
+		Path configuredExtractDir = tempDir.resolve("prepared");
+		Files.createDirectories(configuredExtractDir);
+		Path existingPreparedFile = configuredExtractDir.resolve("events.csv");
+		Files.writeString(existingPreparedFile, "id,eventTime\nEXISTING,00:00:00\n");
+
+		CsvSourceConfig sourceConfig = csvSource(zipFile);
+		FileUnzipConfig unzip = new FileUnzipConfig();
+		unzip.setExtractDir(configuredExtractDir.toString());
+		sourceConfig.setUnzip(unzip);
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setAllowEmpty(false);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		assertTrue(exception.getMessage().contains("Refusing to overwrite existing prepared file"));
+		ZipExtractionException extractionFailure = assertInstanceOf(ZipExtractionException.class, exception.getCause());
+		assertTrue(extractionFailure.getMessage().contains("Refusing to overwrite existing prepared file"));
+		assertEquals("id,eventTime\nEXISTING,00:00:00\n", Files.readString(existingPreparedFile));
+		assertNull(sourceConfig.getPreparedFilePath());
+		try (var configuredFiles = Files.list(configuredExtractDir)) {
+			assertEquals(List.of(existingPreparedFile), configuredFiles.toList());
+		}
+	}
+
+	@Test
+	void failsFastWhenConfiguredZipEntryMatchesMultipleEntries() throws IOException {
+		Path zipFile = tempDir.resolve("events.zip");
+		writeZip(zipFile, List.of(
+				new ZipTestEntry("payload/events.csv", "id,eventTime\nEVT-1,08:30:00\n"),
+				new ZipTestEntry("payload\\events.csv", "id,eventTime\nEVT-2,09:45:00\n")
+		));
+
+		CsvSourceConfig sourceConfig = csvSource(zipFile);
+		FileUnzipConfig unzip = new FileUnzipConfig();
+		unzip.setEntryName("payload/events.csv");
+		Path configuredExtractDir = tempDir.resolve("prepared-duplicate-entry");
+		unzip.setExtractDir(configuredExtractDir.toString());
+		sourceConfig.setUnzip(unzip);
+		CsvSourceConfig.ValidationConfig validation = new CsvSourceConfig.ValidationConfig();
+		validation.setAllowEmpty(false);
+		sourceConfig.setValidation(validation);
+
+		SourceValidationService service = new SourceValidationService();
+		ConfigException exception = assertThrows(
+				ConfigException.class,
+				() -> service.validate(sourceConfig, new SourceValidationContext("csv-validation", "tmp/source-config.yaml"))
+		);
+
+		ZipExtractionException extractionFailure = assertInstanceOf(ZipExtractionException.class, exception.getCause());
+		assertTrue(extractionFailure.getMessage().contains("multiple matching file entries"));
+		assertTrue(extractionFailure.getMessage().contains("payload/events.csv"));
+		assertNull(sourceConfig.getPreparedFilePath());
+		if (Files.exists(configuredExtractDir)) {
+			try (var preparedFiles = Files.list(configuredExtractDir)) {
+				assertEquals(List.of(), preparedFiles.toList());
+			}
+		}
 	}
 
 	@Test

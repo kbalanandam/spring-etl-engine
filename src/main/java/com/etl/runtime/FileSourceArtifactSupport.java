@@ -194,7 +194,7 @@ public class FileSourceArtifactSupport {
 	}
 
 	private void deleteExtractedDirectoryContentsIfPresent(Path extractDir, boolean prunePreparedDirectories) {
-		if (extractDir == null) {
+		if (extractDir == null || !prunePreparedDirectories) {
 			return;
 		}
 		try {
@@ -203,9 +203,7 @@ public class FileSourceArtifactSupport {
 					children.forEach(this::deleteQuietly);
 				}
 			}
-			if (prunePreparedDirectories) {
-				pruneEmptyDirectories(extractDir, defaultPreparedRoot());
-			}
+			pruneEmptyDirectories(extractDir, defaultPreparedRoot());
 		} catch (IOException ignored) {
 			// Preserve the original unzip failure; a later run can safely recreate the working file.
 		}

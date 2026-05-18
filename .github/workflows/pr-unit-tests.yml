@@ -19,6 +19,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Set up Java 17
         uses: actions/setup-java@v5
@@ -29,4 +31,54 @@ jobs:
 
       - name: Run unit and integration tests
         run: mvn --batch-mode --no-transfer-progress test
+
+      - name: Run dependency vulnerability scan (OWASP)
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          EXTRA_ARGS=""
+          if [ -n "${NVD_API_KEY:-}" ]; then
+            EXTRA_ARGS="-DnvdApiKey=${NVD_API_KEY}"
+          fi
+
+          mvn --batch-mode --no-transfer-progress \
+            org.owasp:dependency-check-maven:12.1.0:check \
+            -Dformat=HTML,JSON \
+            -DoutputDirectory=target/dependency-check-report \
+            -DfailBuildOnCVSS=7 \
+            ${EXTRA_ARGS}
+
+      - name: Upload dependency scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: target/dependency-check-report/**
+          if-no-files-found: warn
+
+      - name: Run secret scan (Gitleaks)
+        run: |
+          curl -sSfL -o /tmp/gitleaks.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.24.2/gitleaks_8.24.2_linux_x64.tar.gz
+          curl -sSfL -o /tmp/gitleaks_checksums.txt https://github.com/gitleaks/gitleaks/releases/download/v8.24.2/gitleaks_8.24.2_checksums.txt
+          grep " gitleaks_8.24.2_linux_x64.tar.gz$" /tmp/gitleaks_checksums.txt > /tmp/gitleaks_checksum.txt
+          (cd /tmp && sha256sum -c /tmp/gitleaks_checksum.txt)
+          tar -xzf /tmp/gitleaks.tar.gz -C /tmp
+          install /tmp/gitleaks /usr/local/bin/gitleaks
+          mkdir -p target
+          gitleaks detect --log-opts="--all" --redact --report-format json --report-path target/gitleaks-report.json
+
+      - name: Upload secret scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: target/gitleaks-report.json
+          if-no-files-found: warn
+
+      - name: Security checklist reminder
+        run: |
+          echo "Security reminder:"
+          echo "- Run/maintain security-focused negative tests for config and file boundaries"
+          echo "- Ensure no credentials/tokens are committed"
+          echo "- Review dependency vulnerabilities before merge"
 

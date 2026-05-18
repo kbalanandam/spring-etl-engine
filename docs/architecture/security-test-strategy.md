@@ -1,0 +1,112 @@
+# Security test strategy
+
+## Purpose
+
+Define a lightweight but enforceable security test strategy for `spring-etl-engine` that fits the shipped runtime model and current CI/verification workflow.
+
+## Status
+
+**Current baseline + future evolution**
+
+This strategy starts with checks the repository can run today and leaves room for deeper security coverage as control-plane features and connectors grow.
+
+## Scope and boundaries
+
+- Applies to the ETL worker runtime that executes one selected `job-config.yaml` per run.
+- Preserves current guardrails (strict selected-job config loading, fail-fast startup checks, strict generated-model naming contract).
+- Treats scheduler, watcher, and UI as optional future services; security checks here focus on the ETL core and shared utilities.
+
+## Security objectives
+
+- Block known exploitable issues before merge.
+- Prove path and file-handling safety for source ingestion, archive, reject, and zip/unzip operations.
+- Prevent configuration misuse from silently changing runtime behavior.
+- Prevent secrets or sensitive connection values from leaking to logs and reports.
+
+## Threat categories (runtime-aligned)
+
+1. **Config abuse and contract bypass**
+   - Invalid or malicious `job-config.yaml` references.
+   - Forbidden authored `packageName` in selected-job flows.
+   - Invalid step/source/target pairing or missing mapping references.
+2. **Path traversal and archive abuse**
+   - Zip-slip attempts and unsafe output paths.
+   - Unsafe overwrite behavior during extraction/publication.
+   - Partial artifact leftovers after failure.
+3. **Data-target misuse**
+   - Relational target misconfiguration and unsafe identifier usage.
+4. **Secret and evidence leakage**
+   - Credentials or sensitive values in logs, exceptions, or reports.
+5. **Dependency vulnerability exposure**
+   - Known CVEs in direct or transitive dependencies.
+
+## Test layers and cadence
+
+### L1: Security-focused unit tests (per PR)
+
+- Extend existing `ConfigLoader` and zip utility tests with negative cases.
+- Validate fail-fast behavior for config contract violations and path safety rules.
+
+### L2: Security integration scenarios (per PR)
+
+- Run selected-job scenarios that intentionally trigger guardrails.
+- Assert categorized failure behavior and evidence fields in logs/reports.
+
+### L3: Automated security scans (per PR)
+
+- Dependency vulnerability scan (CVE check).
+- Secret scan for committed credentials/tokens across full repository git history.
+- Static analysis for high-confidence security patterns.
+
+### L4: Manual penetration testing (milestone/release)
+
+- Human-led attack simulation against deployed run modes and file boundaries.
+- Focus first on file ingestion, config entry points, and relational target boundary.
+
+## Minimum PR security gate (phase 1)
+
+A PR is not ready when any of these fail:
+
+- Security-focused tests fail.
+- High/Critical CVEs are present without approved temporary exception.
+- Secret scan finds verified credentials or tokens.
+
+## Evidence and reporting
+
+Use the existing verification report workflow (`scripts/generate-verification-report.ps1`) and add a `Security` section with:
+
+- `Security.Tests`: suite names and pass/fail counts.
+- `Security.Scans`: tool name, run time, summary.
+- `Security.Findings`: severity, status, owner, target-fix milestone.
+- `Security.Exceptions`: approved temporary exceptions with expiry date.
+
+This keeps release decisions tied to repeatable evidence, not ad hoc statements.
+
+## Ownership model
+
+- **Feature owners**: add/maintain security tests for changed code paths.
+- **Maintainers**: keep CI security checks healthy and thresholds current.
+- **Release owner**: confirms security evidence is present and acceptable.
+
+## 30/60/90 rollout
+
+### 0-30 days
+
+- Add core negative tests for config guardrails and zip/path traversal.
+- Add dependency CVE and secret scan steps in PR validation.
+
+### 31-60 days
+
+- Add security integration scenarios for selected-job runs.
+- Add static analysis with tuned rule set to reduce noise.
+
+### 61-90 days
+
+- Enforce security section in verification report for release readiness.
+- Run first scoped penetration test and track remediation SLA by severity.
+
+## Non-goals (current phase)
+
+- Replacing external enterprise AppSec tooling with custom scripts.
+- Introducing mandatory control-plane dependencies into ETL-core security gates.
+
