@@ -32,6 +32,12 @@ jobs:
       - name: Run unit and integration tests
         run: mvn --batch-mode --no-transfer-progress test
 
+      - name: Reset dependency-check cache state
+        run: |
+          rm -rf ~/.m2/repository/org/owasp/dependency-check-data
+          rm -rf "${RUNNER_TEMP}/odc-data"
+          mkdir -p "${RUNNER_TEMP}/odc-data"
+
       - name: Run dependency vulnerability scan (OWASP)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
@@ -43,9 +49,11 @@ jobs:
 
           mvn --batch-mode --no-transfer-progress \
             org.owasp:dependency-check-maven:12.1.0:check \
-            -Dformat=HTML,JSON \
+            -Dformats=HTML,JSON \
             -DoutputDirectory=target/dependency-check-report \
-            -DossIndexAnalyzerEnabled=false \
+            -DdataDirectory="${RUNNER_TEMP}/odc-data" \
+            -DossindexAnalyzerEnabled=false \
+            -Danalyzer.ossindex.enabled=false \
             -DfailBuildOnCVSS=7 \
             ${EXTRA_ARGS}
 
