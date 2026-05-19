@@ -6,12 +6,12 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.3</version>
+		<version>3.5.14</version>
 		<relativePath /> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.etl</groupId>
 	<artifactId>spring-etl-engine</artifactId>
-	<version>1.7.0</version>
+	<version>1.7.1-SNAPSHOT</version>
 	<name>Spring ETL Engine</name>
 	<description>Focused config-driven runtime for repeatable file-based and integration-oriented flows.</description>
 	<url>https://github.com/kbalanandam/spring-etl-engine</url>
@@ -25,7 +25,7 @@
 	<scm>
 		<connection>scm:git:https://github.com/kbalanandam/spring-etl-engine.git</connection>
 		<developerConnection>scm:git:ssh://git@github.com/kbalanandam/spring-etl-engine.git</developerConnection>
-		<tag>v1.7.0</tag>
+		<tag>HEAD</tag>
 		<url>https://github.com/kbalanandam/spring-etl-engine</url>
 	</scm>
 	<properties>
@@ -38,7 +38,7 @@
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-web</artifactId>
+			<artifactId>spring-boot-starter</artifactId>
 		</dependency>
 
 		<!--	<dependency>
@@ -79,10 +79,6 @@
 			<artifactId>jackson-dataformat-xml</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.yaml</groupId>
-			<artifactId>snakeyaml</artifactId>
-		</dependency>
-		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
@@ -100,47 +96,16 @@
 			<artifactId>jaxb-runtime</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-core</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.logging.log4j</groupId>
-			<artifactId>log4j-slf4j-impl</artifactId>
-		</dependency>
+		<!-- Logging stays on Spring Boot's managed Logback stack because logback-spring.xml is the active contract. -->
 		<!-- Spring Batch Core -->
 		<dependency>
 			<groupId>org.springframework.batch</groupId>
 			<artifactId>spring-batch-core</artifactId>
 		</dependency>
 		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-core</artifactId>
-			<!-- or latest -->
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.junit.jupiter</groupId>
-			<artifactId>junit-jupiter</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
 			<groupId>org.springframework.batch</groupId>
 			<artifactId>spring-batch-test</artifactId>
 			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>ch.qos.logback</groupId>
-			<artifactId>logback-classic</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>net.logstash.logback</groupId>
-			<artifactId>logstash-logback-encoder</artifactId>
-			<version>7.4</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
