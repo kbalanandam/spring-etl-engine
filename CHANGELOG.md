@@ -6,6 +6,9 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Added
+- Added first-slice processor `conditional` transform support with ordered `cases[].when -> then` evaluation, optional `defaultValue` fallback, startup validation for malformed conditional declarations, and focused transform/config regression coverage on the active transform-before-rules execution path.
+
 ## [1.7.2] - 2026-05-19
 
 ### Changed

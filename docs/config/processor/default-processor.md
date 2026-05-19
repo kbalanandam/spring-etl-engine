@@ -88,9 +88,12 @@ This is still the best place to begin. Everything else on this page is additive.
 | `mappings[].fields[].transforms` | no | list | Optional ordered field-level transform/cleaner chain. Omit the block when no cleanup/normalization is needed |
 | `mappings[].fields[].rules` | no | list | Optional field-level validation rules. If no `duplicate` rule is configured, runtime does not perform duplicate detection for that mapping |
 | `mappings[].fields[].rules[].onFailure` | no | string | Optional validation outcome override: `failStep` or `rejectRecord` |
-| `mappings[].fields[].transforms[].type` | yes, when a transform is present | string | Shipped transform types are `valueMap` and `expression` |
+| `mappings[].fields[].transforms[].type` | yes, when a transform is present | string | Shipped transform types are `valueMap`, `expression`, and `conditional` |
 | `mappings[].fields[].transforms[].expression` | yes for `expression` | string | Spring Expression Language (SpEL) expression used to derive or rewrite the field value |
 | `mappings[].fields[].transforms[].mappings` | yes for `valueMap` | object | Source-value to rewritten-value map, such as `"1": Success` or `USA: US` |
+| `mappings[].fields[].transforms[].cases` | yes for `conditional` | list | Ordered conditional branches; first matching case wins |
+| `mappings[].fields[].transforms[].cases[].when` | yes for `conditional` | string | SpEL condition expression evaluated with `#input`, `#source`, `#value`, and `#resolved` |
+| `mappings[].fields[].transforms[].cases[].then` | no for `conditional` | any scalar/object | Value written when the corresponding `when` expression evaluates to true |
 | `mappings[].fields[].transforms[].defaultValue` | no, for `valueMap` | any scalar/object | Optional fallback written when no configured mapping matches |
 | `mappings[].fields[].transforms[].caseSensitive` | no, for `valueMap` | boolean | Match mode for configured keys; defaults to `true` |
 | `mappings[].fields[].rules[].type` | yes, when a rule is present | string | Shipped rule types are `notNull`, `timeFormat`, and first-slice `duplicate` |
@@ -243,6 +246,30 @@ mappings:
 
 Use the expression transform for derived fields and other processor-side value calculation. When `from` is omitted, the first transform must be `type: expression` so runtime has an explicit way to produce the field value.
 
+### 5. Conditional value routing
+
+Use this when one target field should pick from multiple configured outcomes based on runtime conditions:
+
+```yaml
+type: default
+mappings:
+  - source: Orders
+    target: OrdersCsv
+    fields:
+      - from: amount
+        to: customerTier
+        transforms:
+          - type: conditional
+            cases:
+              - when: "#value >= 10000"
+                then: ENTERPRISE
+              - when: "#input.region == 'US' and #value >= 1000"
+                then: MID
+            defaultValue: SMB
+```
+
+`conditional` uses first-match semantics in authored `cases[]` order. If no case matches, runtime writes `defaultValue` when provided; otherwise it preserves the incoming field value.
+
 ## How runtime uses this config
 
 ### Mapping selection
@@ -260,12 +287,13 @@ Use the expression transform for derived fields and other processor-side value c
 - The shipped processor order for configurable field cleanup is: read raw value â†’ apply configured transforms/cleaners â†’ evaluate validation rules on the transformed value â†’ write the target field.
 - Transform-then-reject is valid and expected. For example, a `valueMap` transform may normalize `IND -> IN`, `USA -> US`, and all other codes to `UNKNOWN`, after which a processor rule may reject `UNKNOWN` if that value is not allowed.
 - Multiple `transforms[]` entries on the same field run in the order configured.
-- The shipped transform types are `valueMap` and `expression`.
+- The shipped transform types are `valueMap`, `expression`, and `conditional`.
 - `valueMap` supports direct code normalization, optional `defaultValue`, and optional case-insensitive matching through `caseSensitive: false`.
 - `expression` uses Spring Expression Language (SpEL) and can reference:
   - `#input` or `#source` â€” the original runtime record
   - `#value` â€” the current field value entering that transform step
   - `#resolved` â€” previously resolved mapping values from earlier `fields[]` entries
+- `conditional` uses ordered `cases[]` with SpEL `when` conditions and literal `then` outputs; first matching case wins.
 - When `from` is omitted for a derived field, the first transform must be `expression`.
 - The shipped validation rule types are `notNull`, `timeFormat`, and `duplicate`.
 
@@ -306,6 +334,7 @@ Current shipped shape:
 - omit `transforms` entirely when no cleanup behavior is needed
 - first built-in transform type: `valueMap`
 - built-in derived-field transform type: `expression`
+- built-in conditional transform type: `conditional`
 - optional default fallback such as `Unknown`
 - optional case handling for code normalization
 - additive support for multiple transform steps on the same field so future scenarios can chain cleaners
@@ -331,9 +360,9 @@ That separation keeps shipped behavior readable today and leaves room for future
 
 ## Current limitations
 
-- No conditional mapping rules yet
+- Conditional support is limited to field-level `transforms[].type: conditional`; there is no separate conditional rule DSL
 - The shipped validation rule set remains intentionally small (`notNull`, `timeFormat`, and `duplicate` with single-field, composite-key, or ordered winner selection)
-- The shipped transform baseline now covers config-driven `valueMap` rewriting plus processor-side expression-derived fields, while conditional rules and lookup/enrichment remain future work
+- The shipped transform baseline now covers config-driven `valueMap` rewriting, processor-side expression-derived fields, and first-slice conditional value routing; lookup/enrichment remains future work
 - No client-selectable duplicate storage switch exists today, and target-aware deduplication is still future work
 - Reject handling is now exercised by preserved file-backed scenarios, with the strongest first proof still centered on CSV and additional nested XML proof through the same processor contract
 - No nested field alias or database-column alias support yet

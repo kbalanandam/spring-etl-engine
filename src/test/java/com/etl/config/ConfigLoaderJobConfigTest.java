@@ -1862,6 +1862,64 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void failsFastWhenConditionalTransformHasNoCases() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: csv
+          sourceName: Orders
+          filePath: input/orders.csv
+          delimiter: ","
+          fields:
+            - name: amount
+              type: int
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+        - format: csv
+          targetName: OrdersOut
+          filePath: output/orders.csv
+          delimiter: ","
+          fields:
+            - name: tier
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: Orders
+          target: OrdersOut
+          fields:
+            - from: amount
+              to: tier
+              transforms:
+                - type: conditional
+      """);
+    Files.writeString(jobConfig, """
+      name: conditional-missing-cases
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: orders-step
+          source: Orders
+          target: OrdersOut
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(messageChain(exception).contains("Invalid processor configuration for scenario 'conditional-missing-cases'"));
+    assertTrue(messageChain(exception).contains("transform 'conditional' requires a non-empty 'cases'"));
+  }
+
+  @Test
   void loadsReferencedConfigsWhenCsvFileValidationHeaderMatches() throws IOException {
     Path sourceFile = tempDir.resolve("events-valid.csv");
     Files.writeString(sourceFile, "id,eventTime\nEVT-1001,08:30:00\n");

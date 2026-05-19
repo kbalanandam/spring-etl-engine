@@ -71,6 +71,49 @@ class TransformEvaluatorTest {
 	}
 
 	@Test
+	void appliesFirstMatchingConditionalCase() {
+		TransformEvaluator evaluator = new TransformEvaluator();
+		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
+		fieldMapping.setFrom("amount");
+		fieldMapping.setTo("tier");
+		fieldMapping.setTransforms(List.of(conditional(List.of(
+				conditionalCase("#value >= 10000", "ENTERPRISE"),
+				conditionalCase("#value >= 1000", "MID")
+		), "SMB")));
+
+		assertEquals("MID", evaluator.apply(2500, fieldMapping));
+	}
+
+	@Test
+	void keepsOriginalValueWhenConditionalDoesNotMatchAndNoDefaultIsConfigured() {
+		TransformEvaluator evaluator = new TransformEvaluator();
+		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
+		fieldMapping.setFrom("status");
+		fieldMapping.setTo("status");
+		fieldMapping.setTransforms(List.of(conditional(List.of(
+				conditionalCase("#value == 'A'", "ACTIVE")
+		), null)));
+
+		assertEquals("P", evaluator.apply("P", fieldMapping));
+	}
+
+	@Test
+	void rejectsInvalidConditionalTransformConfig() {
+		TransformEvaluator evaluator = new TransformEvaluator();
+		ProcessorConfig.EntityMapping entityMapping = new ProcessorConfig.EntityMapping();
+		entityMapping.setSource("Customers");
+		entityMapping.setTarget("CustomersOut");
+		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
+		fieldMapping.setFrom("amount");
+		fieldMapping.setTo("tier");
+		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
+		transform.setType("conditional");
+		transform.setCases(List.of(conditionalCase("#value >", "HIGH")));
+
+		assertThrows(IllegalStateException.class, () -> evaluator.validateConfiguration(entityMapping, fieldMapping, transform));
+	}
+
+	@Test
 	void rejectsUnsupportedTransformTypes() {
 		TransformEvaluator evaluator = new TransformEvaluator();
 		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
@@ -90,6 +133,21 @@ class TransformEvaluatorTest {
 		transform.setDefaultValue(defaultValue);
 		transform.setCaseSensitive(caseSensitive);
 		return transform;
+	}
+
+	private ProcessorConfig.FieldTransform conditional(List<ProcessorConfig.ConditionalCase> cases, Object defaultValue) {
+		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
+		transform.setType("conditional");
+		transform.setCases(cases);
+		transform.setDefaultValue(defaultValue);
+		return transform;
+	}
+
+	private ProcessorConfig.ConditionalCase conditionalCase(String when, Object then) {
+		ProcessorConfig.ConditionalCase conditionalCase = new ProcessorConfig.ConditionalCase();
+		conditionalCase.setWhen(when);
+		conditionalCase.setThen(then);
+		return conditionalCase;
 	}
 
 	private static final class PrefixProcessorTransform implements ProcessorFieldTransform {

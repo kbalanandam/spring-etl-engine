@@ -222,6 +222,47 @@ class ValidationAwareDynamicMappingTest {
     assertEquals("Ada Lovelace", accepted.getFullName());
   }
 
+  @Test
+  void appliesConditionalTransformBeforeValidationRuleEvaluation() throws Exception {
+    ProcessorConfig.FieldTransform tierTransform = new ProcessorConfig.FieldTransform();
+    tierTransform.setType("conditional");
+    tierTransform.setCases(List.of(
+        conditionalCase("#value >= 1000", "HIGH"),
+        conditionalCase("#value >= 500", "MEDIUM")
+    ));
+    tierTransform.setDefaultValue("LOW");
+
+    ProcessorConfig.FieldRule startsWith = new ProcessorConfig.FieldRule();
+    startsWith.setType("startsWith");
+    startsWith.setPattern("H");
+
+    ProcessorConfig.FieldMapping tier = new ProcessorConfig.FieldMapping();
+    tier.setFrom("amount");
+    tier.setTo("tier");
+    tier.setTransforms(List.of(tierTransform));
+    tier.setRules(List.of(startsWith));
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Orders");
+    mapping.setTarget("OrdersOut");
+    mapping.setFields(List.of(tier));
+
+    ValidationRuleEvaluator evaluator = new ValidationRuleEvaluator(List.of(new StartsWithProcessorValidationRule()));
+    ValidationAwareDynamicMapping<OrderRecord, OrderTargetRecord> processor = new ValidationAwareDynamicMapping<>(
+        mapping,
+        OrderTargetRecord.class,
+        new com.etl.processor.transform.TransformEvaluator(),
+        evaluator,
+        new FileIngestionRuntimeSupport(),
+        true
+    );
+
+    OrderTargetRecord accepted = processor.process(new OrderRecord(1200));
+
+    assertNotNull(accepted);
+    assertEquals("HIGH", accepted.getTier());
+  }
+
       @Test
       void rejectsLaterDuplicateCompositeKeysAndKeepsDifferentKeyCombinations() throws Exception {
           Path sourceFile = tempDir.resolve("events-composite.csv");
@@ -323,6 +364,9 @@ class ValidationAwareDynamicMappingTest {
 	private record StatusRecord(String statusCode) {
 	}
 
+  private record OrderRecord(int amount) {
+  }
+
   private record NameRecord(String firstName, String lastName) {
   }
 
@@ -363,6 +407,21 @@ class ValidationAwareDynamicMappingTest {
     public String getFullName() {
       return fullName;
     }
+  }
+
+  public static final class OrderTargetRecord {
+    public String tier;
+
+    public String getTier() {
+      return tier;
+    }
+  }
+
+  private ProcessorConfig.ConditionalCase conditionalCase(String when, Object then) {
+    ProcessorConfig.ConditionalCase conditionalCase = new ProcessorConfig.ConditionalCase();
+    conditionalCase.setWhen(when);
+    conditionalCase.setThen(then);
+    return conditionalCase;
   }
 
   private static final class StartsWithProcessorValidationRule implements com.etl.processor.validation.ProcessorValidationRule {

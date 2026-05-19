@@ -102,7 +102,7 @@ public class TransformEvaluator {
 	}
 
 	private static List<ProcessorFieldTransform> defaultTransforms() {
-		return List.of(new ValueMapProcessorTransform(), new ExpressionProcessorTransform());
+		return List.of(new ValueMapProcessorTransform(), new ExpressionProcessorTransform(), new ConditionalProcessorTransform());
 	}
 }
 

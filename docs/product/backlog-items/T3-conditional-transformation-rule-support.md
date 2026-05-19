@@ -8,7 +8,7 @@ Add a conditional transformation slice so jobs can apply mapping or cleanup beha
 
 - Epic: **[Epic T](../epics/epic-t-transformation-capability.md)**
 - Priority: **P1**
-- Status: **Deferred**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **T2**
 
@@ -48,9 +48,9 @@ Add conditional behavior only after the expression baseline is stable, and keep 
 
 ## Acceptance criteria
 
-- [ ] one documented conditional-processing contract exists on the processor path
-- [ ] condition evaluation composes predictably with existing transform/validation order
-- [ ] focused tests cover match, non-match, and validation/error behavior
+- [x] one documented conditional-processing contract exists on the processor path
+- [x] condition evaluation composes predictably with existing transform/validation order
+- [x] focused tests cover match, non-match, and validation/error behavior
 
 ## Related docs
 
@@ -60,9 +60,9 @@ Add conditional behavior only after the expression baseline is stable, and keep 
 
 ## Implementation notes
 
-Deferred intentionally until the shipped expression baseline has enough stability.
+Delivered on the processor transform seam with ordered `cases[]` first-match behavior and optional `defaultValue` fallback.
 
 ## Status notes
 
-Best picked up after reviewing T2 production usage and config-shape tradeoffs.
+Shipped after the expression baseline (`T2`) stabilized; next transformation hardening focus moves to `T4`.
 
