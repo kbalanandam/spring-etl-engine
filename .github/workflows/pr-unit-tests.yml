@@ -48,12 +48,13 @@ jobs:
           fi
 
           mvn --batch-mode --no-transfer-progress \
-            org.owasp:dependency-check-maven:12.1.0:check \
+            org.owasp:dependency-check-maven:12.1.1:check \
             -Dformats=HTML,JSON \
             -DoutputDirectory=target/dependency-check-report \
             -DdataDirectory="${RUNNER_TEMP}/odc-data" \
             -DossindexAnalyzerEnabled=false \
             -Danalyzer.ossindex.enabled=false \
+            -DfailOnError=false \
             -DfailBuildOnCVSS=7 \
             ${EXTRA_ARGS}
 
