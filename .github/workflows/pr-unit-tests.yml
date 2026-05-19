@@ -18,7 +18,7 @@ jobs:
   unit-tests:
     name: Run Maven test suite
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     defaults:
       run:
         shell: bash
@@ -40,18 +40,26 @@ jobs:
       - name: Run unit and integration tests
         run: mvn --batch-mode --no-transfer-progress test
 
-      - name: Reset dependency-check cache state
+      - name: Compute dependency-check cache key
+        id: odc-cache-key
         run: |
           set -euo pipefail
-          rm -rf ~/.m2/repository/org/owasp/dependency-check-data
-          rm -rf "${RUNNER_TEMP}/odc-data"
-          mkdir -p "${RUNNER_TEMP}/odc-data"
+          echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+
+      - name: Restore dependency-check data cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/dependency-check
+          key: odc-data-${{ runner.os }}-12.1.1-${{ steps.odc-cache-key.outputs.week }}
+          restore-keys: |
+            odc-data-${{ runner.os }}-12.1.1-
 
       - name: Run dependency vulnerability scan (OWASP)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
         run: |
           set -euo pipefail
+          mkdir -p ~/.cache/dependency-check
           EXTRA_ARGS=""
           FAIL_ON_ERROR="false"
           if [ -n "${NVD_API_KEY:-}" ]; then
@@ -63,12 +71,19 @@ jobs:
             org.owasp:dependency-check-maven:12.1.1:check \
             -Dformats=HTML,JSON \
             -DoutputDirectory=target/dependency-check-report \
-            -DdataDirectory="${RUNNER_TEMP}/odc-data" \
+            -DdataDirectory="$HOME/.cache/dependency-check" \
             -DossindexAnalyzerEnabled=false \
             -Danalyzer.ossindex.enabled=false \
             -DfailOnError=${FAIL_ON_ERROR} \
             -DfailBuildOnCVSS=7 \
             ${EXTRA_ARGS}
+
+      - name: Save dependency-check data cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/dependency-check
+          key: odc-data-${{ runner.os }}-12.1.1-${{ steps.odc-cache-key.outputs.week }}
 
       - name: Upload dependency scan report
         if: always()
