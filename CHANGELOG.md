@@ -6,6 +6,8 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-05-19
+
 ### Changed
 - Simplified the runtime logging stack for the `1.7.1` patch line by removing direct Log4j2 runtime dependencies and relying on Spring Boot's managed Logback path, which matches the shipped `logback-spring.xml` contract and avoids mixed-binding upgrade friction.
 - Advanced the patch-line security remediation baseline by keeping Spring Boot `3.5.14`, removing the unused servlet/web starter so the shipped ETL runtime is explicitly non-web, and dropping redundant direct YAML, logging, and test-library declarations that were already covered by active managed dependencies.
