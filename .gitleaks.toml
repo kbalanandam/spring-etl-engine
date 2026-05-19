@@ -1,0 +1,15 @@
+[extend]
+useDefault = true
+
+# Allow one documented false positive in backlog prose that matches a generic key pattern.
+[allowlist]
+description = "False positive in backlog prose (tokenization wording), tracked in release/1.7.1 security patch line"
+commits = [
+  "dd480cb672c2f3dd2053f8cc569604495975a8a8"
+]
+paths = [
+  '''^docs/product/product-backlog\.md$'''
+]
+
+
+
