@@ -9,6 +9,7 @@ import com.etl.config.source.SourceConfig;
 import com.etl.exception.RuntimeEtlException;
 import com.etl.exception.ZipPackagingException;
 import com.etl.processor.validation.ValidationIssue;
+import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.scope.context.StepSynchronizationManager;
@@ -21,6 +22,7 @@ import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.time.Clock;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -30,12 +32,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 /**
  * Provides step-scoped runtime support for file-ingestion hardening concerns.
  *
-	 * <p>This component manages reject-file output, keep-first duplicate key tracking, and
-	 * success-only file-source archiving for the active Spring Batch step. It also exposes execution
+ * <p>This component manages reject-file output, keep-first duplicate key tracking, and
+ * success-only file-source archiving for the active Spring Batch step. It also exposes execution
  * context keys used by listeners and reporting code to publish reject counts, reject output paths,
  * and archived source paths.</p>
  *
@@ -58,17 +62,34 @@ public class FileIngestionRuntimeSupport {
 
 	private static final DateTimeFormatter ARCHIVE_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
 	private static final String DEFAULT_ARCHIVE_NAME_PATTERN = "{originalName}-{timestamp}";
+	private static final int DEFAULT_MAX_DUPLICATE_TRACKING_VALUES_PER_KEY = 250_000;
 
 	private final Map<Long, RejectFileState> rejectStateByStepExecutionId = new ConcurrentHashMap<>();
+	private final Map<Long, AtomicInteger> rejectedCountByStepExecutionId = new ConcurrentHashMap<>();
 	private final Map<Long, Map<String, Set<String>>> duplicateValuesByStepExecutionId = new ConcurrentHashMap<>();
 	private final FileSourceArtifactSupport fileSourceArtifactSupport;
+	private final Clock clock;
+	private final int maxDuplicateTrackingValuesPerKey;
 
 	public FileIngestionRuntimeSupport() {
-		this(new FileSourceArtifactSupport());
+		this(new FileSourceArtifactSupport(), Clock.systemDefaultZone(), DEFAULT_MAX_DUPLICATE_TRACKING_VALUES_PER_KEY);
 	}
 
 	public FileIngestionRuntimeSupport(FileSourceArtifactSupport fileSourceArtifactSupport) {
+		this(fileSourceArtifactSupport, Clock.systemDefaultZone(), DEFAULT_MAX_DUPLICATE_TRACKING_VALUES_PER_KEY);
+	}
+
+	public FileIngestionRuntimeSupport(FileSourceArtifactSupport fileSourceArtifactSupport, Clock clock) {
+		this(fileSourceArtifactSupport, clock, DEFAULT_MAX_DUPLICATE_TRACKING_VALUES_PER_KEY);
+	}
+
+	public FileIngestionRuntimeSupport(FileSourceArtifactSupport fileSourceArtifactSupport, Clock clock, int maxDuplicateTrackingValuesPerKey) {
 		this.fileSourceArtifactSupport = fileSourceArtifactSupport;
+		this.clock = clock;
+		if (maxDuplicateTrackingValuesPerKey <= 0) {
+			throw new IllegalArgumentException("maxDuplicateTrackingValuesPerKey must be greater than zero.");
+		}
+		this.maxDuplicateTrackingValuesPerKey = maxDuplicateTrackingValuesPerKey;
 	}
 
 	/**
@@ -82,19 +103,22 @@ public class FileIngestionRuntimeSupport {
 	                         SourceConfig sourceConfig,
 	                         ProcessorConfig processorConfig,
 	                         ProcessorConfig.EntityMapping entityMapping) {
+		Long stepExecutionId = requireStepExecutionId(stepExecution, "initializeStep");
 		stepExecution.getExecutionContext().putInt(REJECTED_COUNT_KEY, 0);
-		duplicateValuesByStepExecutionId.put(stepExecution.getId(), new ConcurrentHashMap<>());
+		rejectedCountByStepExecutionId.put(stepExecutionId, new AtomicInteger());
+		duplicateValuesByStepExecutionId.put(stepExecutionId, new ConcurrentHashMap<>());
 		ProcessorConfig.RejectHandling rejectHandling = processorConfig.getRejectHandling();
 		if (!isRejectHandlingEnabled(rejectHandling)) {
 			return;
 		}
+		validateRejectMappingColumns(entityMapping, stepExecution.getStepName());
 
 		Path rejectPath = resolveRejectPath(rejectHandling.getOutputPath(), stepExecution.getStepName(), sourceConfig.getSourceName());
-		Path writableRejectPath = resolveWritableZipSourcePath(rejectPath, ".csv");
+		Path writableRejectPath = resolveWritableZipSourcePath(rejectPath);
 		Path publishedRejectPath = resolvePublishedZipPath(rejectPath, rejectHandling.isPackageAsZip());
 		stepExecution.getExecutionContext().putString(REJECT_OUTPUT_PATH_KEY, publishedRejectPath.toString());
 		rejectStateByStepExecutionId.put(
-				stepExecution.getId(),
+				stepExecutionId,
 				new RejectFileState(
 						writableRejectPath,
 						publishedRejectPath,
@@ -117,16 +141,18 @@ public class FileIngestionRuntimeSupport {
 		if (stepExecution == null) {
 			return false;
 		}
+		Long stepExecutionId = requireStepExecutionId(stepExecution, "recordRejected");
 
-		RejectFileState rejectFileState = rejectStateByStepExecutionId.get(stepExecution.getId());
+		RejectFileState rejectFileState = rejectStateByStepExecutionId.get(stepExecutionId);
 		if (rejectFileState == null) {
 			return false;
 		}
 
 		try {
 			rejectFileState.write(input, issues);
-			int currentRejectedCount = stepExecution.getExecutionContext().getInt(REJECTED_COUNT_KEY, 0);
-			stepExecution.getExecutionContext().putInt(REJECTED_COUNT_KEY, currentRejectedCount + 1);
+			rejectedCountByStepExecutionId
+					.computeIfAbsent(stepExecutionId, ignored -> new AtomicInteger())
+					.incrementAndGet();
 			return true;
 		} catch (IOException e) {
 			throw new RuntimeEtlException("Failed to write reject output for step '" + stepExecution.getStepName() + "'.", e);
@@ -141,8 +167,10 @@ public class FileIngestionRuntimeSupport {
 	 * archive-on-success behavior.</p>
 	 */
 	public ExitStatus completeStep(StepExecution stepExecution, SourceConfig sourceConfig) {
-		RejectFileState rejectFileState = rejectStateByStepExecutionId.remove(stepExecution.getId());
-		duplicateValuesByStepExecutionId.remove(stepExecution.getId());
+		Long stepExecutionId = requireStepExecutionId(stepExecution, "completeStep");
+		AtomicInteger rejectedCount = rejectedCountByStepExecutionId.remove(stepExecutionId);
+		RejectFileState rejectFileState = rejectStateByStepExecutionId.remove(stepExecutionId);
+		duplicateValuesByStepExecutionId.remove(stepExecutionId);
 		if (rejectFileState != null) {
 			try {
 				rejectFileState.close();
@@ -154,11 +182,15 @@ public class FileIngestionRuntimeSupport {
 			}
 		}
 
-		if (ExitStatus.COMPLETED.equals(stepExecution.getExitStatus()) && sourceConfig instanceof FileSourceConfig fileSourceConfig) {
+		if (BatchStatus.COMPLETED == stepExecution.getStatus() && sourceConfig instanceof FileSourceConfig fileSourceConfig) {
 			archiveSourceIfConfigured(stepExecution, fileSourceConfig);
 		}
 		if (sourceConfig instanceof FileSourceConfig fileSourceConfig) {
 			cleanupPreparedFileIfConfigured(fileSourceConfig);
+		}
+
+		if (rejectedCount != null) {
+			stepExecution.getExecutionContext().putInt(REJECTED_COUNT_KEY, rejectedCount.get());
 		}
 
 		return stepExecution.getExitStatus();
@@ -169,7 +201,7 @@ public class FileIngestionRuntimeSupport {
 	}
 
 	public boolean isDuplicateValue(String fieldName, Object value) {
-		return isDuplicateValues(fieldName, List.of(value));
+		return isDuplicateValues(fieldName, java.util.Collections.singletonList(value));
 	}
 
 	/**
@@ -184,6 +216,7 @@ public class FileIngestionRuntimeSupport {
 		if (stepExecution == null || keyName == null || keyName.isBlank()) {
 			return false;
 		}
+		Long stepExecutionId = requireStepExecutionId(stepExecution, "isDuplicateValues");
 
 		String normalizedValue = normalizeDuplicateValues(values);
 		if (normalizedValue == null) {
@@ -191,11 +224,19 @@ public class FileIngestionRuntimeSupport {
 		}
 
 		Map<String, Set<String>> duplicateValuesByField = duplicateValuesByStepExecutionId.computeIfAbsent(
-				stepExecution.getId(),
+				stepExecutionId,
 				ignored -> new ConcurrentHashMap<>()
 		);
 		Set<String> seenValues = duplicateValuesByField.computeIfAbsent(keyName, ignored -> ConcurrentHashMap.newKeySet());
-		return !seenValues.add(normalizedValue);
+		if (!seenValues.add(normalizedValue)) {
+			return true;
+		}
+		if (seenValues.size() > maxDuplicateTrackingValuesPerKey) {
+			seenValues.remove(normalizedValue);
+			throw new RuntimeEtlException("Duplicate tracking limit exceeded for step '" + stepExecution.getStepName()
+					+ "' key '" + keyName + "' (max " + maxDuplicateTrackingValuesPerKey + ").");
+		}
+		return false;
 	}
 
 	private void archiveSourceIfConfigured(StepExecution stepExecution, FileSourceConfig fileSourceConfig) {
@@ -213,7 +254,7 @@ public class FileIngestionRuntimeSupport {
 				: archiveConfig.getNamePattern().trim();
 		String resolvedName = namePattern
 				.replace("{originalName}", originalName)
-				.replace("{timestamp}", ARCHIVE_TIMESTAMP_FORMATTER.format(LocalDateTime.now()));
+				.replace("{timestamp}", ARCHIVE_TIMESTAMP_FORMATTER.format(LocalDateTime.now(clock)));
 		Path archivedPath = fileSourceArtifactSupport.resolveArchivedPath(archiveDirectory, resolvedName, archiveConfig.isPackageAsZip());
 
 		try {
@@ -278,6 +319,19 @@ public class FileIngestionRuntimeSupport {
 		return stepContext == null ? null : stepContext.getStepExecution();
 	}
 
+	private Long requireStepExecutionId(StepExecution stepExecution, String operation) {
+		if (stepExecution == null) {
+			throw new RuntimeEtlException("StepExecution id is required for " + operation + " (step='unknown').");
+		}
+		Long stepExecutionId = stepExecution.getId();
+		//noinspection ConstantValue - mocked StepExecution ids can be null; keep explicit fail-fast guard.
+		if (stepExecutionId == null) {
+			throw new RuntimeEtlException("StepExecution id is required for " + operation
+					+ " (step='" + stepExecution.getStepName() + "').");
+		}
+		return stepExecutionId;
+	}
+
 	private String normalizeDuplicateValue(Object value) {
 		if (value == null) {
 			return null;
@@ -337,6 +391,17 @@ public class FileIngestionRuntimeSupport {
 				.replaceAll("[^a-zA-Z0-9._-]", "-");
 	}
 
+	private void validateRejectMappingColumns(ProcessorConfig.EntityMapping entityMapping, String stepName) {
+		if (entityMapping == null || entityMapping.getFields() == null) {
+			throw new RuntimeEtlException("Reject handling requires a valid entity mapping with fields for step '" + stepName + "'.");
+		}
+		for (ProcessorConfig.FieldMapping fieldMapping : entityMapping.getFields()) {
+			if (fieldMapping == null || fieldMapping.getTo() == null || fieldMapping.getTo().isBlank()) {
+				throw new RuntimeEtlException("Reject handling requires non-blank target field names in entity mapping for step '" + stepName + "'.");
+			}
+		}
+	}
+
 	private Path resolvePublishedZipPath(Path configuredPath, boolean packageAsZip) {
 		if (!packageAsZip) {
 			return configuredPath.normalize();
@@ -348,15 +413,15 @@ public class FileIngestionRuntimeSupport {
 		return configuredPath.resolveSibling(fileName + ".zip").normalize();
 	}
 
-	private Path resolveWritableZipSourcePath(Path configuredPath, String defaultExtension) {
+	private Path resolveWritableZipSourcePath(Path configuredPath) {
 		String fileName = configuredPath.getFileName() == null ? "rejects" : configuredPath.getFileName().toString();
 		if (!fileName.toLowerCase(Locale.ROOT).endsWith(".zip")) {
 			return configuredPath.normalize();
 		}
 
 		String writableFileName = fileName.substring(0, fileName.length() - 4);
-		String normalizedExtension = defaultExtension == null ? "" : defaultExtension.toLowerCase(Locale.ROOT);
-		if (!normalizedExtension.isBlank() && !writableFileName.toLowerCase(Locale.ROOT).endsWith(normalizedExtension)) {
+		String normalizedExtension = ".csv";
+		if (!writableFileName.toLowerCase(Locale.ROOT).endsWith(normalizedExtension)) {
 			writableFileName = writableFileName + normalizedExtension;
 		}
 		return configuredPath.resolveSibling(writableFileName).normalize();
@@ -391,7 +456,7 @@ public class FileIngestionRuntimeSupport {
 			this.packageAsZip = packageAsZip;
 		}
 
-		private void write(Object input, List<ValidationIssue> issues) throws IOException {
+		private synchronized void write(Object input, List<ValidationIssue> issues) throws IOException {
 			if (writer == null) {
 				Path parent = rejectPath.getParent();
 				if (parent != null) {
@@ -407,7 +472,6 @@ public class FileIngestionRuntimeSupport {
 
 			writer.write(buildRow(input, issues));
 			writer.newLine();
-			writer.flush();
 		}
 
 		private String buildHeader() {
@@ -439,7 +503,10 @@ public class FileIngestionRuntimeSupport {
 
 		private String joinIssues(List<ValidationIssue> issues,
 		                         java.util.function.Function<ValidationIssue, String> extractor) {
-			return issues.stream().map(extractor).reduce((left, right) -> left + "|" + right).orElse("");
+			return issues.stream()
+					.map(extractor)
+					.filter(Objects::nonNull)
+					.collect(Collectors.joining("|"));
 		}
 
 		private String escape(Object value) {
@@ -453,13 +520,14 @@ public class FileIngestionRuntimeSupport {
 			return text;
 		}
 
-		private void close() throws IOException {
+		private synchronized void close() throws IOException {
 			if (writer != null) {
+				writer.flush();
 				writer.close();
 			}
 		}
 
-		private void packageAsZipIfConfigured() throws IOException {
+		private synchronized void packageAsZipIfConfigured() throws IOException {
 			if (!packageAsZip || !Files.exists(rejectPath)) {
 				return;
 			}

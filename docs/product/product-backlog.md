@@ -1,5 +1,11 @@
 # Product Backlog
 
+## Last decision checkpoint
+
+Quick memory-aid summary for the latest transformation decisions: [`transformation-checkpoint.md`](transformation-checkpoint.md)
+
+The canonical source for backlog `Priority`, `Status`, `Milestone`, and `Dependency` remains this document.
+
 ## Executive Dashboard
 
 The GitHub Project **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)** is the live projected execution view for this backlog.
@@ -224,6 +230,14 @@ This table is the day-to-day execution view for the current product stage.
 | [T4](backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Follow-on hardening beyond the shipped CSV slice: broader quarantine, selectable duplicate storage mode, and XML-native duplicate identity |
 | [T5](backlog-items/T5-reference-set-validation-and-enrichment-baseline.md) | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Frozen first-slice direction: processor-side DB-backed reference-set validation such as agency-code allow-lists before broader enrichment joins |
 | [T6](backlog-items/T6-shared-default-value-and-placeholder-mapping.md) | Add shared default-value and placeholder mapping baseline | Epic T | P1 | Deferred | M2 | T2 | Capture audit-column defaults, provider-backed system date/date-time filling, job-name/constants, and formula-ready placeholders without repeating the same mapping logic in every job bundle |
+| [T7](backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) | Define duplicate-tracking scalability redesign as a separate deferred track | Epic T | P2 | Deferred | M3 | T4 | Keep T4 focused on quarantine/storage-mode boundary hardening while isolating larger duplicate-state scale redesign choices for a later milestone |
+| [T8](backlog-items/T8-reusable-transform-profiles-and-versioning.md) | Define reusable transform profiles and versioning contract | Epic T | P2 | Deferred | M3 | T3, T6 | #1 in deferred advanced transform sequence. Introduce one reusable profile model so common transform chains can be shared and versioned across many mappings instead of copy/paste YAML |
+| [T9](backlog-items/T9-source-native-transformation-seam.md) | Define source-native transformation seam before runtime records | Epic T | P2 | Deferred | M3 | T8, P3 | #5 in deferred advanced transform sequence. Add a dedicated source-native adaptation boundary for XPath/namespace/header/token shaping without overloading processor-level business transforms |
+| [T10](backlog-items/T10-record-level-transformation-stage.md) | Define record-level transformation stage beyond field-centric mapping | Epic T | P2 | Deferred | M3 | T8 | #2 in deferred advanced transform sequence. Introduce a coherent record-level transform stage for multi-field orchestration scenarios that do not fit single-field transform chains |
+| [T11](backlog-items/T11-cross-record-window-and-aggregation-transforms.md) | Define cross-record window and aggregation transformation semantics | Epic T | P2 | Deferred | M3 | T10, F1 | #7 in deferred advanced transform sequence. Add explicit semantics for stateful group/window/aggregate transformations without breaking deterministic restart and replay behavior |
+| [T12](backlog-items/T12-transformation-governance-and-lineage.md) | Define transformation governance and lineage evidence model | Epic T | P2 | Deferred | M3 | T8, C1 | #3 in deferred advanced transform sequence. Provide transform-definition version traceability, approval lifecycle, and lineage-friendly evidence for enterprise-grade change control |
+| [T13](backlog-items/T13-transform-stage-observability-metrics.md) | Define transform-stage observability metrics and operational evidence | Epic T | P2 | Deferred | M3 | T10, V1 | #4 in deferred advanced transform sequence. Emit transform-stage metrics and outcomes independently from validation-rule evidence so operators can diagnose transform behavior directly |
+| [T14](backlog-items/T14-secure-data-shaping-transforms.md) | Define secure data-shaping transforms for sensitive fields | Epic T | P2 | Deferred | M3 | T8, G1 | #6 in deferred advanced transform sequence. Add governed masking/tokenization/hash transform patterns so sensitive-field handling is explicit, reusable, and auditable |
 | [B1](backlog-items/B1-configurable-skip-policy-support.md) | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | [B2](backlog-items/B2-configurable-retry-policy-support.md) | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
 | [B3](backlog-items/B3-archive-processed-source-files-after-success.md) | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
@@ -261,15 +275,16 @@ This table is the day-to-day execution view for the current product stage.
 Use this section as the near-term sequencing view behind the execution board:
 
 1. `T3` next, now that the generated-model naming and package-derivation contract is shipped on the active path.
-2. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, not a redesign of the shipped duplicate baseline.
-3. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
-4. Keep `E2` as the next portability/documentation step.
-5. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
-6. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
-7. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
-8. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
-9. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-10. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
+2. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, and track larger duplicate-state scale redesign decisions separately under deferred `T7`.
+3. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
+4. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
+5. Keep `E2` as the next portability/documentation step.
+6. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
+7. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
+8. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
+9. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
+10. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
+11. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -321,6 +336,7 @@ Still deferred after that:
 
 - actual disk-backed duplicate tracker implementation
 - explicit client-selectable duplicate storage mode (`memory` vs `disk`) config surface
+- larger duplicate-tracking scalability redesign (separate deferred track: `T7`)
 - XML-native/source-level duplicate identity when duplicate keys cannot be expressed cleanly through flat mapped fields
 - target-aware duplicate detection
 - restart/idempotency semantics for duplicate state
@@ -750,10 +766,11 @@ Use this as the condensed near-term priority order:
 1. `T3` — conditional transformation rules
 2. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
 3. `E2` — packaged-run guidance
-4. `Epic P` — first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
-5. `X1` / `X2` — SFTP contract and first inbound slice
-6. `F1` / `S1` / `S2` — restartability and scheduler baseline
-7. `V3` / `V4` / `G1` — reporting, release gating, and secure config
+4. deferred `Epic T` advanced sequence — `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
+5. `Epic P` — first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
+6. `X1` / `X2` — SFTP contract and first inbound slice
+7. `F1` / `S1` / `S2` — restartability and scheduler baseline
+8. `V3` / `V4` / `G1` — reporting, release gating, and secure config
 
 ---
 

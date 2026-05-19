@@ -90,3 +90,5 @@ This item should harden and clarify the existing baseline, not replace it. The b
 
 Deferred for now, but important enough to justify a detail page because the backlog row compresses several distinct but related future concerns into one short note.
 
+Larger duplicate-state scalability redesign choices are now tracked separately in [`T7`](T7-duplicate-tracking-scalability-redesign-deferment.md) so this item can stay focused on quarantine and contract-boundary hardening.
+

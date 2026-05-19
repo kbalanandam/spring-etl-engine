@@ -73,6 +73,7 @@ Use this short list when you want the newest or most actively discussed architec
 
 - [`extension-points.md`](extension-points.md) — where readers, processors, writers, and validation seams live (**Current baseline + future evolution**)
 - [`transformation-capability-roadmap.md`](transformation-capability-roadmap.md) — phased transformation maturity direction (**Future direction**)
+- [`transformation-capability-catalog.md`](transformation-capability-catalog.md) — comprehensive now/next/future transformation family catalog with examples and backlog-seeding map (**Current baseline + future evolution**)
 - [`reference-set-validation-and-enrichment.md`](reference-set-validation-and-enrichment.md) — future processor-side reference-set validation and later enrichment growth (**Future direction**)
 - [`t6-shared-default-value-mapping-syntax-comparison.md`](t6-shared-default-value-mapping-syntax-comparison.md) — future-only comparison for shared default-value mapping syntax under `T6` (**Future direction**)
 
