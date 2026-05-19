@@ -6,6 +6,14 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-05-19
+
+### Changed
+- Expanded the transformation planning docs with a capability catalog, current-vs-future roadmap guidance, Epic T sequencing, dedicated `T7`-`T14` backlog pages, and a new `docs/product/transformation-checkpoint.md` memory-aid so the current shipped processor-centered scope, next item (`T3`), deferred advanced order, and duplicate follow-on checkpoint remain easy to resume.
+
+### Fixed
+- Hardened file-ingestion completion/archive guardrails so completion-only archive evidence stays aligned with step status, with refreshed `FileIngestionRuntimeSupport` coverage and an updated nested XML -> CSV flow regression test proving the active behavior.
+
 ## [1.7.1] - 2026-05-19
 
 ### Changed

@@ -105,6 +105,7 @@ For every significant enhancement, add or update:
 - [`architecture/validation-extension-architecture.md`](architecture/validation-extension-architecture.md) — future extension architecture for source-level validation and processor-rule validation without reviving the deprecated legacy validation framework
 - [`architecture/relational-db-support.md`](architecture/relational-db-support.md) — current relational support baseline, phase-1 implementation status, and future hardening direction
 - [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md) — phased transformation maturity roadmap and the high-level guide for what transformation behavior belongs now vs later
+- [`architecture/transformation-capability-catalog.md`](architecture/transformation-capability-catalog.md) — comprehensive transformation family catalog (now/next/future) with practical examples and backlog-seeding guidance
 - [`architecture/reference-set-validation-and-enrichment.md`](architecture/reference-set-validation-and-enrichment.md) — future processor-side direction for validating mapped values against runtime-loaded database reference sets and later enrichment growth
 - [`architecture/t6-shared-default-value-mapping-syntax-comparison.md`](architecture/t6-shared-default-value-mapping-syntax-comparison.md) — future-only comparison of config-shape options for shared audit/default field mapping under `T6`
 - [`architecture/job-history-and-operational-observability.md`](architecture/job-history-and-operational-observability.md) — current observability baseline plus future direction for retained run history, structured operational events, and diagnostics
@@ -218,6 +219,8 @@ The first shipped CSV file-ingestion hardening slice is now captured in [`archit
 The near-term SFTP transport direction is now captured in [`architecture/sftp-transport-capability.md`](architecture/sftp-transport-capability.md). Use it to keep staged inbound/outbound file transport aligned with the ETL-first phase while preserving optional external-MFT and isolated-worker boundaries where clients require them.
 
 The transformation maturity direction that supports enterprise-grade ETL evolution is now captured in [`architecture/transformation-capability-roadmap.md`](architecture/transformation-capability-roadmap.md). Use it to judge whether a proposed mapping, validation, expression, or enrichment feature fits the current transformation slice or should wait for a later maturity level.
+
+For implementation-time comparison with concrete examples and backlog-seeding candidates, use [`architecture/transformation-capability-catalog.md`](architecture/transformation-capability-catalog.md).
 
 The execution-facing backlog that translates that direction into concrete steps is now captured in [`product/product-backlog.md`](product/product-backlog.md), including a lightweight board-style view for active priorities, status, and milestone alignment.
 

@@ -81,6 +81,14 @@ Use this page as the main browse index when you want to navigate backlog items b
 - [`T4 — Expand transformation quarantine and duplicate hardening`](T4-transformation-quarantine-and-duplicate-hardening.md)
 - [`T5 — Define lookup/enrichment processor baseline`](T5-reference-set-validation-and-enrichment-baseline.md)
 - [`T6 — Add shared default-value and placeholder mapping baseline`](T6-shared-default-value-and-placeholder-mapping.md)
+- [`T7 — Define duplicate-tracking scalability redesign as a separate deferred track`](T7-duplicate-tracking-scalability-redesign-deferment.md)
+- [`T8 — Define reusable transform profiles and versioning contract`](./T8-reusable-transform-profiles-and-versioning.md)
+- [`T9 — Define source-native transformation seam before runtime records`](./T9-source-native-transformation-seam.md)
+- [`T10 — Define record-level transformation stage beyond field-centric mapping`](./T10-record-level-transformation-stage.md)
+- [`T11 — Define cross-record window and aggregation transformation semantics`](./T11-cross-record-window-and-aggregation-transforms.md)
+- [`T12 — Define transformation governance and lineage evidence model`](./T12-transformation-governance-and-lineage.md)
+- [`T13 — Define transform-stage observability metrics and operational evidence`](./T13-transform-stage-observability-metrics.md)
+- [`T14 — Define secure data-shaping transforms for sensitive fields`](./T14-secure-data-shaping-transforms.md)
 
 ### Epic V — Verification evidence and reporting
 

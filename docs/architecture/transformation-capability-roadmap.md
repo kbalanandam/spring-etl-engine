@@ -138,6 +138,137 @@ This is the medium-term enterprise transformation target.
 
 This level enables the product to support more realistic enterprise data movement and business-rule execution.
 
+### Current design vs future refactor (Level 3+)
+
+Use this matrix to decide when the current processor-scoped transform design is still sufficient and when a dedicated transformation layer refactor should be activated.
+
+| Capability area | Current design (processor-scoped transforms) | Future refactor target (separate transformation layer) | Trigger to move now |
+|---|---|---|---|
+| Field normalization and derived values | Strong fit today through `transforms[]` + `expression` and ordered field resolution | Keep as baseline behavior inside the new layer | No trigger; keep current path |
+| Conditional field transformation | Moderate fit; can grow with additional transform types | First-class rule/branching model with reusable transform profiles | Repeated YAML duplication or transform-type sprawl |
+| Reuse across scenarios | Limited; reuse is mostly copy/paste across mapping blocks | Shared transform profiles/libraries referenced by many mappings | Same transform chain repeated across many bundles |
+| Record-level transformation (multi-field orchestration) | Limited; design is field-centric and depends on field order | Explicit record-level transform stage and context contract | More transforms need whole-record context than single-field context |
+| Enrichment and lookup-driven transformation | Early baseline only; currently better aligned to processor rules and targeted extensions | Dedicated enrichment stage with cache/retry/operational controls | Lookup usage grows beyond simple allow-list style checks |
+| Source-native adaptation before runtime records exist | Not the default home; intentionally deferred | Separate source-native transform seam before reader output normalization | XPath/namespace/token/header shaping becomes frequent |
+| Transformation observability and governance | Basic through existing run/step logs, not transform-stage specific | Stage-specific metrics/evidence, versioned transform policy, lineage-friendly metadata | Operators need transform-stage evidence separate from validation evidence |
+| Cross-record semantics (aggregation/window-like behavior) | Weak fit in current per-record mapping path | Dedicated stage/tasklet-style contracts for stateful transformation | Business logic depends on record groups/windows, not single records |
+
+### Refactor guardrails
+
+If a separate transformation layer is introduced, preserve these runtime invariants:
+
+- keep one selected scenario per run and preserve explicit `job-config.yaml` ordered `steps[]` orchestration
+- keep transform vs validation ownership clear (`transform` rewrites values; processor `rules` decide accept/reject)
+- keep the active execution precedence explicit: source validation -> optional source-native adaptation -> reader -> transformation layer -> processor rules -> write
+- avoid introducing scenario auto-discovery or hidden step insertion during migration
+
+### Development comparison examples (current vs future)
+
+Use these examples during implementation planning to decide whether to stay on the current processor-scoped transform path or activate a separate transformation-layer refactor.
+
+#### Example A: value normalization + duplicate reject (stay on current model)
+
+Current model (shipped, preferred for Level 2/early Level 3):
+
+```yaml
+# processor-config.yaml
+type: default
+rejectHandling:
+  enabled: true
+  outputPath: target/rejects/
+mappings:
+  - source: Events
+    target: EventsCsv
+    fields:
+      - from: countryCode
+        to: countryCode
+        transforms:
+          - type: valueMap
+            mappings:
+              USA: US
+              IND: IN
+            defaultValue: UNKNOWN
+      - from: id
+        to: id
+        rules:
+          - type: duplicate
+            onFailure: rejectRecord
+            keyFields: [id]
+```
+
+Why current model is enough here:
+
+- all logic remains field-scoped and record-local
+- no reusable cross-scenario transform library is required
+- no source-native pre-reader adaptation is required
+
+#### Example B: same transform chain reused across many scenarios (refactor trigger)
+
+Future model (target direction once reuse pressure is high):
+
+```yaml
+# job-config.yaml (conceptual future shape)
+steps:
+  - name: normalize-events
+    source: EventsRaw
+    transformProfile: common-event-normalization-v1
+    target: EventsNormalized
+```
+
+```yaml
+# transform-profiles.yaml (conceptual future shape)
+profiles:
+  - name: common-event-normalization-v1
+    rules:
+      - field: countryCode
+        transforms:
+          - type: trim
+          - type: upperCase
+          - type: valueMap
+            mappings:
+              USA: US
+              IND: IN
+            defaultValue: UNKNOWN
+      - field: eventTime
+        transforms:
+          - type: parseDateTime
+            inputPattern: "MM/dd/yyyy HH:mm:ss"
+            outputPattern: "yyyy-MM-dd'T'HH:mm:ss"
+```
+
+Why this suggests refactor:
+
+- same transform chain is repeated across many mappings/jobs
+- transformation lifecycle (versioning/approval/reuse) becomes a product concern
+- transform evidence must be isolated from processor-rule evidence
+
+#### Example C: source-native adaptation before runtime records exist (refactor trigger)
+
+Current model is not ideal when transformation needs XML/XPath/namespace-aware shaping before normal runtime records are emitted. That is a trigger to introduce a source-native transform seam separate from processor transforms.
+
+### Implementation decision checklist (use during backlog grooming)
+
+Keep the current processor-scoped transform model when most answers are `yes`:
+
+- are transforms field-scoped and record-local?
+- is `transforms[]` reuse manageable without profile duplication?
+- can observability stay at run/step/rule granularity without transform-stage metrics?
+- are source-native pre-reader adaptations rare or absent?
+
+Start the separate transformation-layer refactor when two or more answers are `yes`:
+
+- do multiple scenarios duplicate the same transform chains and require centralized versioning?
+- do operators need transform-stage evidence separate from validation/reject evidence?
+- do transformations frequently require whole-record orchestration rather than single-field transforms?
+- do source-native adaptation requirements (XPath/namespace/token/header shaping) become common?
+- do enrichment/cache/retry controls exceed the current processor-rule/transform seam?
+
+For active contracts and shipped processor semantics, continue to anchor implementation on:
+
+- [`Default processor config`](../config/processor/default-processor.md)
+- [`Extension points`](extension-points.md)
+- [`Runtime flow`](runtime-flow.md)
+
 ---
 
 ## Level 4 — Enterprise-grade transformation platform behavior
@@ -253,6 +384,7 @@ The next meaningful transformation priorities are:
 - [`ETL product evolution roadmap`](etl-product-evolution-roadmap.md)
 - [`File ingestion hardening`](file-ingestion-hardening.md)
 - [`Runtime flow`](runtime-flow.md)
+- [`Transformation capability catalog`](transformation-capability-catalog.md)
 - [`ADR 0007 — Add separate processor transform SPI for cleaning and normalization`](../adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
 - [`Default processor config`](../config/processor/default-processor.md)
 - [`Reference-set validation and enrichment`](reference-set-validation-and-enrichment.md)

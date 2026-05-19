@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.item.Chunk;
 import org.springframework.batch.item.ExecutionContext;
@@ -147,6 +148,7 @@ class XmlNestedSourceToCsvTargetFlowTest {
         ), csvLines);
 
         var stepExecution = MetaDataInstanceFactory.createStepExecution();
+        stepExecution.setStatus(BatchStatus.COMPLETED);
         stepExecution.setExitStatus(ExitStatus.COMPLETED);
         new FileIngestionRuntimeSupport().completeStep(stepExecution, sourceConfig);
 
