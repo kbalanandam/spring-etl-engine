@@ -38,7 +38,11 @@ public class StagedStaxEventItemWriter<T> extends StaxEventItemWriter<T> impleme
     private boolean failed;
 
     public StagedStaxEventItemWriter(String finalPath) {
-        this.stagedFileLifecycle = new StagedFileLifecycle(finalPath);
+        this(finalPath, false);
+    }
+
+    public StagedStaxEventItemWriter(String finalPath, boolean packageAsZip) {
+        this.stagedFileLifecycle = new StagedFileLifecycle(finalPath, packageAsZip, ".xml");
         setResource(new FileSystemResource(stagedFileLifecycle.stagingPath()));
     }
 

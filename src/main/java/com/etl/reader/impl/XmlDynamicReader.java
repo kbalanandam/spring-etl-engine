@@ -14,6 +14,7 @@ import com.etl.source.xml.strategy.XmlFlatteningStrategyNames;
 import com.etl.source.xml.strategy.XmlSourceStrategy;
 import com.etl.source.xml.strategy.XmlSourceStrategyRegistry;
 import com.etl.source.xml.strategy.XmlSourceStrategySelector;
+import com.etl.runtime.FileSourceArtifactSupport;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Unmarshaller;
 import org.springframework.batch.item.ExecutionContext;
@@ -54,6 +55,7 @@ import java.util.List;
 @Component("xml")
 public class XmlDynamicReader<T> implements DynamicReader<T> {
 
+	private static final FileSourceArtifactSupport FILE_SOURCE_ARTIFACT_SUPPORT = new FileSourceArtifactSupport();
 	private final XmlSourceStrategySelector strategySelector;
 
 	public XmlDynamicReader() {
@@ -73,8 +75,7 @@ public class XmlDynamicReader<T> implements DynamicReader<T> {
 		return ModelFormat.XML;
 	}
 
-	@Override
-	/**
+	/*
 	 * Builds the Spring Batch reader for the selected XML source config.
 	 *
 	 * <p>{@code DIRECT_XML} streams configured record fragments straight into the generated source
@@ -82,6 +83,7 @@ public class XmlDynamicReader<T> implements DynamicReader<T> {
 	 * resulting rows through a normal {@link ItemReader} contract so the rest of the runtime can stay
 	 * format-agnostic.</p>
 	 */
+	@Override
 	public ItemReader<T> getReader(SourceConfig config, Class<T> clazz) throws Exception {
 		if (config == null || clazz == null) {
 			throw new IllegalArgumentException("SourceConfig and target class must not be null.");
@@ -132,13 +134,13 @@ public class XmlDynamicReader<T> implements DynamicReader<T> {
 		return createRootFlatteningReader(xmlConfig, clazz);
 	}
 
-	@SuppressWarnings("unchecked")
-	/**
+	/*
 	 * Unmarshals the full generated XML root wrapper and precomputes the flattened rows in memory.
 	 *
 	 * <p>This path is used for root-oriented strategies where the strategy needs the whole object
 	 * graph instead of one record fragment at a time.</p>
 	 */
+	@SuppressWarnings("unchecked")
 	private ItemReader<T> createRootFlatteningReader(XmlSourceConfig xmlConfig, Class<T> clazz) throws Exception {
 		ClassLoader classLoader = clazz.getClassLoader();
 		Class<?> rootClass = GeneratedModelClassResolver.resolveSourceRootClass(xmlConfig, classLoader);
@@ -189,7 +191,7 @@ public class XmlDynamicReader<T> implements DynamicReader<T> {
 		unmarshaller.afterPropertiesSet();
 
 		StaxEventItemReader<T> fragmentReader = new StaxEventItemReader<>();
-		fragmentReader.setResource(new FileSystemResource(xmlConfig.getFilePath()));
+		fragmentReader.setResource(new FileSystemResource(FILE_SOURCE_ARTIFACT_SUPPORT.resolveReadablePath(xmlConfig)));
 		fragmentReader.setFragmentRootElementName(xmlConfig.getRecordElement());
 		fragmentReader.setUnmarshaller(unmarshaller);
 		fragmentReader.afterPropertiesSet();
@@ -210,7 +212,7 @@ public class XmlDynamicReader<T> implements DynamicReader<T> {
 		try {
 			JAXBContext context = JAXBContext.newInstance(rootClass);
 			Unmarshaller unmarshaller = context.createUnmarshaller();
-			return unmarshaller.unmarshal(new FileSystemResource(xmlConfig.getFilePath()).getFile());
+			return unmarshaller.unmarshal(new FileSystemResource(FILE_SOURCE_ARTIFACT_SUPPORT.resolveReadablePath(xmlConfig)).getFile());
 		} finally {
 			Thread.currentThread().setContextClassLoader(previous);
 		}

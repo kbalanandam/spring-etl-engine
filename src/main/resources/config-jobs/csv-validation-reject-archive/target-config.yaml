@@ -2,6 +2,7 @@ targets:
   - format: csv
     targetName: EventsCsv
     filePath: output/events-validation-output.csv
+    packageAsZip: true
     delimiter: ","
     fields:
       - name: id

@@ -3,6 +3,7 @@ rejectHandling:
   enabled: true
   outputPath: output/rejects/
   includeReasonColumns: true
+  packageAsZip: true
 mappings:
   - source: Events
     target: EventsCsv

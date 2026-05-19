@@ -103,64 +103,30 @@ public class ConfigLoader {
 		this.transformEvaluator = transformEvaluator;
 	}
 
-    @Bean
-    SourceWrapper sourceWrapper() {
+    @Bean(name = "sourceWrapper")
+	public SourceWrapper createSourceWrapper() {
 		try {
-			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
-			if (runtimeConfig.requireExternalConfigs()) {
-				SourceWrapper sourceWrapper = loadRequiredExternalYamlConfig(
-						runtimeConfig.sourceConfigPath(),
-						SourceWrapper.class,
-						buildYamlMapper(),
-						selectedJobSourcePackageContract(runtimeConfig.scenarioName())
-				);
-				normalizeSourceConfigPaths(sourceWrapper, parentDirectory(runtimeConfig.sourceConfigPath()));
-				applyDefaultSourcePackages(sourceWrapper, runtimeConfig.scenarioName());
-				return sourceWrapper;
-			}
-			SourceWrapper sourceWrapper = loadYamlConfig(
-					runtimeConfig.sourceConfigPath(),
-					"source-config.yaml",
-					SourceWrapper.class,
-					buildYamlMapper(),
-					directSourcePackageContract()
-			);
-			applyDirectConfigSourcePackages(sourceWrapper);
-			return sourceWrapper;
-		} catch (ConfigException e) {
-			throw e;
+			return loadSourceWrapperForRuntime(resolveRuntimeConfig());
 		} catch (Exception e) {
+			if (e instanceof ConfigException configException) {
+				throw configException;
+			}
 			throw new ConfigException("Failed to load source config YAML", e);
 		}
 	}
 
+	SourceWrapper sourceWrapper() {
+		return createSourceWrapper();
+	}
+
 	@Bean
-	TargetWrapper targetWrapper() {
+	public TargetWrapper targetWrapper() {
 		try {
-			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
-			if (runtimeConfig.requireExternalConfigs()) {
-				TargetWrapper targetWrapper = loadRequiredExternalYamlConfig(
-						runtimeConfig.targetConfigPath(),
-						TargetWrapper.class,
-						buildYamlMapper(),
-						selectedJobTargetPackageContract(runtimeConfig.scenarioName())
-				);
-				normalizeTargetConfigPaths(targetWrapper, parentDirectory(runtimeConfig.targetConfigPath()));
-				applyDefaultTargetPackages(targetWrapper, runtimeConfig.scenarioName());
-				return targetWrapper;
-			}
-			TargetWrapper targetWrapper = loadYamlConfig(
-					runtimeConfig.targetConfigPath(),
-					"target-config.yaml",
-					TargetWrapper.class,
-					buildYamlMapper(),
-					directTargetPackageContract()
-			);
-			applyDirectConfigTargetPackages(targetWrapper);
-			return targetWrapper;
-		} catch (ConfigException e) {
-			throw e;
+			return loadTargetWrapperForRuntime(resolveRuntimeConfig());
 		} catch (Exception e) {
+			if (e instanceof ConfigException configException) {
+				throw configException;
+			}
 
 			throw new ConfigException("Failed to load target config YAML", e);
 		}
@@ -169,83 +135,156 @@ public class ConfigLoader {
 	@Bean
 	public ProcessorConfig processorConfig() {
 		try {
-			ObjectMapper mapper = buildYamlMapper();
-			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
-			ProcessorConfig config = runtimeConfig.requireExternalConfigs()
-					? loadRequiredExternalYamlConfig(runtimeConfig.processorConfigPath(), ProcessorConfig.class, mapper)
-					: loadYamlConfig(runtimeConfig.processorConfigPath(), "processor-config.yaml", ProcessorConfig.class, mapper);
-			if (runtimeConfig.requireExternalConfigs()) {
-				normalizeProcessorConfigPaths(config, parentDirectory(runtimeConfig.processorConfigPath()));
-			}
-			validateProcessorConfig(config, runtimeConfig.scenarioName(), runtimeConfig.processorConfigPath());
-			return config;
-		} catch (ConfigException e) {
-			throw e;
+			return loadProcessorConfigForRuntime(resolveRuntimeConfig());
 		} catch (Exception e) {
+			if (e instanceof ConfigException configException) {
+				throw configException;
+			}
 			throw new ConfigException("Failed to load or validate processor config YAML", e);
 		}
 	}
 
 	@Bean
-	RunConfigurationMetadata runConfigurationMetadata(JobRuntimeDescriptor jobRuntimeDescriptor) {
+	public RunConfigurationMetadata runConfigurationMetadata(JobRuntimeDescriptor jobRuntimeDescriptor) {
 		try {
 			return RunConfigurationMetadata.fromJobRuntimeDescriptor(jobRuntimeDescriptor);
-		} catch (ConfigException e) {
-			throw e;
 		} catch (Exception e) {
+			if (e instanceof ConfigException configException) {
+				throw configException;
+			}
 			throw new ConfigException("Failed to resolve runtime configuration metadata", e);
 		}
 	}
 
-	RunConfigurationMetadata runConfigurationMetadata() {
-		return runConfigurationMetadata(
-				jobRuntimeDescriptor(
-						sourceWrapper(),
-						targetWrapper(),
-						processorConfig(),
-						jobRuntimeDescriptorAssembler()
-				)
-		);
+	RunConfigurationMetadata buildRunConfigurationMetadata() {
+		try {
+			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
+			SourceWrapper sourceWrapper = loadSourceWrapperForRuntime(runtimeConfig);
+			TargetWrapper targetWrapper = loadTargetWrapperForRuntime(runtimeConfig);
+			ProcessorConfig processorConfig = loadProcessorConfigForRuntime(runtimeConfig);
+			JobRuntimeDescriptor descriptor = buildJobRuntimeDescriptor(
+					runtimeConfig,
+					sourceWrapper,
+					targetWrapper,
+					processorConfig,
+					new JobRuntimeDescriptorAssembler()
+			);
+			return RunConfigurationMetadata.fromJobRuntimeDescriptor(descriptor);
+		} catch (Exception e) {
+			if (e instanceof ConfigException configException) {
+				throw configException;
+			}
+			throw new ConfigException("Failed to resolve runtime configuration metadata", e);
+		}
 	}
 
-	@Bean
-	JobRuntimeDescriptorAssembler jobRuntimeDescriptorAssembler() {
+	@Bean(name = "jobRuntimeDescriptorAssembler")
+	public JobRuntimeDescriptorAssembler createJobRuntimeDescriptorAssembler() {
 		return new JobRuntimeDescriptorAssembler();
 	}
 
+
 	@Bean
-	JobRuntimeDescriptor jobRuntimeDescriptor(SourceWrapper sourceWrapper,
+	public JobRuntimeDescriptor jobRuntimeDescriptor(SourceWrapper sourceWrapper,
 	                                                  TargetWrapper targetWrapper,
 	                                                  ProcessorConfig processorConfig,
 	                                                  JobRuntimeDescriptorAssembler assembler) {
-		// Build the observability/runtime descriptor from the same selected config contract
-		// that drives actual execution so logging and execution describe the same scenario.
-		ResolvedRuntimeConfig runtimeConfig = null;
 		try {
-			runtimeConfig = resolveRuntimeConfig();
-			return assembler.assemble(
-					runtimeConfig.scenarioName(),
-					runtimeConfig.jobConfigPath(),
-					runtimeConfig.demoFallbackMode() ? JobRunMode.DEMO_FALLBACK : JobRunMode.EXPLICIT_JOB,
-					new JobConfigPaths(
-							runtimeConfig.sourceConfigPath(),
-							runtimeConfig.targetConfigPath(),
-							runtimeConfig.processorConfigPath()
-					),
-					runtimeConfig.steps(),
-					sourceWrapper,
-					targetWrapper,
-					processorConfig
-			);
+			return buildJobRuntimeDescriptor(resolveRuntimeConfig(), sourceWrapper, targetWrapper, processorConfig, assembler);
 		} catch (IllegalArgumentException | IllegalStateException e) {
+			ResolvedRuntimeConfig runtimeConfig = cachedRuntimeConfig;
 			throw new ConfigException("Invalid runtime descriptor configuration for scenario '"
 					+ defaultName(runtimeConfig == null ? null : runtimeConfig.scenarioName()) + "' in "
 					+ defaultJobPath(runtimeConfig == null ? null : runtimeConfig.jobConfigPath()) + ": " + e.getMessage(), e);
-		} catch (ConfigException e) {
-			throw e;
 		} catch (Exception e) {
+			if (e instanceof ConfigException configException) {
+				throw configException;
+			}
 			throw new ConfigException("Failed to assemble job runtime descriptor", e);
 		}
+	}
+
+	private SourceWrapper loadSourceWrapperForRuntime(ResolvedRuntimeConfig runtimeConfig) throws IOException {
+		if (runtimeConfig.requireExternalConfigs()) {
+			SourceWrapper sourceWrapper = loadRequiredExternalYamlConfig(
+					runtimeConfig.sourceConfigPath(),
+					SourceWrapper.class,
+					buildYamlMapper(),
+					selectedJobSourcePackageContract(runtimeConfig.scenarioName())
+			);
+			normalizeSourceConfigPaths(sourceWrapper, parentDirectory(runtimeConfig.sourceConfigPath()));
+			applyDefaultSourcePackages(sourceWrapper, runtimeConfig.scenarioName());
+			return sourceWrapper;
+		}
+
+		SourceWrapper sourceWrapper = loadYamlConfig(
+				runtimeConfig.sourceConfigPath(),
+				"source-config.yaml",
+				SourceWrapper.class,
+				buildYamlMapper(),
+				directSourcePackageContract()
+		);
+		applyDirectConfigSourcePackages(sourceWrapper);
+		return sourceWrapper;
+	}
+
+	private TargetWrapper loadTargetWrapperForRuntime(ResolvedRuntimeConfig runtimeConfig) throws IOException {
+		if (runtimeConfig.requireExternalConfigs()) {
+			TargetWrapper targetWrapper = loadRequiredExternalYamlConfig(
+					runtimeConfig.targetConfigPath(),
+					TargetWrapper.class,
+					buildYamlMapper(),
+					selectedJobTargetPackageContract(runtimeConfig.scenarioName())
+			);
+			normalizeTargetConfigPaths(targetWrapper, parentDirectory(runtimeConfig.targetConfigPath()));
+			applyDefaultTargetPackages(targetWrapper, runtimeConfig.scenarioName());
+			return targetWrapper;
+		}
+
+		TargetWrapper targetWrapper = loadYamlConfig(
+				runtimeConfig.targetConfigPath(),
+				"target-config.yaml",
+				TargetWrapper.class,
+				buildYamlMapper(),
+				directTargetPackageContract()
+		);
+		applyDirectConfigTargetPackages(targetWrapper);
+		return targetWrapper;
+	}
+
+	private ProcessorConfig loadProcessorConfigForRuntime(ResolvedRuntimeConfig runtimeConfig) throws IOException {
+		ObjectMapper mapper = buildYamlMapper();
+		ProcessorConfig config = runtimeConfig.requireExternalConfigs()
+				? loadRequiredExternalYamlConfig(runtimeConfig.processorConfigPath(), ProcessorConfig.class, mapper)
+				: loadYamlConfig(runtimeConfig.processorConfigPath(), "processor-config.yaml", ProcessorConfig.class, mapper);
+		if (runtimeConfig.requireExternalConfigs()) {
+			normalizeProcessorConfigPaths(config, parentDirectory(runtimeConfig.processorConfigPath()));
+		}
+		validateProcessorConfig(config, runtimeConfig.scenarioName(), runtimeConfig.processorConfigPath());
+		return config;
+	}
+
+	private JobRuntimeDescriptor buildJobRuntimeDescriptor(ResolvedRuntimeConfig runtimeConfig,
+	                                                     SourceWrapper sourceWrapper,
+	                                                     TargetWrapper targetWrapper,
+	                                                     ProcessorConfig processorConfig,
+	                                                     JobRuntimeDescriptorAssembler assembler) {
+		// Build the observability/runtime descriptor from the same selected config contract
+		// that drives actual execution so logging and execution describe the same scenario.
+		return assembler.assemble(
+				runtimeConfig.scenarioName(),
+				runtimeConfig.jobConfigPath(),
+				runtimeConfig.demoFallbackMode() ? JobRunMode.DEMO_FALLBACK : JobRunMode.EXPLICIT_JOB,
+				new JobConfigPaths(
+						runtimeConfig.sourceConfigPath(),
+						runtimeConfig.targetConfigPath(),
+						runtimeConfig.processorConfigPath()
+				),
+				runtimeConfig.steps(),
+				sourceWrapper,
+				targetWrapper,
+				processorConfig
+		);
 	}
 
 	private static ObjectMapper buildYamlMapper() {
@@ -799,7 +838,8 @@ public class ConfigLoader {
 					copyColumns(csvTargetConfig.getFields()),
 					csvTargetConfig.getFilePath(),
 					csvTargetConfig.getDelimiter(),
-					csvTargetConfig.isIncludeHeader()
+					csvTargetConfig.isIncludeHeader(),
+					csvTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
@@ -807,7 +847,8 @@ public class ConfigLoader {
 					jsonTargetConfig.getTargetName(),
 					defaultTargetPackage,
 					copyColumns(jsonTargetConfig.getFields()),
-					jsonTargetConfig.getFilePath()
+					jsonTargetConfig.getFilePath(),
+					jsonTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
@@ -818,7 +859,8 @@ public class ConfigLoader {
 					xmlTargetConfig.getFilePath(),
 					xmlTargetConfig.getRootElement(),
 					xmlTargetConfig.getRecordElement(),
-					xmlTargetConfig.getModelDefinitionPath()
+					xmlTargetConfig.getModelDefinitionPath(),
+					xmlTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
@@ -850,7 +892,8 @@ public class ConfigLoader {
 					copyColumns(csvTargetConfig.getFields()),
 					csvTargetConfig.getFilePath(),
 					csvTargetConfig.getDelimiter(),
-					csvTargetConfig.isIncludeHeader()
+					csvTargetConfig.isIncludeHeader(),
+					csvTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
@@ -858,7 +901,8 @@ public class ConfigLoader {
 					jsonTargetConfig.getTargetName(),
 					defaultTargetPackage,
 					copyColumns(jsonTargetConfig.getFields()),
-					jsonTargetConfig.getFilePath()
+					jsonTargetConfig.getFilePath(),
+					jsonTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
@@ -869,7 +913,8 @@ public class ConfigLoader {
 					xmlTargetConfig.getFilePath(),
 					xmlTargetConfig.getRootElement(),
 					xmlTargetConfig.getRecordElement(),
-					xmlTargetConfig.getModelDefinitionPath()
+					xmlTargetConfig.getModelDefinitionPath(),
+					xmlTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
@@ -913,6 +958,9 @@ public class ConfigLoader {
 		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
 			if (sourceConfig instanceof FileSourceConfig fileSourceConfig) {
 				fileSourceConfig.setFilePath(resolveScenarioPath(configDirectory, fileSourceConfig.getFilePath()));
+				if (fileSourceConfig.getUnzipConfig() != null) {
+					fileSourceConfig.getUnzipConfig().setExtractDir(resolveScenarioPath(configDirectory, fileSourceConfig.getUnzipConfig().getExtractDir()));
+				}
 				if (fileSourceConfig.getArchiveConfig() != null) {
 					fileSourceConfig.getArchiveConfig().setSuccessPath(resolveScenarioPath(configDirectory, fileSourceConfig.getArchiveConfig().getSuccessPath()));
 				}
@@ -952,7 +1000,8 @@ public class ConfigLoader {
 					copyColumns(csvTargetConfig.getFields()),
 					resolveScenarioPath(configDirectory, csvTargetConfig.getFilePath()),
 					csvTargetConfig.getDelimiter(),
-					csvTargetConfig.isIncludeHeader()
+					csvTargetConfig.isIncludeHeader(),
+					csvTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
@@ -960,7 +1009,8 @@ public class ConfigLoader {
 					jsonTargetConfig.getTargetName(),
 					jsonTargetConfig.getPackageName(),
 					copyColumns(jsonTargetConfig.getFields()),
-					resolveScenarioPath(configDirectory, jsonTargetConfig.getFilePath())
+					resolveScenarioPath(configDirectory, jsonTargetConfig.getFilePath()),
+					jsonTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
@@ -971,7 +1021,8 @@ public class ConfigLoader {
 					resolveScenarioPath(configDirectory, xmlTargetConfig.getFilePath()),
 					xmlTargetConfig.getRootElement(),
 					xmlTargetConfig.getRecordElement(),
-					resolveScenarioPath(configDirectory, xmlTargetConfig.getModelDefinitionPath())
+					resolveScenarioPath(configDirectory, xmlTargetConfig.getModelDefinitionPath()),
+					xmlTargetConfig.isPackageAsZip()
 			);
 		}
 		if (targetConfig instanceof RelationalTargetConfig) {
@@ -1036,9 +1087,6 @@ public class ConfigLoader {
 		return configuredName == null || configuredName.isBlank() ? "unnamed" : configuredName.trim();
 	}
 
-	private static boolean hasText(String value) {
-		return value != null && !value.isBlank();
-	}
 
 	private void validateProcessorConfig(ProcessorConfig config, String scenarioName, String resolvedProcessorConfigPath) {
 		try {
@@ -1093,6 +1141,24 @@ public class ConfigLoader {
 		if (rejectHandling.getOutputPath() == null || rejectHandling.getOutputPath().isBlank()) {
 			throw new IllegalStateException("ProcessorConfig.rejectHandling.enabled=true requires a non-blank 'outputPath'.");
 		}
+
+		validateRejectOutputDirectoryStyle(rejectHandling.getOutputPath());
+	}
+
+	private static void validateRejectOutputDirectoryStyle(String outputPath) {
+		String trimmedPath = outputPath.trim();
+		if (trimmedPath.endsWith("/") || trimmedPath.endsWith("\\")) {
+			return;
+		}
+
+		Path normalizedPath = Path.of(trimmedPath).normalize();
+		Path fileName = normalizedPath.getFileName();
+		if (fileName == null || !fileName.toString().contains(".")) {
+			return;
+		}
+
+		throw new IllegalStateException("ProcessorConfig.rejectHandling.outputPath must be a directory-style path. "
+				+ "Reject file names are runtime-generated as '<step-name>-rejects.csv' (or '.csv.zip' when packageAsZip=true).");
 	}
 
 	private void validateFieldRules(ProcessorConfig config,

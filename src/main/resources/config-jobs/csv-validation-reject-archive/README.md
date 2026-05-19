@@ -7,8 +7,9 @@ Preserved first shipped CSV proof for file-ingestion hardening.
 This scenario proves three shipped behaviors together:
 
 - field-level validation rules in `processor-config.yaml`
-- rejected-record output with reason metadata
+- rejected-record output with reason metadata packaged as a ZIP artifact
 - archive-on-success for the original staged CSV file
+- successful accepted-row CSV output packaged as a ZIP artifact
 
 ## Bundle map
 
@@ -80,6 +81,7 @@ targets:
   - format: csv
     targetName: EventsCsv
     filePath: output/events-validation-output.csv
+    packageAsZip: true
     delimiter: ","
     fields:
       - name: id
@@ -96,6 +98,7 @@ targets:
 - `targetName: EventsCsv` is the logical target identity matched by the job step and processor mapping.
 - This bundle intentionally omits `packageName`; the runtime derives the CSV target package from `job-config.yaml -> name`.
 - `filePath` is the accepted-record output artifact.
+- `packageAsZip: true` publishes the successful accepted-row CSV as one ZIP artifact containing that CSV file as a single entry.
 - `fields` lists the written columns in output order.
 
 ## `processor-config.yaml`
@@ -106,6 +109,7 @@ rejectHandling:
   enabled: true
   outputPath: output/rejects/
   includeReasonColumns: true
+  packageAsZip: true
 mappings:
   - source: Events
     target: EventsCsv
@@ -130,6 +134,7 @@ mappings:
 - `rejectHandling.enabled: true` turns on rejected-record output.
 - `rejectHandling.outputPath` is where rejected rows are written.
 - `rejectHandling.includeReasonColumns: true` appends rejection metadata columns.
+- `rejectHandling.packageAsZip: true` publishes the generated reject CSV as one ZIP artifact containing the reject CSV as a single entry.
 - The mapping converts `Events` source rows into `EventsCsv` output rows.
 - `id` must be present because of the `notNull` rule.
 - `eventTime` must be present and match `HH:mm:ss`.
@@ -137,8 +142,8 @@ mappings:
 
 ## Expected behavior
 
-- accepted rows are written to `output/events-validation-output.csv`
-- rejected rows are written under `output/rejects/`
+- accepted rows are written to `output/events-validation-output.csv.zip`
+- rejected rows are written under `output/rejects/` as ZIP artifacts containing the reject CSV
 - the original staged source file is moved under `output/archive/success/`
 
 ## Input notes

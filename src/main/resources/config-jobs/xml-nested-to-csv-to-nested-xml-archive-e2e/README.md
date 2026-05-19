@@ -1,6 +1,6 @@
 # xml-nested-to-csv-to-nested-xml-archive-e2e
 
-Preserved explicit job scenario for a two-step roundtrip flow inside one selected scenario, with XML archive-on-success enabled on the first step.
+Preserved explicit job scenario for a two-step roundtrip flow inside one selected scenario, with XML archive-on-success enabled on the first step and packaged as a ZIP artifact.
 
 ## Purpose
 
@@ -8,7 +8,7 @@ This scenario proves four things together inside one selected `job-config.yaml`:
 
 1. nested XML source -> CSV intermediate target
 2. CSV intermediate source -> nested XML target
-3. XML source archive-on-success after the first step completes
+3. XML source archive-on-success after the first step completes, packaged as one ZIP artifact through the shared ZIP utility
 4. `archivedSourcePath` evidence in step-finished logs
 
 ## Files
@@ -39,8 +39,9 @@ The nested XML difference is that `modelDefinitionPath` supplies the structural 
 
 - step 1 reads `input/nested-sample.xml`
 - step 1 writes `output/intermediate/tag-validation-intermediate.csv` with a header row
-- step 1 archives the original XML file to `archive/success/nested-sample.xml`
+- step 1 archives the original XML file to `archive/success/nested-sample.xml.zip`
 - step 1 emits `archivedSourcePath` in `STEP_EVENT event=step_finished`
+- that ZIP archive contains one entry named `nested-sample.xml`
 - step 2 reads that intermediate CSV file in the same job run
 - step 2 keeps the normal XML target top-level metadata in that same order and uses `modelDefinitionPath` as the structural source of truth for the nested output
 - step 2 writes `output/tag-validation-roundtrip.xml`
@@ -57,5 +58,5 @@ mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/
 
 ## Rerun note
 
-Because archive-on-success moves `input/nested-sample.xml`, restore or recopy the input file before rerunning this scenario if you want to exercise the same archive behavior again.
+Because archive-on-success now packages and removes `input/nested-sample.xml`, restore or recopy the input file before rerunning this scenario if you want to exercise the same archive behavior again.
 

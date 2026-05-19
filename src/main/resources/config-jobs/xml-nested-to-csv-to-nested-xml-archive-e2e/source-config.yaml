@@ -8,6 +8,7 @@ sources:
       enabled: true
       successPath: archive/success/
       namePattern: "{originalName}"
+      packageAsZip: true
     flatteningStrategy: NestedXml
     modelDefinitionPath: definitions/nested-source-model.yaml
   - format: csv

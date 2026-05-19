@@ -21,7 +21,11 @@ import org.springframework.batch.item.ItemWriter;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -156,6 +160,35 @@ class JsonDynamicWriterTest {
         assertEquals("EVT-300", json.get(0).get("eventCode").asText());
     }
 
+  @Test
+  void packagesSuccessfulJsonOutputAsZipWhenConfigured(@TempDir Path tempDir) throws Exception {
+    Path outputFile = tempDir.resolve("events-zipped.json");
+    JsonTargetConfig config = new JsonTargetConfig(
+        "EventsJson",
+        "com.etl.generated.job.xmltojson.target",
+        List.of(column("eventCode"), column("eventTime"), column("description"), column("sourceSystem")),
+        outputFile.toString(),
+        true
+    );
+
+    ItemWriter<Object> writer = factory.createWriter(config, EventJsonRow.class);
+    StagedJsonArrayItemWriter<Object> jsonWriter = (StagedJsonArrayItemWriter<Object>) writer;
+    jsonWriter.open(new ExecutionContext());
+    try {
+      jsonWriter.write(new Chunk<>(List.of(new EventJsonRow("EVT-ZIP", "2026-05-10T10:30:00", "zipped", "ops"))));
+    } finally {
+      jsonWriter.close();
+    }
+
+    Path publishedZip = outputFile.resolveSibling(outputFile.getFileName() + ".zip");
+    assertTrue(Files.exists(publishedZip));
+    assertFalse(Files.exists(outputFile));
+    assertEquals(List.of("events-zipped.json"), zipEntryNames(publishedZip));
+    JsonNode json = objectMapper.readTree(readZipEntryContents(publishedZip, "events-zipped.json"));
+    assertEquals(1, json.size());
+    assertEquals("EVT-ZIP", json.get(0).get("eventCode").asText());
+  }
+
     @Test
     void categorizesWriteBeforeOpenFailureAsRuntime(@TempDir Path tempDir) throws Exception {
         Path outputFile = tempDir.resolve("events-not-opened.json");
@@ -203,6 +236,31 @@ class JsonDynamicWriterTest {
         columnConfig.setType("String");
         return columnConfig;
     }
+
+  private List<String> zipEntryNames(Path zipFile) throws Exception {
+    List<String> entryNames = new ArrayList<>();
+    try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
+      ZipEntry entry;
+      while ((entry = zipInputStream.getNextEntry()) != null) {
+        if (!entry.isDirectory()) {
+          entryNames.add(entry.getName());
+        }
+      }
+    }
+    return entryNames;
+  }
+
+  private String readZipEntryContents(Path zipFile, String expectedEntryName) throws Exception {
+    try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
+      ZipEntry entry;
+      while ((entry = zipInputStream.getNextEntry()) != null) {
+        if (!entry.isDirectory() && expectedEntryName.equals(entry.getName())) {
+          return new String(zipInputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+      }
+    }
+    return "";
+  }
 
     public static final class EventJsonRow {
         private final String eventCode;

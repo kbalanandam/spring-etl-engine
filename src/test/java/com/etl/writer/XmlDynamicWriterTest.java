@@ -9,7 +9,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import com.etl.config.ColumnConfig;
 import com.etl.config.target.XmlTargetConfig;
@@ -141,6 +145,49 @@ class XmlDynamicWriterTest {
     assertFalse(xml.contains("<stale/>"));
     assertTrue(xml.contains("Replacement Jane"));
     }
+
+  @Test
+  void packagesSuccessfulXmlOutputAsZipWhenConfigured(@TempDir Path tempDir) throws Exception {
+    Path outputFile = tempDir.resolve("customers-zipped.xml");
+    ColumnConfig col1 = new ColumnConfig();
+    col1.setName("id");
+    col1.setType("integer");
+    ColumnConfig col2 = new ColumnConfig();
+    col2.setName("name");
+    col2.setType("string");
+    ColumnConfig col3 = new ColumnConfig();
+    col3.setName("email");
+    col3.setType("string");
+    XmlTargetConfig config = new XmlTargetConfig(
+        "customers",
+        "com.etl.model.target",
+        List.of(col1, col2, col3),
+        outputFile.toString(),
+        "Customers",
+        "Customer",
+        null,
+        true
+    );
+    ItemWriter<Object> writer = factory.createWriter(config, Customers.class);
+    assertInstanceOf(SingleObjectXmlWriter.class, writer);
+
+    Customer customer = new Customer();
+    customer.setId(44);
+    customer.setName("Zip Jane");
+    customer.setEmail("zip.xml@example.com");
+    Customers customers = new Customers();
+    customers.setCustomer(List.of(customer));
+
+    writer.write(new Chunk<>(List.of(customers)));
+
+    Path publishedZip = outputFile.resolveSibling(outputFile.getFileName() + ".zip");
+    assertTrue(Files.exists(publishedZip));
+    assertFalse(Files.exists(outputFile));
+    assertEquals(List.of("customers-zipped.xml"), zipEntryNames(publishedZip));
+    String xml = readZipEntryContents(publishedZip, "customers-zipped.xml");
+    assertTrue(xml.contains("<Customers>"));
+    assertTrue(xml.contains("Zip Jane"));
+  }
 
     @Test
     void doesNotPromoteFinalXmlWhenStepFails(@TempDir Path tempDir) throws Exception {
@@ -304,6 +351,31 @@ class XmlDynamicWriterTest {
                 recordElement
         );
     }
+
+  private List<String> zipEntryNames(Path zipFile) throws Exception {
+    List<String> entryNames = new ArrayList<>();
+    try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
+      ZipEntry entry;
+      while ((entry = zipInputStream.getNextEntry()) != null) {
+        if (!entry.isDirectory()) {
+          entryNames.add(entry.getName());
+        }
+      }
+    }
+    return entryNames;
+  }
+
+  private String readZipEntryContents(Path zipFile, String expectedEntryName) throws Exception {
+    try (ZipInputStream zipInputStream = new ZipInputStream(Files.newInputStream(zipFile))) {
+      ZipEntry entry;
+      while ((entry = zipInputStream.getNextEntry()) != null) {
+        if (!entry.isDirectory() && expectedEntryName.equals(entry.getName())) {
+          return new String(zipInputStream.readAllBytes(), StandardCharsets.UTF_8);
+        }
+      }
+    }
+    return "";
+  }
 
   @XmlRootElement(name = "BrokenChunkXmlRecord")
   @XmlAccessorType(XmlAccessType.PROPERTY)

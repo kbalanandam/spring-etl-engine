@@ -22,6 +22,7 @@ Backed by:
 | `filePath` | yes | string | CSV output file path or output directory |
 | `delimiter` | no | string | Field delimiter for CSV output. When omitted or blank, the target defaults to `,` |
 | `includeHeader` | no | boolean | When true, the writer emits one header row using the configured `fields[].name` order before writing data rows |
+| `packageAsZip` | no | boolean | When `true`, the runtime packages the successful CSV output as one ZIP artifact and appends `.zip` to the published path when needed |
 | `fields` | yes | list | Ordered list of target properties/columns written to the CSV |
 | `fields[].name` | yes | string | Property name written in output row order |
 | `fields[].type` | yes | string | Logical type used in the generated target model contract |
@@ -31,6 +32,7 @@ Backed by:
 For new CSV target scenarios in this repo, prefer one shared authoring pattern:
 
 - keep the top-level CSV target fields the same: `format`, `targetName`, `filePath`, `delimiter`, `includeHeader`, `fields`
+- add `packageAsZip` only when downstream consumers want the successful CSV published as a ZIP artifact
 - keep `fields` as the structural source of truth for flat CSV output
 - omit `delimiter` when standard comma-separated output is acceptable
 - add `includeHeader` only when a downstream consumer expects a header row
@@ -109,6 +111,7 @@ targets:
     targetName: TagValidationCsvIntermediate
     filePath: output/intermediate/tag-validation-intermediate.csv
     includeHeader: true
+    packageAsZip: true
     fields:
       - name: homeAgencyId
         type: String
@@ -135,6 +138,7 @@ Read the examples in write order:
 - `filePath` is the output artifact path or output directory.
 - `delimiter` controls the CSV separator; when omitted, the target defaults to `,`.
 - `includeHeader` is optional; when omitted, it defaults to `false`.
+- `packageAsZip` is optional; when `true`, the final published artifact is one ZIP containing the CSV file as a single entry.
 - `fields` lists the target properties in output column order.
 - `fields[].name` becomes the property name read from the target object and, when headers are enabled, the header row value.
 - `fields[].type` is the logical type stored in the generated target model contract.
@@ -144,6 +148,7 @@ The important authoring rule is simple:
 - keep `fields` as the structural source of truth for CSV output
 - omit `delimiter` when standard comma-separated output is fine
 - add `includeHeader: true` only when a downstream consumer expects a header row
+- add `packageAsZip: true` only when the successful CSV artifact should be published as a ZIP file
 - omit `packageName` in explicit job mode when the default job-scoped package is acceptable
 
 ## `packageName` deprecation direction
@@ -159,6 +164,7 @@ The important authoring rule is simple:
 - The current CSV writer writes fields in the configured `fields` order.
 - The current implementation uses the configured `delimiter` value and defaults to `,` when the field is omitted.
 - When `includeHeader=true`, the writer emits one header row using the configured field names.
+- When `packageAsZip=true`, the writer stages the CSV normally and then publishes one ZIP artifact containing that CSV as a single entry after the step completes successfully.
 - The shipped writer path is flat row output only.
 
 ## Validation / usage notes
@@ -168,6 +174,7 @@ The important authoring rule is simple:
 - Nested XML sources can feed CSV targets through `NestedXml` flattening as long as processor mappings point at emitted flattened keys such as `TVLPlateDetails.PlateCountry`.
 - Use an explicit file path when you want a fixed artifact name; use a directory path when you want runtime naming from `targetName`.
 - Use `includeHeader=true` when a downstream CSV source step in the same scenario needs a standard header row before consuming the file.
+- Use `packageAsZip=true` when an operator or downstream transport expects one zipped CSV artifact instead of a plain file.
 - Omit `delimiter` when standard comma-separated output is fine; provide a different separator only when a downstream consumer expects it.
 
 ## Current limitations

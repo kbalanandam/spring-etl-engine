@@ -41,8 +41,12 @@ public class SingleObjectXmlWriter implements ItemWriter<Object>, ItemStream, St
     private boolean writeInvoked;
 
     public SingleObjectXmlWriter(Jaxb2Marshaller marshaller, String filePath) {
+        this(marshaller, filePath, false);
+    }
+
+    public SingleObjectXmlWriter(Jaxb2Marshaller marshaller, String filePath, boolean packageAsZip) {
         this.marshaller = marshaller;
-        this.stagedFileLifecycle = new StagedFileLifecycle(filePath);
+        this.stagedFileLifecycle = new StagedFileLifecycle(filePath, packageAsZip, ".xml");
     }
 
     /**

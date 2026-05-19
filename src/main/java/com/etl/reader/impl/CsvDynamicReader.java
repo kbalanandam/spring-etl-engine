@@ -5,6 +5,7 @@ import com.etl.config.source.CsvSourceConfig;
 import com.etl.enums.ModelFormat;
 import com.etl.reader.DynamicReader;
 import com.etl.config.source.SourceConfig;
+import com.etl.runtime.FileSourceArtifactSupport;
 import com.etl.reader.mapper.DynamicFieldSetMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,7 @@ import java.util.stream.Collectors;
 public class CsvDynamicReader<T> implements DynamicReader<T> {
 
 	private static final Logger logger = LoggerFactory.getLogger(CsvDynamicReader.class);
+	private static final FileSourceArtifactSupport FILE_SOURCE_ARTIFACT_SUPPORT = new FileSourceArtifactSupport();
 
 	@Override
 	public ModelFormat getFormat() {
@@ -52,7 +54,6 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 	 */
 	@Override
 	public ItemReader<T> getReader(SourceConfig config, Class<T> clazz) {
-
 		if (config == null || clazz == null) {
 			throw new IllegalArgumentException("SourceConfig and target class must not be null.");
 		}
@@ -61,52 +62,70 @@ public class CsvDynamicReader<T> implements DynamicReader<T> {
 		csvConfig.validateParserConfiguration();
 
 		FlatFileItemReader<T> reader = new FlatFileItemReader<>();
-		reader.setResource(new FileSystemResource(csvConfig.getFilePath()));
-		// Header skipping is controlled explicitly by config so intermediate handoff
-		// CSV files can opt in or out depending on how the upstream step published them.
-		reader.setLinesToSkip(csvConfig.isSkipHeader() ? 1 : 0);
-
-		// ------------------------------
-		// Build dynamic line mapper
-		// ------------------------------
-		DefaultLineMapper<T> lineMapper = new DefaultLineMapper<>();
-
-		// Configure delimiter and quote handling from the selected source config so the
-		// tokenizer matches the file contract instead of assuming default CSV behavior.
-		DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer();
-		tokenizer.setDelimiter(csvConfig.getDelimiter());
-		Character quoteCharacter = csvConfig.resolveQuoteCharacter();
-		if (quoteCharacter != null) {
-			tokenizer.setQuoteCharacter(quoteCharacter);
-		}
-
-		// Column names come from config field order and drive both token binding and
-		// DynamicFieldSetMapper property assignment into the generated model class.
-		String[] columnNames = config.getFields().stream()
-				.map(FieldDefinition::getName)
-				.toArray(String[]::new);
-
-		// Log configured column names (S2629 compliant)
-		if (logger.isInfoEnabled()) {
-			logger.info("Column names configured for tokenizer:: {}",
-					Arrays.stream(columnNames)
-							.map(name -> "[" + name + "]")
-							.collect(Collectors.joining(", ")));
-		}
-
-		tokenizer.setNames(columnNames);
-		lineMapper.setLineTokenizer(tokenizer);
-		List<? extends FieldDefinition> fields = config.getFields();
-
-		// Field mapping stays dynamic so one reader implementation can support many
-		// different generated source model shapes across preserved bundles.
-		lineMapper.setFieldSetMapper(new DynamicFieldSetMapper<>(fields, clazz));
-
-		reader.setLineMapper(lineMapper);
+		reader.setResource(resolveResource(csvConfig));
+		reader.setLinesToSkip(linesToSkip(csvConfig));
+		reader.setLineMapper(buildLineMapper(config, clazz));
 		reader.setStrict(true);
 
 		// Wrap the concrete reader so CSV parsing failures use the same categorized
 		// runtime failure path as the other active source formats.
 		return new RuntimeCategorizingItemStreamReader<>(reader, csvConfig.getSourceName());
+	}
+
+	private FileSystemResource resolveResource(CsvSourceConfig csvConfig) {
+		return new FileSystemResource(FILE_SOURCE_ARTIFACT_SUPPORT.resolveReadablePath(csvConfig));
+	}
+
+	private int linesToSkip(CsvSourceConfig csvConfig) {
+		// Header skipping is controlled explicitly by config so intermediate handoff
+		// CSV files can opt in or out depending on how the upstream step published them.
+		return csvConfig.isSkipHeader() ? 1 : 0;
+	}
+
+	private DefaultLineMapper<T> buildLineMapper(SourceConfig config, Class<T> clazz) {
+		DefaultLineMapper<T> lineMapper = new DefaultLineMapper<>();
+		lineMapper.setLineTokenizer(buildTokenizer((CsvSourceConfig) config));
+
+		List<? extends FieldDefinition> fields = config.getFields();
+		// Field mapping stays dynamic so one reader implementation can support many
+		// different generated source model shapes across preserved bundles.
+		lineMapper.setFieldSetMapper(new DynamicFieldSetMapper<>(fields, clazz));
+		return lineMapper;
+	}
+
+	private DelimitedLineTokenizer buildTokenizer(CsvSourceConfig csvConfig) {
+		// Configure delimiter and quote handling from the selected source config so the
+		// tokenizer matches the file contract instead of assuming default CSV behavior.
+		DelimitedLineTokenizer tokenizer = new DelimitedLineTokenizer();
+		tokenizer.setDelimiter(csvConfig.getDelimiter());
+
+		Character quoteCharacter = csvConfig.resolveQuoteCharacter();
+		if (quoteCharacter != null) {
+			tokenizer.setQuoteCharacter(quoteCharacter);
+		}
+
+		String[] columnNames = configuredColumnNames(csvConfig);
+		logConfiguredColumnNames(columnNames);
+		tokenizer.setNames(columnNames);
+		return tokenizer;
+	}
+
+	private String[] configuredColumnNames(SourceConfig config) {
+		// Column names come from config field order and drive both token binding and
+		// DynamicFieldSetMapper property assignment into the generated model class.
+		return config.getFields().stream()
+				.map(FieldDefinition::getName)
+				.toArray(String[]::new);
+	}
+
+	private void logConfiguredColumnNames(String[] columnNames) {
+		if (!logger.isInfoEnabled()) {
+			return;
+		}
+
+		logger.info("Column names configured for tokenizer:: {}",
+				Arrays.stream(columnNames)
+						.map(name -> "[" + name + "]")
+						.collect(Collectors.joining(", ")));
 	}
 }

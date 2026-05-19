@@ -193,7 +193,8 @@ public class XmlJobScopedGenerationService {
                     xmlTargetConfig.getFilePath(),
                     xmlTargetConfig.getRootElement(),
                     xmlTargetConfig.getRecordElement(),
-                    xmlTargetConfig.getModelDefinitionPath()
+                    xmlTargetConfig.getModelDefinitionPath(),
+                    xmlTargetConfig.isPackageAsZip()
             );
         }
 
@@ -204,7 +205,8 @@ public class XmlJobScopedGenerationService {
                     copyColumns(csvTargetConfig.getFields()),
                     csvTargetConfig.getFilePath(),
                     csvTargetConfig.getDelimiter(),
-                    csvTargetConfig.isIncludeHeader()
+                    csvTargetConfig.isIncludeHeader(),
+                    csvTargetConfig.isPackageAsZip()
             );
         }
 
@@ -213,7 +215,8 @@ public class XmlJobScopedGenerationService {
                     jsonTargetConfig.getTargetName(),
                     defaultTargetPackage,
                     copyColumns(jsonTargetConfig.getFields()),
-                    jsonTargetConfig.getFilePath()
+                    jsonTargetConfig.getFilePath(),
+                    jsonTargetConfig.isPackageAsZip()
             );
         }
 

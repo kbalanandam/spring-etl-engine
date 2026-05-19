@@ -273,6 +273,7 @@ Use the bundle root that matches your need:
 Preserved business-scenario examples include:
 
 - `customer-load`
+- `customer-load-zipped`
 - `csv-validation-reject-archive`
 - `xml-to-csv-events`
 - `xml-to-json-events`
