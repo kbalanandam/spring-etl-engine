@@ -45,14 +45,13 @@ jobs:
         run: |
           set -euo pipefail
           echo "week=$(date -u +%G-%V)" >> "$GITHUB_OUTPUT"
+          echo "schema=v2" >> "$GITHUB_OUTPUT"
 
       - name: Restore dependency-check data cache
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/dependency-check
-          key: odc-data-${{ runner.os }}-12.1.1-${{ steps.odc-cache-key.outputs.week }}
-          restore-keys: |
-            odc-data-${{ runner.os }}-12.1.1-
+          key: odc-data-${{ runner.os }}-12.1.1-${{ steps.odc-cache-key.outputs.schema }}-${{ steps.odc-cache-key.outputs.week }}
 
       - name: Run dependency vulnerability scan (OWASP)
         env:
@@ -60,6 +59,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p ~/.cache/dependency-check
+          mkdir -p target
           EXTRA_ARGS=""
           FAIL_ON_ERROR="false"
           if [ -n "${NVD_API_KEY:-}" ]; then
@@ -67,23 +67,41 @@ jobs:
             FAIL_ON_ERROR="true"
           fi
 
-          mvn --batch-mode --no-transfer-progress \
-            org.owasp:dependency-check-maven:12.1.1:check \
-            -Dformats=HTML,JSON \
-            -DoutputDirectory=target/dependency-check-report \
-            -DdataDirectory="$HOME/.cache/dependency-check" \
-            -DossindexAnalyzerEnabled=false \
-            -Danalyzer.ossindex.enabled=false \
-            -DfailOnError=${FAIL_ON_ERROR} \
-            -DfailBuildOnCVSS=7 \
-            ${EXTRA_ARGS}
+          run_scan() {
+            mvn --batch-mode --no-transfer-progress \
+              org.owasp:dependency-check-maven:12.1.1:check \
+              -Dformats=HTML,JSON \
+              -DoutputDirectory=target/dependency-check-report \
+              -DdataDirectory="$HOME/.cache/dependency-check" \
+              -DossindexAnalyzerEnabled=false \
+              -Danalyzer.ossindex.enabled=false \
+              -DfailOnError=${FAIL_ON_ERROR} \
+              -DfailBuildOnCVSS=7 \
+              ${EXTRA_ARGS}
+          }
+
+          set +e
+          run_scan 2>&1 | tee target/dependency-check-run.log
+          SCAN_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          if [ "${SCAN_EXIT}" -ne 0 ]; then
+            if grep -q 'Value too long for column "URL CHARACTER VARYING(1000)"' target/dependency-check-run.log; then
+              echo "Dependency-Check DB URL-length ingestion issue detected; purging cache and retrying once."
+              rm -rf "$HOME/.cache/dependency-check"
+              mkdir -p "$HOME/.cache/dependency-check"
+              run_scan
+            else
+              exit "${SCAN_EXIT}"
+            fi
+          fi
 
       - name: Save dependency-check data cache
         if: always()
         uses: actions/cache/save@v4
         with:
           path: ~/.cache/dependency-check
-          key: odc-data-${{ runner.os }}-12.1.1-${{ steps.odc-cache-key.outputs.week }}
+          key: odc-data-${{ runner.os }}-12.1.1-${{ steps.odc-cache-key.outputs.schema }}-${{ steps.odc-cache-key.outputs.week }}
 
       - name: Upload dependency scan report
         if: always()
