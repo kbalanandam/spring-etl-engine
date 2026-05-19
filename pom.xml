@@ -34,6 +34,8 @@
 		<java.version>17</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
+		<!-- Keeps the transitive log4j-to-slf4j/log4j-api bridge off older vulnerable coordinates. -->
+		<log4j2.version>2.25.4</log4j2.version>
 	</properties>
 	<dependencies>
 		<dependency>

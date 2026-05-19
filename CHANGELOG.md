@@ -10,6 +10,7 @@ and this project adheres to **Semantic Versioning**.
 
 ### Changed
 - Simplified the runtime logging stack for the `1.7.1` patch line by removing direct Log4j2 runtime dependencies and relying on Spring Boot's managed Logback path, which matches the shipped `logback-spring.xml` contract and avoids mixed-binding upgrade friction.
+- Pinned the Spring Boot-managed Log4j bridge line to `2.25.4` so the transitive `log4j-to-slf4j`/`log4j-api` artifacts used for logging interoperability no longer resolve to `2.24.3` during security scans.
 - Advanced the patch-line security remediation baseline by keeping Spring Boot `3.5.14`, removing the unused servlet/web starter so the shipped ETL runtime is explicitly non-web, and dropping redundant direct YAML, logging, and test-library declarations that were already covered by active managed dependencies.
 - Restored the PR dependency-scan failure threshold to CVSS `7` after trimming the unused direct dependency surface and aligning the shipped runtime more closely with the documented non-web process model.
 
