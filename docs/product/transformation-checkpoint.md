@@ -15,16 +15,16 @@ This is **not** a second execution board. The canonical place for `Priority`, `S
 The active shipped transformation path is still the processor-centered contract documented in [`default-processor.md`](../config/processor/default-processor.md):
 
 - field-to-field mapping through `mappings[].fields[]`
-- shipped transform types: `valueMap` and `expression`
+- shipped transform types: `valueMap`, `expression`, and `conditional`
 - shipped validation rules: `notNull`, `timeFormat`, and `duplicate`
 - rejected-record output on the active processor path
 - duplicate handling on the active processor-rule path, not source validation
 
 ### 2. What is next
 
-The next transformation item remains [`T3`](./backlog-items/T3-conditional-transformation-rule-support.md).
+The next transformation item is [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md).
 
-Reason: current working focus in [`product-backlog.md`](./product-backlog.md) keeps `T3` as the next step after the shipped transform and derived-field baseline.
+Reason: `T3` is now shipped, so the follow-on transformation hardening focus moves to `T4`.
 
 ### 3. What remains future or conceptual
 
@@ -81,12 +81,12 @@ If you need to resume quickly, read in this order:
 
 1. [`product-backlog.md`](./product-backlog.md) — canonical status and sequencing
 2. [`Epic T`](./epics/epic-t-transformation-capability.md) — shared transformation boundary
-3. [`T3`](./backlog-items/T3-conditional-transformation-rule-support.md) — next item
-4. [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) — duplicate follow-on checkpoint
+3. [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) — duplicate and quarantine follow-on checkpoint
+4. [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) — deferred duplicate-scale boundary
 5. [`default-processor.md`](../config/processor/default-processor.md) — shipped contract today
 6. [`transformation-capability-roadmap.md`](../architecture/transformation-capability-roadmap.md) — future direction
 
 ## One-line reminder
 
-**Today we kept the shipped runtime processor-centered, kept `T3` next, kept duplicate follow-on work under `T4` with `T7` separate, and treated `T8`-`T14` examples as future planning only.**
+**Today we kept the shipped runtime processor-centered, shipped `T3` conditional transforms, kept duplicate follow-on work under `T4` with `T7` separate, and treated `T8`-`T14` examples as future planning only.**
 

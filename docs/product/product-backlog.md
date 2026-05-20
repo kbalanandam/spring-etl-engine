@@ -226,7 +226,7 @@ This table is the day-to-day execution view for the current product stage.
 | [T1](backlog-items/T1-field-level-validation-and-first-reject-handling-slice.md) | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | [T1a](backlog-items/T1a-processor-transform-spi-and-first-cleaner-normalization-slice.md) | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | [T2](backlog-items/T2-expression-based-derived-field-support.md) | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
-| [T3](backlog-items/T3-conditional-transformation-rule-support.md) | Add conditional transformation rule support | Epic T | P1 | Deferred | M2 | T2 | Best introduced after expression contract is stable |
+| [T3](backlog-items/T3-conditional-transformation-rule-support.md) | Add conditional transformation rule support | Epic T | P1 | Done | M2 | T2 | Shipped on the processor transform seam with ordered `cases[]` first-match behavior and optional `defaultValue` fallback |
 | [T4](backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Follow-on hardening beyond the shipped CSV slice: broader quarantine, selectable duplicate storage mode, and XML-native duplicate identity |
 | [T5](backlog-items/T5-reference-set-validation-and-enrichment-baseline.md) | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Frozen first-slice direction: processor-side DB-backed reference-set validation such as agency-code allow-lists before broader enrichment joins |
 | [T6](backlog-items/T6-shared-default-value-and-placeholder-mapping.md) | Add shared default-value and placeholder mapping baseline | Epic T | P1 | Deferred | M2 | T2 | Capture audit-column defaults, provider-backed system date/date-time filling, job-name/constants, and formula-ready placeholders without repeating the same mapping logic in every job bundle |
@@ -274,7 +274,7 @@ This table is the day-to-day execution view for the current product stage.
 
 Use this section as the near-term sequencing view behind the execution board:
 
-1. `T3` next, now that the generated-model naming and package-derivation contract is shipped on the active path.
+1. `T4` next as the follow-on hardening track now that `T3` conditional transform support is shipped.
 2. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, and track larger duplicate-state scale redesign decisions separately under deferred `T7`.
 3. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
 4. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
@@ -461,7 +461,7 @@ Grow the product from structural field mapping into richer transformation behavi
 - [x] Add field-level validation rule support such as `notNull`, time-format, and first duplicate checks
 - [x] Add processor-side field transforms as optional ordered `transforms[]` chains, starting with built-in `valueMap` cleanup before validation
 - [x] Add expression-based derived field support
-- [ ] Add conditional transformation rule support
+- [x] Add conditional transformation rule support
 - [x] Add validation-aware transformation behavior
 - [x] Add controlled rejected-record output for invalid records
 - [ ] Define lookup/enrichment processor baseline; frozen first slice is runtime-loaded reference-set validation for reject/accept checks before broader enrichment work
@@ -763,7 +763,7 @@ Exit signal:
 
 Use this as the condensed near-term priority order:
 
-1. `T3` — conditional transformation rules
+1. `T4` — transformation hardening beyond the shipped conditional and expression baseline
 2. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
 3. `E2` — packaged-run guidance
 4. deferred `Epic T` advanced sequence — `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`

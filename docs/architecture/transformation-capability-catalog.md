@@ -45,7 +45,7 @@ Do not change explicit ordered `job-config.yaml` steps just to model field-level
 | Format validation | Shipped | Processor rules | `timeFormat` |
 | Duplicate checks and winner selection | Shipped | Processor rules + duplicate resolver | keep-first or `orderBy` winner selection |
 | Reject routing with reason metadata | Shipped | Processor rules + reject handling | `_rejectField`, `_rejectRule`, `_rejectMessage` |
-| Conditional transform (`if/else`) | Next | Processor transforms | map values by condition |
+| Conditional transform (`if/else`) | Shipped | Processor transforms | map values by condition |
 | Common string normalization helpers | Next | Processor transforms | `trim`, `collapseSpaces`, `regexReplace` |
 | Numeric and date utility transforms | Next | Processor transforms | parse/format, scale/round |
 | Shared default/placeholder assignment | Next | Processor transforms | audit defaults, job constants |
@@ -84,10 +84,10 @@ mappings:
             pattern: HH:mm:ss
 ```
 
-### 2) Next pattern: conditional transform on current design
+### 2) Shipped pattern: conditional transform on current design
 
 ```yaml
-# conceptual extension on current processor transform seam
+# shipped conditional transform on the current processor transform seam
 mappings:
   - source: Orders
     target: OrdersCsv
@@ -158,7 +158,7 @@ This map helps convert transformation growth into backlog items. Existing `T*` l
 | Baseline rule/reject behavior | [`T1`](../product/backlog-items/T1-field-level-validation-and-first-reject-handling-slice.md) | n/a | Shipped baseline for validation and reject path |
 | Transform SPI and normalization chain | [`T1a`](../product/backlog-items/T1a-processor-transform-spi-and-first-cleaner-normalization-slice.md) | n/a | Shipped transform extension seam |
 | Expression-derived fields | [`T2`](../product/backlog-items/T2-expression-based-derived-field-support.md) | n/a | Shipped derived field capability |
-| Conditional transforms/rules | [`T3`](../product/backlog-items/T3-conditional-transformation-rule-support.md) | n/a | Next major transform capability gap |
+| Conditional transforms/rules | [`T3`](../product/backlog-items/T3-conditional-transformation-rule-support.md) | n/a | Shipped conditional transform baseline on the processor seam |
 | Duplicate hardening and scope boundaries | [`T4`](../product/backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) | n/a | Stabilizes duplicate and quarantine behavior |
 | Lookup/enrichment baseline | [`T5`](../product/backlog-items/T5-reference-set-validation-and-enrichment-baseline.md) | n/a | Introduces reference-data driven transformation |
 | Shared defaults/placeholders | [`T6`](../product/backlog-items/T6-shared-default-value-and-placeholder-mapping.md) | n/a | Reduces repeated mapping logic |

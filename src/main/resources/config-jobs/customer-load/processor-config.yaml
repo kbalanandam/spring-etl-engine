@@ -9,4 +9,9 @@ mappings:
         to: name
       - from: email
         to: email
+        transforms:
+          - type: conditional
+            cases:
+              - when: "#value == null or #value.trim().isEmpty()"
+                then: unknown@example.com
 

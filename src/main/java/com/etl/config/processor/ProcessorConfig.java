@@ -111,6 +111,7 @@ public class ProcessorConfig {
 		private String type;
 		private String expression;
 		private Map<String, Object> mappings;
+		private List<ConditionalCase> cases;
 		private Object defaultValue;
 		private Boolean caseSensitive;
 
@@ -138,6 +139,14 @@ public class ProcessorConfig {
 			this.mappings = mappings;
 		}
 
+		public List<ConditionalCase> getCases() {
+			return cases;
+		}
+
+		public void setCases(List<ConditionalCase> cases) {
+			this.cases = cases;
+		}
+
 		public Object getDefaultValue() {
 			return defaultValue;
 		}
@@ -152,6 +161,28 @@ public class ProcessorConfig {
 
 		public void setCaseSensitive(Boolean caseSensitive) {
 			this.caseSensitive = caseSensitive;
+		}
+	}
+
+	public static class ConditionalCase {
+
+		private String when;
+		private Object then;
+
+		public String getWhen() {
+			return when;
+		}
+
+		public void setWhen(String when) {
+			this.when = when;
+		}
+
+		public Object getThen() {
+			return then;
+		}
+
+		public void setThen(Object then) {
+			this.then = then;
 		}
 	}
 

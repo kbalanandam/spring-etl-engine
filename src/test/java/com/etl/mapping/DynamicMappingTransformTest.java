@@ -101,6 +101,28 @@ class DynamicMappingTransformTest {
 		assertEquals("US:C-100", output.summary);
 	}
 
+	@Test
+	void appliesConditionalTransformUsingInputContext() throws Exception {
+		ProcessorConfig.FieldMapping tier = new ProcessorConfig.FieldMapping();
+		tier.setFrom("amount");
+		tier.setTo("customerTier");
+		tier.setTransforms(List.of(conditional(List.of(
+				conditionalCase("#value >= 10000", "ENTERPRISE"),
+				conditionalCase("#input.region == 'US' and #value >= 1000", "MID")
+		), "SMB")));
+
+		ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+		mapping.setSource("Orders");
+		mapping.setTarget("OrdersOut");
+		mapping.setFields(List.of(tier));
+
+		DynamicMapping<OrderInputRecord, TierTargetRecord> processor = new DynamicMapping<>(mapping, TierTargetRecord.class, new TransformEvaluator());
+		TierTargetRecord output = processor.process(new OrderInputRecord("US", 1500));
+
+		assertNotNull(output);
+		assertEquals("MID", output.customerTier);
+	}
+
 	private ProcessorConfig.FieldTransform valueMap(Map<String, Object> mappings, Object defaultValue, boolean caseSensitive) {
 		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
 		transform.setType("valueMap");
@@ -110,6 +132,21 @@ class DynamicMappingTransformTest {
 		return transform;
 	}
 
+	private ProcessorConfig.FieldTransform conditional(List<ProcessorConfig.ConditionalCase> cases, Object defaultValue) {
+		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
+		transform.setType("conditional");
+		transform.setCases(cases);
+		transform.setDefaultValue(defaultValue);
+		return transform;
+	}
+
+	private ProcessorConfig.ConditionalCase conditionalCase(String when, Object then) {
+		ProcessorConfig.ConditionalCase conditionalCase = new ProcessorConfig.ConditionalCase();
+		conditionalCase.setWhen(when);
+		conditionalCase.setThen(then);
+		return conditionalCase;
+	}
+
 	private record InputRecord(String countryCode) {
 	}
 
@@ -117,6 +154,9 @@ class DynamicMappingTransformTest {
 	}
 
 	private record SummaryInputRecord(String customerId, String countryCode) {
+	}
+
+	private record OrderInputRecord(String region, int amount) {
 	}
 
 	public static final class TargetRecord {
@@ -130,6 +170,10 @@ class DynamicMappingTransformTest {
 	public static final class SummaryTargetRecord {
 		public String countryCode;
 		public String summary;
+	}
+
+	public static final class TierTargetRecord {
+		public String customerTier;
 	}
 }
 
