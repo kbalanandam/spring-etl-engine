@@ -75,12 +75,19 @@ For duplicate handling specifically, the shipped runtime currently uses:
 - a shared processor-level duplicate contract intended for CSV, flat XML, relational, and other future record-oriented sources once records are available as normal runtime objects
 - step-local in-memory duplicate tracking for keep-first duplicate elimination
 - automatic storage selection for ordered duplicate winner selection, with in-memory resolution for smaller known candidate sets and embedded-DB staging when runtime volume crosses the large-input path
+- operator-visible ordered duplicate resolver evidence (`resolverMode` and `resolverReason`) emitted at startup planning and step runtime for orderBy-based winner selection
 
 The product direction should still preserve a future client-selectable tracking strategy so operators can explicitly choose the storage mode when needed, but the shipped contract today remains runtime-selected rather than config-selected.
 
 The main deferred exception to preserve is source-native duplicate identity that cannot be expressed cleanly through flat mapped fields. If a future XML scenario needs duplicate keys based on XPath, namespaces, nested collections, or other pre-flattening structure details, that should be treated as separate XML/source-level duplicate scope rather than stretching the current processor rule beyond its intended contract.
 
 For ordered duplicate winner selection, the current shipped slice resolves the final winner per duplicate key before the write phase and therefore forces tasklet-style final buffering for that mapping.
+
+For observability, that same path now emits explicit resolver-selection evidence:
+
+- startup planning log: `STEP_READY event=duplicate_resolver_plan` with `resolverMode` and `resolverReason`
+- step runtime log: `STEP_EVENT event=duplicate_resolver_selected` with the same resolver fields
+- step execution context keys: `orderedDuplicateResolverMode`, `orderedDuplicateResolverReason`
 
 ## Design goals for the follow-on slice
 

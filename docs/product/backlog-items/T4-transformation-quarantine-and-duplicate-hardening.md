@@ -86,6 +86,11 @@ Expected impact when this item ships:
 
 This item should harden and clarify the existing baseline, not replace it. The board's current checkpoint already states that follow-on work should stay scoped to deferred storage-mode and XML-native identity concerns rather than a redesign of the shipped duplicate baseline.
 
+First thin-slice implementation direction for this item:
+
+- add operator-visible ordered-duplicate resolver evidence (`resolverMode`, `resolverReason`) before introducing any client-selectable storage-mode YAML
+- keep duplicate semantics unchanged while making resolver choice explicit in logs and step-level evidence
+
 ## Status notes
 
 Deferred for now, but important enough to justify a detail page because the backlog row compresses several distinct but related future concerns into one short note.

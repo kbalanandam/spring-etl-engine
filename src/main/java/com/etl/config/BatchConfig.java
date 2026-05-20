@@ -26,6 +26,7 @@ import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.StepExecutionListener;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
@@ -71,6 +72,8 @@ import com.etl.writer.DynamicWriterFactory;
 public class BatchConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(BatchConfig.class);
+    private static final String ORDERED_DUPLICATE_RESOLVER_MODE_KEY = "orderedDuplicateResolverMode";
+    private static final String ORDERED_DUPLICATE_RESOLVER_REASON_KEY = "orderedDuplicateResolverReason";
 
     private final SourceWrapper sourceWrapper;
     private final TargetWrapper targetWrapper;
@@ -262,19 +265,30 @@ public class BatchConfig {
 
             boolean useChunk;
             int recordCount;
+            boolean recordCountUnknown = false;
             try {
                 recordCount = s.getRecordCount();
             } catch (Exception e) {
                 logger.warn("Could not count records for source: {}. Defaulting to chunk mode.", s.getSourceName(), e);
+                recordCountUnknown = true;
                 recordCount = chunkThreshold + 1;
             }
             if (recordCount < 0) {
                 logger.info("Record count is unknown for source: {}. Defaulting to chunk mode.", s.getSourceName());
+                recordCountUnknown = true;
                 recordCount = chunkThreshold + 1;
             }
             useChunk = recordCount > chunkThreshold;
             DuplicateRule duplicateRule = DuplicateRule.resolveConfiguration(mapping).orElse(null);
             boolean useEmbeddedDbDuplicateResolver = duplicateRule != null && recordCount > chunkThreshold;
+            String orderedDuplicateResolverMode = null;
+            String orderedDuplicateResolverReason = null;
+            if (duplicateRule != null) {
+                orderedDuplicateResolverMode = useEmbeddedDbDuplicateResolver ? "embeddedDb" : "inMemory";
+                orderedDuplicateResolverReason = useEmbeddedDbDuplicateResolver
+                        ? (recordCountUnknown ? "record_count_unknown_defaults_to_large_input_path" : "record_count_exceeds_chunk_threshold")
+                        : "record_count_within_chunk_threshold";
+            }
             if (duplicateRule != null && useChunk) {
                                   logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy originalMode=chunk overriddenMode=tasklet reason=ordered-duplicate-winner-selection-requires-final-buffering",
               runConfigurationMetadata.mainFlowName(), stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
@@ -282,6 +296,22 @@ public class BatchConfig {
                           stepName, s.getSourceName(), t.getTargetName());
                     useChunk = false;
                   }
+            if (duplicateRule != null) {
+                logger.info("STEP_READY event=duplicate_resolver_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy resolverMode={} resolverReason={} recordCount={} threshold={}",
+                        runConfigurationMetadata.mainFlowName(),
+                        stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                        runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                        stepName,
+                        s.getSourceName(),
+                        t.getTargetName(),
+                        orderedDuplicateResolverMode,
+                        orderedDuplicateResolverReason,
+                        recordCount,
+                        chunkThreshold);
+            }
+            final int resolvedRecordCount = recordCount;
+            final String resolvedOrderedDuplicateResolverMode = orderedDuplicateResolverMode;
+            final String resolvedOrderedDuplicateResolverReason = orderedDuplicateResolverReason;
 
               ResolvedModelMetadata metadata = jobStep == null
 					? GeneratedModelClassResolver.resolveMetadata(s, t)
@@ -339,6 +369,18 @@ public class BatchConfig {
                             DuplicateResolver duplicateResolver = duplicateRule == null
                                     ? null
                                     : duplicateResolverFactory.create(duplicateRule, useEmbeddedDbDuplicateResolver);
+                            recordOrderedDuplicateResolverEvidence(
+                                    contribution,
+                                    duplicateRule,
+                                    resolvedOrderedDuplicateResolverMode,
+                                    resolvedOrderedDuplicateResolverReason,
+                                    resolvedRecordCount,
+                                    chunkThreshold,
+                                    stepName,
+                                    s,
+                                    t,
+                                    stepSubFlow
+                            );
                             ExecutionContext executionContext = new ExecutionContext();
                             boolean isReaderStream = reader instanceof ItemStream;
                             boolean isWriterStream = writer instanceof ItemStream;
@@ -490,6 +532,34 @@ public class BatchConfig {
       }
     };
   }
+
+    private void recordOrderedDuplicateResolverEvidence(StepContribution contribution,
+                                                        DuplicateRule duplicateRule,
+                                                        String resolverMode,
+                                                        String resolverReason,
+                                                        int recordCount,
+                                                        int threshold,
+                                                        String stepName,
+                                                        SourceConfig sourceConfig,
+                                                        TargetConfig targetConfig,
+                                                        JobSubFlowDescriptor stepSubFlow) {
+        if (duplicateRule == null || contribution == null) {
+            return;
+        }
+        contribution.getStepExecution().getExecutionContext().putString(ORDERED_DUPLICATE_RESOLVER_MODE_KEY, resolverMode);
+        contribution.getStepExecution().getExecutionContext().putString(ORDERED_DUPLICATE_RESOLVER_REASON_KEY, resolverReason);
+        logger.info("STEP_EVENT event=duplicate_resolver_selected mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy resolverMode={} resolverReason={} recordCount={} threshold={}",
+                runConfigurationMetadata.mainFlowName(),
+                stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                stepName,
+                sourceConfig.getSourceName(),
+                targetConfig.getTargetName(),
+                resolverMode,
+                resolverReason,
+                recordCount,
+                threshold);
+    }
 
     private TargetConfig requireTarget(JobConfig.JobStepConfig configuredStep, Map<String, TargetConfig> targetByName) {
         TargetConfig targetConfig = targetByName.get(configuredStep.getTarget());

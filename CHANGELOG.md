@@ -8,6 +8,7 @@ and this project adheres to **Semantic Versioning**.
 
 ### Added
 - Added first-slice processor `conditional` transform support with ordered `cases[].when -> then` evaluation, optional `defaultValue` fallback, startup validation for malformed conditional declarations, and focused transform/config regression coverage on the active transform-before-rules execution path.
+- Added ordered-duplicate resolver observability evidence on the T4 follow-on path, including startup/runtime resolver-selection events plus step execution context fields (`orderedDuplicateResolverMode`, `orderedDuplicateResolverReason`) so operators can see which winner-selection storage path was chosen and why.
 
 ## [1.7.2] - 2026-05-19
 

@@ -32,6 +32,7 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import java.nio.file.Files;
@@ -163,6 +164,51 @@ class BatchConfigStepOrchestrationTest {
         assertEquals("Step 'customers-step' does not have a matching processor mapping for source 'Customers' and target 'Customers'.", exception.getMessage());
     }
 
+    @Test
+    void buildStepsEmitsDuplicateResolverPlanEvidenceForOrderedDuplicateSelection() throws Exception {
+        SourceWrapper sourceWrapper = new SourceWrapper();
+        sourceWrapper.setSources(List.of(csvSource("Customers", tempCsv("customers.csv"))));
+
+        TargetWrapper targetWrapper = new TargetWrapper();
+        targetWrapper.setTargets(List.of(xmlTarget("Customers", "Customer")));
+
+        ProcessorConfig processorConfig = processorConfig(mappingWithOrderedDuplicateRule("Customers", "Customers"));
+        ListAppender<ILoggingEvent> appender = attachAppender();
+
+        BatchConfig batchConfig = new BatchConfig(
+                sourceWrapper,
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig,
+                targetWrapper,
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "customers-ordered-duplicate",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "customers-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        List.of(step("customers-step", "Customers", "Customers"))
+                ),
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory()
+        );
+        ReflectionTestUtils.setField(batchConfig, "chunkThreshold", 10000);
+
+        List<Step> steps = batchConfig.buildSteps();
+
+        assertEquals(List.of("customers-step"), steps.stream().map(Step::getName).toList());
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=duplicate_resolver_plan")
+                && event.getFormattedMessage().contains("stepName=customers-step")
+                && event.getFormattedMessage().contains("resolverMode=inMemory")
+                && event.getFormattedMessage().contains("resolverReason=record_count_within_chunk_threshold")));
+    }
+
     private CsvSourceConfig csvSource(String sourceName, Path filePath) {
         CsvSourceConfig config = new CsvSourceConfig();
         config.setSourceName(sourceName);
@@ -193,6 +239,35 @@ class BatchConfigStepOrchestrationTest {
         fieldMapping.setTo("id");
         mapping.setFields(List.of(fieldMapping));
         return mapping;
+    }
+
+    private ProcessorConfig.EntityMapping mappingWithOrderedDuplicateRule(String source, String target) {
+        ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+        mapping.setSource(source);
+        mapping.setTarget(target);
+
+        ProcessorConfig.FieldRule duplicateRule = new ProcessorConfig.FieldRule();
+        duplicateRule.setType("duplicate");
+        duplicateRule.setOrderBy(List.of(orderBy("eventTime", "DESC")));
+
+        ProcessorConfig.FieldMapping idField = new ProcessorConfig.FieldMapping();
+        idField.setFrom("id");
+        idField.setTo("id");
+        idField.setRules(List.of(duplicateRule));
+
+        ProcessorConfig.FieldMapping eventTimeField = new ProcessorConfig.FieldMapping();
+        eventTimeField.setFrom("eventTime");
+        eventTimeField.setTo("eventTime");
+
+        mapping.setFields(List.of(idField, eventTimeField));
+        return mapping;
+    }
+
+    private ProcessorConfig.OrderByField orderBy(String field, String direction) {
+        ProcessorConfig.OrderByField orderByField = new ProcessorConfig.OrderByField();
+        orderByField.setField(field);
+        orderByField.setDirection(direction);
+        return orderByField;
     }
 
     private ColumnConfig column(String name, String type) {

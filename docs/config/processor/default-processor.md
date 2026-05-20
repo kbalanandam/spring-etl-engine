@@ -321,6 +321,8 @@ mappings:
 - When `orderBy` is present, runtime upgrades duplicate handling into ordered winner selection and uses a shared ordered-duplicate resolver before the final write phase.
 - Ordered duplicate winner selection still uses tasklet-style final buffering for that mapping so earlier writes do not need to be undone.
 - The storage implementation for ordered winner selection is not selected in YAML today. Runtime chooses it automatically from step volume hints: smaller known candidate sets stay on the in-memory path, while counts above the active `etl.chunk.threshold` (or unknown counts that default to the large-input path) use the embedded-database resolver.
+- Ordered duplicate winner selection now emits resolver-selection evidence so operators can see which storage path was chosen (`resolverMode=inMemory|embeddedDb`) and why (`resolverReason=...`) on both startup planning (`STEP_READY event=duplicate_resolver_plan`) and step runtime (`STEP_EVENT event=duplicate_resolver_selected`).
+- The runtime also stores the selected ordered-duplicate resolver evidence in the step execution context under `orderedDuplicateResolverMode` and `orderedDuplicateResolverReason` for downstream reporting.
 - The current duplicate contract expects flat field/property access on the runtime record. XML-native duplicate identity based on XPath, namespaces, or nested structure selectors is not part of the shipped processor config contract yet.
 - Those built-in rule types are dispatched through the active processor-rule SPI, so future rule types should be added as `ProcessorValidationRule` implementations rather than through the deprecated `com.etl.validation.*` package.
 
