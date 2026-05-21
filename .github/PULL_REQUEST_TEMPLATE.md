@@ -26,8 +26,8 @@ Describe what changed and why.
 
 ## Helpful links
 
-- [`docs/README.md`](../docs/README.md)
-- [`docs/architecture/TEMPLATE.md`](../docs/architecture/TEMPLATE.md)
-- [`docs/adr/TEMPLATE.md`](../docs/adr/TEMPLATE.md)
-- [`private-jobs/README.md`](../private-jobs/README.md)
+- [`docs/README.md`](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/README.md)
+- [`docs/architecture/TEMPLATE.md`](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/architecture/TEMPLATE.md)
+- [`docs/adr/TEMPLATE.md`](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/adr/TEMPLATE.md)
+- [`private-jobs/README.md`](https://github.com/kbalanandam/spring-etl-engine/blob/master/private-jobs/README.md)
 
