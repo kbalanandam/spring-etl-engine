@@ -8,7 +8,7 @@ Extend the first shipped validation and reject-handling slice without redesignin
 
 - Epic: **[Epic T](../epics/epic-t-transformation-capability.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **T1, T2, T3**
 
