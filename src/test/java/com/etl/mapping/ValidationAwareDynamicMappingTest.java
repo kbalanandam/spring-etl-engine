@@ -3,6 +3,7 @@ package com.etl.mapping;
 import com.etl.config.ColumnConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
+import com.etl.processor.ProcessorExtensionDefaults;
 import com.etl.processor.validation.DuplicateProcessorValidationRule;
 import com.etl.processor.validation.ValidationRuleEvaluator;
 import com.etl.runtime.FileIngestionRuntimeSupport;
@@ -174,7 +175,7 @@ class ValidationAwareDynamicMappingTest {
     ValidationAwareDynamicMapping<StatusRecord, StatusTargetRecord> processor = new ValidationAwareDynamicMapping<>(
         mapping,
         StatusTargetRecord.class,
-        new com.etl.processor.transform.TransformEvaluator(),
+        new com.etl.processor.transform.TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms()),
         evaluator,
         new FileIngestionRuntimeSupport(),
         true
@@ -210,7 +211,7 @@ class ValidationAwareDynamicMappingTest {
     ValidationAwareDynamicMapping<NameRecord, NameTargetRecord> processor = new ValidationAwareDynamicMapping<>(
         mapping,
         NameTargetRecord.class,
-        new com.etl.processor.transform.TransformEvaluator(),
+        new com.etl.processor.transform.TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms()),
         evaluator,
         new FileIngestionRuntimeSupport(),
         true
@@ -251,7 +252,7 @@ class ValidationAwareDynamicMappingTest {
     ValidationAwareDynamicMapping<OrderRecord, OrderTargetRecord> processor = new ValidationAwareDynamicMapping<>(
         mapping,
         OrderTargetRecord.class,
-        new com.etl.processor.transform.TransformEvaluator(),
+        new com.etl.processor.transform.TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms()),
         evaluator,
         new FileIngestionRuntimeSupport(),
         true

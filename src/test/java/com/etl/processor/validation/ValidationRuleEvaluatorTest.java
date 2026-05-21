@@ -2,6 +2,8 @@ package com.etl.processor.validation;
 
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
+import com.etl.enums.ModelFormat;
+import com.etl.processor.ProcessorExtensionDefaults;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.StepExecution;
@@ -11,11 +13,14 @@ import org.springframework.batch.test.MetaDataInstanceFactory;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ValidationRuleEvaluatorTest {
 
-    private final ValidationRuleEvaluator evaluator = new ValidationRuleEvaluator();
+    private final ValidationRuleEvaluator evaluator = new ValidationRuleEvaluator(
+            ProcessorExtensionDefaults.defaultValidationRules(new FileIngestionRuntimeSupport())
+    );
 
     @Test
     void returnsNoIssuesForValidRecord() {
@@ -147,6 +152,33 @@ class ValidationRuleEvaluatorTest {
     assertEquals("startsWith", issues.get(0).rule());
   }
 
+  @Test
+  void prefersScopedRuleForMatchingSourceFormatAndFallsBackToGlobalRule() {
+    ValidationRuleEvaluator scopedEvaluator = new ValidationRuleEvaluator(List.of(
+        new GlobalFormatAwareRule(),
+        new XmlScopedFormatAwareRule()
+    ));
+
+    ProcessorConfig.EntityMapping mapping = formatAwareMapping();
+
+    List<ValidationIssue> csvIssues = scopedEvaluator.evaluate(new EventRecord("1", "08:30:00", "ok"), mapping, ModelFormat.CSV);
+    assertEquals("global-format-aware", csvIssues.get(0).rule());
+
+    List<ValidationIssue> xmlIssues = scopedEvaluator.evaluate(new EventRecord("1", "08:30:00", "ok"), mapping, ModelFormat.XML);
+    assertEquals("xml-format-aware", xmlIssues.get(0).rule());
+  }
+
+  @Test
+  void throwsWhenRuleIsOnlyScopedToDifferentFormat() {
+    ValidationRuleEvaluator scopedEvaluator = new ValidationRuleEvaluator(List.of(new XmlScopedOnlyRule()));
+    ProcessorConfig.EntityMapping mapping = formatAwareMapping("xmlScopedOnly");
+
+    IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+        () -> scopedEvaluator.evaluate(new EventRecord("1", "08:30:00", "ok"), mapping, ModelFormat.CSV));
+    assertTrue(error.getMessage().contains("xmlScopedOnly"));
+    assertTrue(error.getMessage().contains("csv"));
+  }
+
     private ProcessorConfig.EntityMapping mapping() {
         ProcessorConfig.FieldMapping id = new ProcessorConfig.FieldMapping();
         id.setFrom("id");
@@ -173,6 +205,25 @@ class ValidationRuleEvaluatorTest {
         mapping.setFields(List.of(id, eventTime, description));
         return mapping;
     }
+
+          private ProcessorConfig.EntityMapping formatAwareMapping() {
+            return formatAwareMapping("formatAware");
+          }
+
+          private ProcessorConfig.EntityMapping formatAwareMapping(String ruleType) {
+            ProcessorConfig.FieldMapping id = new ProcessorConfig.FieldMapping();
+            id.setFrom("id");
+            id.setTo("id");
+            ProcessorConfig.FieldRule rule = new ProcessorConfig.FieldRule();
+            rule.setType(ruleType);
+            id.setRules(List.of(rule));
+
+            ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+            mapping.setSource("Events");
+            mapping.setTarget("EventsCsv");
+            mapping.setFields(List.of(id));
+            return mapping;
+          }
 
               private ProcessorConfig.EntityMapping duplicateOnlyMapping() {
                 return duplicateMapping(null, null);
@@ -246,6 +297,55 @@ class ValidationRuleEvaluatorTest {
         return null;
       }
       return new ValidationIssue(fieldName, getRuleType(), fieldName + " must start with " + rule.getPattern());
+    }
+  }
+
+  private static final class GlobalFormatAwareRule implements ProcessorValidationRule {
+
+    @Override
+    public String getRuleType() {
+      return "formatAware";
+    }
+
+    @Override
+    public ValidationIssue evaluate(String fieldName, Object value, ProcessorConfig.FieldRule rule) {
+      return new ValidationIssue(fieldName, "global-format-aware", "global");
+    }
+  }
+
+  private static final class XmlScopedFormatAwareRule implements ProcessorValidationRule {
+
+    @Override
+    public String getRuleType() {
+      return "formatAware";
+    }
+
+    @Override
+    public java.util.Set<ModelFormat> supportedSourceFormats() {
+      return java.util.Set.of(ModelFormat.XML);
+    }
+
+    @Override
+    public ValidationIssue evaluate(String fieldName, Object value, ProcessorConfig.FieldRule rule) {
+      return new ValidationIssue(fieldName, "xml-format-aware", "xml");
+    }
+  }
+
+  private static final class XmlScopedOnlyRule implements ProcessorValidationRule {
+
+    @Override
+    public String getRuleType() {
+      return "xmlScopedOnly";
+    }
+
+    @Override
+    public java.util.Set<ModelFormat> supportedSourceFormats() {
+      return java.util.Set.of(ModelFormat.XML);
+    }
+
+    @Override
+    public ValidationIssue evaluate(String fieldName, Object value, ProcessorConfig.FieldRule rule) {
+      return null;
     }
   }
 }

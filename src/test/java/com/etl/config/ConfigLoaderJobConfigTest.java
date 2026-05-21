@@ -4,6 +4,7 @@ import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.etl.config.exception.ConfigException;
+import com.etl.config.exception.ProcessorExtensionBindingConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
@@ -15,12 +16,17 @@ import com.etl.config.target.JsonTargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.common.util.GeneratedModelNamingPolicy;
+import com.etl.enums.ModelFormat;
+import com.etl.processor.ProcessorExtensionDefaults;
+import com.etl.processor.transform.ProcessorFieldTransform;
+import com.etl.processor.transform.TransformEvaluator;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.processor.validation.NotNullProcessorValidationRule;
 import com.etl.processor.validation.ProcessorValidationRule;
 import com.etl.processor.validation.TimeFormatProcessorValidationRule;
 import com.etl.processor.validation.ValidationIssue;
 import com.etl.processor.validation.ValidationRuleEvaluator;
+import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -2259,6 +2265,249 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void loadsProcessorConfigWhenCsvScopedTransformSpiIsProvided() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+      - format: csv
+        sourceName: Events
+        filePath: input/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+      - format: csv
+        targetName: EventsCsv
+        filePath: output/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+      - source: Events
+        target: EventsCsv
+        fields:
+        - from: id
+          to: id
+          transforms:
+          - type: csvOnly
+      """);
+    Files.writeString(jobConfig, """
+      name: csv-scoped-transform-spi
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+      - name: events-step
+        source: Events
+        target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader(
+        new SourceValidationService(),
+        new ValidationRuleEvaluator(ProcessorExtensionDefaults.defaultValidationRules(new FileIngestionRuntimeSupport())),
+        transformEvaluatorWith(new CsvOnlyNoOpTransform())
+    );
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ensureSelectedJobFlatModels("csv-scoped-transform-spi", List.of("Events"), List.of("EventsCsv"));
+
+    ProcessorConfig loadedProcessorConfig = loader.processorConfig();
+    assertEquals("csvOnly", loadedProcessorConfig.getMappings().get(0).getFields().get(0).getTransforms().get(0).getType());
+  }
+
+  @Test
+  void failsFastWhenCsvMappingUsesXmlScopedTransform() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+      - format: csv
+        sourceName: Events
+        filePath: input/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+      - format: csv
+        targetName: EventsCsv
+        filePath: output/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+      - source: Events
+        target: EventsCsv
+        fields:
+        - from: id
+          to: id
+          transforms:
+          - type: xmlOnly
+      """);
+    Files.writeString(jobConfig, """
+      name: csv-xml-scope-mismatch
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+      - name: events-step
+        source: Events
+        target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader(
+        new SourceValidationService(),
+        new ValidationRuleEvaluator(ProcessorExtensionDefaults.defaultValidationRules(new FileIngestionRuntimeSupport())),
+        transformEvaluatorWith(new XmlOnlyNoOpTransform())
+    );
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(exception.getMessage().contains("xmlOnly"));
+    assertTrue(exception.getMessage().contains("source format csv"));
+  }
+
+  @Test
+  void failsFastWhenCsvMappingUsesUndefinedTransformType() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+      - format: csv
+        sourceName: Events
+        filePath: input/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+      - format: csv
+        targetName: EventsCsv
+        filePath: output/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+      - source: Events
+        target: EventsCsv
+        fields:
+        - from: id
+          to: id
+          transforms:
+          - type: missingTransform
+      """);
+    Files.writeString(jobConfig, """
+      name: csv-missing-transform
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+      - name: events-step
+        source: Events
+        target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(exception instanceof ProcessorExtensionBindingConfigException);
+    assertTrue(exception.getMessage().contains("missingTransform"));
+    assertTrue(exception.getMessage().contains("source format csv"));
+  }
+
+  @Test
+  void failsFastWhenCsvMappingUsesUndefinedRuleType() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+      - format: csv
+        sourceName: Events
+        filePath: input/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+      - format: csv
+        targetName: EventsCsv
+        filePath: output/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+      - source: Events
+        target: EventsCsv
+        fields:
+        - from: id
+          to: id
+          rules:
+          - type: missingRule
+      """);
+    Files.writeString(jobConfig, """
+      name: csv-missing-rule
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+      - name: events-step
+        source: Events
+        target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(exception instanceof ProcessorExtensionBindingConfigException);
+    assertTrue(exception.getMessage().contains("missingRule"));
+    assertTrue(exception.getMessage().contains("source format csv"));
+  }
+
+  @Test
   void loadsProcessorConfigWhenExpressionTransformDefinesDerivedFieldWithoutSource() throws IOException {
     Path sourceConfig = tempDir.resolve("source-config.yaml");
     Path targetConfig = tempDir.resolve("target-config.yaml");
@@ -3482,6 +3731,12 @@ class ConfigLoaderJobConfigTest {
     return column;
   }
 
+  private TransformEvaluator transformEvaluatorWith(ProcessorFieldTransform transform) {
+    List<ProcessorFieldTransform> transforms = new ArrayList<>(ProcessorExtensionDefaults.defaultTransforms());
+    transforms.add(transform);
+    return new TransformEvaluator(transforms);
+  }
+
   private static final class StartsWithProcessorValidationRule implements ProcessorValidationRule {
 
     @Override
@@ -3504,6 +3759,42 @@ class ConfigLoaderJobConfigTest {
         return null;
       }
       return new ValidationIssue(fieldName, getRuleType(), fieldName + " must start with " + rule.getPattern());
+    }
+  }
+
+  private static final class CsvOnlyNoOpTransform implements ProcessorFieldTransform {
+
+    @Override
+    public String getTransformType() {
+      return "csvOnly";
+    }
+
+    @Override
+    public java.util.Set<ModelFormat> supportedSourceFormats() {
+      return java.util.Set.of(ModelFormat.CSV);
+    }
+
+    @Override
+    public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
+      return value;
+    }
+  }
+
+  private static final class XmlOnlyNoOpTransform implements ProcessorFieldTransform {
+
+    @Override
+    public String getTransformType() {
+      return "xmlOnly";
+    }
+
+    @Override
+    public java.util.Set<ModelFormat> supportedSourceFormats() {
+      return java.util.Set.of(ModelFormat.XML);
+    }
+
+    @Override
+    public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
+      return value;
     }
   }
 }

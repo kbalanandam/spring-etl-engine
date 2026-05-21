@@ -1,4 +1,5 @@
-﻿# Default Processor Config
+﻿- The current duplicate contract expects flat field/property access on the runtime record. XML-native duplicate identity based on XPath, namespaces, or nested structure selectors is not part of the shipped processor config contract yet.
+# Default Processor Config
 
 ## Purpose
 
@@ -100,7 +101,6 @@ This is still the best place to begin. Everything else on this page is additive.
 | `mappings[].fields[].rules[].type` | yes, when a rule is present | string | Shipped rule types are `notNull`, `timeFormat`, and first-slice `duplicate` |
 | `mappings[].fields[].rules[].pattern` | yes for `timeFormat` | string | Required time pattern such as `HH:mm:ss` |
 | `mappings[].fields[].rules[].keyFields` | no, for `duplicate` | list of strings | Optional duplicate-key field list. When omitted, duplicate detection uses the mapped field itself as the duplicate key |
-| `mappings[].fields[].rules[].orderBy` | no, for `duplicate` | list | Optional winner-selection order. When omitted, duplicate handling stays in keep-first mode and the first encountered record is retained for a duplicate key |
 | `mappings[].fields[].rules[].orderBy[].field` | yes, when `orderBy` is present | string | Field used to rank duplicate candidates; each configured field should appear only once per `orderBy` list |
 | `mappings[].fields[].rules[].orderBy[].direction` | yes, when `orderBy` is present | string | Winner-selection direction: `ASC` or `DESC` |
 | `mappings[].fields[].rules[].storageMode` | no, for `duplicate` + `orderBy` | string | Optional ordered-winner storage override: `auto` (default), `memory`, or `embeddedDb`; ignored for keep-first duplicate mode (no `orderBy`) |

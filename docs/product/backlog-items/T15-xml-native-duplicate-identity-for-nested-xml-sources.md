@@ -79,6 +79,7 @@ The preferred direction is:
 3. emit clear runtime evidence for selected identity mode and key-construction inputs
 4. keep duplicate decisioning and reject emission on the active processor-rule path
 5. document UI and runtime guardrails so inefficient or unsafe choices are warned or blocked
+6. complete a final redesign cutover slice that removes legacy processor compatibility once all preserved bundles and docs are migrated
 
 UI guardrail note for collaborators:
 
@@ -103,6 +104,88 @@ Expected impact when this item ships:
 - [ ] UI guardrails expose safe defaults and warnings for likely-unsafe flat-key choices on nested XML sources
 - [ ] at least one preserved nested XML scenario demonstrates a case where XML-native keys prevent false duplicate matches
 - [ ] docs under `docs/config/` and `docs/architecture/` explain boundaries, examples, and non-goals
+
+## Execution slices (S1-S6)
+
+Use this board to sequence implementation with strict compatibility in early slices and one explicit final cutover.
+
+### S1 - Orchestration extraction (parity)
+
+- Target: extract processor orchestration into a pipeline seam without changing behavior.
+- Scope: move flow control out of `DefaultDynamicProcessor` into explicit pipeline stages while keeping current transforms/rules wiring.
+- Acceptance criteria:
+  - [ ] existing processor behavior remains unchanged on preserved bundles
+  - [ ] parity-focused tests pass without requiring config migration
+  - [ ] startup/step evidence remains stable
+- Backward compatibility: **Required**
+
+### S2 - Rule dispatch registry (parity)
+
+- Target: route rule execution by rule type + source format using factory/registry dispatch.
+- Scope: introduce common rule handlers plus format-aware resolution, with fallback to shared handlers.
+- Acceptance criteria:
+  - [ ] dispatch path is deterministic and fail-fast on ambiguous registration
+  - [ ] current rule outcomes match parity expectations across CSV/XML/relational preserved scenarios
+  - [ ] no contract break in current `processor-config.yaml`
+- Backward compatibility: **Required**
+
+### S3 - Duplicate rule format split
+
+- Target: separate duplicate semantics into common + format-specific handlers (`xml`, `csv`, `sql/relational`).
+- Scope: keep winner-selection and resolver contracts intact while isolating XML-native identity logic behind format-aware handlers.
+- Acceptance criteria:
+  - [ ] duplicate tests pass for flat and nested XML, CSV, and relational paths
+  - [ ] ordered winner-selection behavior remains deterministic
+  - [ ] identity mode evidence is visible in runtime logs
+- Backward compatibility: **Required**
+
+### S4 - Remaining rule families + scoped config (additive)
+
+- Target: extend format-aware dispatch to other rule families and add optional scope metadata.
+- Scope: keep existing rule syntax valid; add additive scoping/guardrail fields only.
+- Acceptance criteria:
+  - [ ] legacy rule config remains valid
+  - [ ] optional scope fields are validated fail-fast when invalid
+  - [ ] docs include usage guidance for common vs format-specific rules
+- Backward compatibility: **Required**
+
+### S5 - Preserved bundle and doc migration
+
+- Target: migrate preserved bundles and docs to the new processor design as the primary contract.
+- Scope: update runnable examples under `config-jobs/`, plus `docs/config/` and `docs/architecture/` references.
+- Acceptance criteria:
+  - [ ] at least one preserved nested XML scenario proves XML-native identity outcomes
+  - [ ] migrated examples are runnable and documented
+  - [ ] verification workflow remains green with migrated bundles
+- Backward compatibility: **Required**
+
+### S6 - Final redesign cutover (non-compatible)
+
+- Target: remove legacy processor compatibility and accept only the redesigned contract.
+- Scope: delete deprecated processor wiring paths, enforce new config contract at startup, and publish migration notes.
+- Acceptance criteria:
+  - [ ] legacy processor contract is rejected with clear fail-fast startup errors
+  - [ ] only redesigned pipeline + format-scoped rule dispatch remains active
+  - [ ] release notes and migration guidance are published
+- Backward compatibility: **Not required** (intentional cutover)
+
+#### S6 migration checklist
+
+Pre-cutover readiness:
+
+- [ ] all preserved bundles under `src/main/resources/config-jobs/` are migrated to the redesigned processor contract
+- [ ] `docs/config/processor/default-processor.md` reflects only the redesigned contract (legacy syntax removed)
+- [ ] architecture docs describing processor flow and rule dispatch are updated and merged
+- [ ] verification workflow is green on migrated bundles (`scripts/generate-verification-report.ps1`)
+- [ ] migration notes include old-to-new config mapping examples and explicit unsupported legacy fields
+
+Cutover-day checks:
+
+- [ ] startup validation fails fast when legacy processor fields are present in selected `processor-config.yaml`
+- [ ] legacy processor wiring classes/branches are removed from active runtime dispatch
+- [ ] logs still emit expected run/step evidence fields after cutover
+- [ ] one migrated nested XML scenario proves XML-native duplicate identity behavior end-to-end
+- [ ] release notes clearly mark this as an intentional non-compatible processor-contract cutover
 
 ## Related docs
 

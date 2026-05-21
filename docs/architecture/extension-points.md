@@ -38,6 +38,13 @@ Validation and field-level processing behavior now use both shipped and planned 
 - Source validation dispatch: `src/main/java/com/etl/config/source/validation/SourceValidationService.java`
 - Processor rule SPI: `src/main/java/com/etl/processor/validation/ProcessorValidationRule.java`
 - Processor rule dispatch: `src/main/java/com/etl/processor/validation/ValidationRuleEvaluator.java`
+- Processor transform SPI: `src/main/java/com/etl/processor/transform/ProcessorFieldTransform.java`
+- Processor transform dispatch now supports type + source-format selection with global fallback through `TransformEvaluator`
+- Processor orchestration seam (slice-1 parity extraction): `src/main/java/com/etl/processor/pipeline/ProcessorExecutionPipeline.java`, `src/main/java/com/etl/processor/pipeline/impl/DefaultProcessorExecutionPipeline.java`
+- Processor rule dispatch now supports type + source-format selection with global fallback, so format-specific rules can be added without branching inside shared rules
+- Config startup validation now resolves mapping source format and validates transforms/rules with that format context in `ConfigLoader`, so unsupported format/type combinations fail before runtime
+- Config startup format-binding failures now raise `ProcessorExtensionBindingConfigException` (subclass of `ConfigException`) so operators can classify extension registration/scope errors distinctly from other config faults
+- Duplicate rule now registers both global and XML-scoped handlers (`DuplicateProcessorValidationRule` + `XmlDuplicateProcessorValidationRule`) while sharing current behavior until XML-specific semantics are expanded
 - Current built-in source validators: `CsvSourceValidator`, `XmlSourceValidator`, `RelationalSourceValidator`
 - Current built-in processor rules: `NotNullProcessorValidationRule`, `TimeFormatProcessorValidationRule`, `DuplicateProcessorValidationRule`
 - Planned processor transform extension point: keep it adjacent to `src/main/java/com/etl/config/processor/ProcessorConfig.java`, `src/main/java/com/etl/processor/impl/DefaultDynamicProcessor.java`, and the mapping path under `src/main/java/com/etl/mapping/`

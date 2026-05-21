@@ -1,6 +1,9 @@
 package com.etl.processor.transform;
 
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.enums.ModelFormat;
+
+import java.util.Set;
 
 /**
  * SPI for one processor-side field cleanup or normalization transform.
@@ -17,6 +20,15 @@ public interface ProcessorFieldTransform {
 	 * Returns the config {@code transforms[].type} value claimed by this implementation.
 	 */
 	String getTransformType();
+
+	/**
+	 * Optional source-format scope for this transform registration.
+	 *
+	 * <p>Empty means the transform applies to all source formats.</p>
+	 */
+	default Set<ModelFormat> supportedSourceFormats() {
+		return Set.of();
+	}
 
 	/**
 	 * Validates that this transform can run for the supplied mapping declaration.

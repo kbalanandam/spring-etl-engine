@@ -1,6 +1,7 @@
 package com.etl.config;
 
 import com.etl.config.exception.ConfigException;
+import com.etl.config.exception.ProcessorExtensionBindingConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
@@ -8,6 +9,7 @@ import com.etl.config.source.FileSourceConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.source.XmlSourceConfig;
+import com.etl.enums.ModelFormat;
 import com.etl.common.util.ConfigPackageNamePropertyValidator;
 import com.etl.common.util.ConfigBundlePathAliasResolver;
 import com.etl.common.util.GeneratedModelClassResolver;
@@ -25,8 +27,10 @@ import com.etl.runtime.job.JobConfigPaths;
 import com.etl.runtime.job.JobRunMode;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.runtime.job.JobRuntimeDescriptorAssembler;
+import com.etl.processor.ProcessorExtensionDefaults;
 import com.etl.processor.transform.TransformEvaluator;
 import com.etl.processor.validation.ValidationRuleEvaluator;
+import com.etl.runtime.FileIngestionRuntimeSupport;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
@@ -86,12 +90,16 @@ public class ConfigLoader {
 	private final TransformEvaluator transformEvaluator;
 
 	public ConfigLoader() {
-		this(new SourceValidationService(), new ValidationRuleEvaluator(), new TransformEvaluator());
+		this(
+				new SourceValidationService(),
+				new ValidationRuleEvaluator(ProcessorExtensionDefaults.defaultValidationRules(new FileIngestionRuntimeSupport())),
+				new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms())
+		);
 	}
 
 	public ConfigLoader(SourceValidationService sourceValidationService,
 	                  ValidationRuleEvaluator validationRuleEvaluator) {
-		this(sourceValidationService, validationRuleEvaluator, new TransformEvaluator());
+		this(sourceValidationService, validationRuleEvaluator, new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms()));
 	}
 
 	@Autowired
@@ -260,7 +268,12 @@ public class ConfigLoader {
 		if (runtimeConfig.requireExternalConfigs()) {
 			normalizeProcessorConfigPaths(config, parentDirectory(runtimeConfig.processorConfigPath()));
 		}
-		validateProcessorConfig(config, runtimeConfig.scenarioName(), runtimeConfig.processorConfigPath());
+		validateProcessorConfig(
+				config,
+				runtimeConfig.scenarioName(),
+				runtimeConfig.processorConfigPath(),
+				loadSourceWrapperForRuntime(runtimeConfig)
+		);
 		return config;
 	}
 
@@ -395,7 +408,7 @@ public class ConfigLoader {
 			SourceWrapper demoSourceWrapper = loadYamlConfig(sourceConfigPath, "source-config.yaml", SourceWrapper.class, buildYamlMapper(), directSourcePackageContract());
 			TargetWrapper demoTargetWrapper = loadYamlConfig(targetConfigPath, "target-config.yaml", TargetWrapper.class, buildYamlMapper(), directTargetPackageContract());
 			ProcessorConfig demoProcessorConfig = loadYamlConfig(processorConfigPath, "processor-config.yaml", ProcessorConfig.class, buildYamlMapper());
-			validateProcessorConfig(demoProcessorConfig, "demo-fallback", processorConfigPath);
+			validateProcessorConfig(demoProcessorConfig, "demo-fallback", processorConfigPath, demoSourceWrapper);
 			return new ResolvedRuntimeConfig(
 					sourceConfigPath,
 					targetConfigPath,
@@ -446,7 +459,7 @@ public class ConfigLoader {
 				new SourceValidationContext(scenarioName, resolvedSourceConfigPath)
 		);
 		validateSelectedTargetConfigs(explicitTargetWrapper, scenarioName, resolvedTargetConfigPath);
-		validateProcessorConfig(explicitProcessorConfig, scenarioName, resolvedProcessorConfigPath);
+		validateProcessorConfig(explicitProcessorConfig, scenarioName, resolvedProcessorConfigPath, explicitSourceWrapper);
 		List<JobConfig.JobStepConfig> resolvedSteps = resolveExplicitSteps(jobConfig, explicitSourceWrapper, explicitTargetWrapper, explicitProcessorConfig);
 		SelectedJobNamingValidator.validate(scenarioName, explicitSourceWrapper, explicitTargetWrapper, resolvedSteps);
 		validateSelectedGeneratedModelClasses(explicitSourceWrapper, explicitTargetWrapper, resolvedSteps, scenarioName, jobConfigFile.getAbsolutePath());
@@ -1091,7 +1104,10 @@ public class ConfigLoader {
 	}
 
 
-	private void validateProcessorConfig(ProcessorConfig config, String scenarioName, String resolvedProcessorConfigPath) {
+	private void validateProcessorConfig(ProcessorConfig config,
+	                                 String scenarioName,
+	                                 String resolvedProcessorConfigPath,
+	                                 SourceWrapper sourceWrapper) {
 		try {
 			if (config.getMappings() == null || config.getMappings().isEmpty()) {
 				throw new IllegalStateException("No entity mappings found in processor YAML");
@@ -1114,6 +1130,8 @@ public class ConfigLoader {
 					throw new IllegalStateException("EntityMapping for source=" + entityMapping.getSource() + " and target=" + entityMapping.getTarget() + " has no field mappings");
 				}
 
+				ModelFormat sourceFormat = resolveSourceFormat(entityMapping, sourceWrapper);
+
 				for (ProcessorConfig.FieldMapping fieldMapping : entityMapping.getFields()) {
 					if ((fieldMapping.getFrom() == null || fieldMapping.getFrom().isBlank()) && !allowsDerivedFieldWithoutSource(fieldMapping)) {
 						throw new IllegalStateException("FieldMapping missing 'from' in entity " + entityMapping.getSource()
@@ -1122,8 +1140,8 @@ public class ConfigLoader {
 					if (fieldMapping.getTo() == null || fieldMapping.getTo().isEmpty()) {
 						throw new IllegalStateException("FieldMapping missing 'to' in entity " + entityMapping.getSource());
 					}
-					validateFieldTransforms(entityMapping, fieldMapping);
-					validateFieldRules(config, entityMapping, fieldMapping);
+					validateFieldTransforms(entityMapping, fieldMapping, sourceFormat);
+					validateFieldRules(config, entityMapping, fieldMapping, sourceFormat);
 				}
 			}
 
@@ -1133,6 +1151,27 @@ public class ConfigLoader {
 			throw new ConfigException("Invalid processor configuration for scenario '"
 					+ defaultName(scenarioName) + "' in " + resolvedProcessorConfigPath + ": " + e.getMessage(), e);
 		}
+	}
+
+	private ModelFormat resolveSourceFormat(ProcessorConfig.EntityMapping entityMapping, SourceWrapper sourceWrapper) {
+		if (sourceWrapper == null || sourceWrapper.getSources() == null || sourceWrapper.getSources().isEmpty()) {
+			return null;
+		}
+
+		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
+			if (sourceConfig != null
+					&& sourceConfig.getSourceName() != null
+					&& sourceConfig.getSourceName().equalsIgnoreCase(entityMapping.getSource())) {
+				if (sourceConfig.getFormat() == null) {
+					throw new ProcessorExtensionBindingConfigException("EntityMapping source '" + entityMapping.getSource()
+							+ "' has no declared source format in source-config.yaml.");
+				}
+				return sourceConfig.getFormat();
+			}
+		}
+
+		throw new ProcessorExtensionBindingConfigException("EntityMapping references unknown source '" + entityMapping.getSource()
+				+ "' in processor config. Add that source to source-config.yaml.");
 	}
 
 	private static void validateRejectHandling(ProcessorConfig config) {
@@ -1186,7 +1225,8 @@ public class ConfigLoader {
 
 	private void validateFieldRules(ProcessorConfig config,
 	                             ProcessorConfig.EntityMapping entityMapping,
-	                             ProcessorConfig.FieldMapping fieldMapping) {
+	                             ProcessorConfig.FieldMapping fieldMapping,
+	                             ModelFormat sourceFormat) {
 		if (fieldMapping.getRules() == null || fieldMapping.getRules().isEmpty()) {
 			return;
 		}
@@ -1194,12 +1234,20 @@ public class ConfigLoader {
 		for (int i = 0; i < fieldMapping.getRules().size(); i++) {
 			ProcessorConfig.FieldRule rule = fieldMapping.getRules().get(i);
 			validateRuleFailureAction(config, entityMapping, fieldMapping, rule);
-			validationRuleEvaluator.validateConfiguration(entityMapping, fieldMapping, rule);
+			try {
+				validationRuleEvaluator.validateConfiguration(entityMapping, fieldMapping, rule, sourceFormat);
+			} catch (IllegalArgumentException e) {
+				String formatLabel = sourceFormat == null ? "unknown" : sourceFormat.getFormat();
+				throw new ProcessorExtensionBindingConfigException("FieldMapping rule '" + rule.getType() + "' for entity "
+						+ entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom()
+						+ "' is not supported for source format " + formatLabel + ".", e);
+			}
 		}
 	}
 
 	private void validateFieldTransforms(ProcessorConfig.EntityMapping entityMapping,
-	                                  ProcessorConfig.FieldMapping fieldMapping) {
+	                                  ProcessorConfig.FieldMapping fieldMapping,
+	                                  ModelFormat sourceFormat) {
 		if (fieldMapping.getTransforms() == null || fieldMapping.getTransforms().isEmpty()) {
 			return;
 		}
@@ -1213,7 +1261,14 @@ public class ConfigLoader {
 
 		for (int i = 0; i < fieldMapping.getTransforms().size(); i++) {
 			ProcessorConfig.FieldTransform transform = fieldMapping.getTransforms().get(i);
-			transformEvaluator.validateConfiguration(entityMapping, fieldMapping, transform);
+			try {
+				transformEvaluator.validateConfiguration(entityMapping, fieldMapping, transform, sourceFormat);
+			} catch (IllegalArgumentException e) {
+				String formatLabel = sourceFormat == null ? "unknown" : sourceFormat.getFormat();
+				throw new ProcessorExtensionBindingConfigException("FieldMapping transform '" + transform.getType() + "' for entity "
+						+ entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom()
+						+ "' is not supported for source format " + formatLabel + ".", e);
+			}
 		}
 	}
 

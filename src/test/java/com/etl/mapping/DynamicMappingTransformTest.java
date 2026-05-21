@@ -1,6 +1,7 @@
 package com.etl.mapping;
 
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.processor.ProcessorExtensionDefaults;
 import com.etl.processor.transform.TransformEvaluator;
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,7 @@ class DynamicMappingTransformTest {
 		mapping.setTarget("CustomersOut");
 		mapping.setFields(List.of(countryCode));
 
-		DynamicMapping<InputRecord, TargetRecord> processor = new DynamicMapping<>(mapping, TargetRecord.class, new TransformEvaluator());
+		DynamicMapping<InputRecord, TargetRecord> processor = new DynamicMapping<>(mapping, TargetRecord.class, builtInTransformEvaluator());
 		TargetRecord output = processor.process(new InputRecord("USA"));
 
 		assertNotNull(output);
@@ -47,7 +48,7 @@ class DynamicMappingTransformTest {
 		mapping.setTarget("CustomersOut");
 		mapping.setFields(List.of(countryCode));
 
-		DynamicMapping<InputRecord, TargetRecord> processor = new DynamicMapping<>(mapping, TargetRecord.class, new TransformEvaluator());
+		DynamicMapping<InputRecord, TargetRecord> processor = new DynamicMapping<>(mapping, TargetRecord.class, builtInTransformEvaluator());
 		TargetRecord output = processor.process(new InputRecord("USA"));
 
 		assertNotNull(output);
@@ -68,7 +69,7 @@ class DynamicMappingTransformTest {
 		mapping.setTarget("CustomersOut");
 		mapping.setFields(List.of(fullName));
 
-		DynamicMapping<NameInputRecord, NameTargetRecord> processor = new DynamicMapping<>(mapping, NameTargetRecord.class, new TransformEvaluator());
+		DynamicMapping<NameInputRecord, NameTargetRecord> processor = new DynamicMapping<>(mapping, NameTargetRecord.class, builtInTransformEvaluator());
 		NameTargetRecord output = processor.process(new NameInputRecord("Ada", "Lovelace"));
 
 		assertNotNull(output);
@@ -94,7 +95,7 @@ class DynamicMappingTransformTest {
 		mapping.setTarget("CustomersOut");
 		mapping.setFields(List.of(countryCode, summary));
 
-		DynamicMapping<SummaryInputRecord, SummaryTargetRecord> processor = new DynamicMapping<>(mapping, SummaryTargetRecord.class, new TransformEvaluator());
+		DynamicMapping<SummaryInputRecord, SummaryTargetRecord> processor = new DynamicMapping<>(mapping, SummaryTargetRecord.class, builtInTransformEvaluator());
 		SummaryTargetRecord output = processor.process(new SummaryInputRecord("C-100", "USA"));
 
 		assertNotNull(output);
@@ -116,7 +117,7 @@ class DynamicMappingTransformTest {
 		mapping.setTarget("OrdersOut");
 		mapping.setFields(List.of(tier));
 
-		DynamicMapping<OrderInputRecord, TierTargetRecord> processor = new DynamicMapping<>(mapping, TierTargetRecord.class, new TransformEvaluator());
+		DynamicMapping<OrderInputRecord, TierTargetRecord> processor = new DynamicMapping<>(mapping, TierTargetRecord.class, builtInTransformEvaluator());
 		TierTargetRecord output = processor.process(new OrderInputRecord("US", 1500));
 
 		assertNotNull(output);
@@ -130,6 +131,10 @@ class DynamicMappingTransformTest {
 		transform.setDefaultValue(defaultValue);
 		transform.setCaseSensitive(caseSensitive);
 		return transform;
+	}
+
+	private TransformEvaluator builtInTransformEvaluator() {
+		return new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms());
 	}
 
 	private ProcessorConfig.FieldTransform conditional(List<ProcessorConfig.ConditionalCase> cases, Object defaultValue) {

@@ -1,6 +1,8 @@
 package com.etl.processor.transform;
 
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.enums.ModelFormat;
+import com.etl.processor.ProcessorExtensionDefaults;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -14,7 +16,7 @@ class TransformEvaluatorTest {
 
 	@Test
 	void appliesDefaultValueWhenValueMapDoesNotMatch() {
-		TransformEvaluator evaluator = new TransformEvaluator();
+		TransformEvaluator evaluator = builtInTransformEvaluator();
 		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
 		fieldMapping.setFrom("statusCode");
 		fieldMapping.setTo("status");
@@ -42,7 +44,7 @@ class TransformEvaluatorTest {
 
 	@Test
 	void appliesBuiltInExpressionTransformUsingCurrentValue() {
-		TransformEvaluator evaluator = new TransformEvaluator();
+		TransformEvaluator evaluator = builtInTransformEvaluator();
 		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
 		transform.setType("expression");
 		transform.setExpression("#value + '-OK'");
@@ -56,7 +58,7 @@ class TransformEvaluatorTest {
 
 	@Test
 	void rejectsInvalidBuiltInExpressionConfig() {
-		TransformEvaluator evaluator = new TransformEvaluator();
+		TransformEvaluator evaluator = builtInTransformEvaluator();
 		ProcessorConfig.EntityMapping entityMapping = new ProcessorConfig.EntityMapping();
 		entityMapping.setSource("Customers");
 		entityMapping.setTarget("CustomersOut");
@@ -72,7 +74,7 @@ class TransformEvaluatorTest {
 
 	@Test
 	void appliesFirstMatchingConditionalCase() {
-		TransformEvaluator evaluator = new TransformEvaluator();
+		TransformEvaluator evaluator = builtInTransformEvaluator();
 		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
 		fieldMapping.setFrom("amount");
 		fieldMapping.setTo("tier");
@@ -86,7 +88,7 @@ class TransformEvaluatorTest {
 
 	@Test
 	void keepsOriginalValueWhenConditionalDoesNotMatchAndNoDefaultIsConfigured() {
-		TransformEvaluator evaluator = new TransformEvaluator();
+		TransformEvaluator evaluator = builtInTransformEvaluator();
 		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
 		fieldMapping.setFrom("status");
 		fieldMapping.setTo("status");
@@ -99,7 +101,7 @@ class TransformEvaluatorTest {
 
 	@Test
 	void rejectsInvalidConditionalTransformConfig() {
-		TransformEvaluator evaluator = new TransformEvaluator();
+		TransformEvaluator evaluator = builtInTransformEvaluator();
 		ProcessorConfig.EntityMapping entityMapping = new ProcessorConfig.EntityMapping();
 		entityMapping.setSource("Customers");
 		entityMapping.setTarget("CustomersOut");
@@ -115,7 +117,7 @@ class TransformEvaluatorTest {
 
 	@Test
 	void rejectsUnsupportedTransformTypes() {
-		TransformEvaluator evaluator = new TransformEvaluator();
+		TransformEvaluator evaluator = builtInTransformEvaluator();
 		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
 		fieldMapping.setFrom("statusCode");
 		fieldMapping.setTo("status");
@@ -126,6 +128,33 @@ class TransformEvaluatorTest {
 		assertThrows(IllegalArgumentException.class, () -> evaluator.apply("1", fieldMapping));
 	}
 
+	@Test
+	void prefersScopedTransformForMatchingSourceFormatAndFallsBackToGlobalTransform() {
+		TransformEvaluator evaluator = new TransformEvaluator(List.of(
+				new GlobalScopedPrefixTransform(),
+				new CsvScopedPrefixTransform()
+		));
+		ProcessorConfig.FieldMapping fieldMapping = prefixScopedFieldMapping();
+
+		assertEquals("CSV-1001", evaluator.apply("1001", fieldMapping, ModelFormat.CSV));
+		assertEquals("GLOBAL-1001", evaluator.apply("1001", fieldMapping, ModelFormat.XML));
+	}
+
+	@Test
+	void throwsWhenTransformIsScopedToDifferentFormat() {
+		TransformEvaluator evaluator = new TransformEvaluator(List.of(new CsvOnlyTransform()));
+		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
+		fieldMapping.setFrom("id");
+		fieldMapping.setTo("id");
+		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
+		transform.setType("csvOnly");
+		fieldMapping.setTransforms(List.of(transform));
+
+		IllegalArgumentException error = assertThrows(IllegalArgumentException.class,
+				() -> evaluator.apply("1001", fieldMapping, ModelFormat.XML));
+		assertEquals("Unsupported processor transform type: csvOnly for source format xml", error.getMessage());
+	}
+
 	private ProcessorConfig.FieldTransform valueMap(Map<String, Object> mappings, Object defaultValue, boolean caseSensitive) {
 		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
 		transform.setType("valueMap");
@@ -133,6 +162,10 @@ class TransformEvaluatorTest {
 		transform.setDefaultValue(defaultValue);
 		transform.setCaseSensitive(caseSensitive);
 		return transform;
+	}
+
+	private TransformEvaluator builtInTransformEvaluator() {
+		return new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms());
 	}
 
 	private ProcessorConfig.FieldTransform conditional(List<ProcessorConfig.ConditionalCase> cases, Object defaultValue) {
@@ -148,6 +181,16 @@ class TransformEvaluatorTest {
 		conditionalCase.setWhen(when);
 		conditionalCase.setThen(then);
 		return conditionalCase;
+	}
+
+	private ProcessorConfig.FieldMapping prefixScopedFieldMapping() {
+		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
+		transform.setType("prefixScoped");
+		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
+		fieldMapping.setFrom("id");
+		fieldMapping.setTo("id");
+		fieldMapping.setTransforms(List.of(transform));
+		return fieldMapping;
 	}
 
 	private static final class PrefixProcessorTransform implements ProcessorFieldTransform {
@@ -169,6 +212,55 @@ class TransformEvaluatorTest {
 		@Override
 		public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
 			return String.valueOf(transform.getDefaultValue()) + value;
+		}
+	}
+
+	private static final class GlobalScopedPrefixTransform implements ProcessorFieldTransform {
+
+		@Override
+		public String getTransformType() {
+			return "prefixScoped";
+		}
+
+		@Override
+		public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
+			return "GLOBAL-" + value;
+		}
+	}
+
+	private static final class CsvScopedPrefixTransform implements ProcessorFieldTransform {
+
+		@Override
+		public String getTransformType() {
+			return "prefixScoped";
+		}
+
+		@Override
+		public java.util.Set<ModelFormat> supportedSourceFormats() {
+			return java.util.Set.of(ModelFormat.CSV);
+		}
+
+		@Override
+		public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
+			return "CSV-" + value;
+		}
+	}
+
+	private static final class CsvOnlyTransform implements ProcessorFieldTransform {
+
+		@Override
+		public String getTransformType() {
+			return "csvOnly";
+		}
+
+		@Override
+		public java.util.Set<ModelFormat> supportedSourceFormats() {
+			return java.util.Set.of(ModelFormat.CSV);
+		}
+
+		@Override
+		public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
+			return value;
 		}
 	}
 }

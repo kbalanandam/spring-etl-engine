@@ -208,7 +208,7 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 		return availableFields;
 	}
 
-	private List<Object> resolveKeyValues(Object input, String fieldName, Object value, List<String> keyFields) {
+	protected List<Object> resolveKeyValues(Object input, String fieldName, Object value, List<String> keyFields) {
 		if (keyFields.size() == 1 && keyFields.get(0).equals(fieldName)) {
 			return Collections.singletonList(value);
 		}
@@ -216,18 +216,22 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 			return List.of();
 		}
 		return keyFields.stream()
-				.map(keyField -> ReflectionUtils.getFieldValue(input, keyField))
+				.map(keyField -> resolveKeyValue(input, keyField))
 				.toList();
 	}
 
-	private String trackingKey(String fieldName, List<String> keyFields) {
+	protected Object resolveKeyValue(Object input, String keyField) {
+		return ReflectionUtils.getFieldValue(input, keyField);
+	}
+
+	protected String trackingKey(String fieldName, List<String> keyFields) {
 		if (keyFields.size() == 1 && keyFields.get(0).equals(fieldName)) {
 			return fieldName;
 		}
 		return fieldName + "::" + String.join("|", keyFields);
 	}
 
-	private String duplicateMessage(String fieldName, List<String> keyFields) {
+	protected String duplicateMessage(String fieldName, List<String> keyFields) {
 		if (keyFields.size() == 1 && keyFields.get(0).equals(fieldName)) {
 			return fieldName + " contains a duplicate value within the current step";
 		}
