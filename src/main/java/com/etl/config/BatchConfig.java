@@ -280,14 +280,25 @@ public class BatchConfig {
             }
             useChunk = recordCount > chunkThreshold;
             DuplicateRule duplicateRule = DuplicateRule.resolveConfiguration(mapping).orElse(null);
-            boolean useEmbeddedDbDuplicateResolver = duplicateRule != null && recordCount > chunkThreshold;
+            DuplicateRule.StorageMode duplicateStorageMode = duplicateRule == null
+                    ? DuplicateRule.StorageMode.AUTO
+                    : duplicateRule.storageMode();
+            boolean useEmbeddedDbDuplicateResolver = duplicateRule != null && switch (duplicateStorageMode) {
+                case AUTO -> recordCount > chunkThreshold;
+                case MEMORY -> false;
+                case EMBEDDED_DB -> true;
+            };
             String orderedDuplicateResolverMode = null;
             String orderedDuplicateResolverReason = null;
             if (duplicateRule != null) {
                 orderedDuplicateResolverMode = useEmbeddedDbDuplicateResolver ? "embeddedDb" : "inMemory";
-                orderedDuplicateResolverReason = useEmbeddedDbDuplicateResolver
-                        ? (recordCountUnknown ? "record_count_unknown_defaults_to_large_input_path" : "record_count_exceeds_chunk_threshold")
-                        : "record_count_within_chunk_threshold";
+                orderedDuplicateResolverReason = switch (duplicateStorageMode) {
+                    case MEMORY -> "configured_storage_mode_memory";
+                    case EMBEDDED_DB -> "configured_storage_mode_embeddedDb";
+                    case AUTO -> useEmbeddedDbDuplicateResolver
+                            ? (recordCountUnknown ? "record_count_unknown_defaults_to_large_input_path" : "record_count_exceeds_chunk_threshold")
+                            : "record_count_within_chunk_threshold";
+                };
             }
             if (duplicateRule != null && useChunk) {
                                   logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy originalMode=chunk overriddenMode=tasklet reason=ordered-duplicate-winner-selection-requires-final-buffering",

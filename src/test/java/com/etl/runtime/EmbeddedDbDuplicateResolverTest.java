@@ -1,7 +1,10 @@
 package com.etl.runtime;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.etl.processor.validation.DuplicateProcessorValidationRule;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Field;
 import java.nio.file.Files;
@@ -19,6 +22,39 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class EmbeddedDbDuplicateResolverTest {
 
 	@Test
+	void emitsEmbeddedDbLifecycleEvidenceIncludingSummaryAndCleanup() {
+		ch.qos.logback.classic.Logger resolverLogger =
+				(ch.qos.logback.classic.Logger) LoggerFactory.getLogger(EmbeddedDbDuplicateResolver.class);
+		ListAppender<ILoggingEvent> appender = new ListAppender<>();
+		appender.start();
+		resolverLogger.addAppender(appender);
+		try (EmbeddedDbDuplicateResolver resolver = new EmbeddedDbDuplicateResolver(
+				new DuplicateRule(
+						"id",
+						List.of("id"),
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateRule.StorageMode.AUTO
+				)
+		)) {
+			resolver.accept(event("EVT-1001", "08:30:00", "first", 1));
+			resolver.accept(event("EVT-1001", "09:30:00", "winner", 2));
+			resolver.complete();
+		}
+
+		assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("DUPLICATE_RESOLVER event=resolver_open")
+				&& event.getFormattedMessage().contains("resolverMode=embeddedDb")
+				&& event.getFormattedMessage().contains("storageEngine=h2")));
+		assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("DUPLICATE_RESOLVER event=resolver_summary")
+				&& event.getFormattedMessage().contains("resolverMode=embeddedDb")
+				&& event.getFormattedMessage().contains("stagedRankedCount=2")
+				&& event.getFormattedMessage().contains("databaseBasePath=")));
+		assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("DUPLICATE_RESOLVER event=resolver_close")
+				&& event.getFormattedMessage().contains("dataFileExistsAfterClose=false")
+				&& event.getFormattedMessage().contains("directoryExistsAfterClose=false")));
+		resolverLogger.detachAppender(appender);
+	}
+
+	@Test
 	void keepsBestRecordPerKeyUsingStructuredOrder() {
 		try (EmbeddedDbDuplicateResolver resolver = new EmbeddedDbDuplicateResolver(
 				new DuplicateRule(
@@ -27,7 +63,8 @@ class EmbeddedDbDuplicateResolverTest {
 						List.of(
 								new DuplicateProcessorValidationRule.OrderSelector("eventTime", true),
 								new DuplicateProcessorValidationRule.OrderSelector("sequenceNo", false)
-						)
+						),
+						DuplicateRule.StorageMode.AUTO
 				)
 		)) {
 			resolver.accept(event("EVT-1001", "08:30:00", "first", 5));
@@ -52,7 +89,8 @@ class EmbeddedDbDuplicateResolverTest {
 				new DuplicateRule(
 						"id",
 						List.of("id"),
-						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true))
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateRule.StorageMode.AUTO
 				)
 		)) {
 			resolver.accept(event("EVT-1001", "08:30:00", "first", 1));
@@ -73,7 +111,8 @@ class EmbeddedDbDuplicateResolverTest {
 				new DuplicateRule(
 						"TagSerialNumber",
 						List.of("TagSerialNumber"),
-						List.of(new DuplicateProcessorValidationRule.OrderSelector("TVLAccountDetails.AccountNumber", true))
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("TVLAccountDetails.AccountNumber", true)),
+						DuplicateRule.StorageMode.AUTO
 				)
 		)) {
 			resolver.accept(new LinkedHashMap<>(Map.of(
@@ -120,7 +159,8 @@ class EmbeddedDbDuplicateResolverTest {
 		DuplicateRule rule = new DuplicateRule(
 				"id",
 				List.of("id"),
-				List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true))
+				List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+				DuplicateRule.StorageMode.AUTO
 		);
 		List<EventBean> events = List.of(
 				event("Z-KEY", "08:00:00", "z-loser", 1),
@@ -165,7 +205,8 @@ class EmbeddedDbDuplicateResolverTest {
 				new DuplicateRule(
 						"id",
 						List.of("id"),
-						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true))
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateRule.StorageMode.AUTO
 				)
 		);
 		Path databaseBasePath = resolverPathField(resolver, "databaseBasePath");

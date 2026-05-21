@@ -48,7 +48,7 @@ public class StagedStaxEventItemWriter<T> extends StaxEventItemWriter<T> impleme
 
     @Override
     public void beforeStep(@NonNull StepExecution stepExecution) {
-        // no-op
+        stagedFileLifecycle.cleanupOrphanedArtifactsAtStepStart();
     }
 
     @Override

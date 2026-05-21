@@ -1,0 +1,21 @@
+type: default
+rejectHandling:
+  enabled: true
+  outputPath: output/rejects/
+  quarantinePath: output/quarantine/
+  includeReasonColumns: true
+  packageAsZip: false
+mappings:
+  - source: Customers
+    target: Customers
+    fields:
+      - from: id
+        to: id
+        rules:
+          - type: duplicate
+            onFailure: rejectRecord
+      - from: name
+        to: name
+      - from: email
+        to: email
+

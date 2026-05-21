@@ -20,6 +20,7 @@ This page still preserves the history of the original first implementation slice
 - rejected-record output with reason metadata through `processor-config.yaml`
 - duplicate handling for keep-first and ordered winner-selection behavior
 - processed-source-file archiving after successful step completion
+- optional reject quarantine publication through `rejectHandling.quarantinePath`
 - step-finished evidence with `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath`
 - scenario-local path normalization for selected source, target, processor, reject, and archive paths
 
@@ -48,26 +49,26 @@ The following items are still not part of the shipped hardening contract:
 - multi-destination reject routing
 - rule severity levels
 - broad conditional rule engines
-- XML-native duplicate identity rules based on XPath/namespaces or other pre-flattening structure
+- XML-native duplicate identity rules based on XPath/namespaces or other pre-flattening structure (deferred follow-on: [`T15`](../product/backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md))
 - richer source-native XML validation beyond the current lightweight structural/file-level baseline
 
 ## Current architecture anchors
 
 ### Config contract anchors
 
-- `src/main/java/com/etl/config/source/FileSourceConfig.java` â€” shared contract for file-backed sources that expose `filePath` and archive behavior
-- `src/main/java/com/etl/config/source/FileArchiveConfig.java` â€” shared archive-on-success config object
-- `src/main/java/com/etl/config/source/CsvSourceConfig.java` â€” CSV file-backed source contract
-- `src/main/java/com/etl/config/source/XmlSourceConfig.java` â€” XML file-backed source contract
-- `src/main/java/com/etl/config/processor/ProcessorConfig.java` â€” processor rule and reject-handling config
-- `src/main/java/com/etl/config/ConfigLoader.java` â€” validation and scenario-relative path normalization for source, target, reject, and archive paths
+- `src/main/java/com/etl/config/source/FileSourceConfig.java` - shared contract for file-backed sources that expose `filePath` and archive behavior
+- `src/main/java/com/etl/config/source/FileArchiveConfig.java` - shared archive-on-success config object
+- `src/main/java/com/etl/config/source/CsvSourceConfig.java` - CSV file-backed source contract
+- `src/main/java/com/etl/config/source/XmlSourceConfig.java` - XML file-backed source contract
+- `src/main/java/com/etl/config/processor/ProcessorConfig.java` - processor rule and reject-handling config
+- `src/main/java/com/etl/config/ConfigLoader.java` - validation and scenario-relative path normalization for source, target, reject, and archive paths
 
 ### Runtime lifecycle anchors
 
-- `src/main/java/com/etl/runtime/FileIngestionRuntimeSupport.java` â€” step-scoped reject handling, duplicate tracking, and archive-on-success lifecycle support
-- `src/main/java/com/etl/job/listener/FileIngestionHardeningStepListener.java` â€” initializes and completes the hardening runtime state around each step
-- `src/main/java/com/etl/job/listener/StepLoggingContextListener.java` â€” publishes `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath` in machine-readable step-finished logs
-- `src/main/java/com/etl/runtime/job/JobRuntimeDescriptorAssembler.java` â€” exposes archive/reject-related execution hints into descriptor metadata
+- `src/main/java/com/etl/runtime/FileIngestionRuntimeSupport.java` - step-scoped reject handling, duplicate tracking, and archive-on-success lifecycle support
+- `src/main/java/com/etl/job/listener/FileIngestionHardeningStepListener.java` - initializes and completes the hardening runtime state around each step
+- `src/main/java/com/etl/job/listener/StepLoggingContextListener.java` - publishes `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath` in machine-readable step-finished logs
+- `src/main/java/com/etl/runtime/job/JobRuntimeDescriptorAssembler.java` - exposes archive/reject-related execution hints into descriptor metadata
 
 ## Preserved proof scenarios
 
@@ -79,6 +80,8 @@ Use these preserved bundles when reviewing or extending the hardening slice:
   - preserved proof that the shared processor rule plus reject/archive file-ingestion contracts also apply on a file-backed XML flow after XML flattening
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/`
   - preserved proof that XML sources now participate in archive-on-success and emit `archivedSourcePath` evidence after step completion
+- `src/main/resources/config-jobs/customer-load-reject-quarantine/`
+  - preserved proof that completed steps with rejected records publish the reject artifact to both `output/rejects/` and `output/quarantine/` when `rejectHandling.quarantinePath` is configured
 
 ## Verification anchors
 
@@ -97,6 +100,7 @@ After changes in this area, preserved proofs should still demonstrate:
 
 - accepted rows are written only to the intended target artifact
 - rejected rows are written only to the reject artifact when reject handling is enabled
+- optional reject quarantine publication writes a second finalized reject artifact only when `quarantinePath` is configured and the step completes successfully with rejected records
 - original source files move only after successful step completion when archive is enabled
 - `STEP_EVENT event=step_finished` continues to emit `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath` consistently
 - relative scenario-local paths still resolve from the selected scenario bundle cleanly
@@ -119,5 +123,6 @@ Before considering additional hardening changes complete, confirm:
 - [`Validation extension architecture`](validation-extension-architecture.md)
 - [`Transformation capability roadmap`](transformation-capability-roadmap.md)
 - [`Product backlog`](../product/product-backlog.md)
+- [`T15 - XML-native duplicate identity for nested XML sources`](../product/backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md)
 
 

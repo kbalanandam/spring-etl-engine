@@ -17,11 +17,13 @@ import java.util.Optional;
 public record DuplicateRule(
 		String anchorField,
 		List<String> keyFields,
-		List<DuplicateProcessorValidationRule.OrderSelector> orderSelectors
+		List<DuplicateProcessorValidationRule.OrderSelector> orderSelectors,
+		StorageMode storageMode
 ) {
 	public DuplicateRule {
 		keyFields = List.copyOf(keyFields);
 		orderSelectors = List.copyOf(orderSelectors);
+		storageMode = storageMode == null ? StorageMode.AUTO : storageMode;
 	}
 
 	public static Optional<DuplicateRule> resolveConfiguration(ProcessorConfig.EntityMapping mapping) {
@@ -43,11 +45,18 @@ public record DuplicateRule(
 				return Optional.of(new DuplicateRule(
 						fieldMapping.getFrom(),
 						DuplicateProcessorValidationRule.configuredKeyFields(fieldMapping.getFrom(), rule),
-						DuplicateProcessorValidationRule.configuredWinnerSelectors(rule)
+						DuplicateProcessorValidationRule.configuredWinnerSelectors(rule),
+						DuplicateProcessorValidationRule.configuredStorageMode(rule)
 				));
 			}
 		}
 		return Optional.empty();
+	}
+
+	public enum StorageMode {
+		AUTO,
+		MEMORY,
+		EMBEDDED_DB
 	}
 }
 

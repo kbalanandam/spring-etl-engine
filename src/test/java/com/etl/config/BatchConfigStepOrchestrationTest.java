@@ -209,6 +209,51 @@ class BatchConfigStepOrchestrationTest {
                 && event.getFormattedMessage().contains("resolverReason=record_count_within_chunk_threshold")));
     }
 
+    @Test
+    void buildStepsHonorsConfiguredEmbeddedDbStorageModeForOrderedDuplicateSelection() throws Exception {
+        SourceWrapper sourceWrapper = new SourceWrapper();
+        sourceWrapper.setSources(List.of(csvSource("Customers", tempCsv("customers.csv"))));
+
+        TargetWrapper targetWrapper = new TargetWrapper();
+        targetWrapper.setTargets(List.of(xmlTarget("Customers", "Customer")));
+
+        ProcessorConfig processorConfig = processorConfig(mappingWithOrderedDuplicateRule("Customers", "Customers", "embeddedDb"));
+        ListAppender<ILoggingEvent> appender = attachAppender();
+
+        BatchConfig batchConfig = new BatchConfig(
+                sourceWrapper,
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig,
+                targetWrapper,
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "customers-ordered-duplicate-embedded",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "customers-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        List.of(step("customers-step", "Customers", "Customers"))
+                ),
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory()
+        );
+        ReflectionTestUtils.setField(batchConfig, "chunkThreshold", 10000);
+
+        List<Step> steps = batchConfig.buildSteps();
+
+        assertEquals(List.of("customers-step"), steps.stream().map(Step::getName).toList());
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=duplicate_resolver_plan")
+                && event.getFormattedMessage().contains("stepName=customers-step")
+                && event.getFormattedMessage().contains("resolverMode=embeddedDb")
+                && event.getFormattedMessage().contains("resolverReason=configured_storage_mode_embeddedDb")));
+    }
+
     private CsvSourceConfig csvSource(String sourceName, Path filePath) {
         CsvSourceConfig config = new CsvSourceConfig();
         config.setSourceName(sourceName);
@@ -242,6 +287,10 @@ class BatchConfigStepOrchestrationTest {
     }
 
     private ProcessorConfig.EntityMapping mappingWithOrderedDuplicateRule(String source, String target) {
+        return mappingWithOrderedDuplicateRule(source, target, null);
+    }
+
+    private ProcessorConfig.EntityMapping mappingWithOrderedDuplicateRule(String source, String target, String storageMode) {
         ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
         mapping.setSource(source);
         mapping.setTarget(target);
@@ -249,6 +298,7 @@ class BatchConfigStepOrchestrationTest {
         ProcessorConfig.FieldRule duplicateRule = new ProcessorConfig.FieldRule();
         duplicateRule.setType("duplicate");
         duplicateRule.setOrderBy(List.of(orderBy("eventTime", "DESC")));
+        duplicateRule.setStorageMode(storageMode);
 
         ProcessorConfig.FieldMapping idField = new ProcessorConfig.FieldMapping();
         idField.setFrom("id");

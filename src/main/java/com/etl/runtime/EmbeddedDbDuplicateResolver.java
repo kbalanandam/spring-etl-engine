@@ -20,6 +20,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Resolves ordered duplicate winner-selection by staging candidates in an embedded H2 database.
@@ -35,6 +37,8 @@ import java.util.Objects;
  * and then best-effort cleans up the temporary database files on close.</p>
  */
 public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
+
+	private static final Logger logger = LoggerFactory.getLogger(EmbeddedDbDuplicateResolver.class);
 
 	private static final TypeReference<LinkedHashMap<String, Object>> STRING_OBJECT_MAP = new TypeReference<>() {
 	};
@@ -80,6 +84,9 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 	private final Path databaseDirectory;
 	private final Path databaseBasePath;
 	private final Connection connection;
+	private long stagedRankedCount;
+	private long stagedPassThroughCount;
+	private long stagedInvalidCount;
 	private long sequence;
 
 	public EmbeddedDbDuplicateResolver(DuplicateRule rule) {
@@ -95,6 +102,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 			this.databaseBasePath = tempDatabaseBasePath;
 			this.connection = tempConnection;
 			initializeSchema();
+			logger.info("DUPLICATE_RESOLVER event=resolver_open resolverMode=embeddedDb storageEngine=h2 databaseBasePath={}", this.databaseBasePath.toAbsolutePath());
 		} catch (IOException | SQLException exception) {
 			closeQuietly(tempConnection);
 			cleanupDatabaseFiles(tempDirectory, tempDatabaseBasePath);
@@ -107,12 +115,14 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 		long arrivalSequence = nextSequence();
 		List<Object> keyValues = DuplicateSupport.resolveKeyValues(input, rule.keyFields());
 		if (DuplicateSupport.hasIncompleteKey(keyValues)) {
+			stagedPassThroughCount++;
 			insertRecord(arrivalSequence, CLASSIFICATION_PASS_THROUGH, null, input, null, false);
 			return;
 		}
 
 		List<DuplicateSupport.SortCriterionValue> sortValues = DuplicateSupport.normalizeSortValues(input, rule.orderSelectors());
 		if (sortValues == null) {
+			stagedInvalidCount++;
 			insertRecord(
 					arrivalSequence,
 					CLASSIFICATION_INVALID,
@@ -125,6 +135,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 			return;
 		}
 
+		stagedRankedCount++;
 		insertRecord(arrivalSequence, CLASSIFICATION_RANKED, DuplicateSupport.buildKey(keyValues), input, null, false);
 	}
 
@@ -134,16 +145,39 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 		List<OrderedRecord> retainedRecords = new ArrayList<>();
 		retainedRecords.addAll(loadPassThroughRecords());
 		discardedRecords.addAll(loadInvalidRecords());
-		retainedRecords.addAll(resolveRankedGroups(discardedRecords));
+		RankedResolution rankedResolution = resolveRankedGroups(discardedRecords);
+		retainedRecords.addAll(rankedResolution.retained());
 		retainedRecords.sort(Comparator.comparingLong(OrderedRecord::sequence));
-		return new DuplicateResolution(retainedRecords.stream().map(OrderedRecord::record).toList(), discardedRecords);
+		List<Object> retained = retainedRecords.stream().map(OrderedRecord::record).toList();
+		logger.info("DUPLICATE_RESOLVER event=resolver_summary resolverMode=embeddedDb storageEngine=h2 anchorField={} acceptedCount={} stagedRankedCount={} stagedPassThroughCount={} stagedInvalidCount={} rankedGroupCount={} retainedCount={} discardedCount={} databaseBasePath={}",
+				rule.anchorField(),
+				stagedRankedCount + stagedPassThroughCount + stagedInvalidCount,
+				stagedRankedCount,
+				stagedPassThroughCount,
+				stagedInvalidCount,
+				rankedResolution.groupCount(),
+				retained.size(),
+				discardedRecords.size(),
+				databaseBasePath.toAbsolutePath());
+		return new DuplicateResolution(retained, discardedRecords);
 	}
 
 	@Override
 	public void close() {
+		Path h2DataFile = Path.of(databaseBasePath + H2_FILE_SUFFIX);
+		Path h2TraceFile = Path.of(databaseBasePath + H2_TRACE_SUFFIX);
+		Path h2LockFile = Path.of(databaseBasePath + H2_LOCK_SUFFIX);
+		boolean hadDataFile = Files.exists(h2DataFile);
 		shutdownDatabase();
 		closeQuietly(connection);
 		cleanupDatabaseFiles(databaseDirectory, databaseBasePath);
+		logger.info("DUPLICATE_RESOLVER event=resolver_close resolverMode=embeddedDb storageEngine=h2 databaseBasePath={} hadDataFileBeforeClose={} dataFileExistsAfterClose={} traceFileExistsAfterClose={} lockFileExistsAfterClose={} directoryExistsAfterClose={}",
+				databaseBasePath.toAbsolutePath(),
+				hadDataFile,
+				Files.exists(h2DataFile),
+				Files.exists(h2TraceFile),
+				Files.exists(h2LockFile),
+				Files.exists(databaseDirectory));
 	}
 
 	private static String toJdbcUrl(Path databaseBasePath) {
@@ -256,10 +290,11 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 		return discards;
 	}
 
-	private List<OrderedRecord> resolveRankedGroups(List<DuplicateDiscard> discardedRecords) {
+	private RankedResolution resolveRankedGroups(List<DuplicateDiscard> discardedRecords) {
 		List<OrderedRecord> retained = new ArrayList<>();
 		List<DbCandidate> currentGroup = new ArrayList<>();
 		String currentKey = null;
+		int groupCount = 0;
 		try (PreparedStatement statement = connection.prepareStatement(
 				SELECT_RANKED_RECORDS_BY_FIRST_ARRIVAL)) {
 			statement.setString(1, CLASSIFICATION_RANKED);
@@ -268,6 +303,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 				while (resultSet.next()) {
 					String rowKey = resultSet.getString("key_value");
 					if (currentKey != null && !currentKey.equals(rowKey)) {
+						groupCount++;
 						retained.addAll(resolveGroup(currentGroup, discardedRecords));
 						currentGroup.clear();
 					}
@@ -291,9 +327,10 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 			throw new RuntimeEtlException("Failed to resolve ranked duplicate groups from embedded database.", exception);
 		}
 		if (!currentGroup.isEmpty()) {
+			groupCount++;
 			retained.addAll(resolveGroup(currentGroup, discardedRecords));
 		}
-		return retained;
+		return new RankedResolution(retained, groupCount);
 	}
 
 	private List<OrderedRecord> resolveGroup(List<DbCandidate> group, List<DuplicateDiscard> discardedRecords) {
@@ -367,6 +404,9 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 	}
 
 	private record DbCandidate(Object record, List<DuplicateSupport.SortCriterionValue> sortValues, long arrivalSequence) {
+	}
+
+	private record RankedResolution(List<OrderedRecord> retained, int groupCount) {
 	}
 }
 

@@ -1,0 +1,9 @@
+name: customer-load-reject-quarantine
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: customers-step
+    source: Customers
+    target: Customers
+

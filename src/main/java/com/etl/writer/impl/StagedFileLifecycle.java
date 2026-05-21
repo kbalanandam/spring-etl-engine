@@ -8,10 +8,14 @@ import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 
 import java.io.IOException;
+import java.nio.file.LinkOption;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -38,6 +42,10 @@ import java.util.Locale;
  * <p>Failed steps never publish staged output. Instead, the {@code .part} file is deleted so a
  * partial rerun artifact cannot be mistaken for a completed target publication.</p>
  *
+ * <p>This class also sweeps stale staged artifacts at the start of a new step/write attempt so an
+ * earlier interrupted run cannot leave orphan {@code .part} files behind as misleading flow
+ * context for the next selected-job execution.</p>
+ *
  * <p>This class owns staging, promotion, and cleanup timing only. Concrete writers still own their
  * own stream open/write/close behavior, format-specific error categorization, and any extra policy
  * such as deleting stale published output when a step completes without producing new content.</p>
@@ -45,12 +53,17 @@ import java.util.Locale;
 final class StagedFileLifecycle {
 
     private static final Logger logger = LoggerFactory.getLogger(StagedFileLifecycle.class);
+    private static final int STEP_START_DELETE_MAX_RETRIES = 3;
+    private static final long[] STEP_START_DELETE_BACKOFF_MS = new long[]{100L, 250L, 500L};
 
     private final Path finalPath;
     private final Path publishedPath;
     private final Path stagingPath;
+    private final Path publishedStagingPath;
     private final boolean packageAsZip;
     private final String zipEntryName;
+    private final DeleteOperation deleteOperation;
+    private final SleepOperation sleepOperation;
     private boolean streamClosed;
     private boolean stepCompletionSignaled;
 
@@ -67,12 +80,23 @@ final class StagedFileLifecycle {
     }
 
     StagedFileLifecycle(Path configuredPath, boolean packageAsZip, String defaultExtension) {
+        this(configuredPath, packageAsZip, defaultExtension, Files::delete, Thread::sleep);
+    }
+
+    StagedFileLifecycle(Path configuredPath,
+                        boolean packageAsZip,
+                        String defaultExtension,
+                        DeleteOperation deleteOperation,
+                        SleepOperation sleepOperation) {
         Path normalizedConfiguredPath = configuredPath.toAbsolutePath().normalize();
         this.packageAsZip = packageAsZip;
         this.finalPath = resolveNativeOutputPath(normalizedConfiguredPath, packageAsZip, defaultExtension);
         this.publishedPath = resolvePublishedPath(normalizedConfiguredPath, this.finalPath, packageAsZip);
         this.stagingPath = stagingPath(this.finalPath);
+        this.publishedStagingPath = packageAsZip ? stagingPath(this.publishedPath) : null;
         this.zipEntryName = this.finalPath.getFileName() == null ? "output" : this.finalPath.getFileName().toString();
+        this.deleteOperation = deleteOperation;
+        this.sleepOperation = sleepOperation;
     }
 
     Path finalPath() {
@@ -99,9 +123,20 @@ final class StagedFileLifecycle {
             if (parent != null) {
                 Files.createDirectories(parent);
             }
-            Files.deleteIfExists(stagingPath);
+            cleanupOrphanedArtifacts("prepare_for_write", false);
         } catch (IOException e) {
             throw new RuntimeEtlException("Failed to prepare staged output path '" + stagingPath + "'.", e);
+        }
+    }
+
+    /**
+     * Sweep stale staged artifacts left by an earlier interrupted attempt before a new step starts.
+     */
+    void cleanupOrphanedArtifactsAtStepStart() {
+        try {
+            cleanupOrphanedArtifacts("step_start", true);
+        } catch (IOException e) {
+            throw new RuntimeEtlException("Failed to clean orphan staged output before step start for '" + stagingPath + "'.", e);
         }
     }
 
@@ -207,7 +242,7 @@ final class StagedFileLifecycle {
         if (parent != null) {
             Files.createDirectories(parent);
         }
-        Path stagedZipPath = publishedPath.resolveSibling(publishedPath.getFileName().toString() + ".part");
+        Path stagedZipPath = publishedStagingPath;
         try {
             Files.deleteIfExists(stagedZipPath);
             ZipFileUtility.packageSingleFile(stagingPath, stagedZipPath, zipEntryName);
@@ -248,10 +283,112 @@ final class StagedFileLifecycle {
      */
     private void cleanupStagingQuietly() {
         try {
-            Files.deleteIfExists(stagingPath);
+            cleanupOrphanedArtifacts("step_failure", false);
         } catch (IOException e) {
             logger.warn("Failed to clean staged output '{}' after step did not complete successfully.", stagingPath, e);
         }
+    }
+
+    private void cleanupOrphanedArtifacts(String reason, boolean logCleanup) throws IOException {
+        boolean allowLockRetry = "step_start".equals(reason);
+        for (Path orphanedArtifact : orphanableArtifacts()) {
+            if (!Files.exists(orphanedArtifact)) {
+                continue;
+            }
+            String skipReason = unsafeCleanupReason(orphanedArtifact);
+            if (skipReason != null) {
+                logger.warn("STAGED_FILE event=orphan_cleanup_skipped reason={} skipReason={} path={} finalPath={} publishedPath={}",
+                        reason,
+                        skipReason,
+                        orphanedArtifact,
+                        finalPath,
+                        publishedPath);
+                continue;
+            }
+            deleteOrphanedArtifact(orphanedArtifact, reason, allowLockRetry);
+            if (logCleanup) {
+                logger.info("STAGED_FILE event=orphan_cleanup reason={} path={} finalPath={} publishedPath={}",
+                        reason,
+                        orphanedArtifact,
+                        finalPath,
+                        publishedPath);
+            }
+        }
+    }
+
+    private void deleteOrphanedArtifact(Path orphanedArtifact, String reason, boolean allowLockRetry) throws IOException {
+        int attempt = 0;
+        while (true) {
+            try {
+                deleteOperation.delete(orphanedArtifact);
+                return;
+            } catch (IOException deleteFailure) {
+                if (!allowLockRetry || !isTransientFileLock(deleteFailure) || attempt >= STEP_START_DELETE_MAX_RETRIES) {
+                    throw deleteFailure;
+                }
+                long waitMs = STEP_START_DELETE_BACKOFF_MS[Math.min(attempt, STEP_START_DELETE_BACKOFF_MS.length - 1)];
+                attempt++;
+                logger.warn("STAGED_FILE event=orphan_cleanup_retry reason={} path={} attempt={} maxRetries={} waitMs={} rootCause={}",
+                        reason,
+                        orphanedArtifact,
+                        attempt,
+                        STEP_START_DELETE_MAX_RETRIES,
+                        waitMs,
+                        deleteFailure.getMessage());
+                try {
+                    sleepOperation.sleep(waitMs);
+                } catch (InterruptedException interruptedException) {
+                    Thread.currentThread().interrupt();
+                    IOException interruptedDelete = new IOException(
+                            "Interrupted while waiting to retry staged orphan cleanup for '" + orphanedArtifact + "'.",
+                            interruptedException);
+                    interruptedDelete.addSuppressed(deleteFailure);
+                    throw interruptedDelete;
+                }
+            }
+        }
+    }
+
+    private static boolean isTransientFileLock(IOException exception) {
+        if (!(exception instanceof FileSystemException fileSystemException)) {
+            return false;
+        }
+        String reason = fileSystemException.getReason();
+        String message = reason == null || reason.isBlank() ? fileSystemException.getMessage() : reason;
+        if (message == null) {
+            return false;
+        }
+        String normalized = message.toLowerCase(Locale.ROOT);
+        return normalized.contains("used by another process")
+                || normalized.contains("being used by another process")
+                || normalized.contains("text file busy");
+    }
+
+    private String unsafeCleanupReason(Path candidatePath) {
+        Path normalizedCandidatePath = candidatePath.toAbsolutePath().normalize();
+        boolean managedStagingPath = normalizedCandidatePath.equals(stagingPath.toAbsolutePath().normalize())
+                || (publishedStagingPath != null
+                && normalizedCandidatePath.equals(publishedStagingPath.toAbsolutePath().normalize()));
+        if (!managedStagingPath) {
+            return "candidate_not_managed_by_lifecycle";
+        }
+        String fileName = normalizedCandidatePath.getFileName() == null ? "" : normalizedCandidatePath.getFileName().toString();
+        if (!fileName.endsWith(".part")) {
+            return "candidate_missing_part_suffix";
+        }
+        if (!Files.isRegularFile(normalizedCandidatePath, LinkOption.NOFOLLOW_LINKS)) {
+            return "candidate_not_regular_file";
+        }
+        return null;
+    }
+
+    private List<Path> orphanableArtifacts() {
+        List<Path> orphanableArtifacts = new ArrayList<>();
+        orphanableArtifacts.add(stagingPath);
+        if (publishedStagingPath != null && !publishedStagingPath.equals(stagingPath)) {
+            orphanableArtifacts.add(publishedStagingPath);
+        }
+        return orphanableArtifacts;
     }
 
     private static boolean hasNoActiveStepContext() {
@@ -301,6 +438,16 @@ final class StagedFileLifecycle {
             return null;
         }
         return extension.startsWith(".") ? extension.toLowerCase(Locale.ROOT) : "." + extension.toLowerCase(Locale.ROOT);
+    }
+
+    @FunctionalInterface
+    interface DeleteOperation {
+        void delete(Path path) throws IOException;
+    }
+
+    @FunctionalInterface
+    interface SleepOperation {
+        void sleep(long millis) throws InterruptedException;
     }
 }
 

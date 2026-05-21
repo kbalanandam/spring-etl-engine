@@ -160,6 +160,64 @@ class JsonDynamicWriterTest {
         assertEquals("EVT-300", json.get(0).get("eventCode").asText());
     }
 
+    @Test
+    void cleansOrphanedJsonAndZipPartFilesAtStepStart(@TempDir Path tempDir) throws Exception {
+        Path outputFile = tempDir.resolve("events-orphaned.json");
+        Path stagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");
+        Path publishedZipStagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".zip.part");
+        Files.writeString(stagingFile, "[\"partial\"]");
+        Files.writeString(publishedZipStagingFile, "zip-fragment");
+
+        StagedJsonArrayItemWriter<Object> writer = new StagedJsonArrayItemWriter<>(outputFile.toString(), objectMapper, true);
+
+        writer.beforeStep(new StepExecution("events-json-step", new JobExecution(3L)));
+
+        assertFalse(Files.exists(stagingFile));
+        assertFalse(Files.exists(publishedZipStagingFile));
+    }
+
+    @Test
+    void keepsUnrelatedPartFilesWhenCleaningJsonOrphans(@TempDir Path tempDir) throws Exception {
+        Path outputFile = tempDir.resolve("events-owned.json");
+        Path ownedStagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");
+        Path ownedZipStagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".zip.part");
+        Path unrelatedPartFile = tempDir.resolve("unrelated.part");
+        Files.writeString(ownedStagingFile, "owned-orphan");
+        Files.writeString(ownedZipStagingFile, "owned-zip-orphan");
+        Files.writeString(unrelatedPartFile, "must-stay");
+
+        StagedJsonArrayItemWriter<Object> writer = new StagedJsonArrayItemWriter<>(outputFile.toString(), objectMapper, true);
+        writer.beforeStep(new StepExecution("events-json-step", new JobExecution(4L)));
+
+        assertFalse(Files.exists(ownedStagingFile));
+        assertFalse(Files.exists(ownedZipStagingFile));
+        assertTrue(Files.exists(unrelatedPartFile));
+    }
+
+    @Test
+    void doesNotCleanOtherWriterSessionPartFilesInSameDirectory(@TempDir Path tempDir) throws Exception {
+        Path outputFileA = tempDir.resolve("events-session-a.json");
+        Path outputFileB = tempDir.resolve("events-session-b.json");
+
+        Path sessionAStaging = outputFileA.resolveSibling(outputFileA.getFileName() + ".part");
+        Path sessionAZipStaging = outputFileA.resolveSibling(outputFileA.getFileName() + ".zip.part");
+        Path sessionBStaging = outputFileB.resolveSibling(outputFileB.getFileName() + ".part");
+        Path sessionBZipStaging = outputFileB.resolveSibling(outputFileB.getFileName() + ".zip.part");
+
+        Files.writeString(sessionAStaging, "owned-a");
+        Files.writeString(sessionAZipStaging, "owned-a-zip");
+        Files.writeString(sessionBStaging, "owned-b");
+        Files.writeString(sessionBZipStaging, "owned-b-zip");
+
+        StagedJsonArrayItemWriter<Object> writerA = new StagedJsonArrayItemWriter<>(outputFileA.toString(), objectMapper, true);
+        writerA.beforeStep(new StepExecution("events-json-step-a", new JobExecution(5L)));
+
+        assertFalse(Files.exists(sessionAStaging));
+        assertFalse(Files.exists(sessionAZipStaging));
+        assertTrue(Files.exists(sessionBStaging));
+        assertTrue(Files.exists(sessionBZipStaging));
+    }
+
   @Test
   void packagesSuccessfulJsonOutputAsZipWhenConfigured(@TempDir Path tempDir) throws Exception {
     Path outputFile = tempDir.resolve("events-zipped.json");

@@ -48,6 +48,7 @@ Today, the shipped config contract now supports a first file-ingestion hardening
 - per-field validation rules in processor mappings (`notNull`, `timeFormat`)
 - duplicate handling for keep-first/reject-later semantics plus ordered winner selection across single-field and composite-key matching
 - explicit rejected-record output configuration in processor config
+- optional reject quarantine publication through `rejectHandling.quarantinePath`, so completed steps with rejected records can publish a quarantined copy of the finalized reject artifact under a dedicated operator-owned directory
 - processed-source-file archive configuration in file-based source config
 - convention-based unzip-before-read preparation for ZIP-backed CSV/XML source artifacts through the shared file-source contract, while still treating the configured `filePath` as the original artifact used for reject/archive disposition
 - optional zip-on-archive packaging for plain CSV/XML file sources through the same shared ZIP utility boundary, so archive-on-success can publish one ZIP artifact instead of moving the plain source file directly
@@ -57,7 +58,12 @@ Today, the shipped config contract now supports a first file-ingestion hardening
 - staged file-target publication for CSV/XML outputs so partial rerun artifacts are not treated as final published outputs
 - optional zip-on-successful-output packaging for CSV, JSON, and XML file targets through target `packageAsZip`, reusing the same staged local artifact and shared ZIP utility boundary once step completion succeeds
 - active staged CSV/XML/JSON writers now also clean failed in-progress `.part` output on the writer path before any final-file promotion can occur, while keeping the same publish-on-success semantics for completed steps
+- when a previous run is interrupted before step-end callbacks execute, the next selected-job step start now sweeps stale target-side `.part` artifacts (including ZIP publication staging `.zip.part` files) before opening a fresh writer so orphan staging files do not survive as misleading downstream flow context
+- when step-start orphan cleanup hits a transient file-lock race (for example Windows "used by another process"), staged cleanup now retries with short bounded backoff before failing the step; if the lock persists after retries, runtime still fails fast to avoid continuing from ambiguous staged output state
+- orphan cleanup is strictly scoped to the two writer-owned staged artifact paths derived from the selected target (`<final>.part` and, when ZIP publication is enabled, `<published>.zip.part`); runtime does not wildcard-delete sibling files from source/target directories
+- for parallel job executions, each job should publish to a distinct target output path; staged cleanup remains per-target-path scoped and therefore does not clean another session's staged files when that session writes a different target file in the same directory
 - accepted vs rejected record artifact semantics for the preserved CSV proof scenario
+- step execution context evidence for reject counts, reject output path, optional quarantined reject path (`quarantinedRejectPath`), and archived source path
 
 The preserved unzip-before-read proof is `src/main/resources/config-jobs/customer-load-zipped/`, which keeps the familiar flat `CSV -> XML` flow while proving that the runtime can infer ZIP preparation directly from `filePath: input/Customers.zip`, extract one readable CSV file before normal validation, counting, and reading begin, and still reserve the optional `unzip` block for advanced overrides such as multi-entry selection.
 
@@ -74,10 +80,12 @@ For duplicate handling specifically, the shipped runtime currently uses:
 - ordered winner selection when `duplicate` is configured with `orderBy`, so the best record per duplicate key is retained before final write
 - a shared processor-level duplicate contract intended for CSV, flat XML, relational, and other future record-oriented sources once records are available as normal runtime objects
 - step-local in-memory duplicate tracking for keep-first duplicate elimination
-- automatic storage selection for ordered duplicate winner selection, with in-memory resolution for smaller known candidate sets and embedded-DB staging when runtime volume crosses the large-input path
+- automatic storage selection for ordered duplicate winner selection by default (`storageMode: auto`), with optional explicit per-rule override (`storageMode: memory|embeddedDb`) when operators need deterministic resolver choice
 - operator-visible ordered duplicate resolver evidence (`resolverMode` and `resolverReason`) emitted at startup planning and step runtime for orderBy-based winner selection
 
-The product direction should still preserve a future client-selectable tracking strategy so operators can explicitly choose the storage mode when needed, but the shipped contract today remains runtime-selected rather than config-selected.
+The product direction now keeps `storageMode: auto` as the default while also allowing explicit per-rule storage-mode override for ordered winner selection when needed.
+
+For configuration details and backlog rationale, see [`Default processor reference`](../config/processor/default-processor.md) and [`T4 — Transformation quarantine and duplicate hardening`](../product/backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md).
 
 The main deferred exception to preserve is source-native duplicate identity that cannot be expressed cleanly through flat mapped fields. If a future XML scenario needs duplicate keys based on XPath, namespaces, nested collections, or other pre-flattening structure details, that should be treated as separate XML/source-level duplicate scope rather than stretching the current processor rule beyond its intended contract.
 
@@ -147,6 +155,8 @@ Rejected-record behavior is part of validation-aware processing.
 It should be configured alongside the mapping and validation rules that determine whether a record is accepted or rejected.
 
 The shipped contract now also allows reject publication to stay on that same processor-owned seam when operators want compressed reject artifacts: `rejectHandling.packageAsZip=true` keeps the generated reject CSV as the single ZIP entry and publishes the outer artifact with `.zip` appended when needed.
+
+The same reject-handling seam now also supports optional quarantine publication: when `rejectHandling.quarantinePath` is configured, the finalized reject artifact (CSV or ZIP, based on `packageAsZip`) is also published into the quarantine directory only when the step completes successfully and rejected records were actually produced.
 
 ## Proposed YAML shape
 
@@ -316,6 +326,7 @@ For current file targets, the write path should also remain idempotent for the b
 1. the writer produces a sibling staged file first
 2. the staged file is promoted to the configured final path only after successful step completion
 3. if the step fails, the staged file is cleaned and the previous published final output is left untouched
+4. if a JVM/process was interrupted before step cleanup, the next step attempt deletes any leftover staged `.part` artifact before writing again
 
 This is the current bounded file-output hardening policy. Richer manifest-driven checkpoint/restart behavior remains future work.
 

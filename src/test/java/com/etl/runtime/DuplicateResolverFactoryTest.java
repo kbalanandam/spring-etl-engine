@@ -31,7 +31,8 @@ class DuplicateResolverFactoryTest {
 		return new DuplicateRule(
 				"id",
 				List.of("id"),
-				List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true))
+				List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+				DuplicateRule.StorageMode.AUTO
 		);
 	}
 }
