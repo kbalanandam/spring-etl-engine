@@ -227,7 +227,7 @@ This table is the day-to-day execution view for the current product stage.
 | [T1a](backlog-items/T1a-processor-transform-spi-and-first-cleaner-normalization-slice.md) | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | [T2](backlog-items/T2-expression-based-derived-field-support.md) | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
 | [T3](backlog-items/T3-conditional-transformation-rule-support.md) | Add conditional transformation rule support | Epic T | P1 | Done | M2 | T2 | Shipped on the processor transform seam with ordered `cases[]` first-match behavior and optional `defaultValue` fallback |
-| [T4](backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Deferred | M2 | T1, T2, T3 | Follow-on hardening beyond the shipped CSV slice: broader quarantine, selectable duplicate storage mode, and XML-native duplicate identity |
+| [T4](backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) | Expand validation and rejected-record/quarantine handling in transformation flow | Epic T | P1 | Done | M2 | T1, T2, T3 | Resolver evidence, optional ordered duplicate `storageMode`, and reject `quarantinePath` are shipped; XML-native duplicate identity follow-on is now tracked under `T15` |
 | [T5](backlog-items/T5-reference-set-validation-and-enrichment-baseline.md) | Define lookup/enrichment processor baseline | Epic T | P1 | Deferred | M2 | T2 | Frozen first-slice direction: processor-side DB-backed reference-set validation such as agency-code allow-lists before broader enrichment joins |
 | [T6](backlog-items/T6-shared-default-value-and-placeholder-mapping.md) | Add shared default-value and placeholder mapping baseline | Epic T | P1 | Deferred | M2 | T2 | Capture audit-column defaults, provider-backed system date/date-time filling, job-name/constants, and formula-ready placeholders without repeating the same mapping logic in every job bundle |
 | [T7](backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) | Define duplicate-tracking scalability redesign as a separate deferred track | Epic T | P2 | Deferred | M3 | T4 | Keep T4 focused on quarantine/storage-mode boundary hardening while isolating larger duplicate-state scale redesign choices for a later milestone |
@@ -238,6 +238,7 @@ This table is the day-to-day execution view for the current product stage.
 | [T12](backlog-items/T12-transformation-governance-and-lineage.md) | Define transformation governance and lineage evidence model | Epic T | P2 | Deferred | M3 | T8, C1 | #3 in deferred advanced transform sequence. Provide transform-definition version traceability, approval lifecycle, and lineage-friendly evidence for enterprise-grade change control |
 | [T13](backlog-items/T13-transform-stage-observability-metrics.md) | Define transform-stage observability metrics and operational evidence | Epic T | P2 | Deferred | M3 | T10, V1 | #4 in deferred advanced transform sequence. Emit transform-stage metrics and outcomes independently from validation-rule evidence so operators can diagnose transform behavior directly |
 | [T14](backlog-items/T14-secure-data-shaping-transforms.md) | Define secure data-shaping transforms for sensitive fields | Epic T | P2 | Deferred | M3 | T8, G1 | #6 in deferred advanced transform sequence. Add governed masking/tokenization/hash transform patterns so sensitive-field handling is explicit, reusable, and auditable |
+| [T15](backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) | Define XML-native duplicate identity for nested XML source scenarios | Epic T | P2 | Deferred | M3 | T4, P3 | Advanced follow-on for nested XML duplicate correctness where flat mapped keys are insufficient; keep processor contract and reject flow backward compatible |
 | [B1](backlog-items/B1-configurable-skip-policy-support.md) | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | [B2](backlog-items/B2-configurable-retry-policy-support.md) | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
 | [B3](backlog-items/B3-archive-processed-source-files-after-success.md) | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
@@ -274,21 +275,20 @@ This table is the day-to-day execution view for the current product stage.
 
 Use this section as the near-term sequencing view behind the execution board:
 
-1. `T4` next as the follow-on hardening track now that `T3` conditional transform support is shipped.
-2. Keep duplicate-handling follow-on work under `T4` scoped to deferred storage-mode and XML-native identity concerns, and track larger duplicate-state scale redesign decisions separately under deferred `T7`.
-3. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
-4. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
-5. Keep `E2` as the next portability/documentation step.
-6. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
-7. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
-8. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
-9. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
-10. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-11. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
+1. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
+2. Keep `E2` as the next portability/documentation step.
+3. Keep duplicate-handling follow-on split explicitly: nested XML identity under deferred `T15`, larger duplicate-state scale redesign under deferred `T7`.
+4. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
+5. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
+6. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
+7. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
+8. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
+9. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
+10. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 
-Resume from `T4` at the current duplicate-handling stage.
+Resume from `T15` for XML-native duplicate identity follow-on and keep larger scale redesign under `T7`.
 
 Current shipped duplicate baseline:
 
@@ -296,10 +296,10 @@ Current shipped duplicate baseline:
 - activation: optional and only active for mappings that configure a `duplicate` rule
 - scope: shared processor-level duplicate handling for flat record-oriented sources through the built-in `duplicate` rule, including single-field or composite-key matching plus ordered winner selection through structured `orderBy`
 - runtime behavior: keep-first by default when the mapped field alone or `keyFields` are used without `orderBy`, or retain the best record per duplicate key using configured `orderBy` field/direction entries when winner selection is configured
-- storage mode today: keep-first duplicate elimination stays step-local/in-memory, while ordered duplicate winner selection runs behind a shared runtime abstraction that stages in memory or embedded DB based on runtime volume hints; explicit client-selectable storage mode remains future work
+- storage mode today: keep-first duplicate elimination stays step-local/in-memory, while ordered duplicate winner selection supports `storageMode: auto|memory|embeddedDb`
 - duplicate handling stays in the active processor-rule extension point, not source validation
 - current flat-record expectation: the shipped rule works through normal mapped fields after CSV, flat XML, relational, or similar source records are read into runtime objects
-- deferred exception scope: XML-native/source-level duplicate identity based on XPath, namespaces, nested collections, or other pre-flattening structure details remains future work
+- deferred exception scope: XML-native/source-level duplicate identity based on XPath, namespaces, nested collections, or other pre-flattening structure details is now tracked under `T15`
 
 Current code anchors:
 
@@ -329,15 +329,13 @@ Architecture anchors:
 
 Latest completed implementation step:
 
-- added composite-key duplicate validation while preserving the future client-selectable `memory` vs `disk` tracking direction
-- added generic ordered duplicate winner selection so the retained record per duplicate key can be chosen by configured field order before final write
+- added ordered-duplicate resolver evidence (`resolverMode`, `resolverReason`) and optional `storageMode: auto|memory|embeddedDb` for `duplicate + orderBy`
+- added additive reject-quarantine publication through `rejectHandling.quarantinePath` and preserved-scenario proof, then closed `T4`
 
 Still deferred after that:
 
-- actual disk-backed duplicate tracker implementation
-- explicit client-selectable duplicate storage mode (`memory` vs `disk`) config surface
 - larger duplicate-tracking scalability redesign (separate deferred track: `T7`)
-- XML-native/source-level duplicate identity when duplicate keys cannot be expressed cleanly through flat mapped fields
+- XML-native/source-level duplicate identity when duplicate keys cannot be expressed cleanly through flat mapped fields (deferred track: `T15`)
 - target-aware duplicate detection
 - restart/idempotency semantics for duplicate state
 
@@ -763,9 +761,9 @@ Exit signal:
 
 Use this as the condensed near-term priority order:
 
-1. `T4` — transformation hardening beyond the shipped conditional and expression baseline
-2. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
-3. `E2` — packaged-run guidance
+1. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
+2. `E2` — packaged-run guidance
+3. deferred duplicate follow-ons — `T15` (XML-native duplicate identity) and `T7` (larger duplicate-scale redesign)
 4. deferred `Epic T` advanced sequence — `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
 5. `Epic P` — first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
 6. `X1` / `X2` — SFTP contract and first inbound slice

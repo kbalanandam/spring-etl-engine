@@ -49,7 +49,7 @@ public class StagedFlatFileItemWriter<T> extends FlatFileItemWriter<T> implement
 
     @Override
     public void beforeStep(@NonNull StepExecution stepExecution) {
-        // no-op
+        stagedFileLifecycle.cleanupOrphanedArtifactsAtStepStart();
     }
 
     @Override

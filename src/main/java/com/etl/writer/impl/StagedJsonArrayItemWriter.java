@@ -176,7 +176,7 @@ public class StagedJsonArrayItemWriter<T> implements ItemStreamWriter<T>, StepEx
 
     @Override
     public void beforeStep(@NonNull StepExecution stepExecution) {
-        // no-op
+        stagedFileLifecycle.cleanupOrphanedArtifactsAtStepStart();
     }
 
     @Override

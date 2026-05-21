@@ -1,6 +1,7 @@
 package com.etl.processor.validation;
 
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.runtime.DuplicateRule;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.junit.jupiter.api.Test;
 
@@ -139,6 +140,49 @@ class DuplicateProcessorValidationRuleTest {
         );
 
         assertTrue(exception.getMessage().contains("more than one winner-selecting 'duplicate' rule"));
+    }
+
+    @Test
+    void configuredStorageModeDefaultsToAutoAndSupportsAliases() {
+        ProcessorConfig.FieldRule duplicateRule = duplicateRule();
+        assertEquals(DuplicateRule.StorageMode.AUTO, DuplicateProcessorValidationRule.configuredStorageMode(duplicateRule));
+
+        duplicateRule.setStorageMode("memory");
+        assertEquals(DuplicateRule.StorageMode.MEMORY, DuplicateProcessorValidationRule.configuredStorageMode(duplicateRule));
+
+        duplicateRule.setStorageMode("embedded-db");
+        assertEquals(DuplicateRule.StorageMode.EMBEDDED_DB, DuplicateProcessorValidationRule.configuredStorageMode(duplicateRule));
+    }
+
+    @Test
+    void configuredStorageModeRejectsUnsupportedValue() {
+        ProcessorConfig.FieldRule duplicateRule = duplicateRule();
+        duplicateRule.setStorageMode("disk");
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> DuplicateProcessorValidationRule.configuredStorageMode(duplicateRule)
+        );
+
+        assertTrue(exception.getMessage().contains("storageMode"));
+        assertTrue(exception.getMessage().contains("auto, memory, or embeddedDb"));
+    }
+
+    @Test
+    void validateConfigurationRejectsStorageModeWithoutOrderByWinnerSelection() {
+        ProcessorConfig.EntityMapping mapping = entityMapping();
+        ProcessorConfig.FieldMapping idField = mapping.getFields().get(0);
+        ProcessorConfig.FieldRule duplicateRule = duplicateRule();
+        duplicateRule.setStorageMode("memory");
+        idField.setRules(List.of(duplicateRule));
+
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> rule.validateConfiguration(mapping, idField, duplicateRule)
+        );
+
+        assertTrue(exception.getMessage().contains("storageMode"));
+        assertTrue(exception.getMessage().contains("only supported when 'orderBy' winner selection is configured"));
     }
 
     private ProcessorConfig.EntityMapping entityMapping() {

@@ -172,6 +172,160 @@ class FileIngestionRuntimeSupportTest {
   }
 
   @Test
+  void publishesRejectArtifactToQuarantinePathWhenConfigured() throws Exception {
+    Path sourceFile = tempDir.resolve("events.csv");
+    Files.writeString(sourceFile, "id,eventTime,description\n,25:99:00,bad row\n");
+
+    Path rejectDir = tempDir.resolve("rejects");
+    Path quarantineDir = tempDir.resolve("quarantine");
+    CsvSourceConfig sourceConfig = new CsvSourceConfig(
+        "Events",
+        "com.etl.model.source",
+        List.of(column("id"), column("eventTime"), column("description")),
+        sourceFile.toString(),
+        ",",
+        null
+    );
+
+    ProcessorConfig processorConfig = new ProcessorConfig();
+    processorConfig.setType("default");
+    ProcessorConfig.RejectHandling rejectHandling = new ProcessorConfig.RejectHandling();
+    rejectHandling.setEnabled(true);
+    rejectHandling.setOutputPath(rejectDir + "\\");
+    rejectHandling.setQuarantinePath(quarantineDir.toString());
+    rejectHandling.setIncludeReasonColumns(true);
+    processorConfig.setRejectHandling(rejectHandling);
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Events");
+    mapping.setTarget("EventsCsv");
+    mapping.setFields(List.of(field("id", "id"), field("eventTime", "eventTime"), field("description", "description")));
+    processorConfig.setMappings(List.of(mapping));
+
+    FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+    StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+    runtimeSupport.initializeStep(stepExecution, sourceConfig, processorConfig, mapping);
+
+    StepSynchronizationManager.register(stepExecution);
+    try {
+      assertTrue(runtimeSupport.recordRejected(new EventRecord("", "25:99:00", "bad row"), List.of(
+          new ValidationIssue("id", "notNull", "id must not be null")
+      )));
+    } finally {
+      StepSynchronizationManager.close();
+    }
+
+    stepExecution.setStatus(BatchStatus.COMPLETED);
+    stepExecution.setExitStatus(ExitStatus.COMPLETED);
+    runtimeSupport.completeStep(stepExecution, sourceConfig);
+
+    Path rejectPath = Path.of(stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.REJECT_OUTPUT_PATH_KEY));
+    Path quarantinedPath = Path.of(stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.QUARANTINED_REJECT_PATH_KEY));
+    assertTrue(Files.exists(rejectPath));
+    assertTrue(Files.exists(quarantinedPath));
+    assertEquals(Files.readString(rejectPath, StandardCharsets.UTF_8), Files.readString(quarantinedPath, StandardCharsets.UTF_8));
+  }
+
+  @Test
+  void publishesZippedRejectArtifactToQuarantinePathWhenConfigured() throws Exception {
+    Path sourceFile = tempDir.resolve("events.csv");
+    Files.writeString(sourceFile, "id,eventTime,description\n,25:99:00,bad row\n");
+
+    Path rejectDir = tempDir.resolve("rejects");
+    Path quarantineDir = tempDir.resolve("quarantine");
+    CsvSourceConfig sourceConfig = new CsvSourceConfig(
+        "Events",
+        "com.etl.model.source",
+        List.of(column("id"), column("eventTime"), column("description")),
+        sourceFile.toString(),
+        ",",
+        null
+    );
+
+    ProcessorConfig processorConfig = new ProcessorConfig();
+    processorConfig.setType("default");
+    ProcessorConfig.RejectHandling rejectHandling = new ProcessorConfig.RejectHandling();
+    rejectHandling.setEnabled(true);
+    rejectHandling.setOutputPath(rejectDir + "\\");
+    rejectHandling.setQuarantinePath(quarantineDir.toString());
+    rejectHandling.setIncludeReasonColumns(true);
+    rejectHandling.setPackageAsZip(true);
+    processorConfig.setRejectHandling(rejectHandling);
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Events");
+    mapping.setTarget("EventsCsv");
+    mapping.setFields(List.of(field("id", "id"), field("eventTime", "eventTime"), field("description", "description")));
+    processorConfig.setMappings(List.of(mapping));
+
+    FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+    StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+    runtimeSupport.initializeStep(stepExecution, sourceConfig, processorConfig, mapping);
+
+    StepSynchronizationManager.register(stepExecution);
+    try {
+      assertTrue(runtimeSupport.recordRejected(new EventRecord("", "25:99:00", "bad row"), List.of(
+          new ValidationIssue("id", "notNull", "id must not be null")
+      )));
+    } finally {
+      StepSynchronizationManager.close();
+    }
+
+    stepExecution.setStatus(BatchStatus.COMPLETED);
+    stepExecution.setExitStatus(ExitStatus.COMPLETED);
+    runtimeSupport.completeStep(stepExecution, sourceConfig);
+
+    Path rejectZip = Path.of(stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.REJECT_OUTPUT_PATH_KEY));
+    Path quarantinedZip = Path.of(stepExecution.getExecutionContext().getString(FileIngestionRuntimeSupport.QUARANTINED_REJECT_PATH_KEY));
+    assertTrue(Files.exists(rejectZip));
+    assertTrue(Files.exists(quarantinedZip));
+    assertEquals(zipEntryNames(rejectZip), zipEntryNames(quarantinedZip));
+  }
+
+  @Test
+  void doesNotPublishQuarantineArtifactWhenNoRecordsAreRejected() throws Exception {
+    Path sourceFile = tempDir.resolve("events.csv");
+    Files.writeString(sourceFile, "id,eventTime,description\nEVT-1,08:30:00,ok row\n");
+
+    Path rejectDir = tempDir.resolve("rejects");
+    Path quarantineDir = tempDir.resolve("quarantine");
+    CsvSourceConfig sourceConfig = new CsvSourceConfig(
+        "Events",
+        "com.etl.model.source",
+        List.of(column("id"), column("eventTime"), column("description")),
+        sourceFile.toString(),
+        ",",
+        null
+    );
+
+    ProcessorConfig processorConfig = new ProcessorConfig();
+    processorConfig.setType("default");
+    ProcessorConfig.RejectHandling rejectHandling = new ProcessorConfig.RejectHandling();
+    rejectHandling.setEnabled(true);
+    rejectHandling.setOutputPath(rejectDir + "\\");
+    rejectHandling.setQuarantinePath(quarantineDir.toString());
+    rejectHandling.setIncludeReasonColumns(true);
+    processorConfig.setRejectHandling(rejectHandling);
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("Events");
+    mapping.setTarget("EventsCsv");
+    mapping.setFields(List.of(field("id", "id"), field("eventTime", "eventTime"), field("description", "description")));
+    processorConfig.setMappings(List.of(mapping));
+
+    FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+    StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+    runtimeSupport.initializeStep(stepExecution, sourceConfig, processorConfig, mapping);
+
+    stepExecution.setStatus(BatchStatus.COMPLETED);
+    stepExecution.setExitStatus(ExitStatus.COMPLETED);
+    runtimeSupport.completeStep(stepExecution, sourceConfig);
+
+    assertEquals(0, stepExecution.getExecutionContext().getInt(FileIngestionRuntimeSupport.REJECTED_COUNT_KEY));
+    assertFalse(stepExecution.getExecutionContext().containsKey(FileIngestionRuntimeSupport.QUARANTINED_REJECT_PATH_KEY));
+  }
+
+  @Test
   void concurrentRejectWritesProduceSingleHeaderAndExpectedRowCount() throws Exception {
     Path sourceFile = tempDir.resolve("events.csv");
     Files.writeString(sourceFile, "id,eventTime,description\n", StandardCharsets.UTF_8);

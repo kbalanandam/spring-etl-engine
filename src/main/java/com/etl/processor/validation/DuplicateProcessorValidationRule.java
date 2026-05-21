@@ -2,6 +2,7 @@ package com.etl.processor.validation;
 
 import com.etl.common.util.ReflectionUtils;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.runtime.DuplicateRule;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -44,6 +45,7 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 	                                 ProcessorConfig.FieldRule rule) {
 		List<String> keyFields = configuredKeyFields(fieldMapping.getFrom(), rule);
 		Set<String> availableFields = availableFields(entityMapping);
+		DuplicateRule.StorageMode storageMode = configuredStorageMode(rule);
 
 		List<String> missingFields = keyFields.stream()
 				.filter(keyField -> !availableFields.contains(keyField))
@@ -57,6 +59,13 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 
 		if (isWinnerSelectionStrategy(rule)) {
 			validateWinnerSelectionConfiguration(entityMapping, fieldMapping, rule, availableFields);
+			return;
+		}
+
+		if (storageMode != DuplicateRule.StorageMode.AUTO) {
+			throw new IllegalStateException("FieldMapping rule 'duplicate' uses storageMode='"
+					+ rule.getStorageMode() + "' for entity " + entityMapping.getSource() + " -> " + entityMapping.getTarget()
+					+ " field '" + fieldMapping.getFrom() + "', but storageMode overrides are only supported when 'orderBy' winner selection is configured.");
 		}
 	}
 
@@ -145,6 +154,21 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 			throw new IllegalStateException("FieldMapping rule 'duplicate' requires at least one valid 'orderBy' entry when 'orderBy' is configured.");
 		}
 		return selectors;
+	}
+
+	public static DuplicateRule.StorageMode configuredStorageMode(ProcessorConfig.FieldRule rule) {
+		if (rule == null || rule.getStorageMode() == null || rule.getStorageMode().isBlank()) {
+			return DuplicateRule.StorageMode.AUTO;
+		}
+
+		String normalized = rule.getStorageMode().trim().toLowerCase();
+		return switch (normalized) {
+			case "auto" -> DuplicateRule.StorageMode.AUTO;
+			case "memory" -> DuplicateRule.StorageMode.MEMORY;
+			case "embeddeddb", "embedded_db", "embedded-db" -> DuplicateRule.StorageMode.EMBEDDED_DB;
+			default -> throw new IllegalStateException("FieldMapping rule 'duplicate' has invalid storageMode '"
+					+ rule.getStorageMode() + "'. Supported values are auto, memory, or embeddedDb.");
+		};
 	}
 
 	private void validateWinnerSelectionConfiguration(ProcessorConfig.EntityMapping entityMapping,

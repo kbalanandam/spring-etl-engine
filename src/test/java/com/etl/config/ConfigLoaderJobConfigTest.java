@@ -1804,6 +1804,75 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void failsFastWhenRejectHandlingQuarantinePathLooksLikeAFilePath() throws IOException {
+    Path sourceFile = tempDir.resolve("customers.csv");
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceFile, "id,name\n1,Alice\n");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: csv
+          sourceName: Customers
+          filePath: %s
+          delimiter: ","
+          fields:
+            - name: id
+              type: String
+            - name: name
+              type: String
+      """.formatted(yamlPath(sourceFile)));
+    Files.writeString(targetConfig, """
+      targets:
+        - format: csv
+          targetName: CustomersOut
+          filePath: output/customers-out.csv
+          delimiter: ","
+          fields:
+            - name: id
+              type: String
+            - name: name
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      rejectHandling:
+        enabled: true
+        outputPath: output/rejects/
+        quarantinePath: output/quarantine.csv
+      mappings:
+        - source: Customers
+          target: CustomersOut
+          fields:
+            - from: id
+              to: id
+            - from: name
+              to: name
+      """);
+    Files.writeString(jobConfig, """
+      name: reject-quarantine-path-file-style
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: customers-step
+          source: Customers
+          target: CustomersOut
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(messageChain(exception).contains("rejectHandling.quarantinePath must be a directory-style path"));
+    assertTrue(messageChain(exception).contains("<step-name>-rejects.csv"));
+  }
+
+  @Test
   void failsFastWhenTimeFormatRuleIsMissingPattern() throws IOException {
     Path sourceConfig = tempDir.resolve("source-config.yaml");
     Path targetConfig = tempDir.resolve("target-config.yaml");
@@ -1917,6 +1986,137 @@ class ConfigLoaderJobConfigTest {
     ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
     assertTrue(messageChain(exception).contains("Invalid processor configuration for scenario 'conditional-missing-cases'"));
     assertTrue(messageChain(exception).contains("transform 'conditional' requires a non-empty 'cases'"));
+  }
+
+  @Test
+  void failsFastWhenDuplicateStorageModeIsInvalid() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: csv
+          sourceName: Events
+          filePath: input/events.csv
+          delimiter: ","
+          fields:
+            - name: id
+              type: String
+            - name: eventTime
+              type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+        - format: csv
+          targetName: EventsCsv
+          filePath: output/events.csv
+          delimiter: ","
+          fields:
+            - name: id
+              type: String
+            - name: eventTime
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: Events
+          target: EventsCsv
+          fields:
+            - from: id
+              to: id
+              rules:
+                - type: duplicate
+                  keyFields:
+                    - id
+                  orderBy:
+                    - field: eventTime
+                      direction: DESC
+                  storageMode: disk
+            - from: eventTime
+              to: eventTime
+      """);
+    Files.writeString(jobConfig, """
+      name: duplicate-storage-mode-invalid
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: events-step
+          source: Events
+          target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(messageChain(exception).contains("duplicate-storage-mode-invalid"));
+    assertTrue(messageChain(exception).contains("storageMode"));
+    assertTrue(messageChain(exception).contains("auto, memory, or embeddedDb"));
+  }
+
+  @Test
+  void failsFastWhenDuplicateStorageModeIsConfiguredWithoutOrderByWinnerSelection() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+        - format: csv
+          sourceName: Events
+          filePath: input/events.csv
+          delimiter: ","
+          fields:
+            - name: id
+              type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+        - format: csv
+          targetName: EventsCsv
+          filePath: output/events.csv
+          delimiter: ","
+          fields:
+            - name: id
+              type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+        - source: Events
+          target: EventsCsv
+          fields:
+            - from: id
+              to: id
+              rules:
+                - type: duplicate
+                  storageMode: memory
+      """);
+    Files.writeString(jobConfig, """
+      name: duplicate-storage-mode-without-orderby
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+        - name: events-step
+          source: Events
+          target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(messageChain(exception).contains("duplicate-storage-mode-without-orderby"));
+    assertTrue(messageChain(exception).contains("storageMode"));
+    assertTrue(messageChain(exception).contains("only supported when 'orderBy' winner selection is configured"));
   }
 
   @Test

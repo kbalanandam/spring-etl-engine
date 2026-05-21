@@ -232,12 +232,16 @@ For duplicate handling, the active shipped config shape is still processor-rule 
 - `rules[].keyFields` optionally defines the logical duplicate key
 - `rules[].orderBy` upgrades duplicate handling from keep-first mode into ordered winner selection
 
-The runtime does **not** currently expose a separate user-facing config property for choosing
-`inMemory` versus `embeddedDb` duplicate storage. Instead, once `duplicate + orderBy` is configured,
-the runtime selects the resolver implementation from step volume:
+For ordered winner selection (`duplicate + orderBy`), the processor config can optionally set
+`storageMode: memory|embeddedDb`; when omitted (or set to `auto`), runtime selects the resolver
+implementation from step volume:
 
 - smaller candidate sets stay on the in-memory resolver path
 - larger or unknown-size candidate sets switch to the embedded-database resolver path
+
+Terminology note: processor config uses `memory`, while runtime resolver evidence emits `inMemory`.
+
+See also: [`Default processor reference`](../config/processor/default-processor.md), [`File ingestion hardening`](file-ingestion-hardening.md), and [`T4 — Transformation quarantine and duplicate hardening`](../product/backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md).
 
 ### 4. `target-config.yaml` (XML)
 Controls:

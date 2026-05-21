@@ -6,8 +6,17 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.7.3] - 2026-05-21
+
 ### Added
 - Added first-slice processor `conditional` transform support with ordered `cases[].when -> then` evaluation, optional `defaultValue` fallback, startup validation for malformed conditional declarations, and focused transform/config regression coverage on the active transform-before-rules execution path.
+- Added ordered-duplicate resolver observability evidence on the T4 follow-on path, including startup/runtime resolver-selection events plus step execution context fields (`orderedDuplicateResolverMode`, `orderedDuplicateResolverReason`) so operators can see which winner-selection storage path was chosen and why.
+- Added optional ordered-duplicate `storageMode` override (`auto`, `memory`, `embeddedDb`) for `duplicate` rules with `orderBy`, with fail-fast validation for unsupported values or non-winner-selection usage and preserving `auto` as the default behavior.
+- Added additive reject-quarantine publication through `processor-config.yaml -> rejectHandling.quarantinePath`, including focused runtime/config coverage and a preserved `customer-load-reject-quarantine` scenario bundle proving reject artifact publication to both reject and quarantine locations.
+- Added cross-platform `scripts/job-runner.ps1` and `scripts/job-runner.sh` helpers plus `scripts/README.md` so teams can prepare generated XML classes and run one selected job bundle with repo-root-relative commands more consistently.
+
+### Changed
+- Closed `T4` as shipped hardening work, moved remaining XML-native duplicate identity follow-on to deferred `T15`, and refreshed backlog/checkpoint/architecture docs so the current processor-centered duplicate boundary remains explicit.
 
 ## [1.7.2] - 2026-05-19
 

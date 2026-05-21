@@ -1038,6 +1038,9 @@ public class ConfigLoader {
 		processorConfig.getRejectHandling().setOutputPath(
 				resolveScenarioPath(configDirectory, processorConfig.getRejectHandling().getOutputPath())
 		);
+		processorConfig.getRejectHandling().setQuarantinePath(
+				resolveScenarioPath(configDirectory, processorConfig.getRejectHandling().getQuarantinePath())
+		);
 	}
 
 	private static List<ColumnConfig> copyColumns(List<? extends FieldDefinition> fields) {
@@ -1143,6 +1146,10 @@ public class ConfigLoader {
 		}
 
 		validateRejectOutputDirectoryStyle(rejectHandling.getOutputPath());
+
+		if (rejectHandling.getQuarantinePath() != null && !rejectHandling.getQuarantinePath().isBlank()) {
+			validateRejectQuarantineDirectoryStyle(rejectHandling.getQuarantinePath());
+		}
 	}
 
 	private static void validateRejectOutputDirectoryStyle(String outputPath) {
@@ -1159,6 +1166,22 @@ public class ConfigLoader {
 
 		throw new IllegalStateException("ProcessorConfig.rejectHandling.outputPath must be a directory-style path. "
 				+ "Reject file names are runtime-generated as '<step-name>-rejects.csv' (or '.csv.zip' when packageAsZip=true).");
+	}
+
+	private static void validateRejectQuarantineDirectoryStyle(String quarantinePath) {
+		String trimmedPath = quarantinePath.trim();
+		if (trimmedPath.endsWith("/") || trimmedPath.endsWith("\\")) {
+			return;
+		}
+
+		Path normalizedPath = Path.of(trimmedPath).normalize();
+		Path fileName = normalizedPath.getFileName();
+		if (fileName == null || !fileName.toString().contains(".")) {
+			return;
+		}
+
+		throw new IllegalStateException("ProcessorConfig.rejectHandling.quarantinePath must be a directory-style path. "
+				+ "Quarantined reject artifact names are runtime-generated from '<step-name>-rejects.csv' (or '.csv.zip' when packageAsZip=true).");
 	}
 
 	private void validateFieldRules(ProcessorConfig config,

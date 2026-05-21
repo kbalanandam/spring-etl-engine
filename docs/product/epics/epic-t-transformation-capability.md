@@ -32,6 +32,7 @@ This epic is **not** the place for source-transport concerns, orchestration/sche
 - [`T12 — Define transformation governance and lineage evidence model`](../backlog-items/T12-transformation-governance-and-lineage.md)
 - [`T13 — Define transform-stage observability metrics and operational evidence`](../backlog-items/T13-transform-stage-observability-metrics.md)
 - [`T14 — Define secure data-shaping transforms for sensitive fields`](../backlog-items/T14-secure-data-shaping-transforms.md)
+- [`T15 — Define XML-native duplicate identity for nested XML source scenarios`](../backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md)
 
 ## Recommended deferred sequencing (T8-T14)
 

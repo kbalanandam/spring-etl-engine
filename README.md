@@ -457,6 +457,8 @@ Set-Location 'C:\spring-etl-engine'
 powershell.exe -ExecutionPolicy Bypass -File '.\scripts\generate-verification-report.ps1'
 ```
 
+For other automation helpers, see [`scripts/README.md`](scripts/README.md).
+
 This produces:
 
 - `target/verification-report.md`

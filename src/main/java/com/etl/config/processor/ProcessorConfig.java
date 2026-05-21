@@ -190,6 +190,7 @@ public class ProcessorConfig {
 
 		private boolean enabled;
 		private String outputPath;
+		private String quarantinePath;
 		private boolean includeReasonColumns = true;
 		private boolean packageAsZip;
 
@@ -207,6 +208,14 @@ public class ProcessorConfig {
 
 		public void setOutputPath(String outputPath) {
 			this.outputPath = outputPath;
+		}
+
+		public String getQuarantinePath() {
+			return quarantinePath;
+		}
+
+		public void setQuarantinePath(String quarantinePath) {
+			this.quarantinePath = quarantinePath;
 		}
 
 		public boolean isIncludeReasonColumns() {
@@ -233,6 +242,7 @@ public class ProcessorConfig {
 		private String pattern;
 		private List<String> keyFields;
 		private List<OrderByField> orderBy;
+		private String storageMode;
 
 		public String getType() {
 			return type;
@@ -272,6 +282,14 @@ public class ProcessorConfig {
 
 		public void setOrderBy(List<OrderByField> orderBy) {
 			this.orderBy = orderBy;
+		}
+
+		public String getStorageMode() {
+			return storageMode;
+		}
+
+		public void setStorageMode(String storageMode) {
+			this.storageMode = storageMode;
 		}
 	}
 

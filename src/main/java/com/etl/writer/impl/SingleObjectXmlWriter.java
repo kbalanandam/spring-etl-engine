@@ -101,7 +101,9 @@ public class SingleObjectXmlWriter implements ItemWriter<Object>, ItemStream, St
 
     @Override
     public void beforeStep(@NonNull StepExecution stepExecution) {
-        // no-op
+        prepared = false;
+        writeInvoked = false;
+        stagedFileLifecycle.cleanupOrphanedArtifactsAtStepStart();
     }
 
     @Override

@@ -83,6 +83,7 @@ This is still the best place to begin. Everything else on this page is additive.
 | `rejectHandling` | no | object | Optional rejected-record output settings for validation-aware runs |
 | `rejectHandling.enabled` | yes, when `rejectHandling` is present | boolean | Enables rejected-record output |
 | `rejectHandling.outputPath` | yes, when `rejectHandling.enabled=true` | string | Reject output directory path; runtime generates the reject file name as `<step-name>-rejects.csv` |
+| `rejectHandling.quarantinePath` | no | string | Optional quarantine directory path; when set, successful steps with rejected records also publish a quarantined copy of the finalized reject artifact |
 | `rejectHandling.includeReasonColumns` | no | boolean | Appends `_rejectField`, `_rejectRule`, and `_rejectMessage` metadata columns when true |
 | `rejectHandling.packageAsZip` | no | boolean | When `true`, the runtime packages the reject CSV as one ZIP artifact and appends `.zip` to the published path when needed |
 | `mappings[].fields[].transforms` | no | list | Optional ordered field-level transform/cleaner chain. Omit the block when no cleanup/normalization is needed |
@@ -102,8 +103,11 @@ This is still the best place to begin. Everything else on this page is additive.
 | `mappings[].fields[].rules[].orderBy` | no, for `duplicate` | list | Optional winner-selection order. When omitted, duplicate handling stays in keep-first mode and the first encountered record is retained for a duplicate key |
 | `mappings[].fields[].rules[].orderBy[].field` | yes, when `orderBy` is present | string | Field used to rank duplicate candidates; each configured field should appear only once per `orderBy` list |
 | `mappings[].fields[].rules[].orderBy[].direction` | yes, when `orderBy` is present | string | Winner-selection direction: `ASC` or `DESC` |
+| `mappings[].fields[].rules[].storageMode` | no, for `duplicate` + `orderBy` | string | Optional ordered-winner storage override: `auto` (default), `memory`, or `embeddedDb`; ignored for keep-first duplicate mode (no `orderBy`) |
 
-There is no separate processor-config field today for choosing duplicate storage mode such as `inMemory` or `embeddedDb`. The shipped config contract expresses duplicate semantics through `duplicate`, optional `keyFields`, and optional `orderBy`; the runtime chooses the backing resolver automatically when ordered winner selection is active.
+By default, ordered duplicate winner selection uses `storageMode: auto`, where runtime chooses the backing resolver from volume hints. Optional explicit overrides are available only when `orderBy` winner selection is configured: `storageMode: memory` or `storageMode: embeddedDb`.
+
+Use this setting only when one mapping needs deterministic resolver behavior. Keep `auto` as the baseline for most scenarios so runtime can adapt without changing YAML per data volume.
 
 ## Progressive examples
 
@@ -159,6 +163,7 @@ mappings:
 - `rejectHandling.enabled: true` turns rejected-record output on.
 - `rejectHandling.outputPath` is the reject output directory.
 - Reject filenames are standardized by runtime as `<step-name>-rejects.csv`.
+- `rejectHandling.quarantinePath` is optional. When configured, completed steps with `rejectedCount > 0` also publish the finalized reject artifact to that quarantine directory using the same runtime-generated file name.
 - `rejectHandling.includeReasonColumns: true` appends rejection metadata columns to the reject output.
 - `rejectHandling.packageAsZip: true` publishes the generated reject CSV as one ZIP artifact instead of leaving the plain CSV on disk.
 - `rules` adds validation to one mapped field.
@@ -320,7 +325,16 @@ mappings:
 - The current shipped `duplicate` rule uses step-local in-memory tracking for keep-first duplicate elimination.
 - When `orderBy` is present, runtime upgrades duplicate handling into ordered winner selection and uses a shared ordered-duplicate resolver before the final write phase.
 - Ordered duplicate winner selection still uses tasklet-style final buffering for that mapping so earlier writes do not need to be undone.
-- The storage implementation for ordered winner selection is not selected in YAML today. Runtime chooses it automatically from step volume hints: smaller known candidate sets stay on the in-memory path, while counts above the active `etl.chunk.threshold` (or unknown counts that default to the large-input path) use the embedded-database resolver.
+- Ordered duplicate winner selection now supports optional `storageMode` override (`memory` or `embeddedDb`) when operators need deterministic resolver choice for one mapping.
+- When `storageMode` is omitted or set to `auto`, runtime chooses resolver implementation from step volume hints: smaller known candidate sets stay on the in-memory path, while counts above the active `etl.chunk.threshold` (or unknown counts that default to the large-input path) use the embedded-database resolver.
+- Practical guidance for `storageMode` when `orderBy` is present:
+  - use `auto` for adaptive default behavior across mixed run sizes
+  - use `memory` when operators want deterministic in-memory behavior for known smaller winner-selection sets
+  - use `embeddedDb` when operators want deterministic disk-backed behavior for larger or uncertain winner-selection sets
+- Ordered duplicate winner selection now emits resolver-selection evidence so operators can see which storage path was chosen (`resolverMode=inMemory|embeddedDb`) and why (`resolverReason=...`) on both startup planning (`STEP_READY event=duplicate_resolver_plan`) and step runtime (`STEP_EVENT event=duplicate_resolver_selected`).
+- Resolver implementations now also emit lifecycle evidence under `DUPLICATE_RESOLVER`: `event=resolver_open` (embedded DB path allocation), `event=resolver_summary` (accepted/staged/retained/discarded counts plus storage engine), and `event=resolver_close` (embedded DB cleanup result including H2 file/directory deletion status).
+- The runtime also stores the selected ordered-duplicate resolver evidence in the step execution context under `orderedDuplicateResolverMode` and `orderedDuplicateResolverReason` for downstream reporting.
+- Terminology note: processor config uses `storageMode: memory|embeddedDb|auto`, while runtime evidence uses `resolverMode=inMemory|embeddedDb`.
 - The current duplicate contract expects flat field/property access on the runtime record. XML-native duplicate identity based on XPath, namespaces, or nested structure selectors is not part of the shipped processor config contract yet.
 - Those built-in rule types are dispatched through the active processor-rule SPI, so future rule types should be added as `ProcessorValidationRule` implementations rather than through the deprecated `com.etl.validation.*` package.
 
@@ -363,7 +377,7 @@ That separation keeps shipped behavior readable today and leaves room for future
 - Conditional support is limited to field-level `transforms[].type: conditional`; there is no separate conditional rule DSL
 - The shipped validation rule set remains intentionally small (`notNull`, `timeFormat`, and `duplicate` with single-field, composite-key, or ordered winner selection)
 - The shipped transform baseline now covers config-driven `valueMap` rewriting, processor-side expression-derived fields, and first-slice conditional value routing; lookup/enrichment remains future work
-- No client-selectable duplicate storage switch exists today, and target-aware deduplication is still future work
+- Duplicate `storageMode` selection is currently scoped to ordered winner selection (`duplicate` + `orderBy`) and does not apply to keep-first duplicate mode; target-aware deduplication remains future work
 - Reject handling is now exercised by preserved file-backed scenarios, with the strongest first proof still centered on CSV and additional nested XML proof through the same processor contract
 - No nested field alias or database-column alias support yet
 - No per-target write behavior inside the processor config
@@ -380,6 +394,8 @@ This page documents the shipped processor contract. For future-only design direc
 ## Related design note
 
 The broader file-ingestion hardening direction, including future expansion beyond the current CSV slice, is documented in [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md).
+
+For resolver-planning and runtime observability details, see [`Runtime flow`](../../architecture/runtime-flow.md), [`CSV to XML runtime flow`](../../architecture/csv-to-xml-runtime-flow.md), and [`Validation extension architecture`](../../architecture/validation-extension-architecture.md).
 
 ## Related docs
 

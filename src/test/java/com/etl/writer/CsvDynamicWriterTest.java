@@ -243,6 +243,37 @@ class CsvDynamicWriterTest {
         assertFalse(Files.exists(stagingFile));
     }
 
+    @Test
+    void cleansOrphanedCsvPartFileAtStepStart(@TempDir Path tempDir) throws Exception {
+        Path outputFile = tempDir.resolve("customers-orphaned.csv");
+        Path stagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");
+        Files.writeString(stagingFile, "orphaned-partial-row\n");
+
+        ItemWriter<Object> writer = factory.createWriter(csvTargetConfig(outputFile, true), CustomerCsvRow.class);
+        StepExecutionListener listener = (StepExecutionListener) writer;
+
+        listener.beforeStep(new StepExecution("customers-step", new JobExecution(2L)));
+
+        assertFalse(Files.exists(stagingFile));
+    }
+
+    @Test
+    void keepsUnrelatedPartFilesWhenCleaningCsvOrphans(@TempDir Path tempDir) throws Exception {
+        Path outputFile = tempDir.resolve("customers-owned.csv");
+        Path ownedStagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");
+        Path unrelatedPartFile = tempDir.resolve("other-step-output.csv.part");
+        Files.writeString(ownedStagingFile, "owned-orphan");
+        Files.writeString(unrelatedPartFile, "must-stay");
+
+        ItemWriter<Object> writer = factory.createWriter(csvTargetConfig(outputFile, true), CustomerCsvRow.class);
+        StepExecutionListener listener = (StepExecutionListener) writer;
+
+        listener.beforeStep(new StepExecution("customers-step", new JobExecution(3L)));
+
+        assertFalse(Files.exists(ownedStagingFile));
+        assertTrue(Files.exists(unrelatedPartFile));
+    }
+
   @Test
   void cleansStagingAndCategorizesCsvWriteFailure(@TempDir Path tempDir) throws Exception {
     Path outputFile = tempDir.resolve("customers-write-failed.csv");

@@ -222,11 +222,11 @@ interface ProcessorValidationRule {
 
 The shipped first slice keeps `ValidationRuleEvaluator` as the central dispatcher, but it now delegates to rule beans such as `NotNullProcessorValidationRule` and `TimeFormatProcessorValidationRule`. That makes future rule growth an additive SPI change instead of another parallel framework.
 
-For duplicate handling specifically, future growth should stay in this processor-rule extension point while preserving the current runtime-selected storage baseline and leaving any client-selectable storage strategy as future work:
+For duplicate handling specifically, future growth should stay in this processor-rule extension point while preserving the current `storageMode: auto` baseline and supporting explicit overrides only where ordered winner selection needs deterministic storage choice:
 
 - duplicate checking remains optional and only runs when a `duplicate` rule is configured for the mapping
 - current shipped baseline: in-memory, step-local duplicate tracking for keep-first duplicate elimination
-- current shipped ordered winner-selection path: the same processor-rule contract chooses in-memory or embedded-DB staging automatically from runtime volume hints
+- current shipped ordered winner-selection path: the same processor-rule contract chooses in-memory or embedded-DB staging automatically from runtime volume hints when `storageMode` is omitted or set to `auto`, and allows explicit override through `storageMode: memory|embeddedDb`
 - current format expectation: duplicate keys are expressed through normal mapped fields, not source-native selectors such as XPath
 
 That keeps duplicate policy in one extensible rule area while allowing different runtime storage implementations for different data volumes.

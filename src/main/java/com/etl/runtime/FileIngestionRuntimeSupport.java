@@ -58,6 +58,7 @@ public class FileIngestionRuntimeSupport {
 
 	public static final String REJECTED_COUNT_KEY = "rejectedCount";
 	public static final String REJECT_OUTPUT_PATH_KEY = "rejectOutputPath";
+	public static final String QUARANTINED_REJECT_PATH_KEY = "quarantinedRejectPath";
 	public static final String ARCHIVED_SOURCE_PATH_KEY = "archivedSourcePath";
 
 	private static final DateTimeFormatter ARCHIVE_TIMESTAMP_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss");
@@ -116,12 +117,14 @@ public class FileIngestionRuntimeSupport {
 		Path rejectPath = resolveRejectPath(rejectHandling.getOutputPath(), stepExecution.getStepName(), sourceConfig.getSourceName());
 		Path writableRejectPath = resolveWritableZipSourcePath(rejectPath);
 		Path publishedRejectPath = resolvePublishedZipPath(rejectPath, rejectHandling.isPackageAsZip());
+		Path quarantinePublishedPath = resolveQuarantinePublishedPath(rejectHandling, stepExecution.getStepName(), sourceConfig.getSourceName());
 		stepExecution.getExecutionContext().putString(REJECT_OUTPUT_PATH_KEY, publishedRejectPath.toString());
 		rejectStateByStepExecutionId.put(
 				stepExecutionId,
 				new RejectFileState(
 						writableRejectPath,
 						publishedRejectPath,
+						quarantinePublishedPath,
 						entityMapping,
 						rejectHandling.isIncludeReasonColumns(),
 						rejectHandling.isPackageAsZip()
@@ -169,12 +172,14 @@ public class FileIngestionRuntimeSupport {
 	public ExitStatus completeStep(StepExecution stepExecution, SourceConfig sourceConfig) {
 		Long stepExecutionId = requireStepExecutionId(stepExecution, "completeStep");
 		AtomicInteger rejectedCount = rejectedCountByStepExecutionId.remove(stepExecutionId);
+		int rejectedCountValue = rejectedCount == null ? 0 : rejectedCount.get();
 		RejectFileState rejectFileState = rejectStateByStepExecutionId.remove(stepExecutionId);
 		duplicateValuesByStepExecutionId.remove(stepExecutionId);
 		if (rejectFileState != null) {
 			try {
 				rejectFileState.close();
 				rejectFileState.packageAsZipIfConfigured();
+				publishRejectArtifactToQuarantineIfConfigured(stepExecution, rejectFileState, rejectedCountValue);
 			} catch (IOException e) {
 				throw new RuntimeEtlException("Failed to close reject output for step '" + stepExecution.getStepName() + "'.", e);
 			} catch (ZipPackagingException e) {
@@ -190,7 +195,7 @@ public class FileIngestionRuntimeSupport {
 		}
 
 		if (rejectedCount != null) {
-			stepExecution.getExecutionContext().putInt(REJECTED_COUNT_KEY, rejectedCount.get());
+			stepExecution.getExecutionContext().putInt(REJECTED_COUNT_KEY, rejectedCountValue);
 		}
 
 		return stepExecution.getExitStatus();
@@ -427,6 +432,43 @@ public class FileIngestionRuntimeSupport {
 		return configuredPath.resolveSibling(writableFileName).normalize();
 	}
 
+	private Path resolveQuarantinePublishedPath(ProcessorConfig.RejectHandling rejectHandling, String stepName, String sourceName) {
+		if (rejectHandling == null || rejectHandling.getQuarantinePath() == null || rejectHandling.getQuarantinePath().isBlank()) {
+			return null;
+		}
+		Path quarantinePath = resolveRejectPath(rejectHandling.getQuarantinePath(), stepName, sourceName);
+		return resolvePublishedZipPath(quarantinePath, rejectHandling.isPackageAsZip());
+	}
+
+	private void publishRejectArtifactToQuarantineIfConfigured(StepExecution stepExecution,
+	                                                         RejectFileState rejectFileState,
+	                                                         int rejectedCount) {
+		if (BatchStatus.COMPLETED != stepExecution.getStatus() || rejectedCount <= 0 || rejectFileState.quarantinePublishedPath == null) {
+			return;
+		}
+
+		Path sourcePath = rejectFileState.publishedRejectPath;
+		if (!Files.exists(sourcePath)) {
+			return;
+		}
+
+		Path quarantinePath = rejectFileState.quarantinePublishedPath;
+		try {
+			if (sourcePath.equals(quarantinePath)) {
+				stepExecution.getExecutionContext().putString(QUARANTINED_REJECT_PATH_KEY, quarantinePath.toString());
+				return;
+			}
+			Path parent = quarantinePath.getParent();
+			if (parent != null) {
+				Files.createDirectories(parent);
+			}
+			Files.copy(sourcePath, quarantinePath, StandardCopyOption.REPLACE_EXISTING);
+			stepExecution.getExecutionContext().putString(QUARANTINED_REJECT_PATH_KEY, quarantinePath.toString());
+		} catch (IOException e) {
+			throw new RuntimeEtlException("Failed to publish quarantined reject output for step '" + stepExecution.getStepName() + "'.", e);
+		}
+	}
+
 	private static final class RejectFileState {
 
 		/**
@@ -438,6 +480,7 @@ public class FileIngestionRuntimeSupport {
 
 		private final Path rejectPath;
 		private final Path publishedRejectPath;
+		private final Path quarantinePublishedPath;
 		private final ProcessorConfig.EntityMapping entityMapping;
 		private final boolean includeReasonColumns;
 		private final boolean packageAsZip;
@@ -446,11 +489,13 @@ public class FileIngestionRuntimeSupport {
 
 		private RejectFileState(Path rejectPath,
 		                       Path publishedRejectPath,
+		                       Path quarantinePublishedPath,
 		                       ProcessorConfig.EntityMapping entityMapping,
 		                       boolean includeReasonColumns,
 		                       boolean packageAsZip) {
 			this.rejectPath = rejectPath;
 			this.publishedRejectPath = publishedRejectPath;
+			this.quarantinePublishedPath = quarantinePublishedPath;
 			this.entityMapping = entityMapping;
 			this.includeReasonColumns = includeReasonColumns;
 			this.packageAsZip = packageAsZip;

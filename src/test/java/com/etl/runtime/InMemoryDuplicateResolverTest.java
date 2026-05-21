@@ -1,8 +1,11 @@
 package com.etl.runtime;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.etl.processor.validation.DuplicateProcessorValidationRule;
 import com.etl.processor.validation.ValidationIssue;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
@@ -13,12 +16,43 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class InMemoryDuplicateResolverTest {
 
 	@Test
+	void emitsResolverSummaryEvidenceForInMemoryMode() {
+		ch.qos.logback.classic.Logger resolverLogger =
+				(ch.qos.logback.classic.Logger) LoggerFactory.getLogger(InMemoryDuplicateResolver.class);
+		ListAppender<ILoggingEvent> appender = new ListAppender<>();
+		appender.start();
+		resolverLogger.addAppender(appender);
+		try {
+			InMemoryDuplicateResolver resolver = new InMemoryDuplicateResolver(
+					new DuplicateRule(
+							"id",
+							List.of("id"),
+							List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+							DuplicateRule.StorageMode.AUTO
+					)
+			);
+
+			resolver.accept(new EventRecord("EVT-1001", "08:30:00", "first", 1));
+			resolver.accept(new EventRecord("EVT-1001", "09:30:00", "winner", 2));
+			resolver.complete();
+
+			assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("DUPLICATE_RESOLVER event=resolver_summary")
+					&& event.getFormattedMessage().contains("resolverMode=inMemory")
+					&& event.getFormattedMessage().contains("storageEngine=java-collections")
+					&& event.getFormattedMessage().contains("acceptedCount=2")));
+		} finally {
+			resolverLogger.detachAppender(appender);
+		}
+	}
+
+	@Test
 	void keepsBestRecordForDuplicateKeyUsingConfiguredDescendingOrder() {
 		InMemoryDuplicateResolver resolver = new InMemoryDuplicateResolver(
 				new DuplicateRule(
 						"id",
 						List.of("id"),
-						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true))
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateRule.StorageMode.AUTO
 				)
 		);
 
@@ -44,7 +78,8 @@ class InMemoryDuplicateResolverTest {
 				new DuplicateRule(
 						"id",
 						List.of("id"),
-						List.of(new DuplicateProcessorValidationRule.OrderSelector("sequenceNo", true))
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("sequenceNo", true)),
+						DuplicateRule.StorageMode.AUTO
 				)
 		);
 
@@ -63,7 +98,8 @@ class InMemoryDuplicateResolverTest {
 				new DuplicateRule(
 						"id",
 						List.of("id"),
-						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true))
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateRule.StorageMode.AUTO
 				)
 		);
 
@@ -82,7 +118,8 @@ class InMemoryDuplicateResolverTest {
 				new DuplicateRule(
 						"id",
 						List.of("id"),
-						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true))
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateRule.StorageMode.AUTO
 				)
 		);
 
@@ -104,7 +141,8 @@ class InMemoryDuplicateResolverTest {
 				new DuplicateRule(
 						"id",
 						List.of("id", "lane"),
-						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true))
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateRule.StorageMode.AUTO
 				)
 		);
 

@@ -224,6 +224,32 @@ class XmlDynamicWriterTest {
     }
 
     @Test
+    void cleansOrphanedChunkXmlPartFileAtStepStart(@TempDir Path tempDir) throws Exception {
+    Path outputFile = tempDir.resolve("customers_chunk_orphaned.xml");
+    Path stagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");
+    Files.writeString(stagingFile, "<partial/>");
+    ItemWriter<Object> writer = factory.createWriter(getXmlTargetConfig(outputFile), Customer.class);
+    StepExecutionListener listener = (StepExecutionListener) writer;
+
+    listener.beforeStep(new StepExecution("customers-chunk-step", new JobExecution(5L)));
+
+    assertFalse(Files.exists(stagingFile));
+    }
+
+    @Test
+    void cleansOrphanedWrapperXmlPartFileAtStepStart(@TempDir Path tempDir) throws Exception {
+    Path outputFile = tempDir.resolve("customers_wrapper_orphaned.xml");
+    Path stagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");
+    Files.writeString(stagingFile, "<partial/>");
+    ItemWriter<Object> writer = factory.createWriter(getXmlTargetConfig(outputFile), Customers.class);
+    StepExecutionListener listener = (StepExecutionListener) writer;
+
+    listener.beforeStep(new StepExecution("customers-wrapper-step", new JobExecution(6L)));
+
+    assertFalse(Files.exists(stagingFile));
+    }
+
+    @Test
     void promotesChunkXmlAfterAfterStepThenCloseWithinActiveStep(@TempDir Path tempDir) throws Exception {
     Path outputFile = tempDir.resolve("customers_chunk_step.xml");
     Path stagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");

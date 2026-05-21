@@ -8,6 +8,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Resolves ordered duplicate winner-selection entirely in JVM memory for one step execution.
@@ -24,10 +26,13 @@ import java.util.Objects;
  */
 public final class InMemoryDuplicateResolver implements DuplicateResolver {
 
+	private static final Logger logger = LoggerFactory.getLogger(InMemoryDuplicateResolver.class);
+
 	private final DuplicateRule rule;
 	private final Map<String, List<Candidate>> candidatesByKey = new LinkedHashMap<>();
 	private final List<OrderedRecord> passThroughRecords = new ArrayList<>();
 	private final List<DuplicateDiscard> discardedRecords = new ArrayList<>();
+	private long acceptedRecordCount;
 	private long sequence;
 
 	public InMemoryDuplicateResolver(DuplicateRule rule) {
@@ -36,6 +41,7 @@ public final class InMemoryDuplicateResolver implements DuplicateResolver {
 
 	@Override
 	public void accept(Object input) {
+		acceptedRecordCount++;
 		List<Object> keyValues = DuplicateSupport.resolveKeyValues(input, rule.keyFields());
 		if (DuplicateSupport.hasIncompleteKey(keyValues)) {
 			passThroughRecords.add(new OrderedRecord(input, nextSequence()));
@@ -65,6 +71,8 @@ public final class InMemoryDuplicateResolver implements DuplicateResolver {
 	@Override
 	public DuplicateResolution complete() {
 		List<OrderedRecord> retainedRecords = new ArrayList<>(passThroughRecords);
+		int rankedGroupCount = candidatesByKey.size();
+		int rankedCandidateCount = candidatesByKey.values().stream().mapToInt(List::size).sum();
 		for (List<Candidate> candidates : candidatesByKey.values()) {
 			candidates.sort(this::compareCandidates);
 			Candidate winner = candidates.get(0);
@@ -85,7 +93,18 @@ public final class InMemoryDuplicateResolver implements DuplicateResolver {
 			}
 		}
 		retainedRecords.sort(Comparator.comparingLong(OrderedRecord::sequence));
-		return new DuplicateResolution(retainedRecords.stream().map(OrderedRecord::record).toList(), discardedRecords);
+		long invalidOrderingDiscardCount = discardedRecords.stream().filter(DuplicateDiscard::invalidOrderingValue).count();
+		List<Object> retained = retainedRecords.stream().map(OrderedRecord::record).toList();
+		logger.info("DUPLICATE_RESOLVER event=resolver_summary resolverMode=inMemory storageEngine=java-collections anchorField={} acceptedCount={} stagedRankedCount={} stagedPassThroughCount={} stagedInvalidCount={} rankedGroupCount={} retainedCount={} discardedCount={}",
+				rule.anchorField(),
+				acceptedRecordCount,
+				rankedCandidateCount,
+				passThroughRecords.size(),
+				invalidOrderingDiscardCount,
+				rankedGroupCount,
+				retained.size(),
+				discardedRecords.size());
+		return new DuplicateResolution(retained, discardedRecords);
 	}
 
 	private int compareCandidates(Candidate incoming, Candidate currentWinner) {

@@ -1,6 +1,6 @@
 # Transformation checkpoint
 
-Checkpoint date: **2026-05-19**
+Checkpoint date: **2026-05-21**
 
 ## Purpose
 
@@ -22,9 +22,9 @@ The active shipped transformation path is still the processor-centered contract 
 
 ### 2. What is next
 
-The next transformation item is [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md).
+`T4` hardening is now complete, and remaining XML-native duplicate identity follow-on work is tracked under [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md).
 
-Reason: `T3` is now shipped, so the follow-on transformation hardening focus moves to `T4`.
+Current state: ordered-duplicate resolver evidence, optional `storageMode` override (`auto|memory|embeddedDb`) for `duplicate + orderBy`, and additive reject-quarantine publication are shipped. Remaining follow-on concern is XML-native duplicate identity when flat mapped fields are insufficient.
 
 ### 3. What remains future or conceptual
 
@@ -55,7 +55,7 @@ Board anchors:
 
 ### 5. Duplicate-handling reminder
 
-Resume duplicate follow-on work from [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md).
+Resume duplicate follow-on work from [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md).
 
 Keep the larger duplicate-scale redesign separate under [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md).
 
@@ -63,7 +63,7 @@ Current duplicate baseline to remember:
 
 - keep-first duplicate behavior exists today
 - ordered winner selection through `orderBy` exists today
-- duplicate storage mode is **not** client-selectable in YAML today
+- duplicate storage mode is selectable for ordered winner selection (`duplicate` + `orderBy`) through `storageMode: auto|memory|embeddedDb`
 - XML-native/source-level duplicate identity is still future work
 
 ### 6. Runtime model to preserve
@@ -81,12 +81,13 @@ If you need to resume quickly, read in this order:
 
 1. [`product-backlog.md`](./product-backlog.md) — canonical status and sequencing
 2. [`Epic T`](./epics/epic-t-transformation-capability.md) — shared transformation boundary
-3. [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) — duplicate and quarantine follow-on checkpoint
-4. [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) — deferred duplicate-scale boundary
-5. [`default-processor.md`](../config/processor/default-processor.md) — shipped contract today
-6. [`transformation-capability-roadmap.md`](../architecture/transformation-capability-roadmap.md) — future direction
+3. [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) — completed quarantine and duplicate hardening baseline
+4. [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) — deferred XML-native duplicate identity follow-on
+5. [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) — deferred duplicate-scale boundary
+6. [`default-processor.md`](../config/processor/default-processor.md) — shipped contract today
+7. [`transformation-capability-roadmap.md`](../architecture/transformation-capability-roadmap.md) — future direction
 
 ## One-line reminder
 
-**Today we kept the shipped runtime processor-centered, shipped `T3` conditional transforms, kept duplicate follow-on work under `T4` with `T7` separate, and treated `T8`-`T14` examples as future planning only.**
+**Today we keep the shipped runtime processor-centered, treat `T4` as completed hardening, track remaining XML-native duplicate-identity work under `T15`, keep larger duplicate-scale redesign under `T7`, and treat `T8`-`T14` examples as future planning only.**
 
