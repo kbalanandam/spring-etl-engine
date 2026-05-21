@@ -17,6 +17,20 @@ import java.util.Set;
 public interface ProcessorFieldTransform {
 
 	/**
+	 * Stable extension id used for diagnostics and conflict reporting.
+	 */
+	default String extensionId() {
+		return getClass().getName();
+	}
+
+	/**
+	 * Marks this transform as an explicit override candidate for its dispatch key.
+	 */
+	default boolean isOverride() {
+		return false;
+	}
+
+	/**
 	 * Returns the config {@code transforms[].type} value claimed by this implementation.
 	 */
 	String getTransformType();

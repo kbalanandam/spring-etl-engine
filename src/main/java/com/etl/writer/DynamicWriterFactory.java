@@ -2,6 +2,7 @@ package com.etl.writer;
 
 import com.etl.config.target.TargetConfig;
 import com.etl.enums.ModelFormat;
+import com.etl.extension.ExtensionConflictPolicy;
 import com.etl.exception.EtlException;
 import com.etl.exception.FactoryException;
 import com.etl.writer.exception.NoWriterFoundException;
@@ -12,8 +13,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 /**
  * Creates writer implementations for configured target formats.
@@ -29,15 +29,49 @@ public class DynamicWriterFactory {
 	private static final Logger logger = LoggerFactory.getLogger(DynamicWriterFactory.class);
     private final Map<ModelFormat, DynamicWriter> writers;
 
+    public static DynamicWriterFactory withDiscoveredWriters() {
+        return new DynamicWriterFactory(DynamicWriterDefaults.defaultWriters());
+    }
+
     public DynamicWriterFactory(List<DynamicWriter> writerList) {
-        this.writers = writerList.stream()
-            .collect(Collectors.toMap(
-                DynamicWriter::getFormat,
-                Function.identity(),
-                (existing, replacement) -> {
-                    throw new FactoryException("Multiple writers registered for format: " + existing.getFormat());
-                }
+        List<ExtensionConflictPolicy.Candidate<ModelFormat, DynamicWriter>> candidates = new ArrayList<>();
+        for (DynamicWriter writer : writerList == null ? List.<DynamicWriter>of() : writerList) {
+            if (writer == null) {
+                continue;
+            }
+            candidates.add(new ExtensionConflictPolicy.Candidate<>(
+                    writer.getFormat(),
+                    writer,
+                    new ExtensionConflictPolicy.ProviderMetadata(writer.extensionId(), writer.isOverride())
             ));
+        }
+
+        this.writers = ExtensionConflictPolicy.resolve(candidates, new ExtensionConflictPolicy.ConflictReporter<>() {
+            @Override
+            public void onOverride(ModelFormat key,
+                                   ExtensionConflictPolicy.ProviderMetadata winner,
+                                   ExtensionConflictPolicy.ProviderMetadata replaced) {
+                logger.info("Writer format '{}' overridden by extension '{}' replacing extension '{}'.",
+                        key, winner.providerId(), replaced.providerId());
+            }
+
+            @Override
+            public void onIgnored(ModelFormat key,
+                                  ExtensionConflictPolicy.ProviderMetadata ignored,
+                                  ExtensionConflictPolicy.ProviderMetadata winner) {
+                logger.debug("Ignoring non-override writer extension '{}' for format '{}' because override extension '{}' already registered.",
+                        ignored.providerId(), key, winner.providerId());
+            }
+
+            @Override
+            public RuntimeException duplicateFailure(ModelFormat key,
+                                                     ExtensionConflictPolicy.ProviderMetadata existing,
+                                                     ExtensionConflictPolicy.ProviderMetadata candidate) {
+                return new FactoryException("Multiple writers registered for format: " + key
+                        + " (extensions: " + existing.providerId() + ", " + candidate.providerId() + ")"
+                        + ". Set exactly one extension with isOverride=true to replace an existing writer.");
+            }
+        });
     }
 
     /**

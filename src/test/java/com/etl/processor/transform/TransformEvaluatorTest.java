@@ -11,6 +11,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class TransformEvaluatorTest {
 
@@ -155,6 +156,33 @@ class TransformEvaluatorTest {
 		assertEquals("Unsupported processor transform type: csvOnly for source format xml", error.getMessage());
 	}
 
+	@Test
+	void prefersOverrideTransformWhenGlobalTransformTypeConflicts() {
+		TransformEvaluator evaluator = new TransformEvaluator(List.of(
+				new GlobalScopedPrefixTransform(),
+				new OverrideGlobalScopedPrefixTransform()
+		));
+		ProcessorConfig.FieldMapping fieldMapping = prefixScopedFieldMapping();
+
+		assertEquals("OVERRIDE-1001", evaluator.apply("1001", fieldMapping, ModelFormat.XML));
+	}
+
+	@Test
+	void failsWhenDuplicateGlobalTransformTypeHasNoOverride() {
+		IllegalStateException failure = assertThrows(IllegalStateException.class,
+				() -> new TransformEvaluator(List.of(new GlobalScopedPrefixTransform(), new DuplicateGlobalScopedPrefixTransform())));
+		assertTrue(failure.getMessage().startsWith("Duplicate processor transform type registration: prefixScoped"));
+	}
+
+	@Test
+	void failsWhenTwoOverrideTransformsRegisterSameGlobalType() {
+		IllegalStateException failure = assertThrows(IllegalStateException.class,
+				() -> new TransformEvaluator(List.of(new OverrideGlobalScopedPrefixTransform(), new SecondOverrideGlobalScopedPrefixTransform())));
+		assertTrue(failure.getMessage().contains("Duplicate processor transform type registration: prefixScoped"));
+		assertTrue(failure.getMessage().contains("override-prefix-transform"));
+		assertTrue(failure.getMessage().contains("second-override-prefix-transform"));
+	}
+
 	private ProcessorConfig.FieldTransform valueMap(Map<String, Object> mappings, Object defaultValue, boolean caseSensitive) {
 		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
 		transform.setType("valueMap");
@@ -261,6 +289,70 @@ class TransformEvaluatorTest {
 		@Override
 		public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
 			return value;
+		}
+	}
+
+	private static final class OverrideGlobalScopedPrefixTransform implements ProcessorFieldTransform {
+
+		@Override
+		public String extensionId() {
+			return "override-prefix-transform";
+		}
+
+		@Override
+		public boolean isOverride() {
+			return true;
+		}
+
+		@Override
+		public String getTransformType() {
+			return "prefixScoped";
+		}
+
+		@Override
+		public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
+			return "OVERRIDE-" + value;
+		}
+	}
+
+	private static final class DuplicateGlobalScopedPrefixTransform implements ProcessorFieldTransform {
+
+		@Override
+		public String extensionId() {
+			return "duplicate-prefix-transform";
+		}
+
+		@Override
+		public String getTransformType() {
+			return "prefixScoped";
+		}
+
+		@Override
+		public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
+			return "DUP-" + value;
+		}
+	}
+
+	private static final class SecondOverrideGlobalScopedPrefixTransform implements ProcessorFieldTransform {
+
+		@Override
+		public String extensionId() {
+			return "second-override-prefix-transform";
+		}
+
+		@Override
+		public boolean isOverride() {
+			return true;
+		}
+
+		@Override
+		public String getTransformType() {
+			return "prefixScoped";
+		}
+
+		@Override
+		public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
+			return "SECOND-OVERRIDE-" + value;
 		}
 	}
 }

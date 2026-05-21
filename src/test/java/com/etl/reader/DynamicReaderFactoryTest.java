@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -138,7 +139,24 @@ class DynamicReaderFactoryTest {
     FactoryException failure = assertThrows(FactoryException.class,
         () -> new DynamicReaderFactory(List.of(new CsvDynamicReader<>(), new DuplicateCsvReader())));
 
-    assertEquals("Multiple readers registered for format: CSV", failure.getMessage());
+    assertTrue(failure.getMessage().startsWith("Multiple readers registered for format: CSV"));
+  }
+
+	@Test
+	void prefersOverrideReaderWhenFormatConflicts() {
+		DynamicReaderFactory overrideFactory = new DynamicReaderFactory(List.of(new CsvDynamicReader<>(), new OverrideCsvReader()));
+
+		assertInstanceOf(OverrideCsvReader.class, overrideFactory.getReaderByFormat(ModelFormat.CSV));
+	}
+
+  @Test
+  void failsWhenTwoOverrideReadersRegisterSameFormat() {
+    FactoryException failure = assertThrows(FactoryException.class,
+        () -> new DynamicReaderFactory(List.of(new OverrideCsvReader(), new SecondOverrideCsvReader())));
+
+    assertTrue(failure.getMessage().contains("Multiple readers registered for format: CSV"));
+    assertTrue(failure.getMessage().contains("override-csv-reader"));
+    assertTrue(failure.getMessage().contains("second-override-csv-reader"));
   }
 
 	@Test
@@ -250,6 +268,50 @@ class DynamicReaderFactoryTest {
   }
 
   private static final class DuplicateCsvReader implements DynamicReader<Object> {
+    @Override
+    public ModelFormat getFormat() {
+      return ModelFormat.CSV;
+    }
+
+    @Override
+    public ItemReader<Object> getReader(SourceConfig config, Class<Object> clazz) {
+      return () -> null;
+    }
+  }
+
+  private static final class OverrideCsvReader implements DynamicReader<Object> {
+    @Override
+    public String extensionId() {
+      return "override-csv-reader";
+    }
+
+    @Override
+    public boolean isOverride() {
+      return true;
+    }
+
+    @Override
+    public ModelFormat getFormat() {
+      return ModelFormat.CSV;
+    }
+
+    @Override
+    public ItemReader<Object> getReader(SourceConfig config, Class<Object> clazz) {
+      return () -> null;
+    }
+  }
+
+  private static final class SecondOverrideCsvReader implements DynamicReader<Object> {
+    @Override
+    public String extensionId() {
+      return "second-override-csv-reader";
+    }
+
+    @Override
+    public boolean isOverride() {
+      return true;
+    }
+
     @Override
     public ModelFormat getFormat() {
       return ModelFormat.CSV;

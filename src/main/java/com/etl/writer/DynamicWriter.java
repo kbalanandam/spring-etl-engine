@@ -15,6 +15,20 @@ import org.springframework.batch.item.ItemWriter;
  */
 public interface DynamicWriter {
     /**
+     * Stable extension id used for diagnostics and conflict reporting.
+     */
+    default String extensionId() {
+        return getClass().getName();
+    }
+
+    /**
+     * Marks this writer as an explicit override candidate for its format key.
+     */
+    default boolean isOverride() {
+        return false;
+    }
+
+    /**
      * Returns the target format handled by this writer implementation.
      */
     ModelFormat getFormat();

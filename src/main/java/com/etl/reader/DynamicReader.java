@@ -18,6 +18,20 @@ import org.springframework.batch.item.ItemReader;
  */
 public interface DynamicReader<T> {
 	/**
+	 * Stable extension id used for diagnostics and conflict reporting.
+	 */
+	default String extensionId() {
+		return getClass().getName();
+	}
+
+	/**
+	 * Marks this reader as an explicit override candidate for its format key.
+	 */
+	default boolean isOverride() {
+		return false;
+	}
+
+	/**
 	 * Returns the source format handled by this reader implementation.
 	 */
 	ModelFormat getFormat();

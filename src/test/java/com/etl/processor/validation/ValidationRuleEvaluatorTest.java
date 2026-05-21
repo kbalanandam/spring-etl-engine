@@ -179,6 +179,34 @@ class ValidationRuleEvaluatorTest {
     assertTrue(error.getMessage().contains("csv"));
   }
 
+  @Test
+  void prefersOverrideRuleWhenGlobalRuleTypeConflicts() {
+    ValidationRuleEvaluator overrideEvaluator = new ValidationRuleEvaluator(List.of(
+        new GlobalFormatAwareRule(),
+        new OverrideGlobalFormatAwareRule()
+    ));
+
+    ProcessorConfig.EntityMapping mapping = formatAwareMapping();
+    List<ValidationIssue> issues = overrideEvaluator.evaluate(new EventRecord("1", "08:30:00", "ok"), mapping, ModelFormat.CSV);
+    assertEquals("override-format-aware", issues.get(0).rule());
+  }
+
+  @Test
+  void failsWhenDuplicateGlobalRuleTypeHasNoOverride() {
+    IllegalStateException failure = assertThrows(IllegalStateException.class,
+        () -> new ValidationRuleEvaluator(List.of(new GlobalFormatAwareRule(), new DuplicateGlobalFormatAwareRule())));
+    assertTrue(failure.getMessage().startsWith("Duplicate processor validation rule type registration: formatAware"));
+  }
+
+  @Test
+  void failsWhenTwoOverrideRulesRegisterSameGlobalType() {
+    IllegalStateException failure = assertThrows(IllegalStateException.class,
+        () -> new ValidationRuleEvaluator(List.of(new OverrideGlobalFormatAwareRule(), new SecondOverrideGlobalFormatAwareRule())));
+    assertTrue(failure.getMessage().contains("Duplicate processor validation rule type registration: formatAware"));
+    assertTrue(failure.getMessage().contains("override-format-aware-rule"));
+    assertTrue(failure.getMessage().contains("second-override-format-aware-rule"));
+  }
+
     private ProcessorConfig.EntityMapping mapping() {
         ProcessorConfig.FieldMapping id = new ProcessorConfig.FieldMapping();
         id.setFrom("id");
@@ -346,6 +374,70 @@ class ValidationRuleEvaluatorTest {
     @Override
     public ValidationIssue evaluate(String fieldName, Object value, ProcessorConfig.FieldRule rule) {
       return null;
+    }
+  }
+
+  private static final class OverrideGlobalFormatAwareRule implements ProcessorValidationRule {
+
+    @Override
+    public String extensionId() {
+      return "override-format-aware-rule";
+    }
+
+    @Override
+    public boolean isOverride() {
+      return true;
+    }
+
+    @Override
+    public String getRuleType() {
+      return "formatAware";
+    }
+
+    @Override
+    public ValidationIssue evaluate(String fieldName, Object value, ProcessorConfig.FieldRule rule) {
+      return new ValidationIssue(fieldName, "override-format-aware", "override");
+    }
+  }
+
+  private static final class DuplicateGlobalFormatAwareRule implements ProcessorValidationRule {
+
+    @Override
+    public String extensionId() {
+      return "duplicate-format-aware-rule";
+    }
+
+    @Override
+    public String getRuleType() {
+      return "formatAware";
+    }
+
+    @Override
+    public ValidationIssue evaluate(String fieldName, Object value, ProcessorConfig.FieldRule rule) {
+      return new ValidationIssue(fieldName, "duplicate-format-aware", "duplicate");
+    }
+  }
+
+  private static final class SecondOverrideGlobalFormatAwareRule implements ProcessorValidationRule {
+
+    @Override
+    public String extensionId() {
+      return "second-override-format-aware-rule";
+    }
+
+    @Override
+    public boolean isOverride() {
+      return true;
+    }
+
+    @Override
+    public String getRuleType() {
+      return "formatAware";
+    }
+
+    @Override
+    public ValidationIssue evaluate(String fieldName, Object value, ProcessorConfig.FieldRule rule) {
+      return new ValidationIssue(fieldName, "second-override-format-aware", "second-override");
     }
   }
 }

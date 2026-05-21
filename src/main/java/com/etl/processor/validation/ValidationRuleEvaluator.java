@@ -3,12 +3,12 @@ package com.etl.processor.validation;
 import com.etl.common.util.ReflectionUtils;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.enums.ModelFormat;
+import com.etl.extension.ExtensionConflictPolicy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -30,30 +30,85 @@ public class ValidationRuleEvaluator {
 
 	@Autowired
 	public ValidationRuleEvaluator(List<ProcessorValidationRule> rules) {
-		Map<String, ProcessorValidationRule> indexedGlobalRules = new LinkedHashMap<>();
-		Map<RuleDispatchKey, ProcessorValidationRule> indexedScopedRules = new LinkedHashMap<>();
+		List<ExtensionConflictPolicy.Candidate<String, ProcessorValidationRule>> globalRuleCandidates = new ArrayList<>();
+		List<ExtensionConflictPolicy.Candidate<RuleDispatchKey, ProcessorValidationRule>> scopedRuleCandidates = new ArrayList<>();
 		for (ProcessorValidationRule rule : rules == null ? List.<ProcessorValidationRule>of() : rules) {
 			String normalizedType = normalizeType(rule.getRuleType());
 			Set<ModelFormat> scopedFormats = normalizedFormats(rule.supportedSourceFormats());
 			if (scopedFormats.isEmpty()) {
-				ProcessorValidationRule previous = indexedGlobalRules.putIfAbsent(normalizedType, rule);
-				if (previous != null) {
-					throw new IllegalStateException("Duplicate processor validation rule type registration: " + normalizedType);
-				}
+				globalRuleCandidates.add(new ExtensionConflictPolicy.Candidate<>(
+						normalizedType,
+						rule,
+						providerMetadata(rule)
+				));
 				continue;
 			}
 
 			for (ModelFormat scopedFormat : scopedFormats) {
-				RuleDispatchKey key = new RuleDispatchKey(normalizedType, scopedFormat);
-				ProcessorValidationRule previous = indexedScopedRules.putIfAbsent(key, rule);
-				if (previous != null) {
-					throw new IllegalStateException("Duplicate processor validation rule registration for type '"
-							+ normalizedType + "' and source format '" + scopedFormat.getFormat() + "'.");
-				}
+				scopedRuleCandidates.add(new ExtensionConflictPolicy.Candidate<>(
+						new RuleDispatchKey(normalizedType, scopedFormat),
+						rule,
+						providerMetadata(rule)
+				));
 			}
 		}
-		this.rulesByType = Map.copyOf(indexedGlobalRules);
-		this.rulesByTypeAndFormat = Map.copyOf(indexedScopedRules);
+		this.rulesByType = ExtensionConflictPolicy.resolve(globalRuleCandidates, globalConflictReporter());
+		this.rulesByTypeAndFormat = ExtensionConflictPolicy.resolve(scopedRuleCandidates, scopedConflictReporter());
+	}
+
+	private ExtensionConflictPolicy.ConflictReporter<String> globalConflictReporter() {
+		return new ExtensionConflictPolicy.ConflictReporter<>() {
+			@Override
+			public void onOverride(String key,
+			                       ExtensionConflictPolicy.ProviderMetadata winner,
+			                       ExtensionConflictPolicy.ProviderMetadata replaced) {
+			}
+
+			@Override
+			public void onIgnored(String key,
+			                      ExtensionConflictPolicy.ProviderMetadata ignored,
+			                      ExtensionConflictPolicy.ProviderMetadata winner) {
+			}
+
+			@Override
+			public RuntimeException duplicateFailure(String key,
+			                                         ExtensionConflictPolicy.ProviderMetadata existing,
+			                                         ExtensionConflictPolicy.ProviderMetadata candidate) {
+				return new IllegalStateException("Duplicate processor validation rule type registration: " + key
+						+ " (extensions: " + existing.providerId() + ", " + candidate.providerId() + ")"
+						+ ". Set exactly one extension with isOverride=true to replace an existing rule.");
+			}
+		};
+	}
+
+	private ExtensionConflictPolicy.ConflictReporter<RuleDispatchKey> scopedConflictReporter() {
+		return new ExtensionConflictPolicy.ConflictReporter<>() {
+			@Override
+			public void onOverride(RuleDispatchKey key,
+			                       ExtensionConflictPolicy.ProviderMetadata winner,
+			                       ExtensionConflictPolicy.ProviderMetadata replaced) {
+			}
+
+			@Override
+			public void onIgnored(RuleDispatchKey key,
+			                      ExtensionConflictPolicy.ProviderMetadata ignored,
+			                      ExtensionConflictPolicy.ProviderMetadata winner) {
+			}
+
+			@Override
+			public RuntimeException duplicateFailure(RuleDispatchKey key,
+			                                         ExtensionConflictPolicy.ProviderMetadata existing,
+			                                         ExtensionConflictPolicy.ProviderMetadata candidate) {
+				return new IllegalStateException("Duplicate processor validation rule registration for type '"
+						+ key.ruleType() + "' and source format '" + key.sourceFormat().getFormat() + "'"
+						+ " (extensions: " + existing.providerId() + ", " + candidate.providerId() + ")"
+						+ ". Set exactly one extension with isOverride=true to replace an existing rule.");
+			}
+		};
+	}
+
+	private ExtensionConflictPolicy.ProviderMetadata providerMetadata(ProcessorValidationRule rule) {
+		return new ExtensionConflictPolicy.ProviderMetadata(rule.extensionId(), rule.isOverride());
 	}
 
 	/**
@@ -163,14 +218,11 @@ public class ValidationRuleEvaluator {
 			}
 		}
 
-		if (rule == null) {
-			if (sourceFormat != null) {
-				throw new IllegalArgumentException("Unsupported validation rule type: " + normalizedType
-						+ " for source format " + sourceFormat.getFormat());
-			}
-			throw new IllegalArgumentException("Unsupported validation rule type: " + normalizedType);
+		if (sourceFormat != null) {
+			throw new IllegalArgumentException("Unsupported validation rule type: " + normalizedType
+					+ " for source format " + sourceFormat.getFormat());
 		}
-		return rule;
+		throw new IllegalArgumentException("Unsupported validation rule type: " + normalizedType);
 	}
 
 	private ProcessorValidationRule resolveUniqueScopedRule(String normalizedType) {

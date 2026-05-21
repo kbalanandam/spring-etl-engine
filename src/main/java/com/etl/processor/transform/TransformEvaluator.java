@@ -2,15 +2,17 @@ package com.etl.processor.transform;
 
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.enums.ModelFormat;
+import com.etl.extension.ExtensionConflictPolicy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Collections;
 import java.util.Set;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 
 /**
  * Evaluates configured processor transforms for one mapped field value.
@@ -29,30 +31,85 @@ public class TransformEvaluator {
 
 	@Autowired
 	public TransformEvaluator(List<ProcessorFieldTransform> transforms) {
-		Map<String, ProcessorFieldTransform> indexedGlobalTransforms = new LinkedHashMap<>();
-		Map<TransformDispatchKey, ProcessorFieldTransform> indexedScopedTransforms = new LinkedHashMap<>();
+		List<ExtensionConflictPolicy.Candidate<String, ProcessorFieldTransform>> globalTransformCandidates = new ArrayList<>();
+		List<ExtensionConflictPolicy.Candidate<TransformDispatchKey, ProcessorFieldTransform>> scopedTransformCandidates = new ArrayList<>();
 		for (ProcessorFieldTransform transform : transforms == null ? List.<ProcessorFieldTransform>of() : transforms) {
 			String normalizedType = normalizeType(transform.getTransformType());
 			Set<ModelFormat> scopedFormats = normalizedFormats(transform.supportedSourceFormats());
 			if (scopedFormats.isEmpty()) {
-				ProcessorFieldTransform previous = indexedGlobalTransforms.putIfAbsent(normalizedType, transform);
-				if (previous != null) {
-					throw new IllegalStateException("Duplicate processor transform type registration: " + normalizedType);
-				}
+				globalTransformCandidates.add(new ExtensionConflictPolicy.Candidate<>(
+						normalizedType,
+						transform,
+						providerMetadata(transform)
+				));
 				continue;
 			}
 
 			for (ModelFormat scopedFormat : scopedFormats) {
-				TransformDispatchKey key = new TransformDispatchKey(normalizedType, scopedFormat);
-				ProcessorFieldTransform previous = indexedScopedTransforms.putIfAbsent(key, transform);
-				if (previous != null) {
-					throw new IllegalStateException("Duplicate processor transform registration for type '"
-							+ normalizedType + "' and source format '" + scopedFormat.getFormat() + "'.");
-				}
+				scopedTransformCandidates.add(new ExtensionConflictPolicy.Candidate<>(
+						new TransformDispatchKey(normalizedType, scopedFormat),
+						transform,
+						providerMetadata(transform)
+				));
 			}
 		}
-		this.transformsByType = Map.copyOf(indexedGlobalTransforms);
-		this.transformsByTypeAndFormat = Map.copyOf(indexedScopedTransforms);
+		this.transformsByType = ExtensionConflictPolicy.resolve(globalTransformCandidates, globalConflictReporter());
+		this.transformsByTypeAndFormat = ExtensionConflictPolicy.resolve(scopedTransformCandidates, scopedConflictReporter());
+	}
+
+	private ExtensionConflictPolicy.ConflictReporter<String> globalConflictReporter() {
+		return new ExtensionConflictPolicy.ConflictReporter<>() {
+			@Override
+			public void onOverride(String key,
+			                       ExtensionConflictPolicy.ProviderMetadata winner,
+			                       ExtensionConflictPolicy.ProviderMetadata replaced) {
+			}
+
+			@Override
+			public void onIgnored(String key,
+			                      ExtensionConflictPolicy.ProviderMetadata ignored,
+			                      ExtensionConflictPolicy.ProviderMetadata winner) {
+			}
+
+			@Override
+			public RuntimeException duplicateFailure(String key,
+			                                         ExtensionConflictPolicy.ProviderMetadata existing,
+			                                         ExtensionConflictPolicy.ProviderMetadata candidate) {
+				return new IllegalStateException("Duplicate processor transform type registration: " + key
+						+ " (extensions: " + existing.providerId() + ", " + candidate.providerId() + ")"
+						+ ". Set exactly one extension with isOverride=true to replace an existing transform.");
+			}
+		};
+	}
+
+	private ExtensionConflictPolicy.ConflictReporter<TransformDispatchKey> scopedConflictReporter() {
+		return new ExtensionConflictPolicy.ConflictReporter<>() {
+			@Override
+			public void onOverride(TransformDispatchKey key,
+			                       ExtensionConflictPolicy.ProviderMetadata winner,
+			                       ExtensionConflictPolicy.ProviderMetadata replaced) {
+			}
+
+			@Override
+			public void onIgnored(TransformDispatchKey key,
+			                      ExtensionConflictPolicy.ProviderMetadata ignored,
+			                      ExtensionConflictPolicy.ProviderMetadata winner) {
+			}
+
+			@Override
+			public RuntimeException duplicateFailure(TransformDispatchKey key,
+			                                         ExtensionConflictPolicy.ProviderMetadata existing,
+			                                         ExtensionConflictPolicy.ProviderMetadata candidate) {
+				return new IllegalStateException("Duplicate processor transform registration for type '"
+						+ key.transformType() + "' and source format '" + key.sourceFormat().getFormat() + "'"
+						+ " (extensions: " + existing.providerId() + ", " + candidate.providerId() + ")"
+						+ ". Set exactly one extension with isOverride=true to replace an existing transform.");
+			}
+		};
+	}
+
+	private ExtensionConflictPolicy.ProviderMetadata providerMetadata(ProcessorFieldTransform transform) {
+		return new ExtensionConflictPolicy.ProviderMetadata(transform.extensionId(), transform.isOverride());
 	}
 
 	/**

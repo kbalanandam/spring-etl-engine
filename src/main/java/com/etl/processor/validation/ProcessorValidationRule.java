@@ -10,6 +10,20 @@ public interface ProcessorValidationRule {
 	String getRuleType();
 
 	/**
+	 * Stable extension id used for diagnostics and conflict reporting.
+	 */
+	default String extensionId() {
+		return getClass().getName();
+	}
+
+	/**
+	 * Marks this rule as an explicit override candidate for its rule dispatch key.
+	 */
+	default boolean isOverride() {
+		return false;
+	}
+
+	/**
 	 * Optional source-format scope for this rule registration.
 	 *
 	 * <p>Empty means the rule applies to all source formats.</p>

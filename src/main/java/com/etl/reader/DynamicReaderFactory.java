@@ -2,11 +2,11 @@ package com.etl.reader;
 
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
 
 import com.etl.config.source.SourceConfig;
 import com.etl.enums.ModelFormat;
+import com.etl.extension.ExtensionConflictPolicy;
 import com.etl.exception.EtlException;
 import com.etl.exception.FactoryException;
 import com.etl.reader.exception.NoReaderFoundException;
@@ -37,15 +37,49 @@ public class DynamicReaderFactory {
 
 	private final Map<ModelFormat, DynamicReader<?>> readers;
 
+	public static DynamicReaderFactory withDiscoveredReaders() {
+		return new DynamicReaderFactory(DynamicReaderDefaults.defaultReaders());
+	}
+
 	public DynamicReaderFactory(List<DynamicReader<?>> readerList) {
-		this.readers = readerList.stream().collect(
-				Collectors.toMap(
-						DynamicReader::getFormat,
-						Function.identity(),
-						(existing, replacement) -> {
-							throw new FactoryException("Multiple readers registered for format: " + existing.getFormat());
-						}
-				));
+		List<ExtensionConflictPolicy.Candidate<ModelFormat, DynamicReader<?>>> candidates = new ArrayList<>();
+		for (DynamicReader<?> reader : readerList == null ? List.<DynamicReader<?>>of() : readerList) {
+			if (reader == null) {
+				continue;
+			}
+			candidates.add(new ExtensionConflictPolicy.Candidate<>(
+					reader.getFormat(),
+					reader,
+					new ExtensionConflictPolicy.ProviderMetadata(reader.extensionId(), reader.isOverride())
+			));
+		}
+
+		this.readers = ExtensionConflictPolicy.resolve(candidates, new ExtensionConflictPolicy.ConflictReporter<>() {
+			@Override
+			public void onOverride(ModelFormat key,
+			                       ExtensionConflictPolicy.ProviderMetadata winner,
+			                       ExtensionConflictPolicy.ProviderMetadata replaced) {
+				logger.info("Reader format '{}' overridden by extension '{}' replacing extension '{}'.",
+						key, winner.providerId(), replaced.providerId());
+			}
+
+			@Override
+			public void onIgnored(ModelFormat key,
+			                      ExtensionConflictPolicy.ProviderMetadata ignored,
+			                      ExtensionConflictPolicy.ProviderMetadata winner) {
+				logger.debug("Ignoring non-override reader extension '{}' for format '{}' because override extension '{}' already registered.",
+						ignored.providerId(), key, winner.providerId());
+			}
+
+			@Override
+			public RuntimeException duplicateFailure(ModelFormat key,
+			                                         ExtensionConflictPolicy.ProviderMetadata existing,
+			                                         ExtensionConflictPolicy.ProviderMetadata candidate) {
+				return new FactoryException("Multiple readers registered for format: " + key
+						+ " (extensions: " + existing.providerId() + ", " + candidate.providerId() + ")"
+						+ ". Set exactly one extension with isOverride=true to replace an existing reader.");
+			}
+		});
 	}
 
 	/**
