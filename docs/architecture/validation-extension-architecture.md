@@ -230,7 +230,8 @@ For duplicate handling specifically, future growth should stay in this processor
 - current shipped ordered winner-selection path: the same processor-rule contract chooses in-memory or embedded-DB staging automatically from runtime volume hints when `storageMode` is omitted or set to `auto`, and allows explicit override through `storageMode: memory|embeddedDb`
 - current duplicate identity modes: `flatMapped` is the default across formats, and XML sources can opt into `xmlNative` when keys must include nested path/attribute context
 - current xmlNative guardrail: key-path traversal is fail-fast for repeating/list segments so runtime surfaces a controlled operator error instead of low-level reflection exceptions
-di - current flatMapped XML guardrail: only selector-shaped XML keys (for example `/event/tag/@code` or `@code`) are blocked; literal flat keys that merely contain `@` are still treated as normal mapped field names
+- current flatMapped XML guardrail: only selector-shaped XML keys (for example `/event/tag/@code` or `@code`) are blocked; literal flat keys that merely contain `@` are still treated as normal mapped field names
+- current xmlNative startup preflight: selector syntax that explicitly encodes repeating-node traversal (for example `[0]`, `[*]`, or wildcard segment forms) is rejected during config validation before step execution
 
 That keeps duplicate policy in one extensible rule area while allowing different runtime storage implementations for different data volumes.
 

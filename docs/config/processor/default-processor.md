@@ -341,6 +341,7 @@ mappings:
 - The same `duplicateIdentityMode` choice applies to both keep-first duplicate detection and ordered winner selection (`duplicate` + `orderBy`).
 - XML selector-shaped `keyFields` (for example `/event/tag/@code` or `@code`) are rejected in `flatMapped` mode with a fail-fast config error that points to `duplicateIdentityMode: xmlNative`.
 - Literal flat keys that merely contain `@` as part of the field name (for example `tag@code`) remain valid in `flatMapped` mode.
+- For `xmlNative`, selector expressions that explicitly encode repeating-node syntax (for example `/event/tags[0]/@code`, `/event/tags[*]/@code`, or wildcard segment forms like `/*/`) are rejected at startup; repeating-node selector traversal remains unsupported in the current runtime.
 - Those built-in rule types are dispatched through the active processor-rule SPI, so future rule types should be added as `ProcessorValidationRule` implementations rather than through the deprecated `com.etl.validation.*` package.
 
 #### Duplicate-rule trade-off snapshot

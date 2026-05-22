@@ -135,6 +135,26 @@ class XmlDuplicateProcessorValidationRuleTest {
     }
   }
 
+  @Test
+  void rejectsUnsupportedRepeatingSelectorSyntaxForXmlNativeAtStartup() {
+    XmlDuplicateProcessorValidationRule rule = new XmlDuplicateProcessorValidationRule(new FileIngestionRuntimeSupport());
+    ProcessorConfig.EntityMapping mapping = xmlEntityMapping();
+    ProcessorConfig.FieldMapping idField = mapping.getFields().get(0);
+    ProcessorConfig.FieldRule duplicate = new ProcessorConfig.FieldRule();
+    duplicate.setType("duplicate");
+    duplicate.setDuplicateIdentityMode("xmlNative");
+    duplicate.setKeyFields(List.of("/event/tags[0]/@code"));
+    idField.setRules(List.of(duplicate));
+
+    IllegalStateException exception = assertThrows(
+        IllegalStateException.class,
+        () -> rule.validateConfiguration(mapping, idField, duplicate)
+    );
+
+    assertTrue(exception.getMessage().contains("unsupported repeating-selector syntax"));
+    assertTrue(exception.getMessage().contains("xmlNative"));
+  }
+
   private CsvSourceConfig sourceConfig() {
     CsvSourceConfig sourceConfig = new CsvSourceConfig();
     sourceConfig.setSourceName("XmlEvents");

@@ -44,6 +44,18 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
                     + fieldMapping.getFrom() + "' uses XML path-like keyFields " + xmlPathLikeKeyFields
                     + " while duplicateIdentityMode is 'flatMapped'. Set duplicateIdentityMode: xmlNative for nested XML identity keys.");
             }
+        } else {
+            List<String> keyFields = configuredKeyFields(fieldMapping.getFrom(), rule);
+            List<String> unsupportedRepeatingSelectors = keyFields.stream()
+                    .filter(this::hasUnsupportedRepeatingSelectorSyntax)
+                    .toList();
+            if (!unsupportedRepeatingSelectors.isEmpty()) {
+                throw new IllegalStateException("FieldMapping rule 'duplicate' for entity "
+                        + entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '"
+                        + fieldMapping.getFrom() + "' uses xmlNative keyFields " + unsupportedRepeatingSelectors
+                        + " with unsupported repeating-selector syntax ([...], [*], or wildcard segments)."
+                        + " Repeating-node xmlNative selector syntax is not supported by the current runtime.");
+            }
         }
         super.validateConfiguration(entityMapping, fieldMapping, rule);
     }
@@ -105,6 +117,17 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
     }
     String normalized = keyField.trim();
     return normalized.startsWith("@") || normalized.contains("/");
+  }
+
+  private boolean hasUnsupportedRepeatingSelectorSyntax(String keyField) {
+    if (keyField == null) {
+      return false;
+    }
+    String normalized = keyField.trim();
+    if (normalized.isEmpty()) {
+      return false;
+    }
+    return normalized.contains("[") || normalized.contains("]") || normalized.contains("/*/");
   }
 
   private Object resolvePathToken(Object current, String token, String fullKeyField, ProcessorConfig.FieldRule rule) {
