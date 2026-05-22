@@ -1,0 +1,33 @@
+type: default
+rejectHandling:
+  enabled: true
+  outputPath: output/rejects-proof-xmlNative/
+  includeReasonColumns: true
+mappings:
+  - source: TagValidationSource
+    target: TagValidationCsv
+    fields:
+      - from: HomeAgencyID
+        to: homeAgencyId
+        rules:
+          - type: notNull
+            onFailure: rejectRecord
+          - type: duplicate
+            onFailure: rejectRecord
+            duplicateIdentityMode: xmlNative
+            keyFields:
+              - /TVLAccountDetails/AccountNumber
+      - from: TagAgencyID
+        to: tagAgencyId
+      - from: TagSerialNumber
+        to: tagSerialNumber
+      - from: TVLPlateDetails.PlateNumber
+        to: plateNumber
+      - from: TVLPlateDetails.PlateCountry
+        to: plateCountry
+      - from: TVLPlateDetails.PlateState
+        to: plateState
+      - from: TVLAccountDetails.AccountNumber
+        to: accountNumber
+
+

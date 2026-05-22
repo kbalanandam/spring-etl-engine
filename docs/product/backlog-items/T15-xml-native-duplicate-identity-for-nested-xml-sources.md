@@ -96,6 +96,26 @@ Expected impact when this item ships:
 - operators can see identity mode evidence in startup/step logs
 - config docs gain explicit guidance for when to use flat mapped keys vs XML-native identity
 
+## Trade-off Snapshot
+
+- Decision: add `duplicateIdentityMode: xmlNative` as an opt-in mode for XML duplicate rules.
+- Benefit: improves duplicate correctness for nested/repeating XML identities where flat fields can false-merge records.
+- Cost: additional key-resolution work for path-like fields and higher config-authoring care.
+- Risk: using too few `keyFields` still collapses distinct records, even in `xmlNative` mode.
+- Use when: duplicate identity requires XML path/attribute context (for example `/.../@code`).
+- Avoid when: flat mapped fields already encode stable uniqueness for the scenario.
+- Default: keep `flatMapped` for backward compatibility and simpler runtime behavior.
+- Evidence: resolver parity tests and preserved `config-jobs/xml-nested-to-csv-tag-validation` proof pair.
+
+- Decision: support ordered winner selection via `orderBy` on duplicate rules.
+- Benefit: deterministic winner choice when business semantics require a retained best/latest record.
+- Cost: increased state/memory pressure compared with keep-first duplicate elimination.
+- Risk: overusing `orderBy` can increase runtime overhead without business benefit.
+- Use when: outcome requires explicit winner semantics.
+- Avoid when: duplicate policy is reject/keep-first and no winner ranking is required.
+- Default: omit `orderBy`.
+- Evidence: startup and step resolver-selection logs plus resolver summary counters.
+
 ## Acceptance criteria
 
 - [ ] XML-native duplicate identity is available as an additive option for nested XML source scenarios

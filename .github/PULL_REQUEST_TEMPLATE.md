@@ -21,6 +21,7 @@ Describe what changed and why.
 - [ ] I updated `docs/architecture/*` if runtime/config/flow changed
 - [ ] I updated a Mermaid diagram if control flow changed materially
 - [ ] I added or updated an ADR if this PR introduced a meaningful design decision or tradeoff
+- [ ] I documented at least one Trade-off Snapshot (or explicitly noted "no material trade-off") in the relevant doc/backlog item
 - [ ] I reviewed `docs/README.md` for the documentation standard when the change affected architecture
 - [ ] I did not commit developer-local `private-jobs/` contents; only `private-jobs/README.md` is allowed to stay visible in Git
 

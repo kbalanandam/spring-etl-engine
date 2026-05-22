@@ -52,6 +52,19 @@ Note any impact on:
 - logging / evidence
 - documentation or verification workflows
 
+## Trade-off Snapshot
+
+Capture one short, explicit trade-off statement for this item:
+
+- Decision: `<what changed>`
+- Benefit: `<primary gain>`
+- Cost: `<resource/complexity/config impact>`
+- Risk: `<misconfiguration or behavior risk>`
+- Use when: `<recommended conditions>`
+- Avoid when: `<conditions where this should not be used>`
+- Default: `<safe default and rationale>`
+- Evidence: `<tests, logs, or runnable bundle proving behavior>`
+
 ## Acceptance criteria
 
 - [ ] acceptance criterion

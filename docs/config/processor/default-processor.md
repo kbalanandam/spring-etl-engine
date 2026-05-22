@@ -342,6 +342,26 @@ mappings:
 - XML path-like `keyFields` are rejected in `flatMapped` mode with a fail-fast config error that points to `duplicateIdentityMode: xmlNative`.
 - Those built-in rule types are dispatched through the active processor-rule SPI, so future rule types should be added as `ProcessorValidationRule` implementations rather than through the deprecated `com.etl.validation.*` package.
 
+#### Duplicate-rule trade-off snapshot
+
+- Decision: `duplicateIdentityMode: flatMapped | xmlNative`
+- Benefit: `xmlNative` prevents false merges when identity depends on nested XML path/attribute context.
+- Cost: `xmlNative` key extraction does more path-resolution work than flat mapped key lookup.
+- Risk: under-specified `keyFields` can still over-merge records, regardless of identity mode.
+- Use when: pick `xmlNative` for nested/repeating-node XML identity; keep `flatMapped` for simple flat-key scenarios.
+- Avoid when: do not add path-like XML keys in `flatMapped` mode; startup validation rejects this shape.
+- Default: `flatMapped`, to preserve existing contract and behavior.
+- Evidence: use `STEP_READY event=duplicate_resolver_plan` and `STEP_EVENT event=duplicate_resolver_selected` logs (`duplicateIdentityMode`, `duplicateIdentityModeReason`, `resolverMode`, `resolverReason`).
+
+- Decision: configure `orderBy` only when deterministic winner selection is required.
+- Benefit: deterministic retained record selection for each duplicate key.
+- Cost: higher state/memory overhead versus keep-first duplicate rejection.
+- Risk: unnecessary resource usage if business logic only needs duplicate rejection.
+- Use when: downstream behavior requires a best/latest winner policy.
+- Avoid when: any duplicate should be rejected and winner ranking is not needed.
+- Default: omit `orderBy`; duplicate handling stays in keep-first mode.
+- Evidence: ordered resolver lifecycle logs under `DUPLICATE_RESOLVER` and step summary counters.
+
 #### Preserved T15 proof pattern: false merge vs xmlNative
 
 Use this pattern when nested XML records share the same flat business value but differ by nested attribute identity.

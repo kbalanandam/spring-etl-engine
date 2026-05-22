@@ -1,0 +1,14 @@
+sources:
+  - format: xml
+    sourceName: TagValidationSource
+    filePath: input/tag-validation-false-merge-proof.xml
+    archive:
+      enabled: false
+      successPath: output/archive/success/
+      namePattern: "{originalName}-{timestamp}"
+    rootElement: TagValidationList
+    recordElement: TVLTagDetails
+    flatteningStrategy: NestedXml
+    modelDefinitionPath: definitions/nested-source-model.yaml
+
+

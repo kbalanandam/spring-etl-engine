@@ -25,6 +25,19 @@ It preserves:
 - `input/tag-validation-sample.xml` - sanitized nested XML sample payload for the tag-validation proof
 - `output/` - scenario-local runtime output folder for the flattened CSV export, rejected records, and archived source files
 
+### Runnable T15 proof pair (false merge vs xmlNative)
+
+This bundle now includes one side-by-side proof pair that demonstrates how XML-native duplicate identity prevents a false duplicate merge.
+
+- `input/tag-validation-false-merge-proof.xml` - two records share the same `HomeAgencyID` but have different nested account identities
+- `job-config-proof-flatMapped.yaml` + `processor-config-proof-flatMapped.yaml` - flat mapped key (`HomeAgencyID`) intentionally collapses both records into one duplicate group
+- `job-config-proof-xmlNative.yaml` + `processor-config-proof-xmlNative.yaml` - XML-native path key (`/TVLAccountDetails/AccountNumber`) preserves both records as distinct
+
+Expected outputs after running both proof jobs:
+
+- `output/tag-validation-proof-flatMapped.csv` contains **1** data row and `output/rejects-proof-flatMapped/` contains one rejected duplicate row.
+- `output/tag-validation-proof-xmlNative.csv` contains **2** data rows and `output/rejects-proof-xmlNative/` contains no rejected duplicate rows.
+
 ## Notes
 
 - This scenario keeps a sanitized scenario-local XML sample so the preserved bundle stays safe to publish and rerun.
@@ -32,5 +45,12 @@ It preserves:
 - The source model definition remains structural only; flattening stays in the XML source strategy layer.
 - The CSV target uses a generated flat target class `com.etl.generated.job.xmlnestedtocsvtagvalidation.target.TagValidationCsv` on the job-scoped generation path.
 - The preserved bundle keeps its visible runtime artifacts under `output/` so the sanitized sample input, flattened CSV output, and archived source copies stay together during local inspection.
+
+Run commands (explicit selected-job mode):
+
+```powershell
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/job-config-proof-flatMapped.yaml" spring-boot:run
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/job-config-proof-xmlNative.yaml" spring-boot:run
+```
 
 
