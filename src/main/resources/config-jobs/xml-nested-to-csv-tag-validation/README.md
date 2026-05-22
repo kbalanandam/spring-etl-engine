@@ -38,6 +38,12 @@ Expected outputs after running both proof jobs:
 - `output/tag-validation-proof-flatMapped.csv` contains **1** data row and `output/rejects-proof-flatMapped/` contains one rejected duplicate row.
 - `output/tag-validation-proof-xmlNative.csv` contains **2** data rows and `output/rejects-proof-xmlNative/` contains no rejected duplicate rows.
 
+### Duplicate identity guardrails
+
+- Literal flat keys that contain `@` as part of the field name (for example `tag@code`) remain valid in `duplicateIdentityMode: flatMapped`.
+- Selector-shaped XML keys (for example `@code` or `/event/tag/@code`) require `duplicateIdentityMode: xmlNative`.
+- For `xmlNative`, selector expressions that explicitly encode repeating-node traversal are rejected at startup in the current runtime. Examples: `/event/tags[0]/@code`, `/event/tags[*]/@code`, and wildcard segment forms such as `/*/`.
+
 ## Notes
 
 - This scenario keeps a sanitized scenario-local XML sample so the preserved bundle stays safe to publish and rerun.
