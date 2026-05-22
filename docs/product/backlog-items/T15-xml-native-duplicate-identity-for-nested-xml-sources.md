@@ -134,9 +134,9 @@ Use this board to sequence implementation with strict compatibility in early sli
 - Target: extract processor orchestration into a pipeline seam without changing behavior.
 - Scope: move flow control out of `DefaultDynamicProcessor` into explicit pipeline stages while keeping current transforms/rules wiring.
 - Acceptance criteria:
-  - [ ] existing processor behavior remains unchanged on preserved bundles
-  - [ ] parity-focused tests pass without requiring config migration
-  - [ ] startup/step evidence remains stable
+  - [x] existing processor behavior remains unchanged on preserved bundles
+  - [x] parity-focused tests pass without requiring config migration
+  - [x] startup/step evidence remains stable
 - Backward compatibility: **Required**
 
 ### S2 - Rule dispatch registry (parity)
@@ -144,9 +144,9 @@ Use this board to sequence implementation with strict compatibility in early sli
 - Target: route rule execution by rule type + source format using factory/registry dispatch.
 - Scope: introduce common rule handlers plus format-aware resolution, with fallback to shared handlers.
 - Acceptance criteria:
-  - [ ] dispatch path is deterministic and fail-fast on ambiguous registration
-  - [ ] current rule outcomes match parity expectations across CSV/XML/relational preserved scenarios
-  - [ ] no contract break in current `processor-config.yaml`
+  - [x] dispatch path is deterministic and fail-fast on ambiguous registration
+  - [x] current rule outcomes match parity expectations across CSV/XML/relational preserved scenarios
+  - [x] no contract break in current `processor-config.yaml`
 - Backward compatibility: **Required**
 
 ### S3 - Duplicate rule format split
@@ -230,7 +230,13 @@ Current implementation progress in this branch:
 - Added runnable preserved proof pair under `config-jobs/xml-nested-to-csv-tag-validation` (`flatMapped` false-merge vs `xmlNative` expected separation).
 - Added fail-fast guardrails for unsupported repeating/list selector traversal and narrowed flatMapped XML selector detection to avoid over-rejecting literal keys containing `@`.
 - Completed S4 additive guardrail UX slice with startup advisory evidence (`PROCESSOR_GUARDRAIL event=xml_duplicate_flatmapped_advisory`) for nested XML mappings that still use simple flat duplicate keys.
+- Closed S1/S2 parity slices using the shipped processor pipeline seam and deterministic rule-dispatch registry path, with focused regression evidence across pipeline/dispatch and duplicate XML/CSV/relational rule outcomes.
 - Latest focused verification remains green (`scripts/generate-verification-report.ps1`, status `READY`).
+
+Focused S1/S2 parity evidence (latest run):
+
+- `mvn --no-transfer-progress "-Dtest=DefaultProcessorExecutionPipelineTest,ValidationRuleEvaluatorTest,ProcessorExtensionDefaultsTest,DuplicateProcessorValidationRuleTest,XmlDuplicateProcessorValidationRuleTest,InMemoryDuplicateResolverTest,EmbeddedDbDuplicateResolverTest" test`
+- Result: `BUILD SUCCESS`, `Tests run: 59, Failures: 0, Errors: 0, Skipped: 0`.
 
 ## Preserved proof anchors (implemented so far)
 
