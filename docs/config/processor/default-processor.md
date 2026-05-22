@@ -339,7 +339,8 @@ mappings:
 - Duplicate identity mode defaults to `flatMapped` to preserve current behavior.
 - For XML sources, duplicate rules can opt into `duplicateIdentityMode: xmlNative` so `keyFields` may include path-like selectors (for example `/event/tag/@code`) for nested/repeating-node identity.
 - The same `duplicateIdentityMode` choice applies to both keep-first duplicate detection and ordered winner selection (`duplicate` + `orderBy`).
-- XML path-like `keyFields` are rejected in `flatMapped` mode with a fail-fast config error that points to `duplicateIdentityMode: xmlNative`.
+- XML selector-shaped `keyFields` (for example `/event/tag/@code` or `@code`) are rejected in `flatMapped` mode with a fail-fast config error that points to `duplicateIdentityMode: xmlNative`.
+- Literal flat keys that merely contain `@` as part of the field name (for example `tag@code`) remain valid in `flatMapped` mode.
 - Those built-in rule types are dispatched through the active processor-rule SPI, so future rule types should be added as `ProcessorValidationRule` implementations rather than through the deprecated `com.etl.validation.*` package.
 
 #### Duplicate-rule trade-off snapshot

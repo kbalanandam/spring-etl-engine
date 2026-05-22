@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -75,13 +76,26 @@ class XmlDuplicateProcessorValidationRuleTest {
   }
 
   @Test
-  void currentlyRejectsAtSymbolOnlyKeyFieldWhenXmlIdentityModeIsFlatMapped() {
+  void allowsLiteralAtSymbolKeyFieldWhenXmlIdentityModeIsFlatMapped() {
+    XmlDuplicateProcessorValidationRule rule = new XmlDuplicateProcessorValidationRule(new FileIngestionRuntimeSupport());
+    ProcessorConfig.EntityMapping mapping = xmlEntityMapping("tag@code");
+    ProcessorConfig.FieldMapping idField = mapping.getFields().get(0);
+    ProcessorConfig.FieldRule duplicate = new ProcessorConfig.FieldRule();
+    duplicate.setType("duplicate");
+    duplicate.setKeyFields(List.of("tag@code"));
+    idField.setRules(List.of(duplicate));
+
+    assertDoesNotThrow(() -> rule.validateConfiguration(mapping, idField, duplicate));
+  }
+
+  @Test
+  void rejectsAttributeSelectorKeyFieldWhenXmlIdentityModeIsFlatMapped() {
     XmlDuplicateProcessorValidationRule rule = new XmlDuplicateProcessorValidationRule(new FileIngestionRuntimeSupport());
     ProcessorConfig.EntityMapping mapping = xmlEntityMapping();
     ProcessorConfig.FieldMapping idField = mapping.getFields().get(0);
     ProcessorConfig.FieldRule duplicate = new ProcessorConfig.FieldRule();
     duplicate.setType("duplicate");
-    duplicate.setKeyFields(List.of("tag@code"));
+    duplicate.setKeyFields(List.of("@code"));
     idField.setRules(List.of(duplicate));
 
     IllegalStateException exception = assertThrows(
@@ -91,7 +105,7 @@ class XmlDuplicateProcessorValidationRuleTest {
 
     assertTrue(exception.getMessage().contains("duplicateIdentityMode"));
     assertTrue(exception.getMessage().contains("xmlNative"));
-    assertTrue(exception.getMessage().contains("tag@code"));
+    assertTrue(exception.getMessage().contains("@code"));
   }
 
   @Test
@@ -149,9 +163,13 @@ class XmlDuplicateProcessorValidationRuleTest {
   }
 
   private ProcessorConfig.EntityMapping xmlEntityMapping() {
+    return xmlEntityMapping("id");
+  }
+
+  private ProcessorConfig.EntityMapping xmlEntityMapping(String fromField) {
     ProcessorConfig.FieldMapping id = new ProcessorConfig.FieldMapping();
-    id.setFrom("id");
-    id.setTo("id");
+    id.setFrom(fromField);
+    id.setTo(fromField);
 
     ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
     mapping.setSource("XmlEvents");

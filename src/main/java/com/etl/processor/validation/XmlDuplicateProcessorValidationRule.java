@@ -36,7 +36,7 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
         if (configuredIdentityMode(rule) != DuplicateIdentityMode.XML_NATIVE) {
             List<String> keyFields = configuredKeyFields(fieldMapping.getFrom(), rule);
             List<String> xmlPathLikeKeyFields = keyFields.stream()
-                    .filter(keyField -> keyField != null && (keyField.contains("/") || keyField.contains("@")))
+                    .filter(this::isPathLikeXmlSelector)
                     .toList();
             if (!xmlPathLikeKeyFields.isEmpty()) {
             throw new IllegalStateException("FieldMapping rule 'duplicate' for entity "
@@ -97,6 +97,14 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
   @Override
   protected Set<DuplicateIdentityMode> supportedIdentityModes() {
     return Set.of(DuplicateIdentityMode.FLAT_MAPPED, DuplicateIdentityMode.XML_NATIVE);
+  }
+
+  private boolean isPathLikeXmlSelector(String keyField) {
+    if (keyField == null) {
+      return false;
+    }
+    String normalized = keyField.trim();
+    return normalized.startsWith("@") || normalized.contains("/");
   }
 
   private Object resolvePathToken(Object current, String token, String fullKeyField, ProcessorConfig.FieldRule rule) {
