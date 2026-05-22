@@ -74,7 +74,7 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
       if (normalized.isEmpty()) {
         continue;
       }
-      current = resolvePathToken(current, normalized, rule);
+      current = resolvePathToken(current, normalized, keyField, rule);
       if (current == null) {
         return null;
       }
@@ -99,7 +99,7 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
     return Set.of(DuplicateIdentityMode.FLAT_MAPPED, DuplicateIdentityMode.XML_NATIVE);
   }
 
-  private Object resolvePathToken(Object current, String token, ProcessorConfig.FieldRule rule) {
+  private Object resolvePathToken(Object current, String token, String fullKeyField, ProcessorConfig.FieldRule rule) {
     if (current instanceof Map<?, ?> map) {
       if (map.containsKey(token)) {
         return map.get(token);
@@ -113,6 +113,12 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
         return map.get(withAttributePrefix);
       }
       return null;
+    }
+
+    if (current instanceof Iterable<?> || (current != null && current.getClass().isArray())) {
+      throw new IllegalStateException("FieldMapping rule 'duplicate' with duplicateIdentityMode='xmlNative' keyField '"
+          + fullKeyField + "' reached a repeating-node/list segment before token '" + token
+          + "'. Repeating-node xmlNative key traversal is not supported by the current runtime.");
     }
 
     String propertyToken = token.startsWith("@") ? token.substring(1) : token;

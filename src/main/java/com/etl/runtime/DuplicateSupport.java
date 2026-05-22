@@ -61,7 +61,7 @@ final class DuplicateSupport {
 			if (normalized.isEmpty()) {
 				continue;
 			}
-			current = resolvePathToken(current, normalized);
+			current = resolvePathToken(current, normalized, keyField);
 			if (current == null) {
 				return null;
 			}
@@ -69,7 +69,7 @@ final class DuplicateSupport {
 		return current;
 	}
 
-	private static Object resolvePathToken(Object current, String token) {
+	private static Object resolvePathToken(Object current, String token, String fullKeyField) {
 		if (current instanceof java.util.Map<?, ?> map) {
 			if (map.containsKey(token)) {
 				return map.get(token);
@@ -83,6 +83,12 @@ final class DuplicateSupport {
 				return map.get(withAttributePrefix);
 			}
 			return null;
+		}
+
+		if (current instanceof Iterable<?> || (current != null && current.getClass().isArray())) {
+			throw new IllegalStateException("FieldMapping rule 'duplicate' with duplicateIdentityMode='xmlNative' keyField '"
+					+ fullKeyField + "' reached a repeating-node/list segment before token '" + token
+					+ "'. Repeating-node xmlNative key traversal is not supported by the current runtime.");
 		}
 
 		String propertyToken = token.startsWith("@") ? token.substring(1) : token;

@@ -11,6 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InMemoryDuplicateResolverTest {
@@ -218,6 +219,27 @@ class InMemoryDuplicateResolverTest {
 		assertEquals(2, xmlNativeResolution.retainedRecords().size());
 	}
 
+	@Test
+	void xmlNativeListPathKeysFailFastWithControlledError() {
+		InMemoryDuplicateResolver resolver = new InMemoryDuplicateResolver(
+				new DuplicateRule(
+						"tagValue",
+						List.of("/event/tags/@code"),
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateProcessorValidationRule.DuplicateIdentityMode.XML_NATIVE,
+						"configured",
+						DuplicateRule.StorageMode.AUTO
+				)
+		);
+
+		IllegalStateException exception = assertThrows(
+				IllegalStateException.class,
+				() -> resolver.accept(xmlEventWithTagList("100", List.of("A", "B"), "08:30:00", "first"))
+		);
+		assertTrue(exception.getMessage().contains("duplicateIdentityMode='xmlNative'"));
+		assertTrue(exception.getMessage().contains("repeating-node/list segment"));
+	}
+
 	private java.util.Map<String, Object> xmlEvent(String customerId,
 	                                            String tagCode,
 	                                            String tagValue,
@@ -237,6 +259,23 @@ class InMemoryDuplicateResolverTest {
 
 	private java.util.Map<String, Object> xmlEvent(String customerId, String tagCode, String eventTime, String description) {
 		return xmlEvent(customerId, tagCode, "VIP", eventTime, description);
+	}
+
+	private java.util.Map<String, Object> xmlEventWithTagList(String customerId,
+	                                                     java.util.List<String> tagCodes,
+	                                                     String eventTime,
+	                                                     String description) {
+		java.util.List<java.util.Map<String, Object>> tags = tagCodes.stream()
+				.map(tagCode -> java.util.Map.<String, Object>of("@code", tagCode, "value", "VIP"))
+				.toList();
+		return java.util.Map.of(
+				"event", java.util.Map.of(
+						"customer", java.util.Map.of("id", customerId),
+						"tags", tags
+				),
+				"eventTime", eventTime,
+				"description", description
+		);
 	}
 
 	private record EventRecord(String id, String eventTime, String description, Integer sequenceNo) {

@@ -74,6 +74,53 @@ class XmlDuplicateProcessorValidationRuleTest {
     assertTrue(exception.getMessage().contains("xmlNative"));
   }
 
+  @Test
+  void currentlyRejectsAtSymbolOnlyKeyFieldWhenXmlIdentityModeIsFlatMapped() {
+    XmlDuplicateProcessorValidationRule rule = new XmlDuplicateProcessorValidationRule(new FileIngestionRuntimeSupport());
+    ProcessorConfig.EntityMapping mapping = xmlEntityMapping();
+    ProcessorConfig.FieldMapping idField = mapping.getFields().get(0);
+    ProcessorConfig.FieldRule duplicate = new ProcessorConfig.FieldRule();
+    duplicate.setType("duplicate");
+    duplicate.setKeyFields(List.of("tag@code"));
+    idField.setRules(List.of(duplicate));
+
+    IllegalStateException exception = assertThrows(
+        IllegalStateException.class,
+        () -> rule.validateConfiguration(mapping, idField, duplicate)
+    );
+
+    assertTrue(exception.getMessage().contains("duplicateIdentityMode"));
+    assertTrue(exception.getMessage().contains("xmlNative"));
+    assertTrue(exception.getMessage().contains("tag@code"));
+  }
+
+  @Test
+  void xmlNativeListPathKeysFailFastWithControlledError() {
+    FileIngestionRuntimeSupport runtimeSupport = new FileIngestionRuntimeSupport();
+    XmlDuplicateProcessorValidationRule rule = new XmlDuplicateProcessorValidationRule(runtimeSupport);
+    ProcessorConfig.FieldRule duplicate = new ProcessorConfig.FieldRule();
+    duplicate.setType("duplicate");
+    duplicate.setDuplicateIdentityMode("xmlNative");
+    duplicate.setKeyFields(List.of("/event/tags/@code"));
+
+    StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
+    CsvSourceConfig sourceConfig = sourceConfig();
+    runtimeSupport.initializeStep(stepExecution, sourceConfig, new ProcessorConfig(), xmlEntityMapping());
+    StepSynchronizationManager.register(stepExecution);
+    try {
+      IllegalStateException exception = assertThrows(
+          IllegalStateException.class,
+          () -> rule.evaluate(xmlRecordWithTagList(List.of("A", "B")), "id", null, duplicate)
+      );
+
+      assertTrue(exception.getMessage().contains("duplicateIdentityMode='xmlNative'"));
+      assertTrue(exception.getMessage().contains("repeating-node/list segment"));
+    } finally {
+      StepSynchronizationManager.close();
+      runtimeSupport.completeStep(stepExecution, sourceConfig);
+    }
+  }
+
   private CsvSourceConfig sourceConfig() {
     CsvSourceConfig sourceConfig = new CsvSourceConfig();
     sourceConfig.setSourceName("XmlEvents");
@@ -85,6 +132,18 @@ class XmlDuplicateProcessorValidationRuleTest {
         "event", Map.of(
             "customer", Map.of("id", customerId),
             "tag", Map.of("@code", tagCode)
+        )
+    );
+  }
+
+  private Map<String, Object> xmlRecordWithTagList(List<String> tagCodes) {
+    List<Map<String, Object>> tags = tagCodes.stream()
+        .map(tagCode -> Map.<String, Object>of("@code", tagCode, "value", "VIP"))
+        .toList();
+    return Map.of(
+        "event", Map.of(
+            "customer", Map.of("id", "100"),
+            "tags", tags
         )
     );
   }

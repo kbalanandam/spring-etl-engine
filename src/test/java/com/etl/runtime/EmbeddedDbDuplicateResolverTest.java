@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EmbeddedDbDuplicateResolverTest {
@@ -231,6 +232,27 @@ class EmbeddedDbDuplicateResolverTest {
 	}
 
 	@Test
+	void xmlNativeListPathKeysFailFastWithControlledError() {
+		try (EmbeddedDbDuplicateResolver resolver = new EmbeddedDbDuplicateResolver(
+				new DuplicateRule(
+						"tagValue",
+						List.of("/event/tags/@code"),
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateProcessorValidationRule.DuplicateIdentityMode.XML_NATIVE,
+						"configured",
+						DuplicateRule.StorageMode.AUTO
+				)
+		)) {
+			IllegalStateException exception = assertThrows(
+					IllegalStateException.class,
+					() -> resolver.accept(xmlEventWithTagList("100", List.of("A", "B"), "08:30:00", "first"))
+			);
+			assertTrue(exception.getMessage().contains("duplicateIdentityMode='xmlNative'"));
+			assertTrue(exception.getMessage().contains("repeating-node/list segment"));
+		}
+	}
+
+	@Test
 	void matchesInMemoryDiscardOrderingAcrossDuplicateKeys() {
 		DuplicateRule rule = new DuplicateRule(
 				"id",
@@ -332,6 +354,23 @@ class EmbeddedDbDuplicateResolverTest {
 				),
 				"customerId", customerId,
 				"tagValue", tagValue,
+				"eventTime", eventTime,
+				"description", description
+		);
+	}
+
+	private Map<String, Object> xmlEventWithTagList(String customerId,
+	                                             List<String> tagCodes,
+	                                             String eventTime,
+	                                             String description) {
+		List<Map<String, Object>> tags = tagCodes.stream()
+				.map(tagCode -> Map.<String, Object>of("@code", tagCode, "value", "VIP"))
+				.toList();
+		return Map.of(
+				"event", Map.of(
+						"customer", Map.of("id", customerId),
+						"tags", tags
+				),
 				"eventTime", eventTime,
 				"description", description
 		);
