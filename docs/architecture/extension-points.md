@@ -31,6 +31,11 @@ Validation and field-level processing behavior now use both shipped and planned 
 - Reader selection: `src/main/java/com/etl/reader/DynamicReaderFactory.java`
 - Processor selection: `src/main/java/com/etl/processor/DynamicProcessorFactory.java`
 - Writer selection: `src/main/java/com/etl/writer/DynamicWriterFactory.java`
+- Reader provider SPI (manual/non-Spring discovery): `src/main/java/com/etl/reader/spi/ReaderExtensionProvider.java`
+- Writer provider SPI (manual/non-Spring discovery): `src/main/java/com/etl/writer/spi/WriterExtensionProvider.java`
+- Reader defaults discovery helper: `src/main/java/com/etl/reader/DynamicReaderDefaults.java`
+- Writer defaults discovery helper: `src/main/java/com/etl/writer/DynamicWriterDefaults.java`
+- Shared override/duplicate policy helper: `src/main/java/com/etl/extension/ExtensionConflictPolicy.java`
 - Source polymorphism: `src/main/java/com/etl/config/source/SourceConfig.java`
 - Target polymorphism: `src/main/java/com/etl/config/target/TargetConfig.java`
 - Format enum: `src/main/java/com/etl/enums/ModelFormat.java`
@@ -38,6 +43,16 @@ Validation and field-level processing behavior now use both shipped and planned 
 - Source validation dispatch: `src/main/java/com/etl/config/source/validation/SourceValidationService.java`
 - Processor rule SPI: `src/main/java/com/etl/processor/validation/ProcessorValidationRule.java`
 - Processor rule dispatch: `src/main/java/com/etl/processor/validation/ValidationRuleEvaluator.java`
+- Processor transform SPI: `src/main/java/com/etl/processor/transform/ProcessorFieldTransform.java`
+- Processor extension provider SPI (manual/non-Spring discovery): `src/main/java/com/etl/processor/spi/ProcessorExtensionProvider.java`
+- Built-in processor extension provider: `src/main/java/com/etl/processor/spi/BuiltInProcessorExtensionProvider.java`
+- Processor transform dispatch now supports type + source-format selection with global fallback through `TransformEvaluator`
+- Processor orchestration seam (slice-1 parity extraction): `src/main/java/com/etl/processor/pipeline/ProcessorExecutionPipeline.java`, `src/main/java/com/etl/processor/pipeline/impl/DefaultProcessorExecutionPipeline.java`
+- Processor rule dispatch now supports type + source-format selection with global fallback, so format-specific rules can be added without branching inside shared rules
+- Config startup validation now resolves mapping source format and validates transforms/rules with that format context in `ConfigLoader`, so unsupported format/type combinations fail before runtime
+- Config startup format-binding failures now raise `ProcessorExtensionBindingConfigException` (subclass of `ConfigException`) so operators can classify extension registration/scope errors distinctly from other config faults
+- Duplicate rule now registers both global and XML-scoped handlers (`DuplicateProcessorValidationRule` + `XmlDuplicateProcessorValidationRule`) while sharing current behavior until XML-specific semantics are expanded
+- Non-Spring/manual paths now merge built-in + classpath-discovered processor extensions through `ProcessorExtensionDefaults` (`ServiceLoader`), so adopters can add rules/transforms without editing core default lists
 - Current built-in source validators: `CsvSourceValidator`, `XmlSourceValidator`, `RelationalSourceValidator`
 - Current built-in processor rules: `NotNullProcessorValidationRule`, `TimeFormatProcessorValidationRule`, `DuplicateProcessorValidationRule`
 - Planned processor transform extension point: keep it adjacent to `src/main/java/com/etl/config/processor/ProcessorConfig.java`, `src/main/java/com/etl/processor/impl/DefaultDynamicProcessor.java`, and the mapping path under `src/main/java/com/etl/mapping/`
@@ -175,6 +190,11 @@ flowchart LR
 - prefer composition over vendor-specific config duplication
 - centralize runtime contracts instead of scattering conventions
 - add new behaviors through factories instead of conditionals spread across the codebase
+- for manual/non-Spring bootstrap paths, register external reader/writer providers via Java `ServiceLoader` (`META-INF/services/com.etl.reader.spi.ReaderExtensionProvider`, `META-INF/services/com.etl.writer.spi.WriterExtensionProvider`) and keep provider ordering deterministic (`order` then `providerId`)
+- for manual/non-Spring bootstrap paths, register external processor extension providers via Java `ServiceLoader` (`META-INF/services/com.etl.processor.spi.ProcessorExtensionProvider`) and keep provider ordering deterministic (`order` then `providerId`)
+- provider conflicts now require explicit override intent: set provider `isOverride=true` to replace an existing key (reader/writer format, or processor type+optional source format); multiple registrations without a single explicit override still fail fast to protect deterministic runtime behavior
+- reader/writer/processor default discovery now uses one shared conflict policy (`ExtensionConflictPolicy`) so override and duplicate-fail behavior stays consistent across extension stages
+- Spring bean registration now follows the same override policy contract as ServiceLoader defaults by using extension metadata on SPI implementations (`extensionId`, `isOverride`) for readers, writers, processor rules, and processor transforms
 - fail fast when two runtime implementations try to register the same factory-dispatch key so extension wiring stays deterministic; the current bridge reader and writer factories both enforce this at registration time
 - keep reader/writer factory registration and construction failures categorized as `factory`; the current bridge factories may still expose format-specific missing-dispatch exceptions such as `NoReaderFoundException` and `NoWriterFoundException`, while stream/read/write lifecycle failures should surface through the runtime failure category used by operator-facing diagnostics
 - on the active reader path, CSV, XML, and relational readers currently share `RuntimeCategorizingItemStreamReader` so delegate `read` and optional `ItemStream` lifecycle failures are categorized consistently across source formats without duplicating that wrapper logic per reader

@@ -42,7 +42,7 @@ public final class InMemoryDuplicateResolver implements DuplicateResolver {
 	@Override
 	public void accept(Object input) {
 		acceptedRecordCount++;
-		List<Object> keyValues = DuplicateSupport.resolveKeyValues(input, rule.keyFields());
+		List<Object> keyValues = DuplicateSupport.resolveKeyValues(input, rule.keyFields(), rule.identityMode());
 		if (DuplicateSupport.hasIncompleteKey(keyValues)) {
 			passThroughRecords.add(new OrderedRecord(input, nextSequence()));
 			return;

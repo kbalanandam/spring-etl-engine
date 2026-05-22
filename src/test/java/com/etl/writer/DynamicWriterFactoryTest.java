@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -92,7 +93,25 @@ class DynamicWriterFactoryTest {
         () -> new DynamicWriterFactory(List.of(new CsvDynamicWriter(), new DuplicateCsvWriter()))
     );
 
-    assertEquals("Multiple writers registered for format: CSV", failure.getMessage());
+    assertTrue(failure.getMessage().startsWith("Multiple writers registered for format: CSV"));
+  }
+
+	@Test
+	void prefersOverrideWriterWhenFormatConflicts() throws Exception {
+		DynamicWriterFactory overrideFactory = new DynamicWriterFactory(List.of(new CsvDynamicWriter(), new OverrideCsvWriter()));
+
+		CsvTargetConfig config = getCsvTargetConfig(Path.of("target", "override-test.csv"));
+		assertInstanceOf(OverrideCsvItemWriter.class, overrideFactory.createWriter(config, Customers.class));
+	}
+
+  @Test
+  void failsWhenTwoOverrideWritersRegisterSameFormat() {
+    FactoryException failure = assertThrows(FactoryException.class,
+        () -> new DynamicWriterFactory(List.of(new OverrideCsvWriter(), new SecondOverrideCsvWriter())));
+
+    assertTrue(failure.getMessage().contains("Multiple writers registered for format: CSV"));
+    assertTrue(failure.getMessage().contains("override-csv-writer"));
+    assertTrue(failure.getMessage().contains("second-override-csv-writer"));
   }
 
   @Test
@@ -158,6 +177,57 @@ class DynamicWriterFactoryTest {
     }
 
   private static final class DuplicateCsvWriter implements DynamicWriter {
+    @Override
+    public ModelFormat getFormat() {
+      return ModelFormat.CSV;
+    }
+
+    @Override
+    public ItemWriter<Object> getWriter(TargetConfig config, Class<?> clazz) {
+      return chunk -> {
+      };
+    }
+  }
+
+  private static final class OverrideCsvWriter implements DynamicWriter {
+    @Override
+    public String extensionId() {
+      return "override-csv-writer";
+    }
+
+    @Override
+    public boolean isOverride() {
+      return true;
+    }
+
+    @Override
+    public ModelFormat getFormat() {
+      return ModelFormat.CSV;
+    }
+
+    @Override
+    public ItemWriter<Object> getWriter(TargetConfig config, Class<?> clazz) {
+      return new OverrideCsvItemWriter();
+    }
+  }
+
+  private static final class OverrideCsvItemWriter implements ItemWriter<Object> {
+    @Override
+    public void write(Chunk<? extends Object> chunk) {
+    }
+  }
+
+  private static final class SecondOverrideCsvWriter implements DynamicWriter {
+    @Override
+    public String extensionId() {
+      return "second-override-csv-writer";
+    }
+
+    @Override
+    public boolean isOverride() {
+      return true;
+    }
+
     @Override
     public ModelFormat getFormat() {
       return ModelFormat.CSV;

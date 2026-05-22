@@ -1,6 +1,8 @@
 package com.etl.mapping;
 
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.enums.ModelFormat;
+import com.etl.processor.ProcessorExtensionDefaults;
 import com.etl.processor.transform.TransformEvaluator;
 import com.etl.processor.validation.ValidationIssue;
 import com.etl.processor.validation.ValidationRuleEvaluator;
@@ -38,6 +40,7 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 	private final ValidationRuleEvaluator validationRuleEvaluator;
 	private final FileIngestionRuntimeSupport fileIngestionRuntimeSupport;
 	private final boolean rejectHandlingEnabled;
+	private final ModelFormat sourceFormat;
 	private final MappedFieldValueResolver mappedFieldValueResolver;
 
 	public ValidationAwareDynamicMapping(ProcessorConfig.EntityMapping mapping,
@@ -46,12 +49,29 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 	                                   ValidationRuleEvaluator validationRuleEvaluator,
 	                                   FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
 	                                   boolean rejectHandlingEnabled) {
+		this(mapping,
+				targetClass,
+				transformEvaluator,
+				validationRuleEvaluator,
+				fileIngestionRuntimeSupport,
+				rejectHandlingEnabled,
+				null);
+	}
+
+	public ValidationAwareDynamicMapping(ProcessorConfig.EntityMapping mapping,
+	                                   Class<O> targetClass,
+	                                   TransformEvaluator transformEvaluator,
+	                                   ValidationRuleEvaluator validationRuleEvaluator,
+	                                   FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
+	                                   boolean rejectHandlingEnabled,
+	                                   ModelFormat sourceFormat) {
 		this.mapping = mapping;
 		this.targetClass = targetClass;
 		this.validationRuleEvaluator = validationRuleEvaluator;
 		this.fileIngestionRuntimeSupport = fileIngestionRuntimeSupport;
 		this.rejectHandlingEnabled = rejectHandlingEnabled;
-		this.mappedFieldValueResolver = new MappedFieldValueResolver(transformEvaluator);
+		this.sourceFormat = sourceFormat;
+		this.mappedFieldValueResolver = new MappedFieldValueResolver(transformEvaluator, sourceFormat);
 	}
 
 	public ValidationAwareDynamicMapping(ProcessorConfig.EntityMapping mapping,
@@ -59,7 +79,14 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 	                                   ValidationRuleEvaluator validationRuleEvaluator,
 	                                   FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
 	                                   boolean rejectHandlingEnabled) {
-		this(mapping, targetClass, new TransformEvaluator(), validationRuleEvaluator, fileIngestionRuntimeSupport, rejectHandlingEnabled);
+		this(
+				mapping,
+				targetClass,
+				new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms()),
+				validationRuleEvaluator,
+				fileIngestionRuntimeSupport,
+				rejectHandlingEnabled
+		);
 	}
 
 	@Override
@@ -67,7 +94,7 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 		String inputType = input.getClass().getName();
 		Map<String, Object> resolvedValues = mappedFieldValueResolver.resolve(input, mapping);
 		Object validationInput = hasTransforms() ? resolvedValues : input;
-		List<ValidationIssue> issues = validationRuleEvaluator.evaluate(validationInput, mapping);
+		List<ValidationIssue> issues = validationRuleEvaluator.evaluate(validationInput, mapping, sourceFormat);
 		if (!issues.isEmpty()) {
 			String issueSummary = summarizeIssues(issues);
 			if (shouldFailStep(issues) || !rejectHandlingEnabled) {

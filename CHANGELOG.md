@@ -6,6 +6,17 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.7.4] - 2026-05-22
+
+### Added
+- Added additive XML duplicate identity support through `duplicateIdentityMode: xmlNative` for nested XML scenarios, including ordered-resolver parity so the same identity semantics apply to keep-first duplicate checks and `duplicate + orderBy` winner selection.
+- Added preserved runnable proof configs under `config-jobs/xml-nested-to-csv-tag-validation` showing the false-merge difference between `flatMapped` and `xmlNative` duplicate identity.
+- Added focused XML duplicate guardrails and operator evidence, including startup rejection for selector-shaped flat-mapped XML keys, startup rejection for unsupported repeating-selector syntax, controlled fail-fast handling for repeating-node/list traversal, and advisory warning evidence (`PROCESSOR_GUARDRAIL event=xml_duplicate_flatmapped_advisory`) for nested XML mappings that still use simple flat duplicate keys.
+
+### Changed
+- Closed the T15 compatibility path through slices `S1`-`S5` on the active runtime contract, with parity evidence now recorded for the processor pipeline seam, deterministic rule-dispatch registry behavior, duplicate resolver parity, preserved bundle proof, and synced product/backlog tracking.
+- Refreshed configuration, architecture, product-tracking, and release metadata so the shipped T15-compatible XML duplicate identity boundary is documented consistently while the intentional non-compatible `S6` cutover remains deferred.
+
 ## [1.7.3] - 2026-05-21
 
 ### Added

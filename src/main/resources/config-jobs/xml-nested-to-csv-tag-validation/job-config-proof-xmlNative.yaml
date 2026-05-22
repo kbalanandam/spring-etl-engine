@@ -1,0 +1,11 @@
+name: xml-nested-to-csv-tag-validation
+sourceConfigPath: source-config-proof.yaml
+targetConfigPath: target-config-proof-xmlNative.yaml
+processorConfigPath: processor-config-proof-xmlNative.yaml
+steps:
+  - name: nested-tag-validation-proof-xmlnative-step
+    source: TagValidationSource
+    target: TagValidationCsv
+
+
+

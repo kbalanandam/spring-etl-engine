@@ -231,7 +231,6 @@ For duplicate handling, the active shipped config shape is still processor-rule 
 - `rules[].type: duplicate` enables duplicate detection for the mapped field
 - `rules[].keyFields` optionally defines the logical duplicate key
 - `rules[].orderBy` upgrades duplicate handling from keep-first mode into ordered winner selection
-
 For ordered winner selection (`duplicate + orderBy`), the processor config can optionally set
 `storageMode: memory|embeddedDb`; when omitted (or set to `auto`), runtime selects the resolver
 implementation from step volume:

@@ -1,28 +1,20 @@
 package com.etl.processor.impl;
 
-import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.processor.ProcessorConfig;
-import com.etl.config.source.SourceConfig;
 import com.etl.config.processor.ProcessorConfig.EntityMapping;
+import com.etl.config.source.SourceConfig;
 import com.etl.config.target.TargetConfig;
-import com.etl.mapping.DynamicMapping;
-import com.etl.mapping.ValidationAwareDynamicMapping;
 import com.etl.processor.DynamicProcessor;
+import com.etl.processor.ProcessorExtensionDefaults;
+import com.etl.processor.pipeline.ProcessorExecutionPipeline;
+import com.etl.processor.pipeline.impl.DefaultProcessorExecutionPipeline;
 import com.etl.processor.transform.TransformEvaluator;
-import com.etl.processor.validation.DuplicateProcessorValidationRule;
-import com.etl.processor.validation.NotNullProcessorValidationRule;
-import com.etl.processor.validation.ProcessorValidationRule;
-import com.etl.processor.validation.TimeFormatProcessorValidationRule;
 import com.etl.processor.validation.ValidationRuleEvaluator;
 import com.etl.runtime.FileIngestionRuntimeSupport;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 /**
  * <p>
@@ -88,26 +80,29 @@ import java.util.List;
 @Component("default")
 public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object> {
 
-	private static final Logger logger = LoggerFactory.getLogger(DefaultDynamicProcessor.class);
-	private final ValidationRuleEvaluator validationRuleEvaluator;
-	private final TransformEvaluator transformEvaluator;
-	private final FileIngestionRuntimeSupport fileIngestionRuntimeSupport;
+	private final ProcessorExecutionPipeline processorExecutionPipeline;
 
 	public DefaultDynamicProcessor() {
 		this(new FileIngestionRuntimeSupport());
 	}
 
 	private DefaultDynamicProcessor(FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
-		this(new ValidationRuleEvaluator(defaultRules(fileIngestionRuntimeSupport)), new TransformEvaluator(), fileIngestionRuntimeSupport);
+		this(
+				new ValidationRuleEvaluator(ProcessorExtensionDefaults.defaultValidationRules(fileIngestionRuntimeSupport)),
+				new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms()),
+				fileIngestionRuntimeSupport
+		);
 	}
 
 	@Autowired
 	public DefaultDynamicProcessor(ValidationRuleEvaluator validationRuleEvaluator,
 	                             TransformEvaluator transformEvaluator,
 	                             FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
-		this.validationRuleEvaluator = validationRuleEvaluator;
-		this.transformEvaluator = transformEvaluator;
-		this.fileIngestionRuntimeSupport = fileIngestionRuntimeSupport;
+		this.processorExecutionPipeline = new DefaultProcessorExecutionPipeline(
+				validationRuleEvaluator,
+				transformEvaluator,
+				fileIngestionRuntimeSupport
+		);
 	}
 
 	/**
@@ -151,65 +146,7 @@ public class DefaultDynamicProcessor implements DynamicProcessor<Object, Object>
 			SourceConfig sourceConfig,
 			TargetConfig targetConfig,
 			ResolvedModelMetadata metadata) throws ClassNotFoundException {
-
-		// Resolve exactly one mapping for the active source/target pair from the selected
-		// processor config. The shipped processor path stays step-specific even though the
-		// processor implementation itself is shared across scenarios.
-		var mapping = processorConfig.getMappings()
-				.stream()
-				.filter(m -> m.getSource().equalsIgnoreCase(sourceConfig.getSourceName())
-						&& m.getTarget().equalsIgnoreCase(targetConfig.getTargetName()))
-				.findFirst()
-				.orElseThrow(() -> new IllegalStateException(
-						"Mapping not found for " + sourceConfig.getSourceName()
-							+ " -> " + targetConfig.getTargetName()
-				));
-
-		Class<Object> targetClass = metadata != null
-				? GeneratedModelClassResolver.resolveTargetProcessingClass(metadata)
-				: GeneratedModelClassResolver.resolveTargetProcessingClass(targetConfig);
-		logger.info("Using mapping for {} -> {} with {} fields",
-				sourceConfig.getSourceName(),
-				targetConfig.getTargetName(),
-				mapping.getFields().size()
-		);
-		// Validation-aware processing is activated only when the selected mapping actually
-		// declares rules. Otherwise the runtime keeps the lighter transform-only path.
-		if (hasValidationRules(mapping)) {
-			return new ValidationAwareDynamicMapping<>(
-					mapping,
-					targetClass,
-					transformEvaluator,
-					validationRuleEvaluator,
-					fileIngestionRuntimeSupport,
-					processorConfig.getRejectHandling() != null && processorConfig.getRejectHandling().isEnabled()
-			);
-		}
-		return new DynamicMapping<>(mapping, targetClass, transformEvaluator);
+		return processorExecutionPipeline.createProcessor(processorConfig, sourceConfig, targetConfig, metadata);
 	}
 
-	/**
-	 * Returns whether the selected entity mapping declares any processor validation rules.
-	 *
-	 * <p>The shipped processor order is read -> transforms -> rules -> write. This method is
-	 * the switch that decides whether the runtime needs the validation-aware processor path.</p>
-	 */
-	private boolean hasValidationRules(EntityMapping mapping) {
-		return mapping.getFields() != null && mapping.getFields().stream()
-				.anyMatch(fieldMapping -> fieldMapping.getRules() != null && !fieldMapping.getRules().isEmpty());
-	}
-
-	/**
-	 * Provides the built-in validation rules shipped with the shared default processor.
-	 *
-	 * <p>These rules form the active processor-rule baseline and are evaluated only when the
-	 * selected mapping references them from config.</p>
-	 */
-	private static List<ProcessorValidationRule> defaultRules(FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
-		return List.of(
-				new NotNullProcessorValidationRule(),
-				new TimeFormatProcessorValidationRule(),
-				new DuplicateProcessorValidationRule(fileIngestionRuntimeSupport)
-		);
-	}
 }

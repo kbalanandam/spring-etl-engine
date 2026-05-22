@@ -1,6 +1,8 @@
 package com.etl.mapping;
 
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.enums.ModelFormat;
+import com.etl.processor.ProcessorExtensionDefaults;
 import com.etl.processor.transform.TransformEvaluator;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.lang.NonNull;
@@ -25,13 +27,20 @@ public class DynamicMapping<I, O> implements ItemProcessor<I, O> {
     private final MappedFieldValueResolver mappedFieldValueResolver;
 
     public DynamicMapping(ProcessorConfig.EntityMapping mapping, Class<O> targetClass) {
-        this(mapping, targetClass, new TransformEvaluator());
+        this(mapping, targetClass, new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms()));
     }
 
     public DynamicMapping(ProcessorConfig.EntityMapping mapping, Class<O> targetClass, TransformEvaluator transformEvaluator) {
+        this(mapping, targetClass, transformEvaluator, null);
+    }
+
+    public DynamicMapping(ProcessorConfig.EntityMapping mapping,
+                          Class<O> targetClass,
+                          TransformEvaluator transformEvaluator,
+                          ModelFormat sourceFormat) {
         this.mapping = mapping;
         this.targetClass = targetClass;
-        this.mappedFieldValueResolver = new MappedFieldValueResolver(transformEvaluator);
+        this.mappedFieldValueResolver = new MappedFieldValueResolver(transformEvaluator, sourceFormat);
     }
 
     @Override

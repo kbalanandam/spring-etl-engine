@@ -2,6 +2,7 @@ package com.etl.mapping;
 
 import com.etl.common.util.ReflectionUtils;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.enums.ModelFormat;
 import com.etl.processor.transform.TransformEvaluator;
 
 import java.util.LinkedHashMap;
@@ -16,9 +17,15 @@ import java.util.Map;
 public class MappedFieldValueResolver {
 
 	private final TransformEvaluator transformEvaluator;
+	private final ModelFormat sourceFormat;
 
 	public MappedFieldValueResolver(TransformEvaluator transformEvaluator) {
+		this(transformEvaluator, null);
+	}
+
+	public MappedFieldValueResolver(TransformEvaluator transformEvaluator, ModelFormat sourceFormat) {
 		this.transformEvaluator = transformEvaluator;
+		this.sourceFormat = sourceFormat;
 	}
 
 	/**
@@ -35,7 +42,7 @@ public class MappedFieldValueResolver {
 			String fromField = normalize(fieldMapping.getFrom());
 			String toField = normalize(fieldMapping.getTo());
 			Object value = fromField == null ? null : ReflectionUtils.getFieldValue(input, fromField);
-			value = transformEvaluator.apply(value, mapping, fieldMapping, input, resolvedValues);
+			value = transformEvaluator.apply(value, mapping, fieldMapping, input, resolvedValues, sourceFormat);
 			if (fromField != null) {
 				resolvedValues.put(fromField, value);
 			}

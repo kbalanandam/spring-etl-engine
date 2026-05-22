@@ -1,0 +1,22 @@
+targets:
+  - format: csv
+    targetName: TagValidationCsv
+    filePath: output/tag-validation-proof-xmlNative.csv
+    delimiter: ","
+    fields:
+      - name: homeAgencyId
+        type: String
+      - name: tagAgencyId
+        type: String
+      - name: tagSerialNumber
+        type: String
+      - name: plateNumber
+        type: String
+      - name: plateCountry
+        type: String
+      - name: plateState
+        type: String
+      - name: accountNumber
+        type: String
+
+

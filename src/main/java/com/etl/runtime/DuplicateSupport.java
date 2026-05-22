@@ -27,9 +27,72 @@ final class DuplicateSupport {
 	}
 
 	static List<Object> resolveKeyValues(Object input, List<String> keyFields) {
+		return resolveKeyValues(input, keyFields, DuplicateProcessorValidationRule.DuplicateIdentityMode.FLAT_MAPPED);
+	}
+
+	static List<Object> resolveKeyValues(Object input,
+	                                   List<String> keyFields,
+	                                   DuplicateProcessorValidationRule.DuplicateIdentityMode identityMode) {
 		return keyFields.stream()
-				.map(keyField -> ReflectionUtils.getFieldValue(input, keyField))
+				.map(keyField -> resolveKeyValue(input, keyField, identityMode))
 				.toList();
+	}
+
+	private static Object resolveKeyValue(Object input,
+	                                   String keyField,
+	                                   DuplicateProcessorValidationRule.DuplicateIdentityMode identityMode) {
+		if (input == null || keyField == null || keyField.isBlank()) {
+			return null;
+		}
+
+		Object directValue = ReflectionUtils.getFieldValue(input, keyField);
+		if (directValue != null) {
+			return directValue;
+		}
+
+		if (identityMode != DuplicateProcessorValidationRule.DuplicateIdentityMode.XML_NATIVE || !keyField.contains("/")) {
+			return null;
+		}
+
+		String[] tokens = keyField.split("/");
+		Object current = input;
+		for (String token : tokens) {
+			String normalized = token == null ? "" : token.trim();
+			if (normalized.isEmpty()) {
+				continue;
+			}
+			current = resolvePathToken(current, normalized, keyField);
+			if (current == null) {
+				return null;
+			}
+		}
+		return current;
+	}
+
+	private static Object resolvePathToken(Object current, String token, String fullKeyField) {
+		if (current instanceof java.util.Map<?, ?> map) {
+			if (map.containsKey(token)) {
+				return map.get(token);
+			}
+			String withoutAttributePrefix = token.startsWith("@") ? token.substring(1) : token;
+			if (map.containsKey(withoutAttributePrefix)) {
+				return map.get(withoutAttributePrefix);
+			}
+			String withAttributePrefix = token.startsWith("@") ? token : "@" + token;
+			if (map.containsKey(withAttributePrefix)) {
+				return map.get(withAttributePrefix);
+			}
+			return null;
+		}
+
+		if (current instanceof Iterable<?> || (current != null && current.getClass().isArray())) {
+			throw new IllegalStateException("FieldMapping rule 'duplicate' with duplicateIdentityMode='xmlNative' keyField '"
+					+ fullKeyField + "' reached a repeating-node/list segment before token '" + token
+					+ "'. Repeating-node xmlNative key traversal is not supported by the current runtime.");
+		}
+
+		String propertyToken = token.startsWith("@") ? token.substring(1) : token;
+		return ReflectionUtils.getFieldValue(current, propertyToken);
 	}
 
 	static boolean hasIncompleteKey(List<Object> keyValues) {

@@ -18,11 +18,22 @@ public record DuplicateRule(
 		String anchorField,
 		List<String> keyFields,
 		List<DuplicateProcessorValidationRule.OrderSelector> orderSelectors,
+		DuplicateProcessorValidationRule.DuplicateIdentityMode identityMode,
+		String identityModeReason,
 		StorageMode storageMode
 ) {
+	public DuplicateRule(String anchorField,
+	                     List<String> keyFields,
+	                     List<DuplicateProcessorValidationRule.OrderSelector> orderSelectors,
+	                     StorageMode storageMode) {
+		this(anchorField, keyFields, orderSelectors, null, null, storageMode);
+	}
+
 	public DuplicateRule {
 		keyFields = List.copyOf(keyFields);
 		orderSelectors = List.copyOf(orderSelectors);
+		identityMode = identityMode == null ? DuplicateProcessorValidationRule.DuplicateIdentityMode.FLAT_MAPPED : identityMode;
+		identityModeReason = identityModeReason == null || identityModeReason.isBlank() ? "default" : identityModeReason;
 		storageMode = storageMode == null ? StorageMode.AUTO : storageMode;
 	}
 
@@ -46,6 +57,8 @@ public record DuplicateRule(
 						fieldMapping.getFrom(),
 						DuplicateProcessorValidationRule.configuredKeyFields(fieldMapping.getFrom(), rule),
 						DuplicateProcessorValidationRule.configuredWinnerSelectors(rule),
+						DuplicateProcessorValidationRule.configuredIdentityMode(rule),
+						DuplicateProcessorValidationRule.identityModeReason(rule),
 						DuplicateProcessorValidationRule.configuredStorageMode(rule)
 				));
 			}

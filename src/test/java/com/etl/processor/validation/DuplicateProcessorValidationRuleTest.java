@@ -168,6 +168,35 @@ class DuplicateProcessorValidationRuleTest {
         assertTrue(exception.getMessage().contains("auto, memory, or embeddedDb"));
     }
 
+  @Test
+  void configuredIdentityModeDefaultsToFlatMappedAndSupportsXmlNative() {
+    ProcessorConfig.FieldRule duplicateRule = duplicateRule();
+    assertEquals(
+        DuplicateProcessorValidationRule.DuplicateIdentityMode.FLAT_MAPPED,
+        DuplicateProcessorValidationRule.configuredIdentityMode(duplicateRule)
+    );
+
+    duplicateRule.setDuplicateIdentityMode("xmlNative");
+    assertEquals(
+        DuplicateProcessorValidationRule.DuplicateIdentityMode.XML_NATIVE,
+        DuplicateProcessorValidationRule.configuredIdentityMode(duplicateRule)
+    );
+  }
+
+  @Test
+  void configuredIdentityModeRejectsUnsupportedValue() {
+    ProcessorConfig.FieldRule duplicateRule = duplicateRule();
+    duplicateRule.setDuplicateIdentityMode("xpath");
+
+    IllegalStateException exception = assertThrows(
+        IllegalStateException.class,
+        () -> DuplicateProcessorValidationRule.configuredIdentityMode(duplicateRule)
+    );
+
+    assertTrue(exception.getMessage().contains("duplicateIdentityMode"));
+    assertTrue(exception.getMessage().contains("flatMapped or xmlNative"));
+  }
+
     @Test
     void validateConfigurationRejectsStorageModeWithoutOrderByWinnerSelection() {
         ProcessorConfig.EntityMapping mapping = entityMapping();
@@ -184,6 +213,23 @@ class DuplicateProcessorValidationRuleTest {
         assertTrue(exception.getMessage().contains("storageMode"));
         assertTrue(exception.getMessage().contains("only supported when 'orderBy' winner selection is configured"));
     }
+
+  @Test
+  void validateConfigurationRejectsXmlNativeIdentityModeForNonXmlRule() {
+    ProcessorConfig.EntityMapping mapping = entityMapping();
+    ProcessorConfig.FieldMapping idField = mapping.getFields().get(0);
+    ProcessorConfig.FieldRule duplicateRule = duplicateRule();
+    duplicateRule.setDuplicateIdentityMode("xmlNative");
+    idField.setRules(List.of(duplicateRule));
+
+    IllegalStateException exception = assertThrows(
+        IllegalStateException.class,
+        () -> rule.validateConfiguration(mapping, idField, duplicateRule)
+    );
+
+    assertTrue(exception.getMessage().contains("duplicateIdentityMode"));
+    assertTrue(exception.getMessage().contains("flatMapped"));
+  }
 
     private ProcessorConfig.EntityMapping entityMapping() {
         ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();

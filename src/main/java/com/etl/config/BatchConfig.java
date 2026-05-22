@@ -301,20 +301,22 @@ public class BatchConfig {
                 };
             }
             if (duplicateRule != null && useChunk) {
-                                  logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy originalMode=chunk overriddenMode=tasklet reason=ordered-duplicate-winner-selection-requires-final-buffering",
+                                  logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy duplicateIdentityMode={} duplicateIdentityModeReason={} originalMode=chunk overriddenMode=tasklet reason=ordered-duplicate-winner-selection-requires-final-buffering",
               runConfigurationMetadata.mainFlowName(), stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
                           runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
-                          stepName, s.getSourceName(), t.getTargetName());
+                           stepName, s.getSourceName(), t.getTargetName(), duplicateRule.identityMode().configValue(), duplicateRule.identityModeReason());
                     useChunk = false;
                   }
             if (duplicateRule != null) {
-                logger.info("STEP_READY event=duplicate_resolver_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy resolverMode={} resolverReason={} recordCount={} threshold={}",
+                logger.info("STEP_READY event=duplicate_resolver_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy duplicateIdentityMode={} duplicateIdentityModeReason={} resolverMode={} resolverReason={} recordCount={} threshold={}",
                         runConfigurationMetadata.mainFlowName(),
                         stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
                         runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
                         stepName,
                         s.getSourceName(),
                         t.getTargetName(),
+                        duplicateRule.identityMode().configValue(),
+                        duplicateRule.identityModeReason(),
                         orderedDuplicateResolverMode,
                         orderedDuplicateResolverReason,
                         recordCount,
@@ -559,13 +561,15 @@ public class BatchConfig {
         }
         contribution.getStepExecution().getExecutionContext().putString(ORDERED_DUPLICATE_RESOLVER_MODE_KEY, resolverMode);
         contribution.getStepExecution().getExecutionContext().putString(ORDERED_DUPLICATE_RESOLVER_REASON_KEY, resolverReason);
-        logger.info("STEP_EVENT event=duplicate_resolver_selected mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy resolverMode={} resolverReason={} recordCount={} threshold={}",
+        logger.info("STEP_EVENT event=duplicate_resolver_selected mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy duplicateIdentityMode={} duplicateIdentityModeReason={} resolverMode={} resolverReason={} recordCount={} threshold={}",
                 runConfigurationMetadata.mainFlowName(),
                 stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
                 runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
                 stepName,
                 sourceConfig.getSourceName(),
                 targetConfig.getTargetName(),
+                duplicateRule.identityMode().configValue(),
+                duplicateRule.identityModeReason(),
                 resolverMode,
                 resolverReason,
                 recordCount,

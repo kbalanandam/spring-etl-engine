@@ -38,10 +38,18 @@ flowchart TD
 - decision 1
 - decision 2
 
-## Tradeoffs
-- benefit
-- cost
-- alternative considered
+## Trade-off Snapshot
+
+Use this compact shape so each architecture-sensitive feature captures the same decision evidence.
+
+- Decision: `<what changed>`
+- Benefit: `<user/operator/runtime gain>`
+- Cost: `<memory/cpu/latency/complexity/config burden>`
+- Risk: `<wrong-use or failure mode>`
+- Use when: `<clear trigger>`
+- Avoid when: `<clear anti-trigger>`
+- Default: `<safe default and why>`
+- Evidence: `<tests/log events/preserved bundle path>`
 
 ## Impact on Existing Architecture
 Describe what areas of the system are affected.

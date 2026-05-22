@@ -11,6 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InMemoryDuplicateResolverTest {
@@ -152,6 +153,129 @@ class InMemoryDuplicateResolverTest {
 
 		assertTrue(resolution.discardedRecords().isEmpty());
 		assertEquals(2, resolution.retainedRecords().size());
+	}
+
+	@Test
+	void resolvesXmlNativePathKeysForOrderedWinnerSelection() {
+		InMemoryDuplicateResolver resolver = new InMemoryDuplicateResolver(
+				new DuplicateRule(
+						"TagSerialNumber",
+						List.of("/event/customer/id", "/event/tag/@code"),
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateProcessorValidationRule.DuplicateIdentityMode.XML_NATIVE,
+						"configured",
+						DuplicateRule.StorageMode.AUTO
+				)
+		);
+
+		resolver.accept(xmlEvent("100", "A", "08:30:00", "first"));
+		resolver.accept(xmlEvent("100", "A", "09:30:00", "winner"));
+		resolver.accept(xmlEvent("100", "B", "07:30:00", "different-key"));
+		DuplicateResolution resolution = resolver.complete();
+
+		assertEquals(1, resolution.discardedRecords().size());
+		assertEquals("first", ((java.util.Map<?, ?>) resolution.discardedRecords().get(0).discardedRecord()).get("description"));
+		assertEquals(2, resolution.retainedRecords().size());
+		assertEquals("winner", ((java.util.Map<?, ?>) resolution.retainedRecords().get(0)).get("description"));
+		assertEquals("different-key", ((java.util.Map<?, ?>) resolution.retainedRecords().get(1)).get("description"));
+	}
+
+	@Test
+	void xmlNativePreventsFalseDuplicateMergeComparedToFlatMapped() {
+		List<java.util.Map<String, Object>> records = List.of(
+				xmlEvent("100", "A", "VIP", "08:30:00", "first-a"),
+				xmlEvent("100", "B", "VIP", "09:30:00", "winner-b")
+		);
+
+		InMemoryDuplicateResolver flatMappedResolver = new InMemoryDuplicateResolver(
+				new DuplicateRule(
+						"tagValue",
+						List.of("customerId", "tagValue"),
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateProcessorValidationRule.DuplicateIdentityMode.FLAT_MAPPED,
+						"configured",
+						DuplicateRule.StorageMode.AUTO
+				)
+		);
+		records.forEach(flatMappedResolver::accept);
+		DuplicateResolution flatResolution = flatMappedResolver.complete();
+
+		InMemoryDuplicateResolver xmlNativeResolver = new InMemoryDuplicateResolver(
+				new DuplicateRule(
+						"tagValue",
+						List.of("/event/customer/id", "/event/tag/@code"),
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateProcessorValidationRule.DuplicateIdentityMode.XML_NATIVE,
+						"configured",
+						DuplicateRule.StorageMode.AUTO
+				)
+		);
+		records.forEach(xmlNativeResolver::accept);
+		DuplicateResolution xmlNativeResolution = xmlNativeResolver.complete();
+
+		assertEquals(1, flatResolution.discardedRecords().size());
+		assertEquals(1, flatResolution.retainedRecords().size());
+		assertEquals(0, xmlNativeResolution.discardedRecords().size());
+		assertEquals(2, xmlNativeResolution.retainedRecords().size());
+	}
+
+	@Test
+	void xmlNativeListPathKeysFailFastWithControlledError() {
+		InMemoryDuplicateResolver resolver = new InMemoryDuplicateResolver(
+				new DuplicateRule(
+						"tagValue",
+						List.of("/event/tags/@code"),
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateProcessorValidationRule.DuplicateIdentityMode.XML_NATIVE,
+						"configured",
+						DuplicateRule.StorageMode.AUTO
+				)
+		);
+
+		IllegalStateException exception = assertThrows(
+				IllegalStateException.class,
+				() -> resolver.accept(xmlEventWithTagList("100", List.of("A", "B"), "08:30:00", "first"))
+		);
+		assertTrue(exception.getMessage().contains("duplicateIdentityMode='xmlNative'"));
+		assertTrue(exception.getMessage().contains("repeating-node/list segment"));
+	}
+
+	private java.util.Map<String, Object> xmlEvent(String customerId,
+	                                            String tagCode,
+	                                            String tagValue,
+	                                            String eventTime,
+	                                            String description) {
+		return java.util.Map.of(
+				"event", java.util.Map.of(
+						"customer", java.util.Map.of("id", customerId),
+						"tag", java.util.Map.of("@code", tagCode, "value", tagValue)
+				),
+				"customerId", customerId,
+				"tagValue", tagValue,
+				"eventTime", eventTime,
+				"description", description
+		);
+	}
+
+	private java.util.Map<String, Object> xmlEvent(String customerId, String tagCode, String eventTime, String description) {
+		return xmlEvent(customerId, tagCode, "VIP", eventTime, description);
+	}
+
+	private java.util.Map<String, Object> xmlEventWithTagList(String customerId,
+	                                                     java.util.List<String> tagCodes,
+	                                                     String eventTime,
+	                                                     String description) {
+		java.util.List<java.util.Map<String, Object>> tags = tagCodes.stream()
+				.map(tagCode -> java.util.Map.<String, Object>of("@code", tagCode, "value", "VIP"))
+				.toList();
+		return java.util.Map.of(
+				"event", java.util.Map.of(
+						"customer", java.util.Map.of("id", customerId),
+						"tags", tags
+				),
+				"eventTime", eventTime,
+				"description", description
+		);
 	}
 
 	private record EventRecord(String id, String eventTime, String description, Integer sequenceNo) {

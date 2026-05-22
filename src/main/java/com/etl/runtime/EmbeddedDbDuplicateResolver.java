@@ -113,7 +113,7 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 	@Override
 	public void accept(Object input) {
 		long arrivalSequence = nextSequence();
-		List<Object> keyValues = DuplicateSupport.resolveKeyValues(input, rule.keyFields());
+		List<Object> keyValues = DuplicateSupport.resolveKeyValues(input, rule.keyFields(), rule.identityMode());
 		if (DuplicateSupport.hasIncompleteKey(keyValues)) {
 			stagedPassThroughCount++;
 			insertRecord(arrivalSequence, CLASSIFICATION_PASS_THROUGH, null, input, null, false);
