@@ -8,7 +8,7 @@ Add a dedicated follow-on item for XML-native duplicate identity so nested XML s
 
 - Epic: **[Epic T](../epics/epic-t-transformation-capability.md)**
 - Priority: **P2**
-- Status: **Deferred**
+- Status: **In Progress**
 - Milestone: **M3**
 - Dependency: **T4, P3**
 
@@ -118,12 +118,12 @@ Expected impact when this item ships:
 
 ## Acceptance criteria
 
-- [ ] XML-native duplicate identity is available as an additive option for nested XML source scenarios
-- [ ] backward compatibility is preserved for existing duplicate configurations that use flat mapped fields
-- [ ] startup/runtime evidence clearly reports chosen identity mode and reason
+- [x] XML-native duplicate identity is available as an additive option for nested XML source scenarios
+- [x] backward compatibility is preserved for existing duplicate configurations that use flat mapped fields
+- [x] startup/runtime evidence clearly reports chosen identity mode and reason
 - [ ] UI guardrails expose safe defaults and warnings for likely-unsafe flat-key choices on nested XML sources
-- [ ] at least one preserved nested XML scenario demonstrates a case where XML-native keys prevent false duplicate matches
-- [ ] docs under `docs/config/` and `docs/architecture/` explain boundaries, examples, and non-goals
+- [x] at least one preserved nested XML scenario demonstrates a case where XML-native keys prevent false duplicate matches
+- [x] docs under `docs/config/` and `docs/architecture/` explain boundaries, examples, and non-goals
 
 ## Execution slices (S1-S6)
 
@@ -154,9 +154,9 @@ Use this board to sequence implementation with strict compatibility in early sli
 - Target: separate duplicate semantics into common + format-specific handlers (`xml`, `csv`, `sql/relational`).
 - Scope: keep winner-selection and resolver contracts intact while isolating XML-native identity logic behind format-aware handlers.
 - Acceptance criteria:
-  - [ ] duplicate tests pass for flat and nested XML, CSV, and relational paths
-  - [ ] ordered winner-selection behavior remains deterministic
-  - [ ] identity mode evidence is visible in runtime logs
+  - [x] duplicate tests pass for flat and nested XML, CSV, and relational paths
+  - [x] ordered winner-selection behavior remains deterministic
+  - [x] identity mode evidence is visible in runtime logs
 - Backward compatibility: **Required**
 
 ### S4 - Remaining rule families + scoped config (additive)
@@ -174,9 +174,9 @@ Use this board to sequence implementation with strict compatibility in early sli
 - Target: migrate preserved bundles and docs to the new processor design as the primary contract.
 - Scope: update runnable examples under `config-jobs/`, plus `docs/config/` and `docs/architecture/` references.
 - Acceptance criteria:
-  - [ ] at least one preserved nested XML scenario proves XML-native identity outcomes
-  - [ ] migrated examples are runnable and documented
-  - [ ] verification workflow remains green with migrated bundles
+  - [x] at least one preserved nested XML scenario proves XML-native identity outcomes
+  - [x] migrated examples are runnable and documented
+  - [x] verification workflow remains green with migrated bundles
 - Backward compatibility: **Required**
 
 ### S6 - Final redesign cutover (non-compatible)
@@ -223,6 +223,13 @@ Treat this as a correctness-focused follow-on after T4 closure: source-aware ide
 ## Status notes
 
 Created as a deferred follow-on when T4 moved to Done. Activate when nested XML duplicate cases require source-structure-aware identity beyond flat mapped fields.
+
+Current implementation progress in this branch:
+
+- Completed additive `xmlNative` identity support with ordered-resolver parity and runtime evidence.
+- Added runnable preserved proof pair under `config-jobs/xml-nested-to-csv-tag-validation` (`flatMapped` false-merge vs `xmlNative` expected separation).
+- Added fail-fast guardrails for unsupported repeating/list selector traversal and narrowed flatMapped XML selector detection to avoid over-rejecting literal keys containing `@`.
+- Latest focused verification remains green (`scripts/generate-verification-report.ps1`, status `READY`).
 
 ## Preserved proof anchors (implemented so far)
 
