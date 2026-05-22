@@ -36,12 +36,14 @@ This epic is **not** the place for source-transport concerns, orchestration/sche
 
 ## Current T15 progress snapshot
 
-T15 remains deferred on the execution board, but additive groundwork is now present on the active runtime path:
+T15 is now in progress on the execution board, and the compatible slices (`S1`-`S5`) are complete on the active runtime path:
 
 - XML duplicate identity mode support is available through `duplicateIdentityMode: flatMapped|xmlNative`.
 - XML guardrails fail fast when path-like XML key selectors are authored without `duplicateIdentityMode: xmlNative`.
 - Ordered duplicate winner selection now applies the same identity mode semantics as keep-first duplicate handling.
 - Runtime evidence for ordered duplicate planning includes identity mode fields (`duplicateIdentityMode`, `duplicateIdentityModeReason`).
+- Nested XML mappings that still use simple flat duplicate keys now emit advisory warning evidence to guide operators toward `xmlNative` when path/attribute identity context matters.
+- Preserved runnable proof and focused parity evidence now cover the processor pipeline seam, rule-dispatch registry path, and both duplicate resolver implementations.
 
 ### Preserved proof anchors
 
