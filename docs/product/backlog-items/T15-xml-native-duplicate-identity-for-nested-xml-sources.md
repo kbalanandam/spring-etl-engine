@@ -204,5 +204,14 @@ Treat this as a correctness-focused follow-on after T4 closure: source-aware ide
 
 Created as a deferred follow-on when T4 moved to Done. Activate when nested XML duplicate cases require source-structure-aware identity beyond flat mapped fields.
 
+## Preserved proof anchors (implemented so far)
+
+The following focused proof tests now preserve the false-merge comparison pattern (`flatMapped` vs `xmlNative`) for ordered duplicate winner selection:
+
+- `src/test/java/com/etl/runtime/InMemoryDuplicateResolverTest.java` (`xmlNativePreventsFalseDuplicateMergeComparedToFlatMapped`)
+- `src/test/java/com/etl/runtime/EmbeddedDbDuplicateResolverTest.java` (`xmlNativePreventsFalseDuplicateMergeComparedToFlatMapped`)
+
+These tests keep one minimal nested-map scenario where flat mapped keys collapse distinct nested identities, while XML-native path keys preserve distinct winners.
+
 
 

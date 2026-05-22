@@ -43,18 +43,28 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 	public void validateConfiguration(ProcessorConfig.EntityMapping entityMapping,
 	                                 ProcessorConfig.FieldMapping fieldMapping,
 	                                 ProcessorConfig.FieldRule rule) {
+		DuplicateIdentityMode identityMode = configuredIdentityMode(rule);
+		if (!supportedIdentityModes().contains(identityMode)) {
+			throw new IllegalStateException("FieldMapping rule 'duplicate' uses duplicateIdentityMode='"
+					+ identityMode.configValue() + "' for entity "
+					+ entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom()
+					+ "', but this source format supports " + supportedIdentityModes().stream().map(DuplicateIdentityMode::configValue).toList() + ".");
+		}
+
 		List<String> keyFields = configuredKeyFields(fieldMapping.getFrom(), rule);
 		Set<String> availableFields = availableFields(entityMapping);
 		DuplicateRule.StorageMode storageMode = configuredStorageMode(rule);
 
-		List<String> missingFields = keyFields.stream()
-				.filter(keyField -> !availableFields.contains(keyField))
-				.toList();
-		if (!missingFields.isEmpty()) {
-			throw new IllegalStateException("FieldMapping rule 'duplicate' references unknown keyFields "
-					+ missingFields + " for entity "
-					+ entityMapping.getSource() + " -> " + entityMapping.getTarget()
-					+ " field '" + fieldMapping.getFrom() + "'.");
+		if (validateKeyFieldsAgainstMappedFields(rule)) {
+			List<String> missingFields = keyFields.stream()
+					.filter(keyField -> !availableFields.contains(keyField))
+					.toList();
+			if (!missingFields.isEmpty()) {
+				throw new IllegalStateException("FieldMapping rule 'duplicate' references unknown keyFields "
+						+ missingFields + " for entity "
+						+ entityMapping.getSource() + " -> " + entityMapping.getTarget()
+						+ " field '" + fieldMapping.getFrom() + "'.");
+			}
 		}
 
 		if (isWinnerSelectionStrategy(rule)) {
@@ -76,13 +86,13 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 		}
 		List<String> keyFields = configuredKeyFields(fieldName, rule);
 		boolean duplicate = fileIngestionRuntimeSupport.isDuplicateValues(
-				trackingKey(fieldName, keyFields),
-				resolveKeyValues(input, fieldName, value, keyFields)
+				trackingKey(fieldName, keyFields, rule),
+				resolveKeyValues(input, fieldName, value, keyFields, rule)
 		);
 		if (!duplicate) {
 			return null;
 		}
-		return new ValidationIssue(fieldName, getRuleType(), duplicateMessage(fieldName, keyFields));
+		return new ValidationIssue(fieldName, getRuleType(), duplicateMessage(fieldName, keyFields, rule));
 	}
 
 	@Override
@@ -171,6 +181,26 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 		};
 	}
 
+	public static DuplicateIdentityMode configuredIdentityMode(ProcessorConfig.FieldRule rule) {
+		if (rule == null || rule.getDuplicateIdentityMode() == null || rule.getDuplicateIdentityMode().isBlank()) {
+			return DuplicateIdentityMode.FLAT_MAPPED;
+		}
+
+		String normalized = rule.getDuplicateIdentityMode().trim().toLowerCase();
+		return switch (normalized) {
+			case "flatmapped", "flat_mapped", "flat-mapped", "flat" -> DuplicateIdentityMode.FLAT_MAPPED;
+			case "xmlnative", "xml_native", "xml-native" -> DuplicateIdentityMode.XML_NATIVE;
+			default -> throw new IllegalStateException("FieldMapping rule 'duplicate' has invalid duplicateIdentityMode '"
+					+ rule.getDuplicateIdentityMode() + "'. Supported values are flatMapped or xmlNative.");
+		};
+	}
+
+	public static String identityModeReason(ProcessorConfig.FieldRule rule) {
+		return rule != null && rule.getDuplicateIdentityMode() != null && !rule.getDuplicateIdentityMode().isBlank()
+				? "configured"
+				: "default";
+	}
+
 	private void validateWinnerSelectionConfiguration(ProcessorConfig.EntityMapping entityMapping,
 	                                               ProcessorConfig.FieldMapping fieldMapping,
 	                                               ProcessorConfig.FieldRule rule,
@@ -208,7 +238,11 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 		return availableFields;
 	}
 
-	protected List<Object> resolveKeyValues(Object input, String fieldName, Object value, List<String> keyFields) {
+	protected List<Object> resolveKeyValues(Object input,
+	                                     String fieldName,
+	                                     Object value,
+	                                     List<String> keyFields,
+	                                     ProcessorConfig.FieldRule rule) {
 		if (keyFields.size() == 1 && keyFields.get(0).equals(fieldName)) {
 			return Collections.singletonList(value);
 		}
@@ -216,26 +250,44 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 			return List.of();
 		}
 		return keyFields.stream()
-				.map(keyField -> resolveKeyValue(input, keyField))
+				.map(keyField -> resolveKeyValue(input, keyField, rule))
 				.toList();
 	}
 
-	protected Object resolveKeyValue(Object input, String keyField) {
+	protected Object resolveKeyValue(Object input, String keyField, ProcessorConfig.FieldRule rule) {
 		return ReflectionUtils.getFieldValue(input, keyField);
 	}
 
-	protected String trackingKey(String fieldName, List<String> keyFields) {
+	protected String trackingKey(String fieldName, List<String> keyFields, ProcessorConfig.FieldRule rule) {
 		if (keyFields.size() == 1 && keyFields.get(0).equals(fieldName)) {
 			return fieldName;
 		}
 		return fieldName + "::" + String.join("|", keyFields);
 	}
 
-	protected String duplicateMessage(String fieldName, List<String> keyFields) {
+	protected String duplicateMessage(String fieldName, List<String> keyFields, ProcessorConfig.FieldRule rule) {
 		if (keyFields.size() == 1 && keyFields.get(0).equals(fieldName)) {
-			return fieldName + " contains a duplicate value within the current step";
+			return fieldName + " contains a duplicate value within the current step"
+					+ duplicateIdentityModeSuffix(rule);
 		}
-		return fieldName + " contains a duplicate composite key within the current step: " + keyFields;
+		return fieldName + " contains a duplicate composite key within the current step: " + keyFields
+				+ duplicateIdentityModeSuffix(rule);
+	}
+
+	protected boolean validateKeyFieldsAgainstMappedFields(ProcessorConfig.FieldRule rule) {
+		return true;
+	}
+
+	protected Set<DuplicateIdentityMode> supportedIdentityModes() {
+		return Set.of(DuplicateIdentityMode.FLAT_MAPPED);
+	}
+
+	private String duplicateIdentityModeSuffix(ProcessorConfig.FieldRule rule) {
+		DuplicateIdentityMode mode = configuredIdentityMode(rule);
+		if (mode == DuplicateIdentityMode.FLAT_MAPPED) {
+			return "";
+		}
+		return " (duplicateIdentityMode=" + mode.configValue() + ")";
 	}
 
 	private static String normalizeBlank(String value) {
@@ -248,6 +300,21 @@ public class DuplicateProcessorValidationRule implements ProcessorValidationRule
 	public record OrderSelector(String field, boolean descending) {
 		public String toDisplayString() {
 			return field + " " + (descending ? "DESC" : "ASC");
+		}
+	}
+
+	public enum DuplicateIdentityMode {
+		FLAT_MAPPED("flatMapped"),
+		XML_NATIVE("xmlNative");
+
+		private final String configValue;
+
+		DuplicateIdentityMode(String configValue) {
+			this.configValue = configValue;
+		}
+
+		public String configValue() {
+			return configValue;
 		}
 	}
 }

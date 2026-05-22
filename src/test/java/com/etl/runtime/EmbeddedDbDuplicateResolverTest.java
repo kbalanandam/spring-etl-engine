@@ -155,6 +155,82 @@ class EmbeddedDbDuplicateResolverTest {
 	}
 
 	@Test
+	void resolvesXmlNativePathKeysForOrderedWinnerSelection() {
+		try (EmbeddedDbDuplicateResolver resolver = new EmbeddedDbDuplicateResolver(
+				new DuplicateRule(
+						"TagSerialNumber",
+						List.of("/event/customer/id", "/event/tag/@code"),
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateProcessorValidationRule.DuplicateIdentityMode.XML_NATIVE,
+						"configured",
+						DuplicateRule.StorageMode.AUTO
+				)
+		)) {
+			resolver.accept(xmlEvent("100", "A", "08:30:00", "first"));
+			resolver.accept(xmlEvent("100", "A", "09:30:00", "winner"));
+			resolver.accept(xmlEvent("100", "B", "07:30:00", "different-key"));
+
+			DuplicateResolution resolution = resolver.complete();
+
+			assertEquals(1, resolution.discardedRecords().size());
+			assertInstanceOf(Map.class, resolution.discardedRecords().get(0).discardedRecord());
+			Map<?, ?> discarded = (Map<?, ?>) resolution.discardedRecords().get(0).discardedRecord();
+			assertEquals("first", discarded.get("description"));
+
+			assertEquals(2, resolution.retainedRecords().size());
+			assertInstanceOf(Map.class, resolution.retainedRecords().get(0));
+			assertInstanceOf(Map.class, resolution.retainedRecords().get(1));
+			Map<?, ?> retainedFirst = (Map<?, ?>) resolution.retainedRecords().get(0);
+			Map<?, ?> retainedSecond = (Map<?, ?>) resolution.retainedRecords().get(1);
+			assertEquals("winner", retainedFirst.get("description"));
+			assertEquals("different-key", retainedSecond.get("description"));
+		}
+	}
+
+	@Test
+	void xmlNativePreventsFalseDuplicateMergeComparedToFlatMapped() {
+		List<Map<String, Object>> records = List.of(
+				xmlEvent("100", "A", "VIP", "08:30:00", "first-a"),
+				xmlEvent("100", "B", "VIP", "09:30:00", "winner-b")
+		);
+
+		DuplicateResolution flatResolution;
+		try (EmbeddedDbDuplicateResolver flatResolver = new EmbeddedDbDuplicateResolver(
+				new DuplicateRule(
+						"tagValue",
+						List.of("customerId", "tagValue"),
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateProcessorValidationRule.DuplicateIdentityMode.FLAT_MAPPED,
+						"configured",
+						DuplicateRule.StorageMode.AUTO
+				)
+		)) {
+			records.forEach(flatResolver::accept);
+			flatResolution = flatResolver.complete();
+		}
+
+		DuplicateResolution xmlNativeResolution;
+		try (EmbeddedDbDuplicateResolver xmlNativeResolver = new EmbeddedDbDuplicateResolver(
+				new DuplicateRule(
+						"tagValue",
+						List.of("/event/customer/id", "/event/tag/@code"),
+						List.of(new DuplicateProcessorValidationRule.OrderSelector("eventTime", true)),
+						DuplicateProcessorValidationRule.DuplicateIdentityMode.XML_NATIVE,
+						"configured",
+						DuplicateRule.StorageMode.AUTO
+				)
+		)) {
+			records.forEach(xmlNativeResolver::accept);
+			xmlNativeResolution = xmlNativeResolver.complete();
+		}
+
+		assertEquals(1, flatResolution.discardedRecords().size());
+		assertEquals(1, flatResolution.retainedRecords().size());
+		assertEquals(0, xmlNativeResolution.discardedRecords().size());
+		assertEquals(2, xmlNativeResolution.retainedRecords().size());
+	}
+
+	@Test
 	void matchesInMemoryDiscardOrderingAcrossDuplicateKeys() {
 		DuplicateRule rule = new DuplicateRule(
 				"id",
@@ -238,6 +314,27 @@ class EmbeddedDbDuplicateResolverTest {
 		event.setDescription(description);
 		event.setSequenceNo(sequenceNo);
 		return event;
+	}
+
+	private Map<String, Object> xmlEvent(String customerId, String tagCode, String eventTime, String description) {
+		return xmlEvent(customerId, tagCode, "VIP", eventTime, description);
+	}
+
+	private Map<String, Object> xmlEvent(String customerId,
+	                                   String tagCode,
+	                                   String tagValue,
+	                                   String eventTime,
+	                                   String description) {
+		return Map.of(
+				"event", Map.of(
+						"customer", Map.of("id", customerId),
+						"tag", Map.of("@code", tagCode, "value", tagValue)
+				),
+				"customerId", customerId,
+				"tagValue", tagValue,
+				"eventTime", eventTime,
+				"description", description
+		);
 	}
 
 	public static class EventBean {

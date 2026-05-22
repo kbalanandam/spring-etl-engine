@@ -17,6 +17,8 @@ import java.util.Set;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class XmlDuplicateProcessorValidationRuleTest {
 
@@ -33,6 +35,7 @@ class XmlDuplicateProcessorValidationRuleTest {
     XmlDuplicateProcessorValidationRule rule = new XmlDuplicateProcessorValidationRule(runtimeSupport);
     ProcessorConfig.FieldRule duplicate = new ProcessorConfig.FieldRule();
     duplicate.setType("duplicate");
+    duplicate.setDuplicateIdentityMode("xmlNative");
     duplicate.setKeyFields(List.of("/event/customer/id", "/event/tag/@code"));
 
     StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution();
@@ -50,6 +53,25 @@ class XmlDuplicateProcessorValidationRuleTest {
       StepSynchronizationManager.close();
       runtimeSupport.completeStep(stepExecution, sourceConfig);
     }
+  }
+
+  @Test
+  void rejectsPathLikeKeyFieldsWhenXmlIdentityModeIsFlatMapped() {
+    XmlDuplicateProcessorValidationRule rule = new XmlDuplicateProcessorValidationRule(new FileIngestionRuntimeSupport());
+    ProcessorConfig.EntityMapping mapping = xmlEntityMapping();
+    ProcessorConfig.FieldMapping idField = mapping.getFields().get(0);
+    ProcessorConfig.FieldRule duplicate = new ProcessorConfig.FieldRule();
+    duplicate.setType("duplicate");
+    duplicate.setKeyFields(List.of("/event/customer/id"));
+    idField.setRules(List.of(duplicate));
+
+    IllegalStateException exception = assertThrows(
+        IllegalStateException.class,
+        () -> rule.validateConfiguration(mapping, idField, duplicate)
+    );
+
+    assertTrue(exception.getMessage().contains("duplicateIdentityMode"));
+    assertTrue(exception.getMessage().contains("xmlNative"));
   }
 
   private CsvSourceConfig sourceConfig() {

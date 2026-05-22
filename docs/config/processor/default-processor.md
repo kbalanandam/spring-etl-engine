@@ -1,5 +1,4 @@
-﻿- The current duplicate contract expects flat field/property access on the runtime record. XML-native duplicate identity based on XPath, namespaces, or nested structure selectors is not part of the shipped processor config contract yet.
-# Default Processor Config
+﻿# Default Processor Config
 
 ## Purpose
 
@@ -101,6 +100,7 @@ This is still the best place to begin. Everything else on this page is additive.
 | `mappings[].fields[].rules[].type` | yes, when a rule is present | string | Shipped rule types are `notNull`, `timeFormat`, and first-slice `duplicate` |
 | `mappings[].fields[].rules[].pattern` | yes for `timeFormat` | string | Required time pattern such as `HH:mm:ss` |
 | `mappings[].fields[].rules[].keyFields` | no, for `duplicate` | list of strings | Optional duplicate-key field list. When omitted, duplicate detection uses the mapped field itself as the duplicate key |
+| `mappings[].fields[].rules[].duplicateIdentityMode` | no, for `duplicate` | string | Duplicate identity mode: `flatMapped` (default) or `xmlNative` (XML source only). Use `xmlNative` when duplicate keys must include nested path/attribute context |
 | `mappings[].fields[].rules[].orderBy[].field` | yes, when `orderBy` is present | string | Field used to rank duplicate candidates; each configured field should appear only once per `orderBy` list |
 | `mappings[].fields[].rules[].orderBy[].direction` | yes, when `orderBy` is present | string | Winner-selection direction: `ASC` or `DESC` |
 | `mappings[].fields[].rules[].storageMode` | no, for `duplicate` + `orderBy` | string | Optional ordered-winner storage override: `auto` (default), `memory`, or `embeddedDb`; ignored for keep-first duplicate mode (no `orderBy`) |
@@ -332,11 +332,67 @@ mappings:
   - use `memory` when operators want deterministic in-memory behavior for known smaller winner-selection sets
   - use `embeddedDb` when operators want deterministic disk-backed behavior for larger or uncertain winner-selection sets
 - Ordered duplicate winner selection now emits resolver-selection evidence so operators can see which storage path was chosen (`resolverMode=inMemory|embeddedDb`) and why (`resolverReason=...`) on both startup planning (`STEP_READY event=duplicate_resolver_plan`) and step runtime (`STEP_EVENT event=duplicate_resolver_selected`).
+- Ordered duplicate winner-selection evidence also includes `duplicateIdentityMode` and `duplicateIdentityModeReason` so operators can confirm whether identity keys came from explicit config or the default contract.
 - Resolver implementations now also emit lifecycle evidence under `DUPLICATE_RESOLVER`: `event=resolver_open` (embedded DB path allocation), `event=resolver_summary` (accepted/staged/retained/discarded counts plus storage engine), and `event=resolver_close` (embedded DB cleanup result including H2 file/directory deletion status).
 - The runtime also stores the selected ordered-duplicate resolver evidence in the step execution context under `orderedDuplicateResolverMode` and `orderedDuplicateResolverReason` for downstream reporting.
 - Terminology note: processor config uses `storageMode: memory|embeddedDb|auto`, while runtime evidence uses `resolverMode=inMemory|embeddedDb`.
-- The current duplicate contract expects flat field/property access on the runtime record. XML-native duplicate identity based on XPath, namespaces, or nested structure selectors is not part of the shipped processor config contract yet.
+- Duplicate identity mode defaults to `flatMapped` to preserve current behavior.
+- For XML sources, duplicate rules can opt into `duplicateIdentityMode: xmlNative` so `keyFields` may include path-like selectors (for example `/event/tag/@code`) for nested/repeating-node identity.
+- The same `duplicateIdentityMode` choice applies to both keep-first duplicate detection and ordered winner selection (`duplicate` + `orderBy`).
+- XML path-like `keyFields` are rejected in `flatMapped` mode with a fail-fast config error that points to `duplicateIdentityMode: xmlNative`.
 - Those built-in rule types are dispatched through the active processor-rule SPI, so future rule types should be added as `ProcessorValidationRule` implementations rather than through the deprecated `com.etl.validation.*` package.
+
+#### Preserved T15 proof pattern: false merge vs xmlNative
+
+Use this pattern when nested XML records share the same flat business value but differ by nested attribute identity.
+
+Nested source example (conceptual):
+
+```xml
+<Events>
+  <Event>
+    <Customer><Id>100</Id></Customer>
+    <Tag code="A">VIP</Tag>
+    <UpdatedAt>2026-05-21T08:30:00</UpdatedAt>
+  </Event>
+  <Event>
+    <Customer><Id>100</Id></Customer>
+    <Tag code="B">VIP</Tag>
+    <UpdatedAt>2026-05-21T09:30:00</UpdatedAt>
+  </Event>
+</Events>
+```
+
+Flat-mapped duplicate rule (can false-merge):
+
+```yaml
+- type: duplicate
+  duplicateIdentityMode: flatMapped
+  keyFields:
+    - customerId
+    - tagValue
+  orderBy:
+    - field: eventTime
+      direction: DESC
+```
+
+XML-native duplicate rule (preserves nested identity):
+
+```yaml
+- type: duplicate
+  duplicateIdentityMode: xmlNative
+  keyFields:
+    - /event/customer/id
+    - /event/tag/@code
+  orderBy:
+    - field: eventTime
+      direction: DESC
+```
+
+Expected difference:
+
+- `flatMapped` can treat both records as one duplicate key (`100 + VIP`) and discard one winner.
+- `xmlNative` keeps both (`100 + A`, `100 + B`) because key identity includes nested attribute context.
 
 ## Shipped transform support today
 

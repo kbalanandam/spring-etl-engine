@@ -34,6 +34,24 @@ This epic is **not** the place for source-transport concerns, orchestration/sche
 - [`T14 — Define secure data-shaping transforms for sensitive fields`](../backlog-items/T14-secure-data-shaping-transforms.md)
 - [`T15 — Define XML-native duplicate identity for nested XML source scenarios`](../backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md)
 
+## Current T15 progress snapshot
+
+T15 remains deferred on the execution board, but additive groundwork is now present on the active runtime path:
+
+- XML duplicate identity mode support is available through `duplicateIdentityMode: flatMapped|xmlNative`.
+- XML guardrails fail fast when path-like XML key selectors are authored without `duplicateIdentityMode: xmlNative`.
+- Ordered duplicate winner selection now applies the same identity mode semantics as keep-first duplicate handling.
+- Runtime evidence for ordered duplicate planning includes identity mode fields (`duplicateIdentityMode`, `duplicateIdentityModeReason`).
+
+### Preserved proof anchors
+
+The false-merge prevention proof pattern (`flatMapped` vs `xmlNative`) is preserved in focused resolver tests:
+
+- `src/test/java/com/etl/runtime/InMemoryDuplicateResolverTest.java` (`xmlNativePreventsFalseDuplicateMergeComparedToFlatMapped`)
+- `src/test/java/com/etl/runtime/EmbeddedDbDuplicateResolverTest.java` (`xmlNativePreventsFalseDuplicateMergeComparedToFlatMapped`)
+
+These anchors preserve one minimal nested-map scenario where flat mapped keys collapse records into one duplicate group, while XML-native path keys keep both records as distinct winners.
+
 ## Recommended deferred sequencing (T8-T14)
 
 Use this dependency-aware order when Epic T advanced items are activated:

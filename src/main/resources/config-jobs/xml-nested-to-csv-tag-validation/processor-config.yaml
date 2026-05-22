@@ -26,6 +26,7 @@ mappings:
             onFailure: rejectRecord
           - type: duplicate
             onFailure: rejectRecord
+            duplicateIdentityMode: flatMapped
             keyFields:
               - TagSerialNumber
       - from: TVLPlateDetails.PlateNumber

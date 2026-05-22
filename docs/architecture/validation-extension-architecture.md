@@ -121,6 +121,7 @@ Examples:
 - `notNull`
 - `timeFormat`
 - `duplicate` for single-field or composite-key matching, with keep-first behavior by default and ordered winner selection when `orderBy` is configured
+  - additive duplicate identity mode support: `flatMapped` default, plus XML-scoped `xmlNative` mode for nested path/attribute identity keys
 - future `regex`
 - future range / cross-field checks
 - future conditional business rules
@@ -227,7 +228,7 @@ For duplicate handling specifically, future growth should stay in this processor
 - duplicate checking remains optional and only runs when a `duplicate` rule is configured for the mapping
 - current shipped baseline: in-memory, step-local duplicate tracking for keep-first duplicate elimination
 - current shipped ordered winner-selection path: the same processor-rule contract chooses in-memory or embedded-DB staging automatically from runtime volume hints when `storageMode` is omitted or set to `auto`, and allows explicit override through `storageMode: memory|embeddedDb`
-- current format expectation: duplicate keys are expressed through normal mapped fields, not source-native selectors such as XPath
+- current duplicate identity modes: `flatMapped` is the default across formats, and XML sources can opt into `xmlNative` when keys must include nested path/attribute context
 
 That keeps duplicate policy in one extensible rule area while allowing different runtime storage implementations for different data volumes.
 

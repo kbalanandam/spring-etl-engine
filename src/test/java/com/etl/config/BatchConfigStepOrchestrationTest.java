@@ -205,6 +205,7 @@ class BatchConfigStepOrchestrationTest {
         assertEquals(List.of("customers-step"), steps.stream().map(Step::getName).toList());
         assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=duplicate_resolver_plan")
                 && event.getFormattedMessage().contains("stepName=customers-step")
+                && event.getFormattedMessage().contains("duplicateIdentityMode=flatMapped")
                 && event.getFormattedMessage().contains("resolverMode=inMemory")
                 && event.getFormattedMessage().contains("resolverReason=record_count_within_chunk_threshold")));
     }
@@ -250,6 +251,7 @@ class BatchConfigStepOrchestrationTest {
         assertEquals(List.of("customers-step"), steps.stream().map(Step::getName).toList());
         assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=duplicate_resolver_plan")
                 && event.getFormattedMessage().contains("stepName=customers-step")
+                && event.getFormattedMessage().contains("duplicateIdentityMode=flatMapped")
                 && event.getFormattedMessage().contains("resolverMode=embeddedDb")
                 && event.getFormattedMessage().contains("resolverReason=configured_storage_mode_embeddedDb")));
     }

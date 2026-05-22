@@ -241,6 +241,7 @@ public class ProcessorConfig {
 		private String onFailure;
 		private String pattern;
 		private List<String> keyFields;
+		private String duplicateIdentityMode;
 		private List<OrderByField> orderBy;
 		private String storageMode;
 
@@ -274,6 +275,14 @@ public class ProcessorConfig {
 
 		public void setKeyFields(List<String> keyFields) {
 			this.keyFields = keyFields;
+		}
+
+		public String getDuplicateIdentityMode() {
+			return duplicateIdentityMode;
+		}
+
+		public void setDuplicateIdentityMode(String duplicateIdentityMode) {
+			this.duplicateIdentityMode = duplicateIdentityMode;
 		}
 
 		public List<OrderByField> getOrderBy() {

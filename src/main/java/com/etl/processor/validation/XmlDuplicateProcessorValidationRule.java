@@ -1,12 +1,14 @@
 package com.etl.processor.validation;
 
 import com.etl.enums.ModelFormat;
+import com.etl.config.processor.ProcessorConfig;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.List;
 
 /**
  * XML-scoped duplicate rule registration.
@@ -27,15 +29,38 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
         return Set.of(ModelFormat.XML);
     }
 
+    @Override
+    public void validateConfiguration(ProcessorConfig.EntityMapping entityMapping,
+                                      ProcessorConfig.FieldMapping fieldMapping,
+                                      ProcessorConfig.FieldRule rule) {
+        if (configuredIdentityMode(rule) != DuplicateIdentityMode.XML_NATIVE) {
+            List<String> keyFields = configuredKeyFields(fieldMapping.getFrom(), rule);
+            List<String> xmlPathLikeKeyFields = keyFields.stream()
+                    .filter(keyField -> keyField != null && (keyField.contains("/") || keyField.contains("@")))
+                    .toList();
+            if (!xmlPathLikeKeyFields.isEmpty()) {
+            throw new IllegalStateException("FieldMapping rule 'duplicate' for entity "
+                    + entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '"
+                    + fieldMapping.getFrom() + "' uses XML path-like keyFields " + xmlPathLikeKeyFields
+                    + " while duplicateIdentityMode is 'flatMapped'. Set duplicateIdentityMode: xmlNative for nested XML identity keys.");
+            }
+        }
+        super.validateConfiguration(entityMapping, fieldMapping, rule);
+    }
+
   @Override
-  protected Object resolveKeyValue(Object input, String keyField) {
+  protected Object resolveKeyValue(Object input, String keyField, ProcessorConfig.FieldRule rule) {
     if (input == null || keyField == null || keyField.isBlank()) {
       return null;
     }
 
-    Object directValue = super.resolveKeyValue(input, keyField);
+    Object directValue = super.resolveKeyValue(input, keyField, rule);
     if (directValue != null) {
       return directValue;
+    }
+
+    if (configuredIdentityMode(rule) != DuplicateIdentityMode.XML_NATIVE) {
+      return null;
     }
 
     if (!keyField.contains("/")) {
@@ -49,7 +74,7 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
       if (normalized.isEmpty()) {
         continue;
       }
-      current = resolvePathToken(current, normalized);
+      current = resolvePathToken(current, normalized, rule);
       if (current == null) {
         return null;
       }
@@ -58,11 +83,23 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
   }
 
   @Override
-  protected String trackingKey(String fieldName, java.util.List<String> keyFields) {
-    return "xml::" + super.trackingKey(fieldName, keyFields);
+  protected String trackingKey(String fieldName, java.util.List<String> keyFields, ProcessorConfig.FieldRule rule) {
+    DuplicateIdentityMode identityMode = configuredIdentityMode(rule);
+    String modePrefix = identityMode == DuplicateIdentityMode.XML_NATIVE ? "xmlNative" : "xmlFlat";
+    return modePrefix + "::" + super.trackingKey(fieldName, keyFields, rule);
   }
 
-  private Object resolvePathToken(Object current, String token) {
+  @Override
+  protected boolean validateKeyFieldsAgainstMappedFields(ProcessorConfig.FieldRule rule) {
+    return configuredIdentityMode(rule) != DuplicateIdentityMode.XML_NATIVE;
+  }
+
+  @Override
+  protected Set<DuplicateIdentityMode> supportedIdentityModes() {
+    return Set.of(DuplicateIdentityMode.FLAT_MAPPED, DuplicateIdentityMode.XML_NATIVE);
+  }
+
+  private Object resolvePathToken(Object current, String token, ProcessorConfig.FieldRule rule) {
     if (current instanceof Map<?, ?> map) {
       if (map.containsKey(token)) {
         return map.get(token);
@@ -79,7 +116,7 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
     }
 
     String propertyToken = token.startsWith("@") ? token.substring(1) : token;
-    return super.resolveKeyValue(current, propertyToken);
+    return super.resolveKeyValue(current, propertyToken, rule);
   }
 }
 
