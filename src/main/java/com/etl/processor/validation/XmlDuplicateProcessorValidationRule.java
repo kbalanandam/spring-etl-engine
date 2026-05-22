@@ -3,6 +3,8 @@ package com.etl.processor.validation;
 import com.etl.enums.ModelFormat;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.runtime.FileIngestionRuntimeSupport;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +20,8 @@ import java.util.List;
  */
 @Component
 public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValidationRule {
+
+    private static final Logger logger = LoggerFactory.getLogger(XmlDuplicateProcessorValidationRule.class);
 
     @Autowired
     public XmlDuplicateProcessorValidationRule(FileIngestionRuntimeSupport fileIngestionRuntimeSupport) {
@@ -44,6 +48,7 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
                     + fieldMapping.getFrom() + "' uses XML path-like keyFields " + xmlPathLikeKeyFields
                     + " while duplicateIdentityMode is 'flatMapped'. Set duplicateIdentityMode: xmlNative for nested XML identity keys.");
             }
+            emitFlatMappedNestedIdentityAdvisory(entityMapping, fieldMapping, keyFields);
         } else {
             List<String> keyFields = configuredKeyFields(fieldMapping.getFrom(), rule);
             List<String> unsupportedRepeatingSelectors = keyFields.stream()
@@ -128,6 +133,32 @@ public class XmlDuplicateProcessorValidationRule extends DuplicateProcessorValid
       return false;
     }
     return normalized.contains("[") || normalized.contains("]") || normalized.contains("/*/");
+  }
+
+  private void emitFlatMappedNestedIdentityAdvisory(ProcessorConfig.EntityMapping entityMapping,
+                                                    ProcessorConfig.FieldMapping fieldMapping,
+                                                    List<String> keyFields) {
+    boolean mappingHasNestedFields = entityMapping.getFields() != null && entityMapping.getFields().stream()
+        .map(ProcessorConfig.FieldMapping::getFrom)
+        .filter(from -> from != null && !from.isBlank())
+        .map(String::trim)
+        .anyMatch(from -> from.contains("."));
+    if (!mappingHasNestedFields) {
+      return;
+    }
+
+    boolean keyLooksFlat = keyFields.stream()
+        .map(String::trim)
+        .noneMatch(key -> key.contains("/") || key.contains("@") || key.contains("."));
+    if (!keyLooksFlat) {
+      return;
+    }
+
+    logger.warn("PROCESSOR_GUARDRAIL event=xml_duplicate_flatmapped_advisory source={} target={} field={} duplicateIdentityMode=flatMapped keyFields={} guidance=consider_xmlNative_when_nested_identity_depends_on_path_or_attribute_context",
+        entityMapping.getSource(),
+        entityMapping.getTarget(),
+        fieldMapping.getFrom(),
+        keyFields);
   }
 
   private Object resolvePathToken(Object current, String token, String fullKeyField, ProcessorConfig.FieldRule rule) {

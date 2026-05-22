@@ -1,10 +1,13 @@
 package com.etl.processor.validation;
 
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.etl.enums.ModelFormat;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.scope.context.StepSynchronizationManager;
 import org.springframework.batch.test.MetaDataInstanceFactory;
@@ -155,6 +158,31 @@ class XmlDuplicateProcessorValidationRuleTest {
     assertTrue(exception.getMessage().contains("xmlNative"));
   }
 
+  @Test
+  void emitsFlatMappedAdvisoryForNestedXmlMappingsWithSimpleFlatKeys() {
+    ch.qos.logback.classic.Logger ruleLogger =
+        (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(XmlDuplicateProcessorValidationRule.class);
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    ruleLogger.addAppender(appender);
+    try {
+      XmlDuplicateProcessorValidationRule rule = new XmlDuplicateProcessorValidationRule(new FileIngestionRuntimeSupport());
+      ProcessorConfig.EntityMapping mapping = xmlEntityMappingWithNestedFields();
+      ProcessorConfig.FieldMapping duplicateField = mapping.getFields().get(0);
+      ProcessorConfig.FieldRule duplicate = new ProcessorConfig.FieldRule();
+      duplicate.setType("duplicate");
+      duplicate.setKeyFields(List.of("customerId"));
+      duplicateField.setRules(List.of(duplicate));
+
+      assertDoesNotThrow(() -> rule.validateConfiguration(mapping, duplicateField, duplicate));
+      assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("PROCESSOR_GUARDRAIL event=xml_duplicate_flatmapped_advisory")
+          && event.getFormattedMessage().contains("duplicateIdentityMode=flatMapped")
+          && event.getFormattedMessage().contains("keyFields=[customerId]")));
+    } finally {
+      ruleLogger.detachAppender(appender);
+    }
+  }
+
   private CsvSourceConfig sourceConfig() {
     CsvSourceConfig sourceConfig = new CsvSourceConfig();
     sourceConfig.setSourceName("XmlEvents");
@@ -195,6 +223,22 @@ class XmlDuplicateProcessorValidationRuleTest {
     mapping.setSource("XmlEvents");
     mapping.setTarget("XmlEventsOut");
     mapping.setFields(List.of(id));
+    return mapping;
+  }
+
+  private ProcessorConfig.EntityMapping xmlEntityMappingWithNestedFields() {
+    ProcessorConfig.FieldMapping id = new ProcessorConfig.FieldMapping();
+    id.setFrom("customerId");
+    id.setTo("customerId");
+
+    ProcessorConfig.FieldMapping nested = new ProcessorConfig.FieldMapping();
+    nested.setFrom("event.customer.id");
+    nested.setTo("eventCustomerId");
+
+    ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+    mapping.setSource("XmlEvents");
+    mapping.setTarget("XmlEventsOut");
+    mapping.setFields(List.of(id, nested));
     return mapping;
   }
 }

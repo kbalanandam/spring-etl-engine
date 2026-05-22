@@ -121,7 +121,7 @@ Expected impact when this item ships:
 - [x] XML-native duplicate identity is available as an additive option for nested XML source scenarios
 - [x] backward compatibility is preserved for existing duplicate configurations that use flat mapped fields
 - [x] startup/runtime evidence clearly reports chosen identity mode and reason
-- [ ] UI guardrails expose safe defaults and warnings for likely-unsafe flat-key choices on nested XML sources
+- [x] UI guardrails expose safe defaults and warnings for likely-unsafe flat-key choices on nested XML sources
 - [x] at least one preserved nested XML scenario demonstrates a case where XML-native keys prevent false duplicate matches
 - [x] docs under `docs/config/` and `docs/architecture/` explain boundaries, examples, and non-goals
 
@@ -164,9 +164,9 @@ Use this board to sequence implementation with strict compatibility in early sli
 - Target: extend format-aware dispatch to other rule families and add optional scope metadata.
 - Scope: keep existing rule syntax valid; add additive scoping/guardrail fields only.
 - Acceptance criteria:
-  - [ ] legacy rule config remains valid
-  - [ ] optional scope fields are validated fail-fast when invalid
-  - [ ] docs include usage guidance for common vs format-specific rules
+    - [x] legacy rule config remains valid
+    - [x] optional scope fields are validated fail-fast when invalid
+    - [x] docs include usage guidance for common vs format-specific rules
 - Backward compatibility: **Required**
 
 ### S5 - Preserved bundle and doc migration
@@ -229,6 +229,7 @@ Current implementation progress in this branch:
 - Completed additive `xmlNative` identity support with ordered-resolver parity and runtime evidence.
 - Added runnable preserved proof pair under `config-jobs/xml-nested-to-csv-tag-validation` (`flatMapped` false-merge vs `xmlNative` expected separation).
 - Added fail-fast guardrails for unsupported repeating/list selector traversal and narrowed flatMapped XML selector detection to avoid over-rejecting literal keys containing `@`.
+- Completed S4 additive guardrail UX slice with startup advisory evidence (`PROCESSOR_GUARDRAIL event=xml_duplicate_flatmapped_advisory`) for nested XML mappings that still use simple flat duplicate keys.
 - Latest focused verification remains green (`scripts/generate-verification-report.ps1`, status `READY`).
 
 ## Preserved proof anchors (implemented so far)

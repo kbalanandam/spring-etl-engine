@@ -232,6 +232,7 @@ For duplicate handling specifically, future growth should stay in this processor
 - current xmlNative guardrail: key-path traversal is fail-fast for repeating/list segments so runtime surfaces a controlled operator error instead of low-level reflection exceptions
 - current flatMapped XML guardrail: only selector-shaped XML keys (for example `/event/tag/@code` or `@code`) are blocked; literal flat keys that merely contain `@` are still treated as normal mapped field names
 - current xmlNative startup preflight: selector syntax that explicitly encodes repeating-node traversal (for example `[0]`, `[*]`, or wildcard segment forms) is rejected during config validation before step execution
+- current flatMapped advisory evidence: when an XML mapping includes nested source fields (for example dot-path extraction) but duplicate `keyFields` stay simple flat keys, startup emits `PROCESSOR_GUARDRAIL event=xml_duplicate_flatmapped_advisory` to guide operators toward `xmlNative` if path/attribute identity context is required
 
 That keeps duplicate policy in one extensible rule area while allowing different runtime storage implementations for different data volumes.
 
