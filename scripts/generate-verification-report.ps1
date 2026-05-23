@@ -1064,7 +1064,8 @@ function Convert-InlineMarkdownToHtml {
     )
 
     $encoded = [System.Net.WebUtility]::HtmlEncode([string]$Text)
-    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\[(.+?)\]\((https?://[^\)]+)\)', '<a href="$2">$1</a>')
+    # Support both external links and in-document anchors for report navigation.
+    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\[(.+?)\]\(([^\)]+)\)', '<a href="$2">$1</a>')
     $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '`([^`]+)`', '<code>$1</code>')
     $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\*\*(.+?)\*\*', '<strong>$1</strong>')
     return $encoded
@@ -1218,26 +1219,175 @@ function New-VerificationHtmlDocument {
   <meta charset="utf-8" />
   <title>Verification Report</title>
   <style>
-    body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; line-height: 1.45; color: #1f2328; }
-    .section-tabs { position: sticky; top: 0; background: #ffffff; border-bottom: 1px solid #d8dee4; padding: 8px 0; margin-bottom: 16px; }
-    .section-tabs a { display: inline-block; margin-right: 8px; padding: 6px 10px; border: 1px solid #d0d7de; border-radius: 999px; text-decoration: none; color: #0969da; font-size: 12px; }
+    :root {
+      --brand-primary: #0b3d91;
+      --brand-accent: #2f9cf4;
+      --brand-ink: #0f172a;
+      --surface: #ffffff;
+      --surface-muted: #f8fafc;
+      --border: #d0d7de;
+      --text-main: #1f2937;
+      --text-soft: #4b5563;
+    }
+    body {
+      font-family: Segoe UI, Arial, sans-serif;
+      margin: 0;
+      line-height: 1.45;
+      color: var(--text-main);
+      background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 220px);
+    }
+    .report-shell {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 20px 24px 28px;
+    }
+    .report-header {
+      background: linear-gradient(120deg, var(--brand-primary), #153e75 65%);
+      color: #ffffff;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      box-shadow: 0 8px 26px rgba(11, 61, 145, 0.22);
+    }
+    .report-header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .report-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 300px;
+    }
+    .report-brand img {
+      height: 26px;
+      width: auto;
+      border-radius: 4px;
+      background: #ffffff;
+      padding: 2px 4px;
+    }
+    .report-brand-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .report-brand-subtitle {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+    .report-meta {
+      text-align: right;
+      font-size: 12px;
+      opacity: 0.95;
+    }
+    .report-meta span {
+      display: block;
+    }
+    .section-tabs {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 16px;
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+    }
+    .section-tabs a {
+      display: inline-block;
+      margin-right: 8px;
+      margin-bottom: 6px;
+      padding: 6px 10px;
+      border: 1px solid #bdd5f2;
+      border-radius: 999px;
+      text-decoration: none;
+      color: var(--brand-primary);
+      background: #f4f9ff;
+      font-size: 12px;
+      font-weight: 600;
+    }
     .section-tabs a:hover { background: #f6f8fa; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+    h1, h2, h3, h4 { color: var(--brand-ink); }
+    h1 { margin-top: 10px; }
+    h2 {
+      margin-top: 28px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #dbeafe;
+    }
+    p { color: var(--text-main); }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 16px; background: var(--surface); }
     th, td { border: 1px solid #d0d7de; padding: 6px 8px; vertical-align: top; font-size: 13px; }
-    th { background: #f6f8fa; }
+    th {
+      background: #eff6ff;
+      color: #0b3d91;
+      text-transform: none;
+      font-weight: 700;
+      letter-spacing: 0.15px;
+    }
+    tr:nth-child(even) td { background: #fbfdff; }
     code, pre { background: #f6f8fa; }
     code { padding: 1px 4px; border-radius: 4px; }
     pre { padding: 10px; overflow-x: auto; border: 1px solid #d0d7de; border-radius: 6px; }
-    h1, h2, h3, h4 { color: #0f172a; }
+    a { color: var(--brand-primary); }
+    .report-footer {
+      margin-top: 30px;
+      padding-top: 12px;
+      border-top: 1px solid #dbe4ef;
+      color: var(--text-soft);
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
     @media print {
+      body {
+        margin: 0;
+        background: #ffffff;
+        color: #000000;
+      }
+      .report-shell {
+        max-width: none;
+        padding: 8mm;
+      }
+      .report-header {
+        border-radius: 0;
+        box-shadow: none;
+      }
       .section-tabs { display: none; }
       h2 { break-before: page; }
       h2:first-of-type { break-before: auto; }
-      body { margin: 12mm; }
+      .report-footer {
+        position: fixed;
+        bottom: 8mm;
+        left: 8mm;
+        right: 8mm;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="report-shell">
+  <header class="report-header">
+    <div class="report-header-top">
+      <div class="report-brand">
+        <img src="../docs/assets/oneflow-wordmark.png" alt="oneFlow" />
+        <div>
+          <div class="report-brand-title">oneFlow Verification Report</div>
+          <div class="report-brand-subtitle">Enterprise QA and runtime evidence artifact</div>
+        </div>
+      </div>
+      <div class="report-meta">
+        <span>Platform: spring-etl-engine</span>
+        <span>Asset Owner: oneFlow</span>
+      </div>
+    </div>
+  </header>
   <div class="section-tabs">
     <a href="#1-change-focused-verification">Change</a>
     <a href="#2-regression-suite-verification">Regression</a>
@@ -1245,6 +1395,11 @@ function New-VerificationHtmlDocument {
     <a href="#4-release-readiness">Readiness</a>
   </div>
 $BodyHtml
+  <footer class="report-footer">
+    <span>oneFlow &middot; Verification evidence report</span>
+    <span>Generated from spring-etl-engine verification workflow</span>
+  </footer>
+  </div>
 </body>
 </html>
 "@
@@ -1278,7 +1433,6 @@ $inputPath = $args[0]
 $outputPath = $args[1]
 $markdown = Get-Content -Path $inputPath -Raw
 $rendered = ConvertFrom-Markdown -InputObject $markdown
-$document = [string](Get-Command -Name New-VerificationHtmlDocument -ErrorAction SilentlyContinue | Out-Null)
 $bodyHtml = $rendered.Html
 $document = @"
 <!DOCTYPE html>
@@ -1287,26 +1441,175 @@ $document = @"
   <meta charset="utf-8" />
   <title>Verification Report</title>
   <style>
-    body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; line-height: 1.45; color: #1f2328; }
-    .section-tabs { position: sticky; top: 0; background: #ffffff; border-bottom: 1px solid #d8dee4; padding: 8px 0; margin-bottom: 16px; }
-    .section-tabs a { display: inline-block; margin-right: 8px; padding: 6px 10px; border: 1px solid #d0d7de; border-radius: 999px; text-decoration: none; color: #0969da; font-size: 12px; }
+    :root {
+      --brand-primary: #0b3d91;
+      --brand-accent: #2f9cf4;
+      --brand-ink: #0f172a;
+      --surface: #ffffff;
+      --surface-muted: #f8fafc;
+      --border: #d0d7de;
+      --text-main: #1f2937;
+      --text-soft: #4b5563;
+    }
+    body {
+      font-family: Segoe UI, Arial, sans-serif;
+      margin: 0;
+      line-height: 1.45;
+      color: var(--text-main);
+      background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 220px);
+    }
+    .report-shell {
+      max-width: 1320px;
+      margin: 0 auto;
+      padding: 20px 24px 28px;
+    }
+    .report-header {
+      background: linear-gradient(120deg, var(--brand-primary), #153e75 65%);
+      color: #ffffff;
+      border-radius: 14px;
+      padding: 18px 20px;
+      margin-bottom: 14px;
+      box-shadow: 0 8px 26px rgba(11, 61, 145, 0.22);
+    }
+    .report-header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .report-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 300px;
+    }
+    .report-brand img {
+      height: 26px;
+      width: auto;
+      border-radius: 4px;
+      background: #ffffff;
+      padding: 2px 4px;
+    }
+    .report-brand-title {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+    .report-brand-subtitle {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+    .report-meta {
+      text-align: right;
+      font-size: 12px;
+      opacity: 0.95;
+    }
+    .report-meta span {
+      display: block;
+    }
+    .section-tabs {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 16px;
+      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+    }
+    .section-tabs a {
+      display: inline-block;
+      margin-right: 8px;
+      margin-bottom: 6px;
+      padding: 6px 10px;
+      border: 1px solid #bdd5f2;
+      border-radius: 999px;
+      text-decoration: none;
+      color: var(--brand-primary);
+      background: #f4f9ff;
+      font-size: 12px;
+      font-weight: 600;
+    }
     .section-tabs a:hover { background: #f6f8fa; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+    h1, h2, h3, h4 { color: var(--brand-ink); }
+    h1 { margin-top: 10px; }
+    h2 {
+      margin-top: 28px;
+      padding-bottom: 6px;
+      border-bottom: 2px solid #dbeafe;
+    }
+    p { color: var(--text-main); }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 16px; background: var(--surface); }
     th, td { border: 1px solid #d0d7de; padding: 6px 8px; vertical-align: top; font-size: 13px; }
-    th { background: #f6f8fa; }
+    th {
+      background: #eff6ff;
+      color: #0b3d91;
+      text-transform: none;
+      font-weight: 700;
+      letter-spacing: 0.15px;
+    }
+    tr:nth-child(even) td { background: #fbfdff; }
     code, pre { background: #f6f8fa; }
     code { padding: 1px 4px; border-radius: 4px; }
     pre { padding: 10px; overflow-x: auto; border: 1px solid #d0d7de; border-radius: 6px; }
-    h1, h2, h3, h4 { color: #0f172a; }
+    a { color: var(--brand-primary); }
+    .report-footer {
+      margin-top: 30px;
+      padding-top: 12px;
+      border-top: 1px solid #dbe4ef;
+      color: var(--text-soft);
+      font-size: 12px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
     @media print {
+      body {
+        margin: 0;
+        background: #ffffff;
+        color: #000000;
+      }
+      .report-shell {
+        max-width: none;
+        padding: 8mm;
+      }
+      .report-header {
+        border-radius: 0;
+        box-shadow: none;
+      }
       .section-tabs { display: none; }
       h2 { break-before: page; }
       h2:first-of-type { break-before: auto; }
-      body { margin: 12mm; }
+      .report-footer {
+        position: fixed;
+        bottom: 8mm;
+        left: 8mm;
+        right: 8mm;
+      }
     }
   </style>
 </head>
 <body>
+  <div class="report-shell">
+  <header class="report-header">
+    <div class="report-header-top">
+      <div class="report-brand">
+        <img src="../docs/assets/oneflow-wordmark.png" alt="oneFlow" />
+        <div>
+          <div class="report-brand-title">oneFlow Verification Report</div>
+          <div class="report-brand-subtitle">Enterprise QA and runtime evidence artifact</div>
+        </div>
+      </div>
+      <div class="report-meta">
+        <span>Platform: spring-etl-engine</span>
+        <span>Asset Owner: oneFlow</span>
+      </div>
+    </div>
+  </header>
   <div class="section-tabs">
     <a href="#1-change-focused-verification">Change</a>
     <a href="#2-regression-suite-verification">Regression</a>
@@ -1314,6 +1617,11 @@ $document = @"
     <a href="#4-release-readiness">Readiness</a>
   </div>
 $bodyHtml
+  <footer class="report-footer">
+    <span>oneFlow &middot; Verification evidence report</span>
+    <span>Generated from spring-etl-engine verification workflow</span>
+  </footer>
+  </div>
 </body>
 </html>
 "@
