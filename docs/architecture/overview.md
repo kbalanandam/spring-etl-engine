@@ -38,7 +38,7 @@ flowchart TD
     F -- No --> S[startup failure]
     F -- Yes --> H[direct source/target/processor paths]
 
-    E --> V[Source + target + processor validation\n(type: default enforced)]
+    E --> V["Source + target + processor validation<br/>type: default enforced"]
     H --> V
 
     V --> G[BatchConfig]

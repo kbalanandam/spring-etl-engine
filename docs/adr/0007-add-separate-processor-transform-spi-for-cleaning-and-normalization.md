@@ -97,7 +97,7 @@ That means transform-then-reject is valid by design. For example, a transform ma
 - first planned transform example: `valueMap`
 - first planned scenarios: code-to-label mapping and code normalization
 - validation remains responsible for pass/fail decisions only
-- this ADR does not claim that processor transforms are fully shipped yet; it defines the architectural direction for the next transformation slice
+- processor transforms are now part of the shipped shared default-processor path (`valueMap`, `expression`, `conditional`), and this ADR remains the boundary rationale for keeping transforms separate from validation rules
 - if the same field is later configured for equivalent generic rewriting in both source and processor layers, the product should fail fast or at least emit a strong warning unless the layered behavior is clearly source-native adaptation followed by processor normalization
 
 ## Related

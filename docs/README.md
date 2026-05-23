@@ -84,6 +84,7 @@ For every significant enhancement, add or update:
 - [`architecture/runtime-to-scenario-gap-assessment.md`](architecture/runtime-to-scenario-gap-assessment.md) — current-state versus target-state gap assessment for reusable components evolving into scenario-driven execution
 - [`architecture/1-4-to-next-architecture-classification.md`](architecture/1-4-to-next-architecture-classification.md) — transition map for classifying current 1.4.x code into reuse, bridge, legacy, and remove buckets during the next architecture shift
 - [`architecture/runtime-flow.md`](architecture/runtime-flow.md) — end-to-end ETL runtime flow
+- [`architecture/oneflow-runtime-fallback-reference.md`](architecture/oneflow-runtime-fallback-reference.md) — consolidated matrix of shipped OneFlow fallback/default decisions for runtime and config behavior
 - [`architecture/control-plane-worker-boundary.md`](architecture/control-plane-worker-boundary.md) — future boundary between the mandatory ETL core worker and optional scheduler, watcher, persistence, and UI layers
 - [`architecture/control-plane-operational-data-model.md`](architecture/control-plane-operational-data-model.md) — conceptual retained data model for optional scheduler, watcher, trigger, run, step, artifact, and recovery-lineage history
 - [`architecture/control-plane-local-relational-schema.md`](architecture/control-plane-local-relational-schema.md) — SQLite-first local relational schema direction for optional control-plane history with later PostgreSQL or SQL Server portability
@@ -124,6 +125,7 @@ For every significant enhancement, add or update:
 - [`adr/0008-formalize-control-plane-and-etl-worker-boundary.md`](adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
 - [`adr/0009-formalize-sqlite-first-local-control-plane-persistence.md`](adr/0009-formalize-sqlite-first-local-control-plane-persistence.md)
 - [`adr/0010-keep-native-parsers-behind-java-reader-boundary.md`](adr/0010-keep-native-parsers-behind-java-reader-boundary.md)
+- [`adr/0011-enforce-single-default-processor-contract.md`](adr/0011-enforce-single-default-processor-contract.md)
 - [`adr/TEMPLATE.md`](adr/TEMPLATE.md) — template for future ADRs
 
 ### Configuration references

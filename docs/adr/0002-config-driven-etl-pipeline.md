@@ -17,7 +17,8 @@ The current codebase already uses:
 The engine will continue to use a config-driven architecture where:
 
 - source and target config types describe input/output behavior
-- readers, processors, and writers are selected dynamically by type
+- readers and writers are selected dynamically by type/format
+- selected-job processor execution uses one shared `type: default` contract with behavior extended through processor transforms/rules/providers
 - batch orchestration remains independent of specific formats as much as possible
 
 ## Consequences

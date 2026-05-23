@@ -35,6 +35,12 @@ Legacy direct source/target/processor path loading remains available only when `
 
 `JobConfig.name` is currently descriptive metadata for the selected scenario. It is not yet a separate runtime lookup mechanism.
 
+For explicit selected-job runs, the active startup contract now also requires:
+
+- non-blank `JobConfig.name`
+- non-empty `steps`
+- `processor-config.yaml` with `type: default`
+
 ## Consequences
 
 ### Positive
