@@ -26,7 +26,11 @@ param(
     [string]$RepoRoot = "C:\spring-etl-engine",
     [string]$ReportPath = "C:\spring-etl-engine\target\verification-report.md",
     [int]$KeepLatestCount = 5,
-    [switch]$SkipSmoke
+    [switch]$SkipSmoke,
+    [ValidateSet('Markdown', 'Html', 'HtmlAndPdf')]
+    [string]$ReportPublishMode = 'Markdown',
+    [string]$HtmlReportPath,
+    [string]$PdfReportPath
 )
 
 $ErrorActionPreference = 'Stop'
@@ -1010,6 +1014,366 @@ function Get-TimestampedReportPath {
     Join-Path $reportDirectory ($reportBaseName + '-' + $timestamp + $reportExtension)
 }
 
+# Resolves sibling report artifact paths for html/pdf outputs unless explicitly provided.
+function Resolve-PublishArtifactPaths {
+    param(
+        [string]$MarkdownPath,
+        [AllowNull()][string]$RequestedHtmlPath,
+        [AllowNull()][string]$RequestedPdfPath
+    )
+
+    $reportDirectory = Split-Path -Path $MarkdownPath -Parent
+    $reportBaseName = [System.IO.Path]::GetFileNameWithoutExtension($MarkdownPath)
+
+    $resolvedHtmlPath = if ([string]::IsNullOrWhiteSpace($RequestedHtmlPath)) {
+        Join-Path $reportDirectory ($reportBaseName + '.html')
+    }
+    else {
+        $RequestedHtmlPath
+    }
+
+    $resolvedPdfPath = if ([string]::IsNullOrWhiteSpace($RequestedPdfPath)) {
+        Join-Path $reportDirectory ($reportBaseName + '.pdf')
+    }
+    else {
+        $RequestedPdfPath
+    }
+
+    [pscustomobject]@{
+        HtmlPath = $resolvedHtmlPath
+        PdfPath = $resolvedPdfPath
+    }
+}
+
+function Get-SectionAnchorId {
+    param(
+        [string]$HeadingText
+    )
+
+    $normalized = $HeadingText.ToLowerInvariant()
+    $slug = ($normalized -replace '[^a-z0-9\s-]', '' -replace '\s+', '-' -replace '-{2,}', '-').Trim('-')
+    if ([string]::IsNullOrWhiteSpace($slug)) {
+        return 'section'
+    }
+    return $slug
+}
+
+function Convert-InlineMarkdownToHtml {
+    param(
+        [AllowNull()][string]$Text
+    )
+
+    $encoded = [System.Net.WebUtility]::HtmlEncode([string]$Text)
+    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\[(.+?)\]\((https?://[^\)]+)\)', '<a href="$2">$1</a>')
+    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '`([^`]+)`', '<code>$1</code>')
+    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\*\*(.+?)\*\*', '<strong>$1</strong>')
+    return $encoded
+}
+
+function Convert-MarkdownToHtmlFragmentBasic {
+    param(
+        [string]$MarkdownText
+    )
+
+    $lines = @($MarkdownText -split "`r?`n")
+    $htmlLines = New-Object System.Collections.Generic.List[string]
+    $inList = $false
+    $inCodeBlock = $false
+    $codeLines = New-Object System.Collections.Generic.List[string]
+
+    $index = 0
+    while ($index -lt $lines.Count) {
+        $line = $lines[$index]
+        $trimmed = $line.Trim()
+
+        if ($trimmed.StartsWith('```')) {
+            if ($inCodeBlock) {
+                $htmlLines.Add('<pre><code>' + ([System.Net.WebUtility]::HtmlEncode(($codeLines -join "`n"))) + '</code></pre>') | Out-Null
+                $codeLines.Clear()
+                $inCodeBlock = $false
+            }
+            else {
+                if ($inList) {
+                    $htmlLines.Add('</ul>') | Out-Null
+                    $inList = $false
+                }
+                $inCodeBlock = $true
+            }
+            $index++
+            continue
+        }
+
+        if ($inCodeBlock) {
+            $codeLines.Add($line) | Out-Null
+            $index++
+            continue
+        }
+
+        if ([string]::IsNullOrWhiteSpace($trimmed)) {
+            if ($inList) {
+                $htmlLines.Add('</ul>') | Out-Null
+                $inList = $false
+            }
+            $index++
+            continue
+        }
+
+        if ($trimmed.StartsWith('|') -and ($index + 1 -lt $lines.Count)) {
+            $nextTrimmed = $lines[$index + 1].Trim()
+            if ($nextTrimmed -match '^\|\s*[:\-\|\s]+\|?$') {
+                if ($inList) {
+                    $htmlLines.Add('</ul>') | Out-Null
+                    $inList = $false
+                }
+
+                $tableRows = New-Object System.Collections.Generic.List[string]
+                $tableRows.Add($trimmed) | Out-Null
+                $index += 2
+                while ($index -lt $lines.Count) {
+                    $candidate = $lines[$index].Trim()
+                    if ($candidate.StartsWith('|')) {
+                        $tableRows.Add($candidate) | Out-Null
+                        $index++
+                        continue
+                    }
+                    break
+                }
+
+                $htmlLines.Add('<table>') | Out-Null
+                $headerRow = $tableRows[0]
+                $headerTrimmed = $headerRow.Trim('|')
+                $headerCells = @($headerTrimmed.Split('|') | ForEach-Object { $_.Trim() })
+                $htmlLines.Add('<thead><tr>') | Out-Null
+                foreach ($cell in $headerCells) {
+                    $htmlLines.Add('<th>' + (Convert-InlineMarkdownToHtml -Text $cell) + '</th>') | Out-Null
+                }
+                $htmlLines.Add('</tr></thead>') | Out-Null
+                $htmlLines.Add('<tbody>') | Out-Null
+                for ($rowIndex = 1; $rowIndex -lt $tableRows.Count; $rowIndex++) {
+                    $bodyTrimmed = $tableRows[$rowIndex].Trim('|')
+                    $bodyCells = @($bodyTrimmed.Split('|') | ForEach-Object { $_.Trim() })
+                    $htmlLines.Add('<tr>') | Out-Null
+                    foreach ($cell in $bodyCells) {
+                        $htmlLines.Add('<td>' + (Convert-InlineMarkdownToHtml -Text $cell) + '</td>') | Out-Null
+                    }
+                    $htmlLines.Add('</tr>') | Out-Null
+                }
+                $htmlLines.Add('</tbody></table>') | Out-Null
+                continue
+            }
+        }
+
+        if ($trimmed -match '^(#{1,6})\s+(.+)$') {
+            if ($inList) {
+                $htmlLines.Add('</ul>') | Out-Null
+                $inList = $false
+            }
+
+            $headingLevel = $matches[1].Length
+            $headingText = $matches[2].Trim()
+            $headingId = Get-SectionAnchorId -HeadingText $headingText
+            $htmlLines.Add('<h' + $headingLevel + ' id="' + $headingId + '">' + (Convert-InlineMarkdownToHtml -Text $headingText) + '</h' + $headingLevel + '>') | Out-Null
+            $index++
+            continue
+        }
+
+        if ($trimmed -match '^-\s+(.+)$') {
+            if (-not $inList) {
+                $htmlLines.Add('<ul>') | Out-Null
+                $inList = $true
+            }
+            $htmlLines.Add('<li>' + (Convert-InlineMarkdownToHtml -Text $matches[1].Trim()) + '</li>') | Out-Null
+            $index++
+            continue
+        }
+
+        if ($inList) {
+            $htmlLines.Add('</ul>') | Out-Null
+            $inList = $false
+        }
+
+        $htmlLines.Add('<p>' + (Convert-InlineMarkdownToHtml -Text $trimmed) + '</p>') | Out-Null
+        $index++
+    }
+
+    if ($inList) {
+        $htmlLines.Add('</ul>') | Out-Null
+    }
+    if ($inCodeBlock) {
+        $htmlLines.Add('<pre><code>' + ([System.Net.WebUtility]::HtmlEncode(($codeLines -join "`n"))) + '</code></pre>') | Out-Null
+    }
+
+    return ($htmlLines -join "`n")
+}
+
+function New-VerificationHtmlDocument {
+    param(
+        [string]$BodyHtml
+    )
+
+    @"
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Verification Report</title>
+  <style>
+    body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; line-height: 1.45; color: #1f2328; }
+    .section-tabs { position: sticky; top: 0; background: #ffffff; border-bottom: 1px solid #d8dee4; padding: 8px 0; margin-bottom: 16px; }
+    .section-tabs a { display: inline-block; margin-right: 8px; padding: 6px 10px; border: 1px solid #d0d7de; border-radius: 999px; text-decoration: none; color: #0969da; font-size: 12px; }
+    .section-tabs a:hover { background: #f6f8fa; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+    th, td { border: 1px solid #d0d7de; padding: 6px 8px; vertical-align: top; font-size: 13px; }
+    th { background: #f6f8fa; }
+    code, pre { background: #f6f8fa; }
+    code { padding: 1px 4px; border-radius: 4px; }
+    pre { padding: 10px; overflow-x: auto; border: 1px solid #d0d7de; border-radius: 6px; }
+    h1, h2, h3, h4 { color: #0f172a; }
+    @media print {
+      .section-tabs { display: none; }
+      h2 { break-before: page; }
+      h2:first-of-type { break-before: auto; }
+      body { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="section-tabs">
+    <a href="#1-change-focused-verification">Change</a>
+    <a href="#2-regression-suite-verification">Regression</a>
+    <a href="#3-runtime-and-smoke-verification">Runtime</a>
+    <a href="#4-release-readiness">Readiness</a>
+  </div>
+$BodyHtml
+</body>
+</html>
+"@
+}
+
+# Converts markdown report to an html report using available tooling.
+# Priority: pandoc -> pwsh ConvertFrom-Markdown -> built-in markdown parser fallback.
+function Publish-HtmlReport {
+    param(
+        [string]$MarkdownPath,
+        [string]$HtmlPath
+    )
+
+    $htmlDir = Split-Path -Path $HtmlPath -Parent
+    if (-not (Test-Path $htmlDir)) {
+        New-Item -ItemType Directory -Path $htmlDir -Force | Out-Null
+    }
+
+    $pandocCommand = Get-Command pandoc -ErrorAction SilentlyContinue
+    if ($pandocCommand) {
+        & $pandocCommand.Source $MarkdownPath -f gfm -t html5 -s -o $HtmlPath
+        if ($LASTEXITCODE -eq 0 -and (Test-Path $HtmlPath)) {
+            return [pscustomobject]@{ Success = $true; Method = 'pandoc'; Path = $HtmlPath }
+        }
+    }
+
+    $pwshCommand = Get-Command pwsh -ErrorAction SilentlyContinue
+    if ($pwshCommand) {
+        $pwshScript = @'
+$inputPath = $args[0]
+$outputPath = $args[1]
+$markdown = Get-Content -Path $inputPath -Raw
+$rendered = ConvertFrom-Markdown -InputObject $markdown
+$document = [string](Get-Command -Name New-VerificationHtmlDocument -ErrorAction SilentlyContinue | Out-Null)
+$bodyHtml = $rendered.Html
+$document = @"
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Verification Report</title>
+  <style>
+    body { font-family: Segoe UI, Arial, sans-serif; margin: 24px; line-height: 1.45; color: #1f2328; }
+    .section-tabs { position: sticky; top: 0; background: #ffffff; border-bottom: 1px solid #d8dee4; padding: 8px 0; margin-bottom: 16px; }
+    .section-tabs a { display: inline-block; margin-right: 8px; padding: 6px 10px; border: 1px solid #d0d7de; border-radius: 999px; text-decoration: none; color: #0969da; font-size: 12px; }
+    .section-tabs a:hover { background: #f6f8fa; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 16px; }
+    th, td { border: 1px solid #d0d7de; padding: 6px 8px; vertical-align: top; font-size: 13px; }
+    th { background: #f6f8fa; }
+    code, pre { background: #f6f8fa; }
+    code { padding: 1px 4px; border-radius: 4px; }
+    pre { padding: 10px; overflow-x: auto; border: 1px solid #d0d7de; border-radius: 6px; }
+    h1, h2, h3, h4 { color: #0f172a; }
+    @media print {
+      .section-tabs { display: none; }
+      h2 { break-before: page; }
+      h2:first-of-type { break-before: auto; }
+      body { margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="section-tabs">
+    <a href="#1-change-focused-verification">Change</a>
+    <a href="#2-regression-suite-verification">Regression</a>
+    <a href="#3-runtime-and-smoke-verification">Runtime</a>
+    <a href="#4-release-readiness">Readiness</a>
+  </div>
+$bodyHtml
+</body>
+</html>
+"@
+Set-Content -Path $outputPath -Value $document -Encoding utf8
+'@
+
+        & $pwshCommand.Source -NoProfile -Command $pwshScript -- $MarkdownPath $HtmlPath
+        if ($LASTEXITCODE -eq 0 -and (Test-Path $HtmlPath)) {
+            return [pscustomobject]@{ Success = $true; Method = 'pwsh-convertfrommarkdown'; Path = $HtmlPath }
+        }
+    }
+
+    $rawMarkdown = Get-Content -Path $MarkdownPath -Raw
+    $bodyHtml = Convert-MarkdownToHtmlFragmentBasic -MarkdownText $rawMarkdown
+    $fallbackHtml = New-VerificationHtmlDocument -BodyHtml $bodyHtml
+    Set-Content -Path $HtmlPath -Value $fallbackHtml -Encoding utf8
+
+    [pscustomobject]@{ Success = $true; Method = 'built-in-basic-parser'; Path = $HtmlPath }
+}
+
+# Converts html report to pdf when a local converter/browser is available.
+function Publish-PdfReport {
+    param(
+        [string]$HtmlPath,
+        [string]$PdfPath
+    )
+
+    $pdfDir = Split-Path -Path $PdfPath -Parent
+    if (-not (Test-Path $pdfDir)) {
+        New-Item -ItemType Directory -Path $pdfDir -Force | Out-Null
+    }
+
+    $wkhtmltopdfCommand = Get-Command wkhtmltopdf -ErrorAction SilentlyContinue
+    if ($wkhtmltopdfCommand) {
+        & $wkhtmltopdfCommand.Source $HtmlPath $PdfPath
+        if ($LASTEXITCODE -eq 0 -and (Test-Path $PdfPath)) {
+            return [pscustomobject]@{ Success = $true; Method = 'wkhtmltopdf'; Path = $PdfPath }
+        }
+    }
+
+    $browserCandidates = @(
+        (Join-Path ${env:ProgramFiles(x86)} 'Microsoft\Edge\Application\msedge.exe'),
+        (Join-Path $env:ProgramFiles 'Microsoft\Edge\Application\msedge.exe'),
+        (Join-Path ${env:ProgramFiles(x86)} 'Google\Chrome\Application\chrome.exe'),
+        (Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe')
+    ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and (Test-Path $_) }
+
+    $browserPath = $browserCandidates | Select-Object -First 1
+    if ($browserPath) {
+        $htmlUri = 'file:///' + ($HtmlPath.Replace('\\', '/'))
+        $arguments = @('--headless', '--disable-gpu', '--no-pdf-header-footer', "--print-to-pdf=$PdfPath", $htmlUri)
+        $process = Start-Process -FilePath $browserPath -ArgumentList $arguments -Wait -PassThru -WindowStyle Hidden
+        if ($process.ExitCode -eq 0 -and (Test-Path $PdfPath)) {
+            return [pscustomobject]@{ Success = $true; Method = 'headless-browser'; Path = $PdfPath }
+        }
+    }
+
+    [pscustomobject]@{ Success = $false; Method = 'none'; Path = $PdfPath }
+}
+
 # Keeps only the most recent N timestamped report files so local history is useful
 # without letting `target/` grow forever.
 function Remove-OldTimestampedReports {
@@ -1083,6 +1447,24 @@ $smokeWasSkipped = $SkipSmoke.IsPresent
 $verificationEvidence = New-VerificationEvidence -RepoRoot $RepoRoot -MavenRun $testRun -SurefireSummary $surefireSummary -SmokeSummary $smokeSummary -GitSummary $gitSummary -SmokeWasSkipped $smokeWasSkipped
 # Step 5: render the final human-readable report from the shared evidence model.
 New-VerificationReport -Destination $ReportPath -TimestampedDestination $timestampedReportPath -Evidence $verificationEvidence
+
+$publishPaths = Resolve-PublishArtifactPaths -MarkdownPath $ReportPath -RequestedHtmlPath $HtmlReportPath -RequestedPdfPath $PdfReportPath
+$htmlPublishResult = $null
+$pdfPublishResult = $null
+
+if ($ReportPublishMode -eq 'Html' -or $ReportPublishMode -eq 'HtmlAndPdf') {
+    $htmlPublishResult = Publish-HtmlReport -MarkdownPath $ReportPath -HtmlPath $publishPaths.HtmlPath
+}
+
+if ($ReportPublishMode -eq 'HtmlAndPdf') {
+    if ($null -eq $htmlPublishResult -or -not $htmlPublishResult.Success) {
+        $pdfPublishResult = [pscustomobject]@{ Success = $false; Method = 'html-missing'; Path = $publishPaths.PdfPath }
+    }
+    else {
+        $pdfPublishResult = Publish-PdfReport -HtmlPath $htmlPublishResult.Path -PdfPath $publishPaths.PdfPath
+    }
+}
+
 # Step 6: prune older timestamped reports and keep only a small recent history.
 Remove-OldTimestampedReports -BaseReportPath $ReportPath -KeepCount $KeepLatestCount -ExcludePath $timestampedReportPath
 
@@ -1090,6 +1472,17 @@ Write-Host ''
 Write-Host 'Verification report generated:' -ForegroundColor Green
 Write-Host "- Latest: $ReportPath"
 Write-Host "- Timestamped: $timestampedReportPath"
+if ($htmlPublishResult) {
+    Write-Host "- HTML: $($htmlPublishResult.Path) (method=$($htmlPublishResult.Method))"
+}
+if ($ReportPublishMode -eq 'HtmlAndPdf') {
+    if ($pdfPublishResult -and $pdfPublishResult.Success) {
+        Write-Host "- PDF: $($pdfPublishResult.Path) (method=$($pdfPublishResult.Method))"
+    }
+    else {
+        Write-Host "- PDF: not generated (no compatible converter found)" -ForegroundColor Yellow
+    }
+}
 Write-Host "- Retention: keeping latest $KeepLatestCount timestamped reports"
 
 
