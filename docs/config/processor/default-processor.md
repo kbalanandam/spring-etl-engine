@@ -63,6 +63,34 @@ mappings:
 
 This is still the best place to begin. Everything else on this page is additive.
 
+### S6 cutover migration note
+
+The selected-job runtime now accepts only `type: default` in `processor-config.yaml`.
+
+Old shape (no longer supported):
+
+```yaml
+type: customerProcessor
+```
+
+New shape (supported):
+
+```yaml
+type: default
+mappings:
+  - source: Customers
+    target: CustomersOut
+    fields:
+      - from: id
+        to: id
+```
+
+If custom behavior was previously attached to an alternate processor type, migrate that behavior into:
+
+- `mappings[].fields[].transforms[]` for value rewriting/derivation
+- `mappings[].fields[].rules[]` for accept/reject decisions
+- processor extension providers when you need custom transform/rule implementations
+
 ## Supported fields today
 
 ### Core mapping fields

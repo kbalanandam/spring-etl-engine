@@ -14,10 +14,12 @@ This document explains where new capabilities should be added so the architectur
 The engine is designed around three runtime extension points:
 
 - reader implementations
-- processor implementations
+- processor transforms/rules/providers on the shared default processor path
 - writer implementations
 
-These are selected dynamically based on config.
+Reader and writer implementations are selected dynamically by format config.
+
+Processor runtime selection is intentionally narrowed after the `S6` cutover: selected-job runs route through one shared `type: default` processor contract, while processor behavior remains extensible through transform/rule/provider SPIs.
 
 Validation and field-level processing behavior now use both shipped and planned extension points around the active runtime path:
 
@@ -55,7 +57,7 @@ Validation and field-level processing behavior now use both shipped and planned 
 - Non-Spring/manual paths now merge built-in + classpath-discovered processor extensions through `ProcessorExtensionDefaults` (`ServiceLoader`), so adopters can add rules/transforms without editing core default lists
 - Current built-in source validators: `CsvSourceValidator`, `XmlSourceValidator`, `RelationalSourceValidator`
 - Current built-in processor rules: `NotNullProcessorValidationRule`, `TimeFormatProcessorValidationRule`, `DuplicateProcessorValidationRule`
-- Planned processor transform extension point: keep it adjacent to `src/main/java/com/etl/config/processor/ProcessorConfig.java`, `src/main/java/com/etl/processor/impl/DefaultDynamicProcessor.java`, and the mapping path under `src/main/java/com/etl/mapping/`
+- Processor transform extension point now lives on the active runtime path alongside `src/main/java/com/etl/config/processor/ProcessorConfig.java`, `src/main/java/com/etl/processor/impl/DefaultDynamicProcessor.java`, and the mapping path under `src/main/java/com/etl/mapping/`
 
 ## How to add a new source/target format
 
@@ -124,7 +126,7 @@ Planned runtime precedence should stay explicit:
 
 That means transform-then-reject is a valid and expected flow. For example, a country code may be normalized to `UNKNOWN` first and then rejected by a processor rule.
 
-Today, the shipped runtime already implements steps 1, 3, 5, and 6 on the active path. Steps 2 and 4 remain the intended future transform-extension seams.
+Today, the shipped runtime already implements steps 1, 3, 4, 5, and 6 on the active path. Step 2 remains the intended future transform-extension seam.
 
 ## Config guardrails
 

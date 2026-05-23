@@ -193,15 +193,15 @@ Use this board to sequence implementation with strict compatibility in early sli
 
 Pre-cutover readiness:
 
-- [ ] all preserved bundles under `src/main/resources/config-jobs/` are migrated to the redesigned processor contract
+- [x] all preserved bundles under `src/main/resources/config-jobs/` are migrated to the redesigned processor contract
 - [ ] `docs/config/processor/default-processor.md` reflects only the redesigned contract (legacy syntax removed)
 - [ ] architecture docs describing processor flow and rule dispatch are updated and merged
-- [ ] verification workflow is green on migrated bundles (`scripts/generate-verification-report.ps1`)
-- [ ] migration notes include old-to-new config mapping examples and explicit unsupported legacy fields
+- [x] verification workflow is green on migrated bundles (`scripts/generate-verification-report.ps1`)
+- [x] migration notes include old-to-new config mapping examples and explicit unsupported legacy fields
 
 Cutover-day checks:
 
-- [ ] startup validation fails fast when legacy processor fields are present in selected `processor-config.yaml`
+- [x] startup validation fails fast when legacy processor fields are present in selected `processor-config.yaml`
 - [ ] legacy processor wiring classes/branches are removed from active runtime dispatch
 - [ ] logs still emit expected run/step evidence fields after cutover
 - [ ] one migrated nested XML scenario proves XML-native duplicate identity behavior end-to-end
@@ -233,6 +233,7 @@ Current implementation progress in this branch:
 - Closed S1/S2 parity slices using the shipped processor pipeline seam and deterministic rule-dispatch registry path, with focused regression evidence across pipeline/dispatch and duplicate XML/CSV/relational rule outcomes.
 - Started `S6-A` cutover enforcement by rejecting non-`default` processor types on the active selected-job path and documenting the shared default processor as the only supported runtime contract.
 - Continued `S6-B` by simplifying active processor runtime dispatch to the single shared default processor path and removing legacy type-based selection branches from `DynamicProcessorFactory`.
+- Added preserved-bundle contract coverage (`ScenarioConfigReferenceTest`) that scans `config-jobs/**/processor-config*.yaml` and enforces `type: default` across shipped bundles.
 - Latest focused verification remains green (`scripts/generate-verification-report.ps1`, status `READY`).
 
 Focused S1/S2 parity evidence (latest run):

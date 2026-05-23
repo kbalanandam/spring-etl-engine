@@ -28,7 +28,7 @@ If you are not sure where to begin, use one of these entry points first:
 - [`overview.md`](overview.md) — high-level system architecture (**Current baseline + future evolution**)
 - [`runtime-flow.md`](runtime-flow.md) — shipped end-to-end ETL runtime flow (**Shipped**)
 - [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md) — next runtime-direction target (**Future direction**)
-- [`extension-points.md`](extension-points.md) — where new formats, processors, and capabilities should plug in (**Current baseline + future evolution**)
+- [`extension-points.md`](extension-points.md) — where new formats, shared default-processor behavior, and capabilities should plug in (**Current baseline + future evolution**)
 - [`oneflow-file-parser-capabilities.md`](oneflow-file-parser-capabilities.md) — parser boundary for file sources (**Current baseline + future evolution**)
 - [`etl-product-evolution-roadmap.md`](etl-product-evolution-roadmap.md) — what belongs now vs later in the product/runtime evolution (**Current baseline + future evolution**)
 

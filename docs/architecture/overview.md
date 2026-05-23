@@ -17,6 +17,7 @@ The engine is a **config-driven Spring Batch ETL runtime** with these core ideas
 - one ETL run may be selected through a single business-scenario `job-config.yaml`
 - supported formats are represented as config subtypes
 - readers, processors, and writers are selected through factories
+- selected-job processor runtime now uses one shared `type: default` contract; custom behavior extends through transform/rule/provider SPIs instead of alternate processor types
 - source validation and processor-rule validation run on the active runtime path
 - generated model classes remain a central runtime contract, with explicit job runs resolving pre-generated/job-scoped model classes while legacy runtime generation is retained only as a bridge path
 - the batch layer chooses between chunk and tasklet execution based on source size, with explicit tasklet override for ordered duplicate winner selection
@@ -37,7 +38,7 @@ flowchart TD
     F -- No --> S[startup failure]
     F -- Yes --> H[direct source/target/processor paths]
 
-    E --> V[Source + target + processor validation]
+    E --> V[Source + target + processor validation\n(type: default enforced)]
     H --> V
 
     V --> G[BatchConfig]

@@ -51,7 +51,7 @@ flowchart LR
     subgraph Config[Selected bundle]
         Job[job-config.yaml]
         Source[source-config.yaml\nCSV source]
-        Processor[processor-config.yaml]
+        Processor[processor-config.yaml\ntype: default]
         Target[target-config.yaml\nXML target]
     end
 
@@ -124,7 +124,7 @@ sequenceDiagram
     Runner->>Batch: launch selected step
     Batch->>Resolver: resolve source/target model metadata
     Batch->>RF: create CSV reader
-    Batch->>PF: create processor for selected mapping
+    Batch->>PF: create processor for selected mapping (type: default)
     Batch->>WF: create XML writer
     Batch->>Batch: choose chunk or tasklet mode
 
