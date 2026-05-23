@@ -220,7 +220,7 @@ Controls:
 ### 3. `processor-config.yaml`
 Controls:
 
-- selected processor type
+- shared processor contract (`type: default`)
 - field mappings from CSV source fields into XML target fields
 - optional transforms
 - optional processor rules

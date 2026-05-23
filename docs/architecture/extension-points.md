@@ -96,7 +96,7 @@ Do not introduce new alternate processor types for selected-job runtime behavior
 
 For future field-cleaning behavior such as status-code decoding or country-code normalization:
 
-1. keep the behavior inside the active default-processor path unless a truly new processor type is needed
+1. keep the behavior inside the active default-processor path
 2. model it as a processor **transform**, not as a processor **validation rule**
 3. keep the execution order explicit: read → transform → validate → write
 4. validate config fail-fast in `ConfigLoader`
@@ -197,7 +197,7 @@ flowchart LR
 - add new behaviors through factories instead of conditionals spread across the codebase
 - for manual/non-Spring bootstrap paths, register external reader/writer providers via Java `ServiceLoader` (`META-INF/services/com.etl.reader.spi.ReaderExtensionProvider`, `META-INF/services/com.etl.writer.spi.WriterExtensionProvider`) and keep provider ordering deterministic (`order` then `providerId`)
 - for manual/non-Spring bootstrap paths, register external processor extension providers via Java `ServiceLoader` (`META-INF/services/com.etl.processor.spi.ProcessorExtensionProvider`) and keep provider ordering deterministic (`order` then `providerId`)
-- provider conflicts now require explicit override intent: set provider `isOverride=true` to replace an existing key (reader/writer format, or processor type+optional source format); multiple registrations without a single explicit override still fail fast to protect deterministic runtime behavior
+- provider conflicts now require explicit override intent: set provider `isOverride=true` to replace an existing key (reader/writer format, or processor rule/transform type plus optional source format scope); multiple registrations without a single explicit override still fail fast to protect deterministic runtime behavior
 - reader/writer/processor default discovery now uses one shared conflict policy (`ExtensionConflictPolicy`) so override and duplicate-fail behavior stays consistent across extension stages
 - Spring bean registration now follows the same override policy contract as ServiceLoader defaults by using extension metadata on SPI implementations (`extensionId`, `isOverride`) for readers, writers, processor rules, and processor transforms
 - fail fast when two runtime implementations try to register the same factory-dispatch key so extension wiring stays deterministic; the current bridge reader and writer factories both enforce this at registration time
