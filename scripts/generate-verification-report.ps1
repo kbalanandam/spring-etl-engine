@@ -170,6 +170,95 @@ function Get-GitStatusCounts {
     return [pscustomobject]$counts
 }
 
+# Classifies a test suite into high-level area and optional subarea buckets so
+# the report can provide faster scan-first summaries before full suite details.
+function Get-SuiteAreaMetadata {
+    param(
+        [AllowNull()][string]$SuiteName
+    )
+
+    $normalized = if ($null -eq $SuiteName) { '' } else { $SuiteName.ToLowerInvariant() }
+    $areaKey = 'other'
+    $areaLabel = 'Other'
+    $subareaKey = 'general'
+    $subareaLabel = 'General'
+
+    if ($normalized.StartsWith('com.etl.config.')) {
+        $areaKey = 'config'; $areaLabel = 'Config'
+        if ($normalized.Contains('.source.validation.')) { $subareaKey = 'source-validation'; $subareaLabel = 'Source validation' }
+        elseif ($normalized.Contains('.source.')) { $subareaKey = 'source'; $subareaLabel = 'Source config' }
+        elseif ($normalized.Contains('.target.')) { $subareaKey = 'target'; $subareaLabel = 'Target config' }
+        elseif ($normalized.Contains('.relational.')) { $subareaKey = 'relational'; $subareaLabel = 'Relational config' }
+        else { $subareaKey = 'core'; $subareaLabel = 'Core config' }
+    }
+    elseif ($normalized.StartsWith('com.etl.reader.')) {
+        $areaKey = 'reader'; $areaLabel = 'Reader'
+        if ($normalized.Contains('csv')) { $subareaKey = 'csv'; $subareaLabel = 'CSV' }
+        elseif ($normalized.Contains('xml')) { $subareaKey = 'xml'; $subareaLabel = 'XML' }
+        elseif ($normalized.Contains('json')) { $subareaKey = 'json'; $subareaLabel = 'JSON' }
+        elseif ($normalized.Contains('relational')) { $subareaKey = 'relational'; $subareaLabel = 'Relational' }
+        else { $subareaKey = 'core'; $subareaLabel = 'Core reader' }
+    }
+    elseif ($normalized.StartsWith('com.etl.writer.')) {
+        $areaKey = 'writer'; $areaLabel = 'Writer'
+        if ($normalized.Contains('csv')) { $subareaKey = 'csv'; $subareaLabel = 'CSV' }
+        elseif ($normalized.Contains('xml')) { $subareaKey = 'xml'; $subareaLabel = 'XML' }
+        elseif ($normalized.Contains('json')) { $subareaKey = 'json'; $subareaLabel = 'JSON' }
+        elseif ($normalized.Contains('relational')) { $subareaKey = 'relational'; $subareaLabel = 'Relational' }
+        else { $subareaKey = 'core'; $subareaLabel = 'Core writer' }
+    }
+    elseif ($normalized.StartsWith('com.etl.processor.')) {
+        $areaKey = 'processor'; $areaLabel = 'Processor'
+        if ($normalized.Contains('.validation.')) { $subareaKey = 'validation'; $subareaLabel = 'Validation rules' }
+        elseif ($normalized.Contains('.transform.')) { $subareaKey = 'transform'; $subareaLabel = 'Transforms' }
+        elseif ($normalized.Contains('.pipeline.')) { $subareaKey = 'pipeline'; $subareaLabel = 'Pipeline' }
+        else { $subareaKey = 'core'; $subareaLabel = 'Core processor' }
+    }
+    elseif ($normalized.StartsWith('com.etl.runtime.')) {
+        $areaKey = 'runtime'; $areaLabel = 'Runtime'
+        if ($normalized.Contains('duplicateresolver')) { $subareaKey = 'duplicate-resolver'; $subareaLabel = 'Duplicate resolver' }
+        elseif ($normalized.Contains('.job.')) { $subareaKey = 'job-runtime'; $subareaLabel = 'Job runtime' }
+        else { $subareaKey = 'core'; $subareaLabel = 'Core runtime' }
+    }
+    elseif ($normalized.StartsWith('com.etl.flow.')) {
+        $areaKey = 'flow'; $areaLabel = 'Flow'; $subareaKey = 'scenario-flows'; $subareaLabel = 'Scenario flows'
+    }
+    elseif ($normalized.StartsWith('com.etl.relational.')) {
+        $areaKey = 'relational'; $areaLabel = 'Relational'; $subareaKey = 'relational-flows'; $subareaLabel = 'Relational flows'
+    }
+    elseif ($normalized.StartsWith('com.etl.generation.')) {
+        $areaKey = 'generation'; $areaLabel = 'Generation'; $subareaKey = 'xml-generation'; $subareaLabel = 'XML generation'
+    }
+    elseif ($normalized.StartsWith('com.etl.mapping.')) {
+        $areaKey = 'mapping'; $areaLabel = 'Mapping'; $subareaKey = 'dynamic-mapping'; $subareaLabel = 'Dynamic mapping'
+    }
+    elseif ($normalized.StartsWith('com.etl.common.')) {
+        $areaKey = 'common'; $areaLabel = 'Common'; $subareaKey = 'common-utils'; $subareaLabel = 'Utilities'
+    }
+    elseif ($normalized.StartsWith('com.etl.source.')) {
+        $areaKey = 'source'; $areaLabel = 'Source'; $subareaKey = 'source-strategy'; $subareaLabel = 'Source strategy'
+    }
+    elseif ($normalized.StartsWith('com.etl.job.')) {
+        $areaKey = 'job'; $areaLabel = 'Job'; $subareaKey = 'job-listeners'; $subareaLabel = 'Job listeners'
+    }
+    elseif ($normalized.StartsWith('com.etl.runner.')) {
+        $areaKey = 'runner'; $areaLabel = 'Runner'; $subareaKey = 'etl-runner'; $subareaLabel = 'Runner'
+    }
+    elseif ($normalized.StartsWith('com.etl.aspect.')) {
+        $areaKey = 'aspect'; $areaLabel = 'Aspect'; $subareaKey = 'logging-aspect'; $subareaLabel = 'Logging aspect'
+    }
+    elseif ($normalized.StartsWith('com.etl.model.')) {
+        $areaKey = 'model'; $areaLabel = 'Model'; $subareaKey = 'generated-models'; $subareaLabel = 'Generated models'
+    }
+
+    [pscustomobject]@{
+        AreaKey = $areaKey
+        AreaLabel = $areaLabel
+        SubareaKey = $subareaKey
+        SubareaLabel = $subareaLabel
+    }
+}
+
 # Reads Maven Surefire XML results and converts them into an in-memory model for
 # totals, suite summaries, testcase-by-testcase detail, and non-passing highlights.
 function Get-SurefireSummary {
@@ -296,8 +385,14 @@ function Get-SurefireSummary {
             }
         }
 
+        $areaMetadata = Get-SuiteAreaMetadata -SuiteName $suiteName
+
         $suiteRows.Add([pscustomobject]@{
             Name = $suiteName
+            AreaKey = $areaMetadata.AreaKey
+            AreaLabel = $areaMetadata.AreaLabel
+            SubareaKey = $areaMetadata.SubareaKey
+            SubareaLabel = $areaMetadata.SubareaLabel
             Tests = $suiteTests
             Passed = ($suiteTests - $suiteFailures - $suiteErrors - $suiteSkipped)
             Failures = $suiteFailures
@@ -443,6 +538,93 @@ function New-VerificationEvidence {
     $allCases = @($SurefireSummary.Suites | ForEach-Object { @($_.Cases) })
     $slowestCases = @($allCases | Sort-Object TimeSeconds -Descending | Select-Object -First 5)
 
+    $areaDisplayOrder = @('config', 'processor', 'reader', 'writer', 'runtime', 'flow', 'relational', 'generation', 'mapping', 'common', 'source', 'job', 'runner', 'aspect', 'model', 'other')
+    $areaSummaries = New-Object System.Collections.ArrayList
+    $groupedSuitesByArea = @{}
+
+    foreach ($areaGroup in @($SurefireSummary.Suites | Group-Object -Property AreaKey)) {
+        $groupedSuitesByArea[$areaGroup.Name] = @($areaGroup.Group)
+    }
+
+    $orderedAreaKeys = New-Object System.Collections.ArrayList
+    foreach ($knownAreaKey in $areaDisplayOrder) {
+        if ($groupedSuitesByArea.ContainsKey($knownAreaKey)) {
+            $orderedAreaKeys.Add($knownAreaKey) | Out-Null
+        }
+    }
+    foreach ($extraAreaKey in ($groupedSuitesByArea.Keys | Where-Object { $areaDisplayOrder -notcontains $_ } | Sort-Object)) {
+        $orderedAreaKeys.Add($extraAreaKey) | Out-Null
+    }
+
+    foreach ($areaKey in @($orderedAreaKeys)) {
+        $areaSuites = @($groupedSuitesByArea[$areaKey])
+        if ($areaSuites.Count -eq 0) {
+            continue
+        }
+
+        $areaLabel = ($areaSuites | Select-Object -First 1).AreaLabel
+        $areaTests = ($areaSuites | Measure-Object -Property Tests -Sum).Sum
+        $areaPassed = ($areaSuites | Measure-Object -Property Passed -Sum).Sum
+        $areaFailures = ($areaSuites | Measure-Object -Property Failures -Sum).Sum
+        $areaErrors = ($areaSuites | Measure-Object -Property Errors -Sum).Sum
+        $areaSkipped = ($areaSuites | Measure-Object -Property Skipped -Sum).Sum
+        $areaTime = [math]::Round((($areaSuites | Measure-Object -Property TimeSeconds -Sum).Sum), 3)
+        $areaNonPassing = $areaFailures + $areaErrors + $areaSkipped
+        $areaPassRate = if ($areaTests -gt 0) { [math]::Round(($areaPassed * 100.0) / $areaTests, 1) } else { 0 }
+        $areaSlowestSuite = $areaSuites | Sort-Object TimeSeconds -Descending | Select-Object -First 1
+
+        $subareaSummaries = New-Object System.Collections.ArrayList
+        foreach ($subGroup in @($areaSuites | Group-Object -Property SubareaKey | Sort-Object Name)) {
+            $subSuites = @($subGroup.Group)
+            if ($subSuites.Count -eq 0) {
+                continue
+            }
+
+            $subLabel = ($subSuites | Select-Object -First 1).SubareaLabel
+            $subTests = ($subSuites | Measure-Object -Property Tests -Sum).Sum
+            $subPassed = ($subSuites | Measure-Object -Property Passed -Sum).Sum
+            $subFailures = ($subSuites | Measure-Object -Property Failures -Sum).Sum
+            $subErrors = ($subSuites | Measure-Object -Property Errors -Sum).Sum
+            $subSkipped = ($subSuites | Measure-Object -Property Skipped -Sum).Sum
+            $subTime = [math]::Round((($subSuites | Measure-Object -Property TimeSeconds -Sum).Sum), 3)
+            $subNonPassing = $subFailures + $subErrors + $subSkipped
+            $subPassRate = if ($subTests -gt 0) { [math]::Round(($subPassed * 100.0) / $subTests, 1) } else { 0 }
+            $subSlowestSuite = $subSuites | Sort-Object TimeSeconds -Descending | Select-Object -First 1
+
+            $subareaSummaries.Add([pscustomobject]@{
+                SubareaKey = $subGroup.Name
+                SubareaLabel = $subLabel
+                SuiteCount = $subSuites.Count
+                Tests = $subTests
+                Passed = $subPassed
+                Failures = $subFailures
+                Errors = $subErrors
+                Skipped = $subSkipped
+                NonPassing = $subNonPassing
+                PassRate = $subPassRate
+                TimeSeconds = $subTime
+                SlowestSuite = $subSlowestSuite
+            }) | Out-Null
+        }
+
+        $areaSummaries.Add([pscustomobject]@{
+            AreaKey = $areaKey
+            AreaLabel = $areaLabel
+            SuiteCount = $areaSuites.Count
+            SubareaCount = $subareaSummaries.Count
+            Tests = $areaTests
+            Passed = $areaPassed
+            Failures = $areaFailures
+            Errors = $areaErrors
+            Skipped = $areaSkipped
+            NonPassing = $areaNonPassing
+            PassRate = $areaPassRate
+            TimeSeconds = $areaTime
+            SlowestSuite = $areaSlowestSuite
+            Subareas = @($subareaSummaries)
+        }) | Out-Null
+    }
+
     $releaseRecommendation = 'READY'
     if ($MavenRun.ExitCode -ne 0 -or $nonPassingCount -gt 0) {
         $releaseRecommendation = 'NOT READY'
@@ -505,6 +687,7 @@ function New-VerificationEvidence {
             MavenDurationSeconds = [math]::Round($MavenRun.Duration.TotalSeconds, 2)
             MavenLogPath = $MavenRun.LogPath
             Suites = @($SurefireSummary.Suites)
+            AreaSummaries = @($areaSummaries)
             SlowestSuites = @($slowestSuites)
             SlowestCases = @($slowestCases)
             NonPassingCases = @($SurefireSummary.NonPassingCases)
@@ -572,6 +755,7 @@ function New-VerificationReport {
     $lines.Add('') | Out-Null
     $lines.Add('- [1. Change-focused verification](#1-change-focused-verification)') | Out-Null
     $lines.Add('- [2. Regression suite verification](#2-regression-suite-verification)') | Out-Null
+    $lines.Add('- [Regression by area](#regression-by-area)') | Out-Null
     $lines.Add('- [3. Runtime and smoke verification](#3-runtime-and-smoke-verification)') | Out-Null
     $lines.Add('- [4. Release readiness](#4-release-readiness)') | Out-Null
     $lines.Add('- [How to read this report](#how-to-read-this-report)') | Out-Null
@@ -630,6 +814,37 @@ function New-VerificationReport {
     $lines.Add("- End-to-end Maven duration: **$($Evidence.Regression.MavenDurationSeconds)s**") | Out-Null
     $lines.Add("- Maven log: $($Evidence.Regression.MavenLogPath)") | Out-Null
     $lines.Add('') | Out-Null
+
+    $lines.Add('### Regression by area') | Out-Null
+    $lines.Add('') | Out-Null
+    $lines.Add('- This view groups suites by product area first, so reviewers can quickly spot hotspots and then drill down.') | Out-Null
+    $lines.Add('') | Out-Null
+    $lines.Add('| Area | Subareas | Suites | Tests | Non-passing | Pass rate | Time (s) | Slowest suite |') | Out-Null
+    $lines.Add('| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |') | Out-Null
+    foreach ($areaSummary in @($Evidence.Regression.AreaSummaries)) {
+        $safeSlowestSuiteName = if ($areaSummary.SlowestSuite) { Format-MarkdownInlineText -Text $areaSummary.SlowestSuite.Name } else { 'n/a' }
+        $lines.Add("| $($areaSummary.AreaLabel) | $($areaSummary.SubareaCount) | $($areaSummary.SuiteCount) | $($areaSummary.Tests) | $($areaSummary.NonPassing) | $($areaSummary.PassRate)% | $($areaSummary.TimeSeconds) | $safeSlowestSuiteName |") | Out-Null
+    }
+    $lines.Add('') | Out-Null
+
+    foreach ($areaSummary in @($Evidence.Regression.AreaSummaries)) {
+        $lines.Add("#### $($areaSummary.AreaLabel)") | Out-Null
+        $lines.Add('') | Out-Null
+        if ($areaSummary.Subareas.Count -eq 0) {
+            $lines.Add('- No subarea data is available for this area.') | Out-Null
+            $lines.Add('') | Out-Null
+            continue
+        }
+
+        $lines.Add('| Subarea | Suites | Tests | Non-passing | Pass rate | Time (s) | Slowest suite |') | Out-Null
+        $lines.Add('| --- | ---: | ---: | ---: | ---: | ---: | --- |') | Out-Null
+        foreach ($subareaSummary in @($areaSummary.Subareas | Sort-Object TimeSeconds -Descending)) {
+            $safeSubareaSlowestSuiteName = if ($subareaSummary.SlowestSuite) { Format-MarkdownInlineText -Text $subareaSummary.SlowestSuite.Name } else { 'n/a' }
+            $safeSubareaLabel = Format-MarkdownInlineText -Text $subareaSummary.SubareaLabel
+            $lines.Add("| $safeSubareaLabel | $($subareaSummary.SuiteCount) | $($subareaSummary.Tests) | $($subareaSummary.NonPassing) | $($subareaSummary.PassRate)% | $($subareaSummary.TimeSeconds) | $safeSubareaSlowestSuiteName |") | Out-Null
+        }
+        $lines.Add('') | Out-Null
+    }
 
     $lines.Add('### Suite summary') | Out-Null
     $lines.Add('') | Out-Null
