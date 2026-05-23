@@ -50,10 +50,10 @@ public final class EmbeddedDbDuplicateResolver implements DuplicateResolver {
 			CREATE TABLE staged_duplicates (
 				arrival_sequence BIGINT PRIMARY KEY,
 				classification VARCHAR(32) NOT NULL,
-				key_value CLOB,
+				key_value VARCHAR(4000),
 				payload_class VARCHAR(500) NOT NULL,
-				payload_json CLOB NOT NULL,
-				issue_message CLOB,
+				payload_json VARCHAR(1000000) NOT NULL,
+				issue_message VARCHAR(2000),
 				invalid_ordering BOOLEAN NOT NULL
 			)
 			""";

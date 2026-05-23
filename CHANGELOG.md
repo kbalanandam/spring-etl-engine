@@ -6,6 +6,9 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Fixed
+- Hardened embedded ordered-duplicate staging to use bounded `VARCHAR` payload/key/issue columns instead of H2 `CLOB`, reducing the risk of long-run LOB-reference timeout failures during winner-selection resolution.
+
 ## [1.7.5] - 2026-05-23
 
 ### Changed
