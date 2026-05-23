@@ -8,6 +8,8 @@ For a format-specific operational deep dive, continue in [`csv-to-xml-runtime-fl
 
 For the target next-direction runtime contract, where one selected scenario becomes the only normal execution boundary and model generation/resolution becomes scenario-scoped, continue in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
 
+For a consolidated decision matrix of shipped fallback/default behavior (startup entry selection, compatibility aliases, chunk/tasklet defaults, and duplicate resolver auto-selection), continue in [`oneflow-runtime-fallback-reference.md`](oneflow-runtime-fallback-reference.md).
+
 For repository-provided preserved bundles, the explicit runtime `etl.config.job` entry path and the build-time generation entry point resolve against the checked-in `config-jobs/...` bundle tree, while legacy `config-scenarios/...` job-config paths remain temporarily available as deprecated backward-compatibility aliases at that entry boundary only.
 
 ## Status

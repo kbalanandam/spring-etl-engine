@@ -48,6 +48,7 @@ Use this short list when you want the newest or most actively discussed architec
 
 - [`overview.md`](overview.md) — current high-level system architecture (**Current baseline + future evolution**)
 - [`runtime-flow.md`](runtime-flow.md) — end-to-end ETL runtime flow (**Shipped**)
+- [`oneflow-runtime-fallback-reference.md`](oneflow-runtime-fallback-reference.md) — consolidated matrix of shipped runtime fallback/default decisions (**Shipped**)
 - [`csv-to-xml-runtime-flow.md`](csv-to-xml-runtime-flow.md) — operational deep dive for the shipped CSV-to-XML path (**Current baseline + future evolution**)
 - [`runtime-flow-walkthrough.html`](runtime-flow-walkthrough.html) — animated walkthrough of the shipped runtime path (**Current baseline + future evolution**)
 - [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md) — reusable `MainFlow -> SubFlow -> Step` direction (**Future direction**)
