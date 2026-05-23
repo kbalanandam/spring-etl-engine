@@ -40,7 +40,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -80,7 +79,7 @@ class XmlSourceToJsonTargetFlowTest {
         assertNotNull(targetRecordClass);
 
         DynamicReaderFactory readerFactory = new DynamicReaderFactory(List.of(new XmlDynamicReader<>()));
-        DynamicProcessorFactory processorFactory = new DynamicProcessorFactory(Map.of("default", new DefaultDynamicProcessor()));
+        DynamicProcessorFactory processorFactory = new DynamicProcessorFactory(new DefaultDynamicProcessor());
         DynamicWriterFactory writerFactory = new DynamicWriterFactory(List.of(new JsonDynamicWriter()));
 
         ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(sourceConfig, targetConfig);

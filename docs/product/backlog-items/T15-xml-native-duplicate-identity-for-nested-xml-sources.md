@@ -232,6 +232,7 @@ Current implementation progress in this branch:
 - Completed S4 additive guardrail UX slice with startup advisory evidence (`PROCESSOR_GUARDRAIL event=xml_duplicate_flatmapped_advisory`) for nested XML mappings that still use simple flat duplicate keys.
 - Closed S1/S2 parity slices using the shipped processor pipeline seam and deterministic rule-dispatch registry path, with focused regression evidence across pipeline/dispatch and duplicate XML/CSV/relational rule outcomes.
 - Started `S6-A` cutover enforcement by rejecting non-`default` processor types on the active selected-job path and documenting the shared default processor as the only supported runtime contract.
+- Continued `S6-B` by simplifying active processor runtime dispatch to the single shared default processor path and removing legacy type-based selection branches from `DynamicProcessorFactory`.
 - Latest focused verification remains green (`scripts/generate-verification-report.ps1`, status `READY`).
 
 Focused S1/S2 parity evidence (latest run):

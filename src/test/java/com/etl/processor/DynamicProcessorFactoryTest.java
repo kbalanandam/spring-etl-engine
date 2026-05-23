@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.batch.item.ItemProcessor;
 
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -20,7 +19,7 @@ class DynamicProcessorFactoryTest {
 
     @Test
     void rejectsLegacyProcessorTypeBeforeLookup() {
-        DynamicProcessorFactory factory = new DynamicProcessorFactory(Map.of("default", new DefaultDynamicProcessor()));
+        DynamicProcessorFactory factory = new DynamicProcessorFactory(new DefaultDynamicProcessor());
         ProcessorConfig processorConfig = minimalProcessorConfig("customerProcessor");
 
         FactoryException failure = assertThrows(
@@ -34,7 +33,7 @@ class DynamicProcessorFactoryTest {
 
     @Test
     void createsProcessorWhenSharedDefaultTypeIsConfigured() throws Exception {
-        DynamicProcessorFactory factory = new DynamicProcessorFactory(Map.of("default", new DefaultDynamicProcessor()));
+        DynamicProcessorFactory factory = new DynamicProcessorFactory(new DefaultDynamicProcessor());
         ProcessorConfig processorConfig = minimalProcessorConfig("default");
 
         ItemProcessor<Object, Object> processor = factory.getProcessor(
@@ -81,4 +80,5 @@ class DynamicProcessorFactoryTest {
         );
     }
 }
+
 
