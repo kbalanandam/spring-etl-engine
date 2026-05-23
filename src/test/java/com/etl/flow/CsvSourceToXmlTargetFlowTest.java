@@ -40,7 +40,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -89,7 +88,7 @@ class CsvSourceToXmlTargetFlowTest {
         assertNotNull(targetWriteClass);
 
         DynamicReaderFactory readerFactory = new DynamicReaderFactory(List.of(new CsvDynamicReader<>()));
-        DynamicProcessorFactory processorFactory = new DynamicProcessorFactory(Map.of("default", new DefaultDynamicProcessor()));
+        DynamicProcessorFactory processorFactory = new DynamicProcessorFactory(new DefaultDynamicProcessor());
         DynamicWriterFactory writerFactory = new DynamicWriterFactory(List.of(new XmlDynamicWriter()));
 
         ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(sourceConfig, targetConfig);
@@ -168,7 +167,7 @@ class CsvSourceToXmlTargetFlowTest {
     Class<?> targetWriteClass = GeneratedModelClassResolver.resolveTargetWriteClass(targetConfig);
 
     DynamicReaderFactory readerFactory = new DynamicReaderFactory(List.of(new CsvDynamicReader<>()));
-    DynamicProcessorFactory processorFactory = new DynamicProcessorFactory(Map.of("default", new DefaultDynamicProcessor()));
+    DynamicProcessorFactory processorFactory = new DynamicProcessorFactory(new DefaultDynamicProcessor());
     DynamicWriterFactory writerFactory = new DynamicWriterFactory(List.of(new XmlDynamicWriter()));
 
     ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(sourceConfig, targetConfig);

@@ -27,6 +27,8 @@ import com.etl.processor.validation.TimeFormatProcessorValidationRule;
 import com.etl.processor.validation.ValidationIssue;
 import com.etl.processor.validation.ValidationRuleEvaluator;
 import com.etl.runtime.FileIngestionRuntimeSupport;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -38,6 +40,7 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -159,6 +162,65 @@ class ConfigLoaderJobConfigTest {
         assertEquals("Customers", loadedProcessorConfig.getMappings().get(0).getSource());
         assertEquals("CustomersOut", loadedProcessorConfig.getMappings().get(0).getTarget());
     }
+
+  @Test
+  void failsFastWhenSelectedProcessorConfigUsesLegacyProcessorType() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+        sources:
+          - format: csv
+            sourceName: Customers
+            filePath: input/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+        """);
+
+    Files.writeString(targetConfig, """
+        targets:
+          - format: csv
+            targetName: CustomersOut
+            filePath: output/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+        """);
+
+    Files.writeString(processorConfig, """
+        type: customerProcessor
+        mappings:
+          - source: Customers
+            target: CustomersOut
+            fields:
+              - from: id
+                to: id
+        """);
+
+    Files.writeString(jobConfig, """
+        name: legacy-processor-type
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: customers-step
+            source: Customers
+            target: CustomersOut
+        """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException failure = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(failure.getMessage().contains("type='customerProcessor'"));
+    assertTrue(failure.getMessage().contains("type: default"));
+  }
 
     @Test
     void normalizesScenarioRelativePathsInsideReferencedConfigs() throws IOException {
@@ -1223,13 +1285,34 @@ class ConfigLoaderJobConfigTest {
 
     ConfigLoader loader = new ConfigLoader();
 
-    var method = ConfigLoader.class.getDeclaredMethod("loadRequiredExternalYamlConfig", String.class, Class.class);
+    Class<?> packageNameContractType = null;
+    for (Class<?> nestedType : ConfigLoader.class.getDeclaredClasses()) {
+      if ("PackageNameContract".equals(nestedType.getSimpleName())) {
+        packageNameContractType = nestedType;
+        break;
+      }
+    }
+    assertNotNull(packageNameContractType);
+
+    Method method = ConfigLoader.class.getDeclaredMethod(
+            "loadRequiredExternalYamlConfig",
+            String.class,
+            Class.class,
+            ObjectMapper.class,
+            packageNameContractType
+    );
     method.setAccessible(true);
 
     IOException exception = assertThrows(IOException.class,
             () -> {
               try {
-                method.invoke(loader, requestedAliasSourceConfig.toString(), SourceWrapper.class);
+                method.invoke(
+                        loader,
+                        requestedAliasSourceConfig.toString(),
+                        SourceWrapper.class,
+                        new ObjectMapper(new YAMLFactory()),
+                        null
+                );
               } catch (java.lang.reflect.InvocationTargetException e) {
                 throw e.getCause();
               }

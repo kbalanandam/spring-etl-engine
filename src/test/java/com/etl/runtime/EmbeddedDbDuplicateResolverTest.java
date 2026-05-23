@@ -323,6 +323,18 @@ class EmbeddedDbDuplicateResolverTest {
 		assertFalse(Files.exists(databaseDirectory));
 	}
 
+	@Test
+	void stagesPayloadColumnsAsVarcharToAvoidLobReferenceTimeouts() throws Exception {
+		Field field = EmbeddedDbDuplicateResolver.class.getDeclaredField("CREATE_STAGED_DUPLICATES_TABLE");
+		field.setAccessible(true);
+		String ddl = (String) field.get(null);
+
+		assertTrue(ddl.contains("key_value VARCHAR("));
+		assertTrue(ddl.contains("payload_json VARCHAR("));
+		assertTrue(ddl.contains("issue_message VARCHAR("));
+		assertFalse(ddl.contains("CLOB"));
+	}
+
 	private Path resolverPathField(EmbeddedDbDuplicateResolver resolver, String fieldName) throws Exception {
 		Field field = EmbeddedDbDuplicateResolver.class.getDeclaredField(fieldName);
 		field.setAccessible(true);

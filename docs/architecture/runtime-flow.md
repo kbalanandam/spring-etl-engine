@@ -8,6 +8,8 @@ For a format-specific operational deep dive, continue in [`csv-to-xml-runtime-fl
 
 For the target next-direction runtime contract, where one selected scenario becomes the only normal execution boundary and model generation/resolution becomes scenario-scoped, continue in [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md).
 
+For a consolidated decision matrix of shipped fallback/default behavior (startup entry selection, compatibility aliases, chunk/tasklet defaults, and duplicate resolver auto-selection), continue in [`oneflow-runtime-fallback-reference.md`](oneflow-runtime-fallback-reference.md).
+
 For repository-provided preserved bundles, the explicit runtime `etl.config.job` entry path and the build-time generation entry point resolve against the checked-in `config-jobs/...` bundle tree, while legacy `config-scenarios/...` job-config paths remain temporarily available as deprecated backward-compatibility aliases at that entry boundary only.
 
 ## Status
@@ -76,7 +78,7 @@ sequenceDiagram
     Loader->>Loader: fail fast if missing unless demo fallback is enabled
     Loader->>Loader: trim and resolve source/target/processor paths plus explicit steps
     Loader->>Loader: validate selected relational configs early and reject placeholder values
-    Loader->>Loader: validate selected processor config for the scenario
+    Loader->>Loader: validate selected processor config (type: default + mappings/rules)
     Loader->>Resolver: validate required generated model classes for selected steps
     App->>Batch: build etlJob
     Runner->>Batch: run job
@@ -313,6 +315,8 @@ When explicit `job-config.yaml` loading rebases the selected source, target, and
 When the selected source or target uses relational configuration, `ConfigLoader` now validates those chosen configs before job execution starts on the explicit `etl.config.job` path. Placeholder values such as `<SQLSERVER_HOST>` are rejected early with scenario-aware error messages instead of surfacing later as JDBC runtime failures.
 
 For explicit `etl.config.job` runs, `ConfigLoader` also validates the selected processor config before it checks generated-model class availability for the selected steps. That ordering keeps malformed processor mappings or rule settings from being masked by unrelated missing generated classes and produces scenario-aware configuration failures earlier in startup.
+
+This startup validation now enforces the post-cutover processor contract: selected-job processor configs must declare `type: default`. Blank or legacy/custom processor types fail fast during config load before step assembly reaches runtime processor creation.
 
 Demo fallback still validates the selected processor config, but it does not run the same selected-source and selected-target preflight validation path used by explicit-job startup.
 

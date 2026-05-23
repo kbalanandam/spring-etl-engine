@@ -6,6 +6,18 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Fixed
+- Hardened embedded ordered-duplicate staging to use bounded `VARCHAR` payload/key/issue columns instead of H2 `CLOB`, reducing the risk of long-run LOB-reference timeout failures during winner-selection resolution.
+
+## [1.7.5] - 2026-05-23
+
+### Changed
+- Started the T15 `S6` cutover by enforcing the shared default processor contract on the active selected-job path: selected `processor-config.yaml` files must now declare `type: default`, and non-default/legacy processor types fail fast during startup and direct runtime factory usage.
+- Continued the T15 `S6` cutover by simplifying active processor runtime dispatch to the single shared default processor path, removing legacy type-map processor selection branches from `DynamicProcessorFactory`.
+- Migrated preserved `config-jobs/**/processor-config*.yaml` bundles to the shared default processor contract and added regression coverage that enforces `type: default` across preserved bundles.
+- Added a consolidated OneFlow runtime fallback reference with code-anchored decision matrices and linked it from runtime/config docs used for architecture and operator decision-making.
+- Finalized S6 documentation alignment across architecture and ADR guidance so the selected-job runtime contract remains explicit (`type: default`, explicit steps, and fail-fast startup guardrails).
+
 ## [1.7.4] - 2026-05-22
 
 ### Added

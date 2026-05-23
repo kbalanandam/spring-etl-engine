@@ -1,6 +1,7 @@
 package com.etl.config;
 
 import com.etl.config.job.JobConfig;
+import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.source.XmlSourceConfig;
@@ -19,7 +20,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -90,6 +93,28 @@ class ScenarioConfigReferenceTest {
                   }
         }
     }
+
+  @Test
+  void allPreservedProcessorConfigsUseSharedDefaultProcessorType() throws IOException {
+    ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+    try (Stream<Path> files = Files.walk(SCENARIO_ROOT)) {
+      List<Path> processorConfigs = files
+          .filter(Files::isRegularFile)
+          .filter(path -> path.getFileName().toString().startsWith("processor-config"))
+          .filter(path -> path.getFileName().toString().endsWith(".yaml"))
+          .toList();
+
+      assertFalse(processorConfigs.isEmpty(), "No preserved processor-config*.yaml files found under config-jobs.");
+      for (Path processorConfigPath : processorConfigs) {
+        ProcessorConfig processorConfig = mapper.readValue(processorConfigPath.toFile(), ProcessorConfig.class);
+        assertEquals(
+            "default",
+            processorConfig.getType() == null ? null : processorConfig.getType().trim(),
+            () -> "Preserved bundle processor config must declare type: default -> " + processorConfigPath
+        );
+      }
+    }
+  }
 
     private static Path scenarioRootPath() {
         Path canonicalScenarioRoot = Path.of("src", "main", "resources", "config-jobs")

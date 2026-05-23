@@ -14,10 +14,12 @@ This document explains where new capabilities should be added so the architectur
 The engine is designed around three runtime extension points:
 
 - reader implementations
-- processor implementations
+- processor transforms/rules/providers on the shared default processor path
 - writer implementations
 
-These are selected dynamically based on config.
+Reader and writer implementations are selected dynamically by format config.
+
+Processor runtime selection is intentionally narrowed after the `S6` cutover: selected-job runs route through one shared `type: default` processor contract, while processor behavior remains extensible through transform/rule/provider SPIs.
 
 Validation and field-level processing behavior now use both shipped and planned extension points around the active runtime path:
 
@@ -55,7 +57,7 @@ Validation and field-level processing behavior now use both shipped and planned 
 - Non-Spring/manual paths now merge built-in + classpath-discovered processor extensions through `ProcessorExtensionDefaults` (`ServiceLoader`), so adopters can add rules/transforms without editing core default lists
 - Current built-in source validators: `CsvSourceValidator`, `XmlSourceValidator`, `RelationalSourceValidator`
 - Current built-in processor rules: `NotNullProcessorValidationRule`, `TimeFormatProcessorValidationRule`, `DuplicateProcessorValidationRule`
-- Planned processor transform extension point: keep it adjacent to `src/main/java/com/etl/config/processor/ProcessorConfig.java`, `src/main/java/com/etl/processor/impl/DefaultDynamicProcessor.java`, and the mapping path under `src/main/java/com/etl/mapping/`
+- Processor transform extension point now lives on the active runtime path alongside `src/main/java/com/etl/config/processor/ProcessorConfig.java`, `src/main/java/com/etl/processor/impl/DefaultDynamicProcessor.java`, and the mapping path under `src/main/java/com/etl/mapping/`
 
 ## How to add a new source/target format
 
@@ -80,18 +82,23 @@ For the current file-based target writers, keep publication semantics aligned to
 
 On the active explicit selected-job path, source and target `packageName` is no longer part of the authored contract. Keep new formats aligned to the shared job-scoped derivation contract through `JobScopedPackageNameResolver` instead of reintroducing per-format handwritten package requirements.
 
-## How to add a new processor type
+## Processor cutover note
 
-1. implement `DynamicProcessor`
-2. register the bean with a stable type name
-3. reference that type from `processor-config.yaml`
-4. verify it works with `ResolvedModelMetadata`
+After the T15 `S6` cutover, the active runtime accepts only the shared `type: default` processor contract in selected `processor-config.yaml` files.
+
+That means new processor behavior should be added through the active seams around the shared default processor path:
+
+1. processor transforms (`ProcessorFieldTransform` via `TransformEvaluator`)
+2. processor validation rules (`ProcessorValidationRule` via `ValidationRuleEvaluator`)
+3. processor extension providers (`ProcessorExtensionProvider`) for deterministic transform/rule registration
+
+Do not introduce new alternate processor types for selected-job runtime behavior unless a future ADR explicitly reopens that design boundary.
 
 ## How to add a new processor cleaner / normalization capability
 
 For future field-cleaning behavior such as status-code decoding or country-code normalization:
 
-1. keep the behavior inside the active default-processor path unless a truly new processor type is needed
+1. keep the behavior inside the active default-processor path
 2. model it as a processor **transform**, not as a processor **validation rule**
 3. keep the execution order explicit: read → transform → validate → write
 4. validate config fail-fast in `ConfigLoader`
@@ -119,7 +126,7 @@ Planned runtime precedence should stay explicit:
 
 That means transform-then-reject is a valid and expected flow. For example, a country code may be normalized to `UNKNOWN` first and then rejected by a processor rule.
 
-Today, the shipped runtime already implements steps 1, 3, 5, and 6 on the active path. Steps 2 and 4 remain the intended future transform-extension seams.
+Today, the shipped runtime already implements steps 1, 3, 4, 5, and 6 on the active path. Step 2 remains the intended future transform-extension seam.
 
 ## Config guardrails
 
@@ -192,7 +199,7 @@ flowchart LR
 - add new behaviors through factories instead of conditionals spread across the codebase
 - for manual/non-Spring bootstrap paths, register external reader/writer providers via Java `ServiceLoader` (`META-INF/services/com.etl.reader.spi.ReaderExtensionProvider`, `META-INF/services/com.etl.writer.spi.WriterExtensionProvider`) and keep provider ordering deterministic (`order` then `providerId`)
 - for manual/non-Spring bootstrap paths, register external processor extension providers via Java `ServiceLoader` (`META-INF/services/com.etl.processor.spi.ProcessorExtensionProvider`) and keep provider ordering deterministic (`order` then `providerId`)
-- provider conflicts now require explicit override intent: set provider `isOverride=true` to replace an existing key (reader/writer format, or processor type+optional source format); multiple registrations without a single explicit override still fail fast to protect deterministic runtime behavior
+- provider conflicts now require explicit override intent: set provider `isOverride=true` to replace an existing key (reader/writer format, or processor rule/transform type plus optional source format scope); multiple registrations without a single explicit override still fail fast to protect deterministic runtime behavior
 - reader/writer/processor default discovery now uses one shared conflict policy (`ExtensionConflictPolicy`) so override and duplicate-fail behavior stays consistent across extension stages
 - Spring bean registration now follows the same override policy contract as ServiceLoader defaults by using extension metadata on SPI implementations (`extensionId`, `isOverride`) for readers, writers, processor rules, and processor transforms
 - fail fast when two runtime implementations try to register the same factory-dispatch key so extension wiring stays deterministic; the current bridge reader and writer factories both enforce this at registration time

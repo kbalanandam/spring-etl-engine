@@ -34,9 +34,9 @@ This epic is **not** the place for source-transport concerns, orchestration/sche
 - [`T14 — Define secure data-shaping transforms for sensitive fields`](../backlog-items/T14-secure-data-shaping-transforms.md)
 - [`T15 — Define XML-native duplicate identity for nested XML source scenarios`](../backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md)
 
-## Current T15 progress snapshot
+## Current T15 closure snapshot
 
-T15 is now in progress on the execution board, and the compatible slices (`S1`-`S5`) are complete on the active runtime path:
+T15 is now closed on the execution board, and all slices (`S1`-`S6`) are complete on the active runtime path:
 
 - XML duplicate identity mode support is available through `duplicateIdentityMode: flatMapped|xmlNative`.
 - XML guardrails fail fast when path-like XML key selectors are authored without `duplicateIdentityMode: xmlNative`.
@@ -44,6 +44,7 @@ T15 is now in progress on the execution board, and the compatible slices (`S1`-`
 - Runtime evidence for ordered duplicate planning includes identity mode fields (`duplicateIdentityMode`, `duplicateIdentityModeReason`).
 - Nested XML mappings that still use simple flat duplicate keys now emit advisory warning evidence to guide operators toward `xmlNative` when path/attribute identity context matters.
 - Preserved runnable proof and focused parity evidence now cover the processor pipeline seam, rule-dispatch registry path, and both duplicate resolver implementations.
+- Non-default processor contracts now fail fast on the active selected-job path, and active runtime dispatch keeps only the shared default processor contract.
 
 ### Preserved proof anchors
 

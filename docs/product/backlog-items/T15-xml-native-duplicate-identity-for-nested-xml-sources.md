@@ -8,7 +8,7 @@ Add a dedicated follow-on item for XML-native duplicate identity so nested XML s
 
 - Epic: **[Epic T](../epics/epic-t-transformation-capability.md)**
 - Priority: **P2**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M3**
 - Dependency: **T4, P3**
 
@@ -184,28 +184,28 @@ Use this board to sequence implementation with strict compatibility in early sli
 - Target: remove legacy processor compatibility and accept only the redesigned contract.
 - Scope: delete deprecated processor wiring paths, enforce new config contract at startup, and publish migration notes.
 - Acceptance criteria:
-  - [ ] legacy processor contract is rejected with clear fail-fast startup errors
-  - [ ] only redesigned pipeline + format-scoped rule dispatch remains active
-  - [ ] release notes and migration guidance are published
+    - [x] legacy processor contract is rejected with clear fail-fast startup errors
+    - [x] only redesigned pipeline + format-scoped rule dispatch remains active
+    - [x] release notes and migration guidance are published
 - Backward compatibility: **Not required** (intentional cutover)
 
 #### S6 migration checklist
 
 Pre-cutover readiness:
 
-- [ ] all preserved bundles under `src/main/resources/config-jobs/` are migrated to the redesigned processor contract
-- [ ] `docs/config/processor/default-processor.md` reflects only the redesigned contract (legacy syntax removed)
-- [ ] architecture docs describing processor flow and rule dispatch are updated and merged
-- [ ] verification workflow is green on migrated bundles (`scripts/generate-verification-report.ps1`)
-- [ ] migration notes include old-to-new config mapping examples and explicit unsupported legacy fields
+- [x] all preserved bundles under `src/main/resources/config-jobs/` are migrated to the redesigned processor contract
+- [x] `docs/config/processor/default-processor.md` reflects only the redesigned contract (legacy syntax removed)
+- [x] architecture docs describing processor flow and rule dispatch are updated and merged
+- [x] verification workflow is green on migrated bundles (`scripts/generate-verification-report.ps1`)
+- [x] migration notes include old-to-new config mapping examples and explicit unsupported legacy fields
 
 Cutover-day checks:
 
-- [ ] startup validation fails fast when legacy processor fields are present in selected `processor-config.yaml`
-- [ ] legacy processor wiring classes/branches are removed from active runtime dispatch
-- [ ] logs still emit expected run/step evidence fields after cutover
-- [ ] one migrated nested XML scenario proves XML-native duplicate identity behavior end-to-end
-- [ ] release notes clearly mark this as an intentional non-compatible processor-contract cutover
+- [x] startup validation fails fast when legacy processor fields are present in selected `processor-config.yaml`
+- [x] legacy processor wiring classes/branches are removed from active runtime dispatch
+- [x] logs still emit expected run/step evidence fields after cutover
+- [x] one migrated nested XML scenario proves XML-native duplicate identity behavior end-to-end
+- [x] release notes clearly mark this as an intentional non-compatible processor-contract cutover
 
 ## Related docs
 
@@ -222,7 +222,7 @@ Treat this as a correctness-focused follow-on after T4 closure: source-aware ide
 
 ## Status notes
 
-Created as a deferred follow-on when T4 moved to Done. Activate when nested XML duplicate cases require source-structure-aware identity beyond flat mapped fields.
+Created as a deferred follow-on when T4 moved to Done. This item is now closed after shipping additive XML-native identity support and completing the intentional S6 non-compatible processor-contract cutover.
 
 Current implementation progress in this branch:
 
@@ -231,6 +231,9 @@ Current implementation progress in this branch:
 - Added fail-fast guardrails for unsupported repeating/list selector traversal and narrowed flatMapped XML selector detection to avoid over-rejecting literal keys containing `@`.
 - Completed S4 additive guardrail UX slice with startup advisory evidence (`PROCESSOR_GUARDRAIL event=xml_duplicate_flatmapped_advisory`) for nested XML mappings that still use simple flat duplicate keys.
 - Closed S1/S2 parity slices using the shipped processor pipeline seam and deterministic rule-dispatch registry path, with focused regression evidence across pipeline/dispatch and duplicate XML/CSV/relational rule outcomes.
+- Completed `S6-A` cutover enforcement by rejecting non-`default` processor types on the active selected-job path and documenting the shared default processor as the only supported runtime contract.
+- Completed `S6-B` by simplifying active processor runtime dispatch to the single shared default processor path and removing legacy type-based selection branches from `DynamicProcessorFactory`.
+- Added preserved-bundle contract coverage (`ScenarioConfigReferenceTest`) that scans `config-jobs/**/processor-config*.yaml` and enforces `type: default` across shipped bundles.
 - Latest focused verification remains green (`scripts/generate-verification-report.ps1`, status `READY`).
 
 Focused S1/S2 parity evidence (latest run):

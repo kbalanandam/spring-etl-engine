@@ -28,7 +28,6 @@ import java.sql.ResultSet;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -65,7 +64,7 @@ class RelationalSourceToRelationalTargetFlowTest {
 
         DynamicReaderFactory readerFactory = new DynamicReaderFactory(List.of(new RelationalDynamicReader<>()));
         DynamicWriterFactory writerFactory = new DynamicWriterFactory(List.of(new RelationalDynamicWriter()));
-        DynamicProcessorFactory processorFactory = new DynamicProcessorFactory(Map.of("default", new DefaultDynamicProcessor()));
+        DynamicProcessorFactory processorFactory = new DynamicProcessorFactory(new DefaultDynamicProcessor());
 
         ResolvedModelMetadata metadata = GeneratedModelClassResolver.resolveMetadata(sourceConfig, targetConfig);
         ItemReader<Customers> reader = readerFactory.createReader(sourceConfig, Customers.class);

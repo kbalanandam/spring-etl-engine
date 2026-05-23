@@ -53,6 +53,7 @@ mappings:
 ### Smallest valid shape walkthrough
 
 - `type: default` selects the shipped processor implementation.
+- Selected `processor-config.yaml` files must now declare `type: default`. Legacy or custom processor types are rejected during startup; extend behavior through shared processor transforms, processor rules, or supported extension providers instead of alternate processor types.
 - `mappings` is the list of source-to-target mapping contracts available in this processor file.
 - `mappings[].source` must match a configured `sourceName` from the selected source config and the `steps[].source` value chosen by `job-config.yaml`.
 - `mappings[].target` must match a configured `targetName` from the selected target config and the `steps[].target` value chosen by `job-config.yaml`.
@@ -61,6 +62,34 @@ mappings:
 - `mappings[].fields[].to` is the output property written onto the runtime target record.
 
 This is still the best place to begin. Everything else on this page is additive.
+
+### S6 cutover migration note
+
+The selected-job runtime now accepts only `type: default` in `processor-config.yaml`.
+
+Old shape (no longer supported):
+
+```yaml
+type: customerProcessor
+```
+
+New shape (supported):
+
+```yaml
+type: default
+mappings:
+  - source: Customers
+    target: CustomersOut
+    fields:
+      - from: id
+        to: id
+```
+
+If custom behavior was previously attached to an alternate processor type, migrate that behavior into:
+
+- `mappings[].fields[].transforms[]` for value rewriting/derivation
+- `mappings[].fields[].rules[]` for accept/reject decisions
+- processor extension providers when you need custom transform/rule implementations
 
 ## Supported fields today
 

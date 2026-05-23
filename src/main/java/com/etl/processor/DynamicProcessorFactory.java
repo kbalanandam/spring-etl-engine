@@ -1,12 +1,9 @@
 package com.etl.processor;
 
-import java.util.Map;
-
 import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.source.SourceConfig;
 import com.etl.exception.EtlException;
 import com.etl.exception.FactoryException;
-import com.etl.processor.exception.NoProcessorFoundException;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.stereotype.Component;
 
@@ -25,31 +22,26 @@ import com.etl.config.target.TargetConfig;
 @Component
 public class DynamicProcessorFactory {
 
-	private final Map<String, DynamicProcessor<?, ?>> processorMap;
+	private final DynamicProcessor<Object, Object> defaultProcessor;
 
 	/**
-	 * DynamicProcessorFactory is responsible for creating instances of
-	 * DynamicProcessor based on the type specified in the ProcessorConfig. It uses
-	 * a map to store different DynamicProcessor implementations keyed by their
-	 * type.
+	 * DynamicProcessorFactory is responsible for creating the shared active processor
+	 * used by the selected runtime contract.
 	 *
-	 * @param processorMap A map of processor types to their corresponding
-	 *                     DynamicProcessor implementations.
+	 * @param defaultProcessor the shared default processor implementation used by the
+	 *                         active runtime contract
 	 */
 
-	public DynamicProcessorFactory(Map<String, DynamicProcessor<?, ?>> processorMap) {
-		this.processorMap = processorMap;
+	public DynamicProcessorFactory(DynamicProcessor<Object, Object> defaultProcessor) {
+		this.defaultProcessor = defaultProcessor;
 	}
 
 	/**
 	 * Creates the active processor for one selected source/target pairing.
 	 *
-	 * <p>This factory is the runtime dispatch seam for processor type selection. It does not
-	 * interpret mapping rules itself; instead it ensures that the requested processor type is
-	 * registered and then delegates source/target-specific processor construction to the chosen
-	 * implementation.</p>
+	 * <p>This factory now routes all selected runtime processor creation through the shared
+	 * default processor contract. Non-default processor types are rejected before delegation.</p>
 	 */
-	@SuppressWarnings("unchecked")
 	public <I, O> ItemProcessor<I, O> getProcessor(
 			ProcessorConfig processorConfig,
 			SourceConfig sourceConfig,
@@ -59,16 +51,21 @@ public class DynamicProcessorFactory {
 			throw new FactoryException("Processor configuration must not be null when creating a processor.");
 		}
 
-		String type = processorConfig.getType();
-
-        var dp = (DynamicProcessor<I, O>) processorMap.get(type);
-
-		if (dp == null) {
-			throw new NoProcessorFoundException("No processor found for type: " + type);
+		String type = processorConfig.getType() == null ? null : processorConfig.getType().trim();
+		if (type == null || type.isBlank()) {
+			throw new FactoryException("ProcessorConfig.type must be 'default'. The active runtime no longer supports blank processor types.");
+		}
+		if (!"default".equalsIgnoreCase(type)) {
+			throw new FactoryException("ProcessorConfig.type='" + type + "' is no longer supported. The active runtime only accepts 'type: default'.");
+		}
+		if (defaultProcessor == null) {
+			throw new FactoryException("The active runtime expects a registered 'default' processor implementation, but none was found.");
 		}
 
 		try {
-			return dp.getProcessor(processorConfig, sourceConfig, targetConfig, metadata);
+			@SuppressWarnings("unchecked")
+			ItemProcessor<I, O> processor = (ItemProcessor<I, O>) defaultProcessor.getProcessor(processorConfig, sourceConfig, targetConfig, metadata);
+			return processor;
 		} catch (EtlException e) {
 			throw e;
 		} catch (Exception e) {

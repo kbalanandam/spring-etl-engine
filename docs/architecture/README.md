@@ -28,7 +28,7 @@ If you are not sure where to begin, use one of these entry points first:
 - [`overview.md`](overview.md) — high-level system architecture (**Current baseline + future evolution**)
 - [`runtime-flow.md`](runtime-flow.md) — shipped end-to-end ETL runtime flow (**Shipped**)
 - [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md) — next runtime-direction target (**Future direction**)
-- [`extension-points.md`](extension-points.md) — where new formats, processors, and capabilities should plug in (**Current baseline + future evolution**)
+- [`extension-points.md`](extension-points.md) — where new formats, shared default-processor behavior, and capabilities should plug in (**Current baseline + future evolution**)
 - [`oneflow-file-parser-capabilities.md`](oneflow-file-parser-capabilities.md) — parser boundary for file sources (**Current baseline + future evolution**)
 - [`etl-product-evolution-roadmap.md`](etl-product-evolution-roadmap.md) — what belongs now vs later in the product/runtime evolution (**Current baseline + future evolution**)
 
@@ -48,6 +48,7 @@ Use this short list when you want the newest or most actively discussed architec
 
 - [`overview.md`](overview.md) — current high-level system architecture (**Current baseline + future evolution**)
 - [`runtime-flow.md`](runtime-flow.md) — end-to-end ETL runtime flow (**Shipped**)
+- [`oneflow-runtime-fallback-reference.md`](oneflow-runtime-fallback-reference.md) — consolidated matrix of shipped runtime fallback/default decisions (**Shipped**)
 - [`csv-to-xml-runtime-flow.md`](csv-to-xml-runtime-flow.md) — operational deep dive for the shipped CSV-to-XML path (**Current baseline + future evolution**)
 - [`runtime-flow-walkthrough.html`](runtime-flow-walkthrough.html) — animated walkthrough of the shipped runtime path (**Current baseline + future evolution**)
 - [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md) — reusable `MainFlow -> SubFlow -> Step` direction (**Future direction**)

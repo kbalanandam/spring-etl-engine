@@ -278,7 +278,7 @@ This means the preserved SQL Server scenario bundles are safe to keep in the rep
 
 ## Documentation rule
 
-Whenever a new source, target, or processor type is added or its field contract changes:
+Whenever a new source or target type is added, or the shared default processor field contract changes:
 
 - update the relevant config reference doc
 - add or update at least one scenario config folder if the change introduces a new combination worth preserving
