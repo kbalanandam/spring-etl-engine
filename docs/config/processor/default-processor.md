@@ -53,6 +53,7 @@ mappings:
 ### Smallest valid shape walkthrough
 
 - `type: default` selects the shipped processor implementation.
+- Selected `processor-config.yaml` files must now declare `type: default`. Legacy or custom processor types are rejected during startup; extend behavior through shared processor transforms, processor rules, or supported extension providers instead of alternate processor types.
 - `mappings` is the list of source-to-target mapping contracts available in this processor file.
 - `mappings[].source` must match a configured `sourceName` from the selected source config and the `steps[].source` value chosen by `job-config.yaml`.
 - `mappings[].target` must match a configured `targetName` from the selected target config and the `steps[].target` value chosen by `job-config.yaml`.

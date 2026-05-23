@@ -59,12 +59,18 @@ public class DynamicProcessorFactory {
 			throw new FactoryException("Processor configuration must not be null when creating a processor.");
 		}
 
-		String type = processorConfig.getType();
+		String type = processorConfig.getType() == null ? null : processorConfig.getType().trim();
+		if (type == null || type.isBlank()) {
+			throw new FactoryException("ProcessorConfig.type must be 'default'. The active runtime no longer supports blank processor types.");
+		}
+		if (!"default".equalsIgnoreCase(type)) {
+			throw new FactoryException("ProcessorConfig.type='" + type + "' is no longer supported. The active runtime only accepts 'type: default'.");
+		}
 
         var dp = (DynamicProcessor<I, O>) processorMap.get(type);
 
 		if (dp == null) {
-			throw new NoProcessorFoundException("No processor found for type: " + type);
+			throw new NoProcessorFoundException("The active runtime expects a registered 'default' processor implementation, but none was found.");
 		}
 
 		try {

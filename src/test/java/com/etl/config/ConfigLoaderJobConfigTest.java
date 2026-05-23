@@ -160,6 +160,65 @@ class ConfigLoaderJobConfigTest {
         assertEquals("CustomersOut", loadedProcessorConfig.getMappings().get(0).getTarget());
     }
 
+  @Test
+  void failsFastWhenSelectedProcessorConfigUsesLegacyProcessorType() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+        sources:
+          - format: csv
+            sourceName: Customers
+            filePath: input/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+        """);
+
+    Files.writeString(targetConfig, """
+        targets:
+          - format: csv
+            targetName: CustomersOut
+            filePath: output/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+        """);
+
+    Files.writeString(processorConfig, """
+        type: customerProcessor
+        mappings:
+          - source: Customers
+            target: CustomersOut
+            fields:
+              - from: id
+                to: id
+        """);
+
+    Files.writeString(jobConfig, """
+        name: legacy-processor-type
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: customers-step
+            source: Customers
+            target: CustomersOut
+        """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException failure = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(failure.getMessage().contains("type='customerProcessor'"));
+    assertTrue(failure.getMessage().contains("type: default"));
+  }
+
     @Test
     void normalizesScenarioRelativePathsInsideReferencedConfigs() throws IOException {
         Path scenarioDir = tempDir.resolve("csv-roundtrip");

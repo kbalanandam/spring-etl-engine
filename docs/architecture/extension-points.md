@@ -80,12 +80,17 @@ For the current file-based target writers, keep publication semantics aligned to
 
 On the active explicit selected-job path, source and target `packageName` is no longer part of the authored contract. Keep new formats aligned to the shared job-scoped derivation contract through `JobScopedPackageNameResolver` instead of reintroducing per-format handwritten package requirements.
 
-## How to add a new processor type
+## Processor cutover note
 
-1. implement `DynamicProcessor`
-2. register the bean with a stable type name
-3. reference that type from `processor-config.yaml`
-4. verify it works with `ResolvedModelMetadata`
+After the T15 `S6` cutover, the active runtime accepts only the shared `type: default` processor contract in selected `processor-config.yaml` files.
+
+That means new processor behavior should be added through the active seams around the shared default processor path:
+
+1. processor transforms (`ProcessorFieldTransform` via `TransformEvaluator`)
+2. processor validation rules (`ProcessorValidationRule` via `ValidationRuleEvaluator`)
+3. processor extension providers (`ProcessorExtensionProvider`) for deterministic transform/rule registration
+
+Do not introduce new alternate processor types for selected-job runtime behavior unless a future ADR explicitly reopens that design boundary.
 
 ## How to add a new processor cleaner / normalization capability
 

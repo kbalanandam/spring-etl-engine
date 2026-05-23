@@ -1109,6 +1109,7 @@ public class ConfigLoader {
 	                                 String resolvedProcessorConfigPath,
 	                                 SourceWrapper sourceWrapper) {
 		try {
+			validateProcessorType(config);
 			if (config.getMappings() == null || config.getMappings().isEmpty()) {
 				throw new IllegalStateException("No entity mappings found in processor YAML");
 			}
@@ -1150,6 +1151,17 @@ public class ConfigLoader {
 		} catch (IllegalArgumentException | IllegalStateException e) {
 			throw new ConfigException("Invalid processor configuration for scenario '"
 					+ defaultName(scenarioName) + "' in " + resolvedProcessorConfigPath + ": " + e.getMessage(), e);
+		}
+	}
+
+	private static void validateProcessorType(ProcessorConfig config) {
+		if (config == null || config.getType() == null || config.getType().isBlank()) {
+			throw new IllegalStateException("ProcessorConfig.type must be 'default'. The active processor contract no longer supports blank or legacy processor types.");
+		}
+
+		String normalizedType = config.getType().trim();
+		if (!"default".equalsIgnoreCase(normalizedType)) {
+			throw new IllegalStateException("ProcessorConfig.type='" + normalizedType + "' is no longer supported. The active runtime only accepts 'type: default'; migrate custom behavior into shared processor transforms, processor rules, or supported extension providers.");
 		}
 	}
 

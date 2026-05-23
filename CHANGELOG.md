@@ -6,6 +6,9 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Changed
+- Started the T15 `S6` cutover by enforcing the shared default processor contract on the active selected-job path: selected `processor-config.yaml` files must now declare `type: default`, and non-default/legacy processor types fail fast during startup and direct runtime factory usage.
+
 ## [1.7.4] - 2026-05-22
 
 ### Added
