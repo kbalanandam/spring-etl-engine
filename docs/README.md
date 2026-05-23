@@ -187,7 +187,7 @@ If architecture-sensitive code changes without a corresponding documentation upd
 Create or update docs when a change:
 
 - adds a new config type
-- adds a new reader, writer, or processor type
+- adds a new reader or writer type, or changes the shared default processor contract
 - introduces a new runtime path
 - changes job/step orchestration
 - changes restartability or transaction behavior
