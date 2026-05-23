@@ -263,8 +263,8 @@ public class ConfigLoader {
 	private ProcessorConfig loadProcessorConfigForRuntime(ResolvedRuntimeConfig runtimeConfig) throws IOException {
 		ObjectMapper mapper = buildYamlMapper();
 		ProcessorConfig config = runtimeConfig.requireExternalConfigs()
-				? loadRequiredExternalYamlConfig(runtimeConfig.processorConfigPath(), ProcessorConfig.class, mapper)
-				: loadYamlConfig(runtimeConfig.processorConfigPath(), "processor-config.yaml", ProcessorConfig.class, mapper);
+				? loadRequiredExternalYamlConfig(runtimeConfig.processorConfigPath(), ProcessorConfig.class, mapper, null)
+				: loadYamlConfig(runtimeConfig.processorConfigPath(), "processor-config.yaml", ProcessorConfig.class, mapper, null);
 		if (runtimeConfig.requireExternalConfigs()) {
 			normalizeProcessorConfigPaths(config, parentDirectory(runtimeConfig.processorConfigPath()));
 		}
@@ -307,18 +307,6 @@ public class ConfigLoader {
 		return mapper;
 	}
 
-	private <T> T loadYamlConfig(String configuredPath, String fallbackClasspathResource, Class<T> targetType) throws IOException {
-		return loadYamlConfig(configuredPath, fallbackClasspathResource, targetType, buildYamlMapper(), null);
-	}
-
-	private <T> T loadRequiredExternalYamlConfig(String configuredPath, Class<T> targetType) throws IOException {
-		return loadRequiredExternalYamlConfig(configuredPath, targetType, buildYamlMapper(), null);
-	}
-
-	private <T> T loadYamlConfig(String configuredPath, String fallbackClasspathResource, Class<T> targetType, ObjectMapper mapper) throws IOException {
-		return loadYamlConfig(configuredPath, fallbackClasspathResource, targetType, mapper, null);
-	}
-
 	private <T> T loadYamlConfig(String configuredPath,
 	                           String fallbackClasspathResource,
 	                           Class<T> targetType,
@@ -349,10 +337,6 @@ public class ConfigLoader {
 			validateUnsupportedPackageNameProperties(mapper, yamlContent, fallbackClasspathResource, targetType, packageNameContract);
 			return mapper.readValue(yamlContent, targetType);
 		}
-	}
-
-	private <T> T loadRequiredExternalYamlConfig(String configuredPath, Class<T> targetType, ObjectMapper mapper) throws IOException {
-		return loadRequiredExternalYamlConfig(configuredPath, targetType, mapper, null);
 	}
 
 	private <T> T loadRequiredExternalYamlConfig(String configuredPath,
@@ -407,7 +391,13 @@ public class ConfigLoader {
 			logger.warn("No 'etl.config.job' was provided. Demo fallback is enabled, so the runtime will use direct config paths and may fall back to bundled classpath YAML resources. This mode is intended for local/demo use only.");
 			SourceWrapper demoSourceWrapper = loadYamlConfig(sourceConfigPath, "source-config.yaml", SourceWrapper.class, buildYamlMapper(), directSourcePackageContract());
 			TargetWrapper demoTargetWrapper = loadYamlConfig(targetConfigPath, "target-config.yaml", TargetWrapper.class, buildYamlMapper(), directTargetPackageContract());
-			ProcessorConfig demoProcessorConfig = loadYamlConfig(processorConfigPath, "processor-config.yaml", ProcessorConfig.class, buildYamlMapper());
+			ProcessorConfig demoProcessorConfig = loadYamlConfig(
+					processorConfigPath,
+					"processor-config.yaml",
+					ProcessorConfig.class,
+					buildYamlMapper(),
+					null
+			);
 			validateProcessorConfig(demoProcessorConfig, "demo-fallback", processorConfigPath, demoSourceWrapper);
 			return new ResolvedRuntimeConfig(
 					sourceConfigPath,
@@ -449,7 +439,12 @@ public class ConfigLoader {
 				mapper,
 				selectedJobTargetPackageContract(scenarioName)
 		);
-		ProcessorConfig explicitProcessorConfig = loadRequiredExternalYamlConfig(resolvedProcessorConfigPath, ProcessorConfig.class, mapper);
+		ProcessorConfig explicitProcessorConfig = loadRequiredExternalYamlConfig(
+				resolvedProcessorConfigPath,
+				ProcessorConfig.class,
+				mapper,
+				null
+		);
 		normalizeSourceConfigPaths(explicitSourceWrapper, parentDirectory(resolvedSourceConfigPath));
 		normalizeTargetConfigPaths(explicitTargetWrapper, parentDirectory(resolvedTargetConfigPath));
 		applyJobScopedPackageDefaults(explicitSourceWrapper, explicitTargetWrapper, scenarioName);

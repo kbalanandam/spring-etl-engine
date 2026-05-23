@@ -27,6 +27,8 @@ import com.etl.processor.validation.TimeFormatProcessorValidationRule;
 import com.etl.processor.validation.ValidationIssue;
 import com.etl.processor.validation.ValidationRuleEvaluator;
 import com.etl.runtime.FileIngestionRuntimeSupport;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -38,6 +40,7 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -1282,13 +1285,34 @@ class ConfigLoaderJobConfigTest {
 
     ConfigLoader loader = new ConfigLoader();
 
-    var method = ConfigLoader.class.getDeclaredMethod("loadRequiredExternalYamlConfig", String.class, Class.class);
+    Class<?> packageNameContractType = null;
+    for (Class<?> nestedType : ConfigLoader.class.getDeclaredClasses()) {
+      if ("PackageNameContract".equals(nestedType.getSimpleName())) {
+        packageNameContractType = nestedType;
+        break;
+      }
+    }
+    assertNotNull(packageNameContractType);
+
+    Method method = ConfigLoader.class.getDeclaredMethod(
+            "loadRequiredExternalYamlConfig",
+            String.class,
+            Class.class,
+            ObjectMapper.class,
+            packageNameContractType
+    );
     method.setAccessible(true);
 
     IOException exception = assertThrows(IOException.class,
             () -> {
               try {
-                method.invoke(loader, requestedAliasSourceConfig.toString(), SourceWrapper.class);
+                method.invoke(
+                        loader,
+                        requestedAliasSourceConfig.toString(),
+                        SourceWrapper.class,
+                        new ObjectMapper(new YAMLFactory()),
+                        null
+                );
               } catch (java.lang.reflect.InvocationTargetException e) {
                 throw e.getCause();
               }
