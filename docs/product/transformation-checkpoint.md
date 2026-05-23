@@ -1,6 +1,6 @@
 # Transformation checkpoint
 
-Checkpoint date: **2026-05-22**
+Checkpoint date: **2026-05-23**
 
 ## Purpose
 
@@ -22,9 +22,9 @@ The active shipped transformation path is still the processor-centered contract 
 
 ### 2. What is next
 
-`T4` hardening is complete, and the compatible XML-native duplicate identity follow-on slices under [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) are now shipped on the active runtime path.
+`T4` hardening is complete, and [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) is now closed on the active runtime path.
 
-Current state: ordered-duplicate resolver evidence, optional `storageMode` override (`auto|memory|embeddedDb`) for `duplicate + orderBy`, additive reject-quarantine publication, and additive XML duplicate identity support through `duplicateIdentityMode: flatMapped|xmlNative` are shipped. The remaining deferred concern under `T15` is the intentional non-compatible `S6` processor-contract cutover.
+Current state: ordered-duplicate resolver evidence, optional `storageMode` override (`auto|memory|embeddedDb`) for `duplicate + orderBy`, additive reject-quarantine publication, additive XML duplicate identity support through `duplicateIdentityMode: flatMapped|xmlNative`, and the intentional non-compatible `S6` processor-contract cutover are shipped.
 
 ### 3. What remains future or conceptual
 
@@ -55,7 +55,7 @@ Board anchors:
 
 ### 5. Duplicate-handling reminder
 
-Resume duplicate follow-on work from [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md).
+`T15` is closed. Resume duplicate follow-on work from [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) when scale redesign is reactivated.
 
 Keep the larger duplicate-scale redesign separate under [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md).
 
@@ -65,7 +65,7 @@ Current duplicate baseline to remember:
 - ordered winner selection through `orderBy` exists today
 - duplicate storage mode is selectable for ordered winner selection (`duplicate` + `orderBy`) through `storageMode: auto|memory|embeddedDb`
 - XML duplicate identity is now shipped as an additive processor-rule option through `duplicateIdentityMode: xmlNative`
-- the remaining deferred T15 work is the intentional non-compatible `S6` cutover, not the additive XML identity path itself
+- `T15` (including `S6`) is complete and no longer a deferred duplicate boundary
 
 ### 6. Runtime model to preserve
 
@@ -83,12 +83,12 @@ If you need to resume quickly, read in this order:
 1. [`product-backlog.md`](./product-backlog.md) — canonical status and sequencing
 2. [`Epic T`](./epics/epic-t-transformation-capability.md) — shared transformation boundary
 3. [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) — completed quarantine and duplicate hardening baseline
-4. [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) — in-progress XML-native duplicate identity item with compatible slices complete and `S6` deferred
+4. [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) — closed XML-native duplicate identity item (`S1`-`S6` complete)
 5. [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) — deferred duplicate-scale boundary
 6. [`default-processor.md`](../config/processor/default-processor.md) — shipped contract today
 7. [`transformation-capability-roadmap.md`](../architecture/transformation-capability-roadmap.md) — future direction
 
 ## One-line reminder
 
-**Today we keep the shipped runtime processor-centered, treat `T4` as completed hardening, treat the compatible XML-native duplicate-identity path under `T15` as shipped with only `S6` deferred, keep larger duplicate-scale redesign under `T7`, and treat `T8`-`T14` examples as future planning only.**
+**Today we keep the shipped runtime processor-centered, treat `T4` and `T15` (including `S6`) as completed, keep larger duplicate-scale redesign under `T7`, and treat `T8`-`T14` examples as future planning only.**
 

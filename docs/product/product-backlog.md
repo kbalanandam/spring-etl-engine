@@ -238,7 +238,7 @@ This table is the day-to-day execution view for the current product stage.
 | [T12](backlog-items/T12-transformation-governance-and-lineage.md) | Define transformation governance and lineage evidence model | Epic T | P2 | Deferred | M3 | T8, C1 | #3 in deferred advanced transform sequence. Provide transform-definition version traceability, approval lifecycle, and lineage-friendly evidence for enterprise-grade change control |
 | [T13](backlog-items/T13-transform-stage-observability-metrics.md) | Define transform-stage observability metrics and operational evidence | Epic T | P2 | Deferred | M3 | T10, V1 | #4 in deferred advanced transform sequence. Emit transform-stage metrics and outcomes independently from validation-rule evidence so operators can diagnose transform behavior directly |
 | [T14](backlog-items/T14-secure-data-shaping-transforms.md) | Define secure data-shaping transforms for sensitive fields | Epic T | P2 | Deferred | M3 | T8, G1 | #6 in deferred advanced transform sequence. Add governed masking/tokenization/hash transform patterns so sensitive-field handling is explicit, reusable, and auditable |
-| [T15](backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) | Define XML-native duplicate identity for nested XML source scenarios | Epic T | P2 | In Progress | M3 | T4, P3 | Advanced follow-on for nested XML duplicate correctness where flat mapped keys are insufficient; compatible slices S1-S5 are complete, with intentional non-compatible cutover still deferred to S6 |
+| [T15](backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) | Define XML-native duplicate identity for nested XML source scenarios | Epic T | P2 | Done | M3 | T4, P3 | Advanced follow-on for nested XML duplicate correctness is now complete (`S1`-`S6`), including the intentional non-compatible processor-contract cutover |
 | [B1](backlog-items/B1-configurable-skip-policy-support.md) | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | [B2](backlog-items/B2-configurable-retry-policy-support.md) | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
 | [B3](backlog-items/B3-archive-processed-source-files-after-success.md) | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
@@ -277,7 +277,7 @@ Use this section as the near-term sequencing view behind the execution board:
 
 1. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
 2. Keep `E2` as the next portability/documentation step.
-3. Keep duplicate-handling follow-on split explicitly: nested XML identity under deferred `T15`, larger duplicate-state scale redesign under deferred `T7`.
+3. Keep duplicate-handling follow-on split explicitly: `T15` is closed and larger duplicate-state scale redesign remains deferred under `T7`.
 4. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
 5. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
 6. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
@@ -288,7 +288,7 @@ Use this section as the near-term sequencing view behind the execution board:
 
 ### Duplicate-handling checkpoint for next session
 
-Resume from `T15` for XML-native duplicate identity follow-on and keep larger scale redesign under `T7`.
+`T15` is closed; resume duplicate follow-on work from the larger scale redesign track under `T7`.
 
 Current shipped duplicate baseline:
 
@@ -299,7 +299,7 @@ Current shipped duplicate baseline:
 - storage mode today: keep-first duplicate elimination stays step-local/in-memory, while ordered duplicate winner selection supports `storageMode: auto|memory|embeddedDb`
 - duplicate handling stays in the active processor-rule extension point, not source validation
 - current flat-record expectation: the shipped rule works through normal mapped fields after CSV, flat XML, relational, or similar source records are read into runtime objects
-- deferred exception scope: XML-native/source-level duplicate identity based on XPath, namespaces, nested collections, or other pre-flattening structure details is now tracked under `T15`
+- XML-native/source-level duplicate identity based on XPath, namespaces, nested collections, or other pre-flattening structure details is shipped and closed under `T15`
 
 Current code anchors:
 
@@ -335,7 +335,6 @@ Latest completed implementation step:
 Still deferred after that:
 
 - larger duplicate-tracking scalability redesign (separate deferred track: `T7`)
-- XML-native/source-level duplicate identity when duplicate keys cannot be expressed cleanly through flat mapped fields (deferred track: `T15`)
 - target-aware duplicate detection
 - restart/idempotency semantics for duplicate state
 
@@ -763,7 +762,7 @@ Use this as the condensed near-term priority order:
 
 1. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
 2. `E2` — packaged-run guidance
-3. deferred duplicate follow-ons — `T15` (XML-native duplicate identity) and `T7` (larger duplicate-scale redesign)
+3. duplicate follow-on — `T7` (larger duplicate-scale redesign)
 4. deferred `Epic T` advanced sequence — `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
 5. `Epic P` — first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
 6. `X1` / `X2` — SFTP contract and first inbound slice
