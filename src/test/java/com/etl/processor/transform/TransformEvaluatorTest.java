@@ -183,6 +183,42 @@ class TransformEvaluatorTest {
 		assertTrue(failure.getMessage().contains("second-override-prefix-transform"));
 	}
 
+	@Test
+	void supportsFlexibleConditionalSpelUsingInputAndResolvedValues() {
+		TransformEvaluator evaluator = builtInTransformEvaluator();
+		ProcessorConfig.EntityMapping entityMapping = new ProcessorConfig.EntityMapping();
+		entityMapping.setSource("Customers");
+		entityMapping.setTarget("CustomersOut");
+
+		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
+		fieldMapping.setFrom("tier");
+		fieldMapping.setTo("tier");
+		fieldMapping.setTransforms(List.of(conditional(List.of(
+				conditionalCase("#input['country'] == 'US' and #resolved['score'] >= 80", "PRIORITY"),
+				conditionalCase("#source['country'] == 'US'", "US")
+		), "OTHER")));
+
+		Map<String, Object> input = Map.of("country", "US");
+		Map<String, Object> resolved = Map.of("score", 85);
+		assertEquals("PRIORITY", evaluator.apply("BASE", entityMapping, fieldMapping, input, resolved));
+	}
+
+	@Test
+	void supportsConditionalSpelMethodCallsAndTypeReferences() {
+		TransformEvaluator evaluator = builtInTransformEvaluator();
+		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
+		fieldMapping.setFrom("email");
+		fieldMapping.setTo("emailStatus");
+		fieldMapping.setTransforms(List.of(conditional(List.of(
+				conditionalCase("#value != null and #value.toLowerCase().contains('@example.com')", "INTERNAL"),
+				conditionalCase("T(java.util.regex.Pattern).matches('.*@.*', #value)", "VALID")
+		), "INVALID")));
+
+		assertEquals("INTERNAL", evaluator.apply("User@Example.com", fieldMapping));
+		assertEquals("VALID", evaluator.apply("user@partner.org", fieldMapping));
+		assertEquals("INVALID", evaluator.apply("bad-email", fieldMapping));
+	}
+
 	private ProcessorConfig.FieldTransform valueMap(Map<String, Object> mappings, Object defaultValue, boolean caseSensitive) {
 		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
 		transform.setType("valueMap");
@@ -356,4 +392,3 @@ class TransformEvaluatorTest {
 		}
 	}
 }
-
