@@ -9,6 +9,34 @@ This document explains where new capabilities should be added so the architectur
 - Classification: **Current baseline + future evolution**
 - The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.
 
+## Audience and reading paths
+
+This page serves two audiences with different goals:
+
+- **Implementers (how-to):** start with **Implementer quickstart** and **How to add a new source/target format** for concrete steps.
+- **Reviewers/maintainers (why):** start with **Architecture rationale** and **Design guardrails** to confirm contract-safe changes.
+
+If your change touches runtime contracts, config shape, or dispatch behavior, read both paths before implementation.
+
+### Quick navigation
+
+- Add a new format (reader/writer): [Implementer quickstart](#implementer-quickstart) -> [How to add a new source/target format](#how-to-add-a-new-sourcetarget-format)
+- Add processor behavior: [Processor cutover note](#processor-cutover-note) -> [How to add a new processor cleaner--normalization capability](#how-to-add-a-new-processor-cleaner--normalization-capability)
+- Review architecture impact: [Architecture rationale](#architecture-rationale) -> [Design guardrails](#design-guardrails)
+- Check runtime rules before coding: [Current behavior contracts (high-impact)](#current-behavior-contracts-high-impact)
+
+## Implementer quickstart
+
+Use this sequence for most extension work:
+
+1. Choose the extension seam (reader, transform/rule, writer) instead of adding new runtime branching.
+2. Add or update config polymorphism (`SourceConfig`/`TargetConfig`) only when format shape changes.
+3. Register behavior through the existing factories and extension providers.
+4. Add focused tests for startup validation + runtime behavior.
+5. Update docs in the same change (and ADR if there is a meaningful design tradeoff).
+
+For processor behavior, stay on the active contract: `type: default` with extension through transforms/rules/providers.
+
 ## Current extension model
 
 The engine is designed around three runtime extension points:
@@ -28,7 +56,7 @@ Validation and field-level processing behavior now use both shipped and planned 
 - shipped processor-rule validation extensions for record acceptance / rejection checks
 - processor-transform extensions for record cleaning / normalization before validation and write
 
-## Current code anchors
+## Current code anchors (files)
 
 - Reader selection: `src/main/java/com/etl/reader/DynamicReaderFactory.java`
 - Processor selection: `src/main/java/com/etl/processor/DynamicProcessorFactory.java`
@@ -48,16 +76,19 @@ Validation and field-level processing behavior now use both shipped and planned 
 - Processor transform SPI: `src/main/java/com/etl/processor/transform/ProcessorFieldTransform.java`
 - Processor extension provider SPI (manual/non-Spring discovery): `src/main/java/com/etl/processor/spi/ProcessorExtensionProvider.java`
 - Built-in processor extension provider: `src/main/java/com/etl/processor/spi/BuiltInProcessorExtensionProvider.java`
-- Processor transform dispatch now supports type + source-format selection with global fallback through `TransformEvaluator`
 - Processor orchestration seam (slice-1 parity extraction): `src/main/java/com/etl/processor/pipeline/ProcessorExecutionPipeline.java`, `src/main/java/com/etl/processor/pipeline/impl/DefaultProcessorExecutionPipeline.java`
-- Processor rule dispatch now supports type + source-format selection with global fallback, so format-specific rules can be added without branching inside shared rules
-- Config startup validation now resolves mapping source format and validates transforms/rules with that format context in `ConfigLoader`, so unsupported format/type combinations fail before runtime
-- Config startup format-binding failures now raise `ProcessorExtensionBindingConfigException` (subclass of `ConfigException`) so operators can classify extension registration/scope errors distinctly from other config faults
-- Duplicate rule now registers both global and XML-scoped handlers (`DuplicateProcessorValidationRule` + `XmlDuplicateProcessorValidationRule`) while sharing current behavior until XML-specific semantics are expanded
-- Non-Spring/manual paths now merge built-in + classpath-discovered processor extensions through `ProcessorExtensionDefaults` (`ServiceLoader`), so adopters can add rules/transforms without editing core default lists
-- Current built-in source validators: `CsvSourceValidator`, `XmlSourceValidator`, `RelationalSourceValidator`
-- Current built-in processor rules: `NotNullProcessorValidationRule`, `TimeFormatProcessorValidationRule`, `DuplicateProcessorValidationRule`
-- Processor transform extension point now lives on the active runtime path alongside `src/main/java/com/etl/config/processor/ProcessorConfig.java`, `src/main/java/com/etl/processor/impl/DefaultDynamicProcessor.java`, and the mapping path under `src/main/java/com/etl/mapping/`
+
+## Current behavior contracts (high-impact)
+
+- Processor transform dispatch supports type + source-format selection with global fallback through `TransformEvaluator`.
+- Processor rule dispatch supports type + source-format selection with global fallback.
+- Startup validation resolves mapping source format and validates transform/rule compatibility in `ConfigLoader`.
+- Format-binding startup failures raise `ProcessorExtensionBindingConfigException` (subclass of `ConfigException`).
+- Duplicate rule registers global and XML-scoped handlers (`DuplicateProcessorValidationRule` + `XmlDuplicateProcessorValidationRule`).
+- Non-Spring/manual paths merge built-in + classpath-discovered processor extensions through `ProcessorExtensionDefaults` (`ServiceLoader`).
+- Built-in source validators: `CsvSourceValidator`, `XmlSourceValidator`, `RelationalSourceValidator`.
+- Built-in processor rules: `NotNullProcessorValidationRule`, `TimeFormatProcessorValidationRule`, `DuplicateProcessorValidationRule`.
+- Processor transform extension point remains on the active runtime path with `ProcessorConfig`, `DefaultDynamicProcessor`, and mapping components under `src/main/java/com/etl/mapping/`.
 
 ## How to add a new source/target format
 
@@ -86,7 +117,7 @@ On the active explicit selected-job path, source and target `packageName` is no 
 
 After the T15 `S6` cutover, the active runtime accepts only the shared `type: default` processor contract in selected `processor-config.yaml` files.
 
-That means new processor behavior should be added through the active seams around the shared default processor path:
+That means new processor behavior MUST be added through the active seams around the shared default processor path:
 
 1. processor transforms (`ProcessorFieldTransform` via `TransformEvaluator`)
 2. processor validation rules (`ProcessorValidationRule` via `ValidationRuleEvaluator`)
@@ -192,20 +223,50 @@ flowchart LR
     E --> F[ADR if design changed]
 ```
 
+## Architecture rationale
+
+These boundaries exist to keep runtime behavior deterministic and operable as extensions grow:
+
+- **Single dispatch center:** readers/writers/processors are selected by factories so logic is not scattered across conditionals.
+- **Single active processor contract:** selected-job runtime stays on `type: default`; extensions happen inside that path.
+- **Clear ownership model:** transforms rewrite values, rules accept/reject records, source validation checks source contracts.
+- **Deterministic extension registration:** override/duplicate conflict policy prevents ambiguous runtime wiring.
+- **Fail-fast startup:** unsupported format/type combinations are rejected before job execution.
+
+When a change crosses these boundaries, it is architectural and should include explicit rationale (and ADR when needed).
+
+## Design guardrails
+
+Treat the following as non-negotiable unless a new ADR explicitly changes direction:
+
+- Do not introduce scenario auto-discovery or implicit step ordering through extension work.
+- Do not add alternate active processor types for selected-job runtime.
+- Do not move business rejection logic into source validation or transforms.
+- Do not bypass factory/provider registration with ad hoc runtime conditionals.
+- Do not weaken duplicate/override conflict checks that protect deterministic dispatch.
+
 ## Practical architecture rules
+
+### Registration and discovery
 
 - prefer composition over vendor-specific config duplication
 - centralize runtime contracts instead of scattering conventions
 - add new behaviors through factories instead of conditionals spread across the codebase
 - for manual/non-Spring bootstrap paths, register external reader/writer providers via Java `ServiceLoader` (`META-INF/services/com.etl.reader.spi.ReaderExtensionProvider`, `META-INF/services/com.etl.writer.spi.WriterExtensionProvider`) and keep provider ordering deterministic (`order` then `providerId`)
 - for manual/non-Spring bootstrap paths, register external processor extension providers via Java `ServiceLoader` (`META-INF/services/com.etl.processor.spi.ProcessorExtensionProvider`) and keep provider ordering deterministic (`order` then `providerId`)
+
+### Conflict policy and deterministic wiring
+
 - provider conflicts now require explicit override intent: set provider `isOverride=true` to replace an existing key (reader/writer format, or processor rule/transform type plus optional source format scope); multiple registrations without a single explicit override still fail fast to protect deterministic runtime behavior
 - reader/writer/processor default discovery now uses one shared conflict policy (`ExtensionConflictPolicy`) so override and duplicate-fail behavior stays consistent across extension stages
 - Spring bean registration now follows the same override policy contract as ServiceLoader defaults by using extension metadata on SPI implementations (`extensionId`, `isOverride`) for readers, writers, processor rules, and processor transforms
+- fail fast when two runtime implementations try to register the same factory-dispatch key so extension wiring stays deterministic; the current bridge reader and writer factories both enforce this at registration time
+
+### Runtime behavior and diagnostics
+
 - the shipped `conditional` processor transform keeps full SpEL flexibility (`#input`, `#source`, `#value`, `#resolved`, method/type usage), and runtime now reuses parsed expressions to avoid repeated parse overhead for frequently evaluated cases
 - conditional transform runtime now emits processor-level observability events for case matches, default fallbacks, cache hit/miss at trace level, cache evictions, and evaluation failures (`PROCESSOR_TRANSFORM event=conditional_case_matched|conditional_default_applied|conditional_expression_cache_hit|conditional_expression_cache_miss|conditional_expression_cache_evict|conditional_evaluation_failed`)
 - conditional transform runtime evaluation failures now raise `ProcessorTransformEvaluationException` (extends `IllegalStateException`) so diagnostics can target transform-evaluation faults without changing existing runtime failure semantics
-- fail fast when two runtime implementations try to register the same factory-dispatch key so extension wiring stays deterministic; the current bridge reader and writer factories both enforce this at registration time
 - keep reader/writer factory registration and construction failures categorized as `factory`; the current bridge factories may still expose format-specific missing-dispatch exceptions such as `NoReaderFoundException` and `NoWriterFoundException`, while stream/read/write lifecycle failures should surface through the runtime failure category used by operator-facing diagnostics
 - on the active reader path, CSV, XML, and relational readers currently share `RuntimeCategorizingItemStreamReader` so delegate `read` and optional `ItemStream` lifecycle failures are categorized consistently across source formats without duplicating that wrapper logic per reader
 - CSV field binding on the active reader path now fails during mapper initialization when a configured field does not match a writable property on the target class, instead of silently skipping that mismatch
@@ -221,4 +282,3 @@ flowchart LR
 - field transforms / normalization cleaners such as value mapping and code standardization
 - multi-job flow configuration
 - dialect abstraction for platform-specific SQL behavior
-
