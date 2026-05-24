@@ -733,13 +733,17 @@ function New-VerificationReport {
     $smokeStatusBadge = Get-StatusBadge -Status $Evidence.Overview.SmokeStatus
     $slowestSuite = $Evidence.Overview.SlowestSuite
     $slowestCase = $Evidence.Overview.SlowestCase
+    $repositoryValue = [string]$Evidence.Metadata.Repository
+    $repositoryDisplay = Split-Path -Path $repositoryValue -Leaf
+    if ([string]::IsNullOrWhiteSpace($repositoryDisplay)) {
+        $repositoryDisplay = $repositoryValue
+    }
 
     $lines.Add("STATUS: $($Evidence.Overview.OverallStatus)") | Out-Null
     $lines.Add('') | Out-Null
     $lines.Add('# Verification Report') | Out-Null
     $lines.Add('') | Out-Null
-    $lines.Add("Generated: $($Evidence.Metadata.GeneratedAt)") | Out-Null
-    $lines.Add("Repository: $($Evidence.Metadata.Repository)") | Out-Null
+    $lines.Add("Repository: $repositoryDisplay") | Out-Null
     $lines.Add('') | Out-Null
     $lines.Add('## At a glance') | Out-Null
     $lines.Add('') | Out-Null
@@ -755,23 +759,13 @@ function New-VerificationReport {
         $lines.Add("- Slowest testcase: **$(Format-MarkdownInlineText -Text $slowestCase.Test)** ($($slowestCase.TimeSeconds)s)") | Out-Null
     }
     $lines.Add('') | Out-Null
-    $lines.Add('## Navigation') | Out-Null
-    $lines.Add('') | Out-Null
-    $lines.Add('- [1. Change-focused verification](#1-change-focused-verification)') | Out-Null
-    $lines.Add('- [2. Regression suite verification](#2-regression-suite-verification)') | Out-Null
-    $lines.Add('- [Regression by area](#regression-by-area)') | Out-Null
-    $lines.Add('- [3. Runtime and smoke verification](#3-runtime-and-smoke-verification)') | Out-Null
-    $lines.Add('- [4. Release readiness](#4-release-readiness)') | Out-Null
-    $lines.Add('- [How to read this report](#how-to-read-this-report)') | Out-Null
-    $lines.Add('- [Recommended interpretation](#recommended-interpretation)') | Out-Null
-    $lines.Add('') | Out-Null
     $lines.Add('## How to read this report') | Out-Null
     $lines.Add('') | Out-Null
     $lines.Add('- **READY / PASS**: Maven tests passed, and if smoke verification ran, it also passed.') | Out-Null
     $lines.Add('- **NOT READY / FAIL**: Maven tests failed, or smoke verification found a runtime/config regression.') | Out-Null
     $lines.Add('- A **PASS** negative smoke result for `csv-to-sqlserver` means the scenario failed in the expected fail-fast way because placeholder SQL Server values were detected.') | Out-Null
     $lines.Add('') | Out-Null
-    $lines.Add('## 1. Change-focused verification') | Out-Null
+    $lines.Add('## Change-focused verification') | Out-Null
     $lines.Add('') | Out-Null
     $lines.Add('- This category answers **what changed** and **which working-tree state** was verified.') | Out-Null
     $lines.Add('- In phase 1, the evidence source is the local Git working tree plus the generated verification artifacts tied to that state.') | Out-Null
@@ -800,7 +794,7 @@ function New-VerificationReport {
         }
     }
     $lines.Add('') | Out-Null
-    $lines.Add('## 2. Regression suite verification') | Out-Null
+    $lines.Add('## Regression suite verification') | Out-Null
     $lines.Add('') | Out-Null
     $lines.Add('- This category answers **did broader automated regression evidence remain healthy after the recent change set?**') | Out-Null
     $lines.Add('- It combines Maven execution status, Surefire suite/testcase results, and non-passing-case visibility.') | Out-Null
@@ -938,7 +932,7 @@ function New-VerificationReport {
     }
     $lines.Add('') | Out-Null
 
-    $lines.Add('## 3. Runtime and smoke verification') | Out-Null
+    $lines.Add('## Runtime and smoke verification') | Out-Null
     $lines.Add('') | Out-Null
     $lines.Add('- This category answers **did representative runtime scenarios still behave correctly, including expected fail-fast behavior?**') | Out-Null
     $lines.Add('- In phase 1, this category is populated from the existing smoke workflow and its generated artifacts.') | Out-Null
@@ -961,7 +955,7 @@ function New-VerificationReport {
     }
     $lines.Add('') | Out-Null
 
-    $lines.Add('## 4. Release readiness') | Out-Null
+    $lines.Add('## Release readiness') | Out-Null
     $lines.Add('') | Out-Null
     $lines.Add('- This category answers **is the current evidence scope strong enough to treat the verified workspace state as release-ready?**') | Out-Null
     $lines.Add('- Phase 1 uses currently available local evidence: Git context, automated regression, and smoke/runtime proof when present.') | Out-Null
@@ -1045,6 +1039,73 @@ function Resolve-PublishArtifactPaths {
     }
 }
 
+function Get-MarkdownHeadingIndex {
+    param(
+        [string[]]$Lines,
+        [string]$Heading
+    )
+
+    for ($i = 0; $i -lt $Lines.Count; $i++) {
+        if ($Lines[$i].Trim() -eq $Heading) {
+            return $i
+        }
+    }
+
+    return -1
+}
+
+function Get-MarkdownSlice {
+    param(
+        [string[]]$Lines,
+        [int]$StartIndex,
+        [int]$EndExclusive
+    )
+
+    if ($StartIndex -lt 0 -or $StartIndex -ge $Lines.Count) {
+        return ''
+    }
+
+    $safeEndExclusive = [Math]::Min($EndExclusive, $Lines.Count)
+    if ($safeEndExclusive -le $StartIndex) {
+        return ''
+    }
+
+    return (($Lines[$StartIndex..($safeEndExclusive - 1)]) -join "`n").Trim()
+}
+
+function New-VerificationHtmlTabs {
+    param(
+        [string]$PrimaryHtmlPath,
+        [string]$RegressionHtmlPath,
+        [string]$ClasswiseHtmlPath,
+        [string]$RuntimeHtmlPath
+    )
+
+    return @(
+        [pscustomobject]@{ Key = 'change'; Label = 'Overview'; Href = [System.IO.Path]::GetFileName($PrimaryHtmlPath) }
+        [pscustomobject]@{ Key = 'regression'; Label = 'Regression'; Href = [System.IO.Path]::GetFileName($RegressionHtmlPath) }
+        [pscustomobject]@{ Key = 'classwise'; Label = 'Detailed test results'; Href = [System.IO.Path]::GetFileName($ClasswiseHtmlPath) }
+        [pscustomobject]@{ Key = 'runtime'; Label = 'Runtime and readiness'; Href = [System.IO.Path]::GetFileName($RuntimeHtmlPath) }
+    )
+}
+
+function New-SectionTabsHtml {
+    param(
+        [object[]]$Tabs,
+        [string]$ActiveTabKey
+    )
+
+    $tabLines = New-Object System.Collections.Generic.List[string]
+    foreach ($tab in @($Tabs)) {
+        $safeLabel = [System.Net.WebUtility]::HtmlEncode([string]$tab.Label)
+        $safeHref = [System.Net.WebUtility]::HtmlEncode([string]$tab.Href)
+        $cssClass = if ($tab.Key -eq $ActiveTabKey) { ' class="active"' } else { '' }
+        $tabLines.Add("    <a$cssClass href=`"$safeHref`">$safeLabel</a>") | Out-Null
+    }
+
+    return ($tabLines -join "`n")
+}
+
 function Get-SectionAnchorId {
     param(
         [string]$HeadingText
@@ -1068,6 +1129,26 @@ function Convert-InlineMarkdownToHtml {
     $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\[(.+?)\]\(([^\)]+)\)', '<a href="$2">$1</a>')
     $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '`([^`]+)`', '<code>$1</code>')
     $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\*\*(.+?)\*\*', '<strong>$1</strong>')
+
+    # Status token decoration keeps report states visually scannable in HTML.
+    # Protect multi-word statuses before generic single-word replacements run.
+    $placeholderNotReady = '__STATUS_NOT_READY__'
+    $placeholderNeedsRuntime = '__STATUS_NEEDS_RUNTIME_EVIDENCE__'
+    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\bNOT READY\b', $placeholderNotReady)
+    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\bNEEDS RUNTIME EVIDENCE\b', $placeholderNeedsRuntime)
+
+    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\[(READY|PASS|FAIL|ERROR|SKIPPED)\]', {
+            param($m)
+            $v = $m.Groups[1].Value.ToLowerInvariant()
+            return '<span class="status-token status-' + $v + '">[' + $m.Groups[1].Value + ']</span>'
+        })
+    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '(?<!\[)\b(READY|PASS|FAIL|ERROR|SKIPPED)\b(?!\])', {
+            param($m)
+            $v = $m.Groups[1].Value.ToLowerInvariant()
+            return '<span class="status-token status-' + $v + '">' + $m.Groups[1].Value + '</span>'
+        })
+    $encoded = $encoded.Replace($placeholderNotReady, '<span class="status-token status-not-ready">NOT READY</span>')
+    $encoded = $encoded.Replace($placeholderNeedsRuntime, '<span class="status-token status-needs-runtime-evidence">NEEDS RUNTIME EVIDENCE</span>')
     return $encoded
 }
 
@@ -1178,6 +1259,30 @@ function Convert-MarkdownToHtmlFragmentBasic {
             continue
         }
 
+        if ($trimmed -match '^STATUS:\s+(.+)$') {
+            if ($inList) {
+                $htmlLines.Add('</ul>') | Out-Null
+                $inList = $false
+            }
+
+            $statusText = $matches[1].Trim()
+            $statusClass = 'status-unknown'
+            switch ($statusText.ToUpperInvariant()) {
+                'READY' { $statusClass = 'status-ready'; break }
+                'PASS' { $statusClass = 'status-pass'; break }
+                'FAIL' { $statusClass = 'status-fail'; break }
+                'ERROR' { $statusClass = 'status-error'; break }
+                'SKIPPED' { $statusClass = 'status-skipped'; break }
+                'NOT READY' { $statusClass = 'status-not-ready'; break }
+                'NEEDS RUNTIME EVIDENCE' { $statusClass = 'status-needs-runtime-evidence'; break }
+            }
+
+            $safeStatus = Convert-InlineMarkdownToHtml -Text $statusText
+            $htmlLines.Add('<div class="status-banner ' + $statusClass + '">STATUS: <strong>' + $safeStatus + '</strong></div>') | Out-Null
+            $index++
+            continue
+        }
+
         if ($trimmed -match '^-\s+(.+)$') {
             if (-not $inList) {
                 $htmlLines.Add('<ul>') | Out-Null
@@ -1209,15 +1314,22 @@ function Convert-MarkdownToHtmlFragmentBasic {
 
 function New-VerificationHtmlDocument {
     param(
-        [string]$BodyHtml
+        [string]$BodyHtml,
+        [AllowNull()][object[]]$Tabs,
+        [AllowNull()][string]$ActiveTabKey,
+        [string]$DocumentTitle = 'Verification Report',
+        [AllowNull()][string]$GeneratedAt
     )
+
+    $tabsHtml = New-SectionTabsHtml -Tabs $Tabs -ActiveTabKey $ActiveTabKey
+    $headerGeneratedAt = if ([string]::IsNullOrWhiteSpace($GeneratedAt)) { 'n/a' } else { $GeneratedAt }
 
     @"
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>Verification Report</title>
+  <title>$DocumentTitle</title>
   <style>
     :root {
       --brand-primary: #0b3d91;
@@ -1228,19 +1340,31 @@ function New-VerificationHtmlDocument {
       --border: #d0d7de;
       --text-main: #1f2937;
       --text-soft: #4b5563;
+      --font-size-base: clamp(14px, 0.25vw + 13px, 17px);
+      --font-size-small: clamp(12px, 0.2vw + 11px, 14px);
+      --font-size-header-title: clamp(22px, 0.45vw + 20px, 28px);
+      --font-size-h1: clamp(20px, 0.3vw + 18px, 24px);
+      --font-size-h2: clamp(18px, 0.25vw + 16px, 22px);
+      --font-size-h3: clamp(16px, 0.2vw + 14px, 19px);
     }
     body {
       font-family: Segoe UI, Arial, sans-serif;
       margin: 0;
       line-height: 1.45;
+      font-size: var(--font-size-base);
       color: var(--text-main);
       background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 220px);
     }
     .report-shell {
       max-width: 1320px;
       margin: 0 auto;
-      padding: 20px 24px 28px;
+      padding: 20px 24px 220px;
     }
+    .report-content {
+      max-width: 980px;
+      margin: 0 auto;
+    }
+    .report-tail-spacer { height: 140vh; }
     .report-header {
       background: linear-gradient(120deg, var(--brand-primary), #153e75 65%);
       color: #ffffff;
@@ -1270,9 +1394,10 @@ function New-VerificationHtmlDocument {
       padding: 2px 4px;
     }
     .report-brand-title {
-      font-size: 20px;
+      font-size: var(--font-size-header-title);
       font-weight: 700;
       letter-spacing: 0.2px;
+      line-height: 1.2;
     }
     .report-brand-subtitle {
       font-size: 12px;
@@ -1280,8 +1405,9 @@ function New-VerificationHtmlDocument {
       margin-top: 2px;
     }
     .report-meta {
-      text-align: right;
-      font-size: 12px;
+      margin-left: auto;
+      text-align: left;
+      font-size: 13px;
       opacity: 0.95;
     }
     .report-meta span {
@@ -1291,6 +1417,10 @@ function New-VerificationHtmlDocument {
       position: sticky;
       top: 0;
       z-index: 10;
+      display: flex;
+      gap: 6px;
+      overflow-x: auto;
+      white-space: nowrap;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: 10px;
@@ -1298,27 +1428,71 @@ function New-VerificationHtmlDocument {
       margin-bottom: 16px;
       box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
     }
+    .section-tabs:empty { display: none; }
     .section-tabs a {
       display: inline-block;
       margin-right: 8px;
-      margin-bottom: 6px;
+      margin-bottom: 0;
       padding: 6px 10px;
       border: 1px solid #bdd5f2;
       border-radius: 999px;
       text-decoration: none;
       color: var(--brand-primary);
       background: #f4f9ff;
-      font-size: 12px;
+      font-size: var(--font-size-small);
       font-weight: 600;
+      flex: 0 0 auto;
     }
     .section-tabs a:hover { background: #f6f8fa; }
+    .section-tabs a.active {
+      background: var(--brand-primary);
+      color: #ffffff;
+      border-color: var(--brand-primary);
+    }
+    .status-banner {
+      margin: 8px 0 12px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      border: 1px solid transparent;
+      font-weight: 700;
+      letter-spacing: 0.1px;
+    }
+    .status-token {
+      font-weight: 700;
+      padding: 0 2px;
+      border-radius: 4px;
+    }
+    .status-ready, .status-pass {
+      color: #166534;
+      background: #ecfdf3;
+      border-color: #86efac;
+    }
+    .status-fail, .status-error, .status-not-ready {
+      color: #991b1b;
+      background: #fef2f2;
+      border-color: #fecaca;
+    }
+    .status-needs-runtime-evidence {
+      color: #92400e;
+      background: #fffbeb;
+      border-color: #fcd34d;
+    }
+    .status-skipped {
+      color: #374151;
+      background: #f3f4f6;
+      border-color: #d1d5db;
+    }
     h1, h2, h3, h4 { color: var(--brand-ink); }
-    h1 { margin-top: 10px; }
+    h1 { margin-top: 10px; font-size: var(--font-size-h1); line-height: 1.25; }
     h2 {
       margin-top: 28px;
       padding-bottom: 6px;
       border-bottom: 2px solid #dbeafe;
+      font-size: var(--font-size-h2);
+      line-height: 1.3;
     }
+    h3 { font-size: var(--font-size-h3); line-height: 1.35; }
+    [id] { scroll-margin-top: var(--anchor-offset, 92px); }
     p { color: var(--text-main); }
     table { border-collapse: collapse; width: 100%; margin-bottom: 16px; background: var(--surface); }
     th, td { border: 1px solid #d0d7de; padding: 6px 8px; vertical-align: top; font-size: 13px; }
@@ -1345,6 +1519,34 @@ function New-VerificationHtmlDocument {
       gap: 10px;
       flex-wrap: wrap;
     }
+    .back-to-top {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      z-index: 20;
+      border: 1px solid #93c5fd;
+      border-radius: 999px;
+      background: #0b3d91;
+      color: #ffffff;
+      padding: 8px 12px;
+      font-size: var(--font-size-small);
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.2);
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity 120ms ease, transform 120ms ease;
+    }
+    .back-to-top.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    @media (max-width: 900px) {
+      .report-shell { padding: 14px 12px 160px; }
+      th, td { font-size: 12px; }
+    }
     @media print {
       body {
         margin: 0;
@@ -1360,6 +1562,7 @@ function New-VerificationHtmlDocument {
         box-shadow: none;
       }
       .section-tabs { display: none; }
+      .back-to-top { display: none; }
       h2 { break-before: page; }
       h2:first-of-type { break-before: auto; }
       .report-footer {
@@ -1372,6 +1575,83 @@ function New-VerificationHtmlDocument {
   </style>
 </head>
 <body>
+  <script>
+    // Prevent browser scroll restoration from reopening the report at a previous position.
+    if ('scrollRestoration' in history) {
+      history.scrollRestoration = 'manual';
+    }
+    function currentTopOffset() {
+      var stickyTabs = document.querySelector('.section-tabs');
+      var stickyHeight = stickyTabs ? stickyTabs.getBoundingClientRect().height : 0;
+      return Math.ceil(stickyHeight + 14);
+    }
+
+    function syncAnchorOffset() {
+      document.documentElement.style.setProperty('--anchor-offset', currentTopOffset() + 'px');
+    }
+
+    function navigateToSection(targetId) {
+      var target = document.getElementById(targetId);
+      if (!target) {
+        return;
+      }
+      syncAnchorOffset();
+      target.scrollIntoView({ behavior: 'auto', block: 'start' });
+    }
+
+    window.addEventListener('DOMContentLoaded', function () {
+      var backToTopButton = document.getElementById('back-to-top');
+
+      function updateBackToTopButton() {
+        if (!backToTopButton) {
+          return;
+        }
+        var shouldShow = window.pageYOffset > 320;
+        backToTopButton.classList.toggle('visible', shouldShow);
+      }
+
+      window.scrollTo(0, 0);
+      syncAnchorOffset();
+      updateBackToTopButton();
+      var anchorLinks = document.querySelectorAll('a[href^="#"]');
+      anchorLinks.forEach(function (link) {
+        link.addEventListener('click', function (event) {
+          var href = link.getAttribute('href') || '';
+          var targetId = href.substring(1);
+          if (!targetId) {
+            return;
+          }
+          if (!document.getElementById(targetId)) {
+            return;
+          }
+          event.preventDefault();
+          navigateToSection(targetId);
+          window.history.replaceState(null, '', '#' + targetId);
+        });
+      });
+
+      if (backToTopButton) {
+        backToTopButton.addEventListener('click', function () {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+      }
+
+      window.addEventListener('resize', function () {
+        syncAnchorOffset();
+      });
+
+      window.addEventListener('scroll', function () {
+        updateBackToTopButton();
+      }, { passive: true });
+
+      if (window.location.hash && window.location.hash.length > 1) {
+        var initialTarget = window.location.hash.substring(1);
+        setTimeout(function () {
+          navigateToSection(initialTarget);
+        }, 0);
+      }
+    });
+  </script>
   <div class="report-shell">
   <header class="report-header">
     <div class="report-header-top">
@@ -1383,22 +1663,24 @@ function New-VerificationHtmlDocument {
         </div>
       </div>
       <div class="report-meta">
+        <span>Generated: $headerGeneratedAt</span>
         <span>Platform: spring-etl-engine</span>
         <span>Asset Owner: oneFlow</span>
       </div>
     </div>
   </header>
   <div class="section-tabs">
-    <a href="#1-change-focused-verification">Change</a>
-    <a href="#2-regression-suite-verification">Regression</a>
-    <a href="#3-runtime-and-smoke-verification">Runtime</a>
-    <a href="#4-release-readiness">Readiness</a>
+$tabsHtml
   </div>
+  <main class="report-content" id="report-content">
 $BodyHtml
+  </main>
   <footer class="report-footer">
     <span>oneFlow &middot; Verification evidence report</span>
     <span>Generated from spring-etl-engine verification workflow</span>
   </footer>
+  <div class="report-tail-spacer"></div>
+  <button type="button" class="back-to-top" id="back-to-top" aria-label="Back to top">Top</button>
   </div>
 </body>
 </html>
@@ -1418,228 +1700,80 @@ function Publish-HtmlReport {
         New-Item -ItemType Directory -Path $htmlDir -Force | Out-Null
     }
 
-    $pandocCommand = Get-Command pandoc -ErrorAction SilentlyContinue
-    if ($pandocCommand) {
-        & $pandocCommand.Source $MarkdownPath -f gfm -t html5 -s -o $HtmlPath
-        if ($LASTEXITCODE -eq 0 -and (Test-Path $HtmlPath)) {
-            return [pscustomobject]@{ Success = $true; Method = 'pandoc'; Path = $HtmlPath }
-        }
-    }
-
-    $pwshCommand = Get-Command pwsh -ErrorAction SilentlyContinue
-    if ($pwshCommand) {
-        $pwshScript = @'
-$inputPath = $args[0]
-$outputPath = $args[1]
-$markdown = Get-Content -Path $inputPath -Raw
-$rendered = ConvertFrom-Markdown -InputObject $markdown
-$bodyHtml = $rendered.Html
-$document = @"
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8" />
-  <title>Verification Report</title>
-  <style>
-    :root {
-      --brand-primary: #0b3d91;
-      --brand-accent: #2f9cf4;
-      --brand-ink: #0f172a;
-      --surface: #ffffff;
-      --surface-muted: #f8fafc;
-      --border: #d0d7de;
-      --text-main: #1f2937;
-      --text-soft: #4b5563;
-    }
-    body {
-      font-family: Segoe UI, Arial, sans-serif;
-      margin: 0;
-      line-height: 1.45;
-      color: var(--text-main);
-      background: linear-gradient(180deg, #f5f9ff 0%, #ffffff 220px);
-    }
-    .report-shell {
-      max-width: 1320px;
-      margin: 0 auto;
-      padding: 20px 24px 28px;
-    }
-    .report-header {
-      background: linear-gradient(120deg, var(--brand-primary), #153e75 65%);
-      color: #ffffff;
-      border-radius: 14px;
-      padding: 18px 20px;
-      margin-bottom: 14px;
-      box-shadow: 0 8px 26px rgba(11, 61, 145, 0.22);
-    }
-    .report-header-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      flex-wrap: wrap;
-    }
-    .report-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 300px;
-    }
-    .report-brand img {
-      height: 26px;
-      width: auto;
-      border-radius: 4px;
-      background: #ffffff;
-      padding: 2px 4px;
-    }
-    .report-brand-title {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: 0.2px;
-    }
-    .report-brand-subtitle {
-      font-size: 12px;
-      opacity: 0.9;
-      margin-top: 2px;
-    }
-    .report-meta {
-      text-align: right;
-      font-size: 12px;
-      opacity: 0.95;
-    }
-    .report-meta span {
-      display: block;
-    }
-    .section-tabs {
-      position: sticky;
-      top: 0;
-      z-index: 10;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 10px;
-      margin-bottom: 16px;
-      box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
-    }
-    .section-tabs a {
-      display: inline-block;
-      margin-right: 8px;
-      margin-bottom: 6px;
-      padding: 6px 10px;
-      border: 1px solid #bdd5f2;
-      border-radius: 999px;
-      text-decoration: none;
-      color: var(--brand-primary);
-      background: #f4f9ff;
-      font-size: 12px;
-      font-weight: 600;
-    }
-    .section-tabs a:hover { background: #f6f8fa; }
-    h1, h2, h3, h4 { color: var(--brand-ink); }
-    h1 { margin-top: 10px; }
-    h2 {
-      margin-top: 28px;
-      padding-bottom: 6px;
-      border-bottom: 2px solid #dbeafe;
-    }
-    p { color: var(--text-main); }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 16px; background: var(--surface); }
-    th, td { border: 1px solid #d0d7de; padding: 6px 8px; vertical-align: top; font-size: 13px; }
-    th {
-      background: #eff6ff;
-      color: #0b3d91;
-      text-transform: none;
-      font-weight: 700;
-      letter-spacing: 0.15px;
-    }
-    tr:nth-child(even) td { background: #fbfdff; }
-    code, pre { background: #f6f8fa; }
-    code { padding: 1px 4px; border-radius: 4px; }
-    pre { padding: 10px; overflow-x: auto; border: 1px solid #d0d7de; border-radius: 6px; }
-    a { color: var(--brand-primary); }
-    .report-footer {
-      margin-top: 30px;
-      padding-top: 12px;
-      border-top: 1px solid #dbe4ef;
-      color: var(--text-soft);
-      font-size: 12px;
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
-    }
-    @media print {
-      body {
-        margin: 0;
-        background: #ffffff;
-        color: #000000;
-      }
-      .report-shell {
-        max-width: none;
-        padding: 8mm;
-      }
-      .report-header {
-        border-radius: 0;
-        box-shadow: none;
-      }
-      .section-tabs { display: none; }
-      h2 { break-before: page; }
-      h2:first-of-type { break-before: auto; }
-      .report-footer {
-        position: fixed;
-        bottom: 8mm;
-        left: 8mm;
-        right: 8mm;
-      }
-    }
-  </style>
-</head>
-<body>
-  <div class="report-shell">
-  <header class="report-header">
-    <div class="report-header-top">
-      <div class="report-brand">
-        <img src="../docs/assets/oneflow-wordmark.png" alt="oneFlow" />
-        <div>
-          <div class="report-brand-title">oneFlow Verification Report</div>
-          <div class="report-brand-subtitle">Enterprise QA and runtime evidence artifact</div>
-        </div>
-      </div>
-      <div class="report-meta">
-        <span>Platform: spring-etl-engine</span>
-        <span>Asset Owner: oneFlow</span>
-      </div>
-    </div>
-  </header>
-  <div class="section-tabs">
-    <a href="#1-change-focused-verification">Change</a>
-    <a href="#2-regression-suite-verification">Regression</a>
-    <a href="#3-runtime-and-smoke-verification">Runtime</a>
-    <a href="#4-release-readiness">Readiness</a>
-  </div>
-$bodyHtml
-  <footer class="report-footer">
-    <span>oneFlow &middot; Verification evidence report</span>
-    <span>Generated from spring-etl-engine verification workflow</span>
-  </footer>
-  </div>
-</body>
-</html>
-"@
-Set-Content -Path $outputPath -Value $document -Encoding utf8
-'@
-
-        & $pwshCommand.Source -NoProfile -Command $pwshScript -- $MarkdownPath $HtmlPath
-        if ($LASTEXITCODE -eq 0 -and (Test-Path $HtmlPath)) {
-            return [pscustomobject]@{ Success = $true; Method = 'pwsh-convertfrommarkdown'; Path = $HtmlPath }
-        }
-    }
-
     $rawMarkdown = Get-Content -Path $MarkdownPath -Raw
-    $bodyHtml = Convert-MarkdownToHtmlFragmentBasic -MarkdownText $rawMarkdown
-    $fallbackHtml = New-VerificationHtmlDocument -BodyHtml $bodyHtml
-    Set-Content -Path $HtmlPath -Value $fallbackHtml -Encoding utf8
+    $lines = @($rawMarkdown -split "`r?`n")
 
-    [pscustomobject]@{ Success = $true; Method = 'built-in-basic-parser'; Path = $HtmlPath }
+    $generatedAtMatch = [System.Text.RegularExpressions.Regex]::Match($rawMarkdown, '(?m)^Generated:\s*(.+)$')
+    $generatedAtValue = if ($generatedAtMatch.Success) {
+        $generatedAtMatch.Groups[1].Value.Trim()
+    }
+    else {
+        Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'
+    }
+
+    $indexRegression = Get-MarkdownHeadingIndex -Lines $lines -Heading '## Regression suite verification'
+    if ($indexRegression -lt 0) {
+        $indexRegression = Get-MarkdownHeadingIndex -Lines $lines -Heading '## 2. Regression suite verification'
+    }
+    $indexSuiteSummary = Get-MarkdownHeadingIndex -Lines $lines -Heading '### Suite summary'
+    $indexRuntime = Get-MarkdownHeadingIndex -Lines $lines -Heading '## Runtime and smoke verification'
+    if ($indexRuntime -lt 0) {
+        $indexRuntime = Get-MarkdownHeadingIndex -Lines $lines -Heading '## 3. Runtime and smoke verification'
+    }
+    $indexRelease = Get-MarkdownHeadingIndex -Lines $lines -Heading '## Release readiness'
+    if ($indexRelease -lt 0) {
+        $indexRelease = Get-MarkdownHeadingIndex -Lines $lines -Heading '## 4. Release readiness'
+    }
+
+    if ($indexRegression -lt 0 -or $indexSuiteSummary -lt 0 -or $indexRuntime -lt 0 -or $indexRelease -lt 0) {
+        $singlePageBody = Convert-MarkdownToHtmlFragmentBasic -MarkdownText $rawMarkdown
+        $singlePageHtml = New-VerificationHtmlDocument -BodyHtml $singlePageBody -DocumentTitle 'oneFlow Verification Report' -Tabs @() -ActiveTabKey '' -GeneratedAt $generatedAtValue
+        Set-Content -Path $HtmlPath -Value $singlePageHtml -Encoding utf8
+        return [pscustomobject]@{ Success = $true; Method = 'single-page-fallback'; Path = $HtmlPath; PdfSourcePath = $HtmlPath; AdditionalPaths = @() }
+    }
+
+    $htmlBaseName = [System.IO.Path]::GetFileNameWithoutExtension($HtmlPath)
+    $regressionPath = Join-Path $htmlDir ($htmlBaseName + '-regression.html')
+    $classwisePath = Join-Path $htmlDir ($htmlBaseName + '-classwise-tests.html')
+    $runtimePath = Join-Path $htmlDir ($htmlBaseName + '-runtime-readiness.html')
+    $fullPath = Join-Path $htmlDir ($htmlBaseName + '-full.html')
+
+    $tabs = New-VerificationHtmlTabs -PrimaryHtmlPath $HtmlPath -RegressionHtmlPath $regressionPath -ClasswiseHtmlPath $classwisePath -RuntimeHtmlPath $runtimePath
+
+    $changeMarkdown = Get-MarkdownSlice -Lines $lines -StartIndex 0 -EndExclusive $indexRegression
+    $regressionMarkdown = Get-MarkdownSlice -Lines $lines -StartIndex $indexRegression -EndExclusive $indexSuiteSummary
+    $classwiseMarkdown = @(
+        '## Detailed test results'
+        ''
+        '- This page contains detailed suite and testcase evidence for technical deep-dive review.'
+        ''
+        (Get-MarkdownSlice -Lines $lines -StartIndex $indexSuiteSummary -EndExclusive $indexRuntime)
+    ) -join "`n"
+    $runtimeReadinessMarkdown = @(
+        (Get-MarkdownSlice -Lines $lines -StartIndex $indexRuntime -EndExclusive $indexRelease)
+        ''
+        (Get-MarkdownSlice -Lines $lines -StartIndex $indexRelease -EndExclusive $lines.Count)
+    ) -join "`n"
+
+    $changeHtml = New-VerificationHtmlDocument -BodyHtml (Convert-MarkdownToHtmlFragmentBasic -MarkdownText $changeMarkdown) -Tabs $tabs -ActiveTabKey 'change' -DocumentTitle 'oneFlow Verification Report - Overview' -GeneratedAt $generatedAtValue
+    $regressionHtml = New-VerificationHtmlDocument -BodyHtml (Convert-MarkdownToHtmlFragmentBasic -MarkdownText $regressionMarkdown) -Tabs $tabs -ActiveTabKey 'regression' -DocumentTitle 'oneFlow Verification Report - Regression' -GeneratedAt $generatedAtValue
+    $classwiseHtml = New-VerificationHtmlDocument -BodyHtml (Convert-MarkdownToHtmlFragmentBasic -MarkdownText $classwiseMarkdown) -Tabs $tabs -ActiveTabKey 'classwise' -DocumentTitle 'oneFlow Verification Report - Detailed test results' -GeneratedAt $generatedAtValue
+    $runtimeHtml = New-VerificationHtmlDocument -BodyHtml (Convert-MarkdownToHtmlFragmentBasic -MarkdownText $runtimeReadinessMarkdown) -Tabs $tabs -ActiveTabKey 'runtime' -DocumentTitle 'oneFlow Verification Report - Runtime and readiness' -GeneratedAt $generatedAtValue
+    $fullHtml = New-VerificationHtmlDocument -BodyHtml (Convert-MarkdownToHtmlFragmentBasic -MarkdownText $rawMarkdown) -Tabs $tabs -ActiveTabKey 'change' -DocumentTitle 'oneFlow Verification Report - Full' -GeneratedAt $generatedAtValue
+
+    Set-Content -Path $HtmlPath -Value $changeHtml -Encoding utf8
+    Set-Content -Path $regressionPath -Value $regressionHtml -Encoding utf8
+    Set-Content -Path $classwisePath -Value $classwiseHtml -Encoding utf8
+    Set-Content -Path $runtimePath -Value $runtimeHtml -Encoding utf8
+    Set-Content -Path $fullPath -Value $fullHtml -Encoding utf8
+
+    [pscustomobject]@{
+        Success = $true
+        Method = 'built-in-multipage-parser'
+        Path = $HtmlPath
+        PdfSourcePath = $fullPath
+        AdditionalPaths = @($regressionPath, $classwisePath, $runtimePath, $fullPath)
+    }
 }
 
 # Converts html report to pdf when a local converter/browser is available.
@@ -1769,7 +1903,13 @@ if ($ReportPublishMode -eq 'HtmlAndPdf') {
         $pdfPublishResult = [pscustomobject]@{ Success = $false; Method = 'html-missing'; Path = $publishPaths.PdfPath }
     }
     else {
-        $pdfPublishResult = Publish-PdfReport -HtmlPath $htmlPublishResult.Path -PdfPath $publishPaths.PdfPath
+        $pdfSourcePath = if ($htmlPublishResult.PSObject.Properties.Name -contains 'PdfSourcePath') {
+            $htmlPublishResult.PdfSourcePath
+        }
+        else {
+            $htmlPublishResult.Path
+        }
+        $pdfPublishResult = Publish-PdfReport -HtmlPath $pdfSourcePath -PdfPath $publishPaths.PdfPath
     }
 }
 
@@ -1782,6 +1922,11 @@ Write-Host "- Latest: $ReportPath"
 Write-Host "- Timestamped: $timestampedReportPath"
 if ($htmlPublishResult) {
     Write-Host "- HTML: $($htmlPublishResult.Path) (method=$($htmlPublishResult.Method))"
+    if ($htmlPublishResult.PSObject.Properties.Name -contains 'AdditionalPaths') {
+        foreach ($extraHtmlPath in @($htmlPublishResult.AdditionalPaths)) {
+            Write-Host "  - Page: $extraHtmlPath"
+        }
+    }
 }
 if ($ReportPublishMode -eq 'HtmlAndPdf') {
     if ($pdfPublishResult -and $pdfPublishResult.Success) {
