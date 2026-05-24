@@ -6,6 +6,15 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.7.6] - 2026-05-24
+
+### Changed
+- Improved the processor `conditional` transform runtime path with a bounded LRU SpEL expression cache (size `1024`) to reduce repeated parse overhead under high-cardinality workloads.
+- Added structured conditional-transform observability (`PROCESSOR_TRANSFORM` cache hit/miss/evict, case match/default, and evaluation failure events) with expression-length truncation for safer logs.
+
+### Added
+- Added `ProcessorTransformEvaluationException` to classify transform-evaluation runtime failures without changing existing fail-fast semantics.
+
 ### Fixed
 - Hardened embedded ordered-duplicate staging to use bounded `VARCHAR` payload/key/issue columns instead of H2 `CLOB`, reducing the risk of long-run LOB-reference timeout failures during winner-selection resolution.
 
@@ -341,6 +350,3 @@ and this project adheres to **Semantic Versioning**.
 - Job, Step, Reader, Processor, Writer bootstrapping.
 
 ---
-
-
-
