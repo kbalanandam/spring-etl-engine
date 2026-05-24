@@ -6,6 +6,8 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.7.6] - 2026-05-24
+
 ### Changed
 - Improved the processor `conditional` transform runtime path with a bounded LRU SpEL expression cache (size `1024`) to reduce repeated parse overhead under high-cardinality workloads.
 - Added structured conditional-transform observability (`PROCESSOR_TRANSFORM` cache hit/miss/evict, case match/default, and evaluation failure events) with expression-length truncation for safer logs.
