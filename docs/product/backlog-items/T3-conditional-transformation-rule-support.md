@@ -1,4 +1,4 @@
-# T3 — Add conditional transformation rule support
+# T3 â€” Add conditional transformation rule support
 
 ## Summary
 
@@ -55,7 +55,7 @@ Add conditional behavior only after the expression baseline is stable, and keep 
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Transformation capability roadmap`](../../architecture/transformation-capability-roadmap.md)
+- [`Transformation capability roadmap`](../../architecture/etl-core/transformation-capability-roadmap.md)
 - [`Default processor config`](../../config/processor/default-processor.md)
 
 ## Implementation notes

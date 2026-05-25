@@ -1,4 +1,4 @@
-# B4 — Strict XML source validation and optional XSD checks
+# B4 â€” Strict XML source validation and optional XSD checks
 
 ## Summary
 
@@ -75,8 +75,8 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Validation extension architecture`](../../architecture/validation-extension-architecture.md)
-- [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md)
+- [`Validation extension architecture`](../../architecture/etl-core/validation-extension-architecture.md)
+- [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md)
 - [`XML source reference`](../../config/source/xml-source.md)
 
 ## Implementation notes

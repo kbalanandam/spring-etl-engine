@@ -1,4 +1,4 @@
-# A6 — Retire remaining internal generated-model package bridge
+# A6 â€” Retire remaining internal generated-model package bridge
 
 ## Summary
 
@@ -70,6 +70,6 @@ This item does not cover:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`A4 — Standardize generated-model naming and package derivation`](A4-standardize-generated-model-naming-and-package-derivation.md)
-- [`Generated model naming standard`](../../architecture/generated-model-naming-standard.md)
+- [`A4 â€” Standardize generated-model naming and package derivation`](A4-standardize-generated-model-naming-and-package-derivation.md)
+- [`Generated model naming standard`](../../architecture/etl-core/generated-model-naming-standard.md)
 

@@ -1,4 +1,4 @@
-# A5 — Relational source column alias contract
+# A5 â€” Relational source column alias contract
 
 ## Summary
 
@@ -77,8 +77,8 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Relational DB support`](../../architecture/relational-db-support.md)
-- [`Extension points`](../../architecture/extension-points.md)
+- [`Relational DB support`](../../architecture/etl-core/relational-db-support.md)
+- [`Extension points`](../../architecture/etl-core/extension-points.md)
 - [`Relational source reference`](../../config/source/relational-source.md)
 
 ## Implementation notes

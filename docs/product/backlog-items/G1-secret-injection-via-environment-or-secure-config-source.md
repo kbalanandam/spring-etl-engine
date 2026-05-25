@@ -1,4 +1,4 @@
-# G1 — Support secret injection via environment or secure config source
+# G1 â€” Support secret injection via environment or secure config source
 
 ## Summary
 
@@ -55,8 +55,8 @@ Start with the smallest safe secret-injection contract that improves deployment 
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`ETL product evolution roadmap`](../../architecture/etl-product-evolution-roadmap.md)
-- [`Control-plane worker boundary`](../../architecture/control-plane-worker-boundary.md)
+- [`ETL product evolution roadmap`](../../architecture/foundations/etl-product-evolution-roadmap.md)
+- [`Control-plane worker boundary`](../../architecture/control-plane/control-plane-worker-boundary.md)
 
 ## Implementation notes
 

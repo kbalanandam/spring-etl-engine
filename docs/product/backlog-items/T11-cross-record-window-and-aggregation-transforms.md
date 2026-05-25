@@ -1,4 +1,4 @@
-# T11 — Cross-record window and aggregation transformation semantics
+# T11 â€” Cross-record window and aggregation transformation semantics
 
 ## Summary
 
@@ -101,9 +101,9 @@ Expected behavior:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Transformation capability catalog`](../../architecture/transformation-capability-catalog.md)
+- [`Transformation capability catalog`](../../architecture/etl-core/transformation-capability-catalog.md)
 - [`Restart semantics per execution mode`](F1-restart-semantics-per-execution-mode.md)
-- [`Runtime flow`](../../architecture/runtime-flow.md)
+- [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
 
 ## Implementation notes
 

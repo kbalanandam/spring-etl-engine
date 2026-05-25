@@ -1,4 +1,4 @@
-# Epic B — Runtime hardening and file behavior
+# Epic B - Runtime hardening and file behavior
 
 ## Summary
 
@@ -20,19 +20,19 @@ This epic is **not** the place for scheduling, transport acquisition, or product
 
 ## Related backlog items
 
-- [`B1 ? — Introduce configurable skip policy support`](../backlog-items/B1-configurable-skip-policy-support.md)
-- [`B2 ? — Introduce configurable retry policy support where appropriate`](../backlog-items/B2-configurable-retry-policy-support.md)
-- [`B3 ? — Archive processed source files after successful file-based runs`](../backlog-items/B3-archive-processed-source-files-after-success.md)
-- [`B4 ? — Add strict XML source validation mode with optional XSD checks`](../backlog-items/B4-strict-xml-source-validation-and-optional-xsd.md)
-- [`B5 ? — Add CSV parsing hardening with configurable quote/escape behavior`](../backlog-items/B5-csv-reader-parsing-hardening.md)
-- [`B6 ? — Add a shared zip/unzip service boundary for file-based source preparation and archive packaging`](../backlog-items/B6-shared-zip-unzip-service-boundary-for-file-based-source-preparation-and-archive-packaging.md)
+- [`B1 - Introduce configurable skip policy support`](../backlog-items/B1-configurable-skip-policy-support.md)
+- [`B2 - Introduce configurable retry policy support where appropriate`](../backlog-items/B2-configurable-retry-policy-support.md)
+- [`B3 - Archive processed source files after successful file-based runs`](../backlog-items/B3-archive-processed-source-files-after-success.md)
+- [`B4 - Add strict XML source validation mode with optional XSD checks`](../backlog-items/B4-strict-xml-source-validation-and-optional-xsd.md)
+- [`B5 - Add CSV parsing hardening with configurable quote/escape behavior`](../backlog-items/B5-csv-reader-parsing-hardening.md)
+- [`B6 - Add a shared zip/unzip service boundary for file-based source preparation and archive packaging`](../backlog-items/B6-shared-zip-unzip-service-boundary-for-file-based-source-preparation-and-archive-packaging.md)
 
 ## Related docs
 
-- [`../../architecture/file-ingestion-hardening.md`](../../architecture/file-ingestion-hardening.md)
-- [`../../architecture/file-ingestion-hardening-checklist.md`](../../architecture/file-ingestion-hardening-checklist.md)
-- [`../../architecture/validation-extension-architecture.md`](../../architecture/validation-extension-architecture.md)
-- [`../../architecture/csv-to-xml-runtime-flow.md`](../../architecture/csv-to-xml-runtime-flow.md)
+- [`../../architecture/etl-core/file-ingestion-hardening.md`](../../architecture/etl-core/file-ingestion-hardening.md)
+- [`../../architecture/etl-core/file-ingestion-hardening-checklist.md`](../../architecture/etl-core/file-ingestion-hardening-checklist.md)
+- [`../../architecture/etl-core/validation-extension-architecture.md`](../../architecture/etl-core/validation-extension-architecture.md)
+- [`../../architecture/etl-core/csv-to-xml-runtime-flow.md`](../../architecture/etl-core/csv-to-xml-runtime-flow.md)
 
 ## Maintenance note
 

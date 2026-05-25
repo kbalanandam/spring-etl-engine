@@ -80,13 +80,13 @@ Do not forget these boundaries:
 
 If you need to resume quickly, read in this order:
 
-1. [`product-backlog.md`](./product-backlog.md) — canonical status and sequencing
-2. [`Epic T`](./epics/epic-t-transformation-capability.md) — shared transformation boundary
-3. [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) — completed quarantine and duplicate hardening baseline
-4. [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) — closed XML-native duplicate identity item (`S1`-`S6` complete)
-5. [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) — deferred duplicate-scale boundary
-6. [`default-processor.md`](../config/processor/default-processor.md) — shipped contract today
-7. [`transformation-capability-roadmap.md`](../architecture/transformation-capability-roadmap.md) — future direction
+1. [`product-backlog.md`](./product-backlog.md) â€” canonical status and sequencing
+2. [`Epic T`](./epics/epic-t-transformation-capability.md) â€” shared transformation boundary
+3. [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) â€” completed quarantine and duplicate hardening baseline
+4. [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) â€” closed XML-native duplicate identity item (`S1`-`S6` complete)
+5. [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) â€” deferred duplicate-scale boundary
+6. [`default-processor.md`](../config/processor/default-processor.md) â€” shipped contract today
+7. [`transformation-capability-roadmap.md`](../architecture/etl-core/transformation-capability-roadmap.md) â€” future direction
 
 ## One-line reminder
 

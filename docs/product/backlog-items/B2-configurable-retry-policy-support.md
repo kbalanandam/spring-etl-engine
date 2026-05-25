@@ -1,4 +1,4 @@
-# B2 — Introduce configurable retry policy support where appropriate
+# B2 â€” Introduce configurable retry policy support where appropriate
 
 ## Summary
 
@@ -55,8 +55,8 @@ Build retry only after skip/failure semantics are clearer, and limit it to runti
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md)
-- [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
+- [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
 

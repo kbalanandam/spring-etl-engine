@@ -1,4 +1,4 @@
-# T12 — Transformation governance and lineage evidence model
+# T12 â€” Transformation governance and lineage evidence model
 
 ## Summary
 
@@ -99,9 +99,9 @@ Expected behavior:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Transformation capability catalog`](../../architecture/transformation-capability-catalog.md)
+- [`Transformation capability catalog`](../../architecture/etl-core/transformation-capability-catalog.md)
 - [`Machine-readable run summary`](C1-machine-readable-run-summary.md)
-- [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
 

@@ -1,4 +1,4 @@
-﻿# Relational Source Config
+# Relational Source Config
 
 ## Purpose
 
@@ -181,7 +181,7 @@ sources:
 
 - [`CSV source reference`](csv-source.md)
 - [`Relational target reference`](../target/relational-target.md)
-- [`Relational DB support`](../../architecture/relational-db-support.md)
+- [`Relational DB support`](../../architecture/etl-core/relational-db-support.md)
 
 
 

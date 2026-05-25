@@ -56,7 +56,7 @@ Legacy/custom/blank processor types are rejected with clear migration-oriented e
 
 - [`ADR-0002: config-driven ETL pipeline`](0002-config-driven-etl-pipeline.md)
 - [`ADR-0004: explicit job-config selection`](0004-use-explicit-job-config-for-business-scenario-selection.md)
-- [`Extension points`](../architecture/extension-points.md)
-- [`Runtime flow`](../architecture/runtime-flow.md)
+- [`Extension points`](../architecture/etl-core/extension-points.md)
+- [`Runtime flow`](../architecture/etl-core/runtime-flow.md)
 - [`Default processor reference`](../config/processor/default-processor.md)
 

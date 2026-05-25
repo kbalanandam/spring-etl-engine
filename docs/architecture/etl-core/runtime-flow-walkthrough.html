@@ -1572,9 +1572,9 @@
                                 <p>Watch a cinematic embedded OneFlow animation move from config selection into validation, composition, execution, and evidence.</p>
                             </div>
                             <div class="story-player-controls" aria-label="Animated OneFlow story controls">
-                                <button id="storyPlayBtn">▶ Play story</button>
-                                <button id="storyPauseBtn" class="secondary">❚❚ Pause</button>
-                                <button id="storyRestartBtn" class="secondary">↺ Restart</button>
+                                <button id="storyPlayBtn">â–¶ Play story</button>
+                                <button id="storyPauseBtn" class="secondary">âšâš Pause</button>
+                                <button id="storyRestartBtn" class="secondary">â†º Restart</button>
                             </div>
                         </div>
 
@@ -1618,7 +1618,7 @@
 
                                     <div class="hero-highlights" aria-label="OneFlow learning highlights">
                                         <span class="highlight-pill">1 selected scenario per run</span>
-                                        <span class="highlight-pill">MainFlow → SubFlow → Step visibility</span>
+                                        <span class="highlight-pill">MainFlow â†’ SubFlow â†’ Step visibility</span>
                                         <span class="highlight-pill">Flat execution underneath</span>
                                         <span class="highlight-pill">Evidence-rich lifecycle logs</span>
                                     </div>
@@ -1803,7 +1803,7 @@
 
                         <article class="panel portal-card">
                             <h3>How to learn OneFlow here</h3>
-                            <p>Start with the OneFlow overview, pick the runtime phase you care about, then open Scene explorer when you want deeper execution and evidence detail. <code>docs/architecture/runtime-flow.md</code> remains the canonical note behind this website.</p>
+                            <p>Start with the OneFlow overview, pick the runtime phase you care about, then open Scene explorer when you want deeper execution and evidence detail. <code>docs/architecture/etl-core/runtime-flow.md</code> remains the canonical note behind this website.</p>
                         </article>
 
                         <article class="panel portal-card">
@@ -1828,11 +1828,11 @@
                             </div>
                             <div class="explorer-toolbar" aria-label="Scene explorer controls">
                                 <span class="tag" id="metricPlayback">Autoplay off</span>
-                                <button id="prevBtn" class="secondary">◀ Previous</button>
-                                <button id="playBtn">▶ Play</button>
-                                <button id="pauseBtn" class="secondary">❚❚ Pause</button>
-                                <button id="nextBtn" class="secondary">Next ▶</button>
-                                <button id="restartBtn" class="secondary">↺ Restart</button>
+                                <button id="prevBtn" class="secondary">â—€ Previous</button>
+                                <button id="playBtn">â–¶ Play</button>
+                                <button id="pauseBtn" class="secondary">âšâš Pause</button>
+                                <button id="nextBtn" class="secondary">Next â–¶</button>
+                                <button id="restartBtn" class="secondary">â†º Restart</button>
                             </div>
                         </div>
                         <div class="flow" id="flowDiagram" aria-label="Animated ETL runtime flow diagram">
@@ -1984,7 +1984,7 @@
                         </div>
 
                         <p class="footer-note">
-                            Keep <code>docs/architecture/runtime-flow.md</code> as the canonical explanation.
+                            Keep <code>docs/architecture/etl-core/runtime-flow.md</code> as the canonical explanation.
                             This HTML page is now a portal-style OneFlow knowledge companion for the runtime assembly view, the flow composition view, and the shipped logging evidence.
                         </p>
                     </aside>
@@ -2055,7 +2055,7 @@
             connectors: ['c-start-config'],
             callouts: [
                 ['Primary class', 'ConfigLoader'],
-                ['Key contract', 'etl.config.job → one selected job-config.yaml → one selected scenario boundary'],
+                ['Key contract', 'etl.config.job â†’ one selected job-config.yaml â†’ one selected scenario boundary'],
                 ['Operator view', 'The chosen scenario is now visible and traceable before hierarchy plans are emitted.'],
                 ['Bridge to later scenes', 'The selected scenario will later be projected into MainFlow/SubFlow composition and then compiled into one flat step plan.']
             ],
@@ -2139,7 +2139,7 @@
             chapter: 'Composition',
             stage: 'Flow composition',
             mainFlow: 'Flow composition',
-            subFlow: 'Scenario → MainFlow',
+            subFlow: 'Scenario â†’ MainFlow',
             activeStep: 'Descriptor only',
             control: 'visibleSubFlows + handoffAliases',
             tag: 'MAIN_FLOW_PLAN',
@@ -2186,7 +2186,7 @@
             chapter: 'Composition',
             stage: 'Flow composition',
             mainFlow: 'Flow composition',
-            subFlow: 'MainFlow → SubFlow → Step',
+            subFlow: 'MainFlow â†’ SubFlow â†’ Step',
             activeStep: 'Descriptor only',
             control: 'dependsOnSubFlows + step links',
             tag: 'SUBFLOW_PLAN',
@@ -2279,9 +2279,9 @@
             chapter: 'Execution',
             stage: 'Compiled flat execution',
             mainFlow: 'Compiled flat execution',
-            subFlow: 'Reader → processor → writer runtime',
+            subFlow: 'Reader â†’ processor â†’ writer runtime',
             activeStep: 'Current explicit step',
-            control: 'Upstream complete → handoff ready',
+            control: 'Upstream complete â†’ handoff ready',
             tag: 'Runtime execution',
             title: 'The shipped runtime executes one explicit step while preserving composition context as evidence',
             summary: 'The runtime now resolves model metadata and uses factories to create the correct reader, processor, and writer implementations. Records move through the configured mapping, transform, validation, and writing path while the listener layer keeps the step anchored to its MainFlow, SubFlow, dependencies, and handoff context.',
@@ -2303,7 +2303,7 @@
                 'DynamicReaderFactory',
                 'DynamicProcessorFactory',
                 'DynamicWriterFactory',
-                'Reader → processor → writer step runtime'
+                'Reader â†’ processor â†’ writer step runtime'
             ],
             decisions: [
                 'Resolve the concrete runtime model contract first.',
@@ -2381,14 +2381,14 @@
     ];
 
     const timelineLabels = [
-        'Start · application begins',
-        'Start · scenario selected',
-        'Start · validation gate',
-        'Design · MainFlow created',
-        'Design · SubFlows grouped',
-        'Run · step plan prepared',
-        'Run · data moves',
-        'Finish · outputs and evidence'
+        'Start Â· application begins',
+        'Start Â· scenario selected',
+        'Start Â· validation gate',
+        'Design Â· MainFlow created',
+        'Design Â· SubFlows grouped',
+        'Run Â· step plan prepared',
+        'Run Â· data moves',
+        'Finish Â· outputs and evidence'
     ];
 
     const elements = {

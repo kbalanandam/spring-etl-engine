@@ -135,7 +135,7 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 
 ## Related design note
 
-The broader file-ingestion hardening direction beyond the first preserved CSV proof slice and the current shared file-source archive contract is documented in [`File ingestion hardening`](../architecture/file-ingestion-hardening.md).
+The broader file-ingestion hardening direction beyond the first preserved CSV proof slice and the current shared file-source archive contract is documented in [`File ingestion hardening`](../architecture/etl-core/file-ingestion-hardening.md).
 
 ## Preserved examples
 
@@ -176,8 +176,8 @@ Single-level private bundles such as `private-jobs/partner-orders/` still work, 
 
 - [`Config docs overview`](README.md)
 - [`Default processor reference`](processor/default-processor.md)
-- [`OneFlow runtime fallback reference`](../architecture/oneflow-runtime-fallback-reference.md)
-- [`Hierarchical flow composition`](../architecture/hierarchical-flow-composition.md)
-- [`Flow normalization rules`](../architecture/flow-normalization-rules.md)
-- [`Runtime flow`](../architecture/runtime-flow.md)
+- [`OneFlow runtime fallback reference`](../architecture/etl-core/oneflow-runtime-fallback-reference.md)
+- [`Hierarchical flow composition`](../architecture/etl-core/hierarchical-flow-composition.md)
+- [`Flow normalization rules`](../architecture/etl-core/flow-normalization-rules.md)
+- [`Runtime flow`](../architecture/etl-core/runtime-flow.md)
 

@@ -1,4 +1,4 @@
-# Epic D — Error taxonomy and failure categorization
+# Epic D - Error taxonomy and failure categorization
 
 ## Summary
 
@@ -16,12 +16,12 @@ This epic is **not** the place for broader retry policy, scheduling policy, or t
 
 ## Related backlog items
 
-- [`D1 ? — Add stable error taxonomy / error categories`](../backlog-items/D1-stable-error-taxonomy-and-categories.md)
+- [`D1 - Add stable error taxonomy / error categories`](../backlog-items/D1-stable-error-taxonomy-and-categories.md)
 
 ## Related docs
 
-- [`../../architecture/job-history-and-operational-observability.md`](../../architecture/job-history-and-operational-observability.md)
-- [`../../architecture/architectural-risks-and-watchpoints.md`](../../architecture/architectural-risks-and-watchpoints.md)
+- [`../../architecture/control-plane/job-history-and-operational-observability.md`](../../architecture/control-plane/job-history-and-operational-observability.md)
+- [`../../architecture/foundations/architectural-risks-and-watchpoints.md`](../../architecture/foundations/architectural-risks-and-watchpoints.md)
 
 ## Maintenance note
 

@@ -1,4 +1,4 @@
-# T10 — Record-level transformation stage beyond field-centric mapping
+# T10 â€” Record-level transformation stage beyond field-centric mapping
 
 ## Summary
 
@@ -97,9 +97,9 @@ Expected behavior:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Transformation capability catalog`](../../architecture/transformation-capability-catalog.md)
-- [`Runtime flow`](../../architecture/runtime-flow.md)
-- [`Extension points`](../../architecture/extension-points.md)
+- [`Transformation capability catalog`](../../architecture/etl-core/transformation-capability-catalog.md)
+- [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
+- [`Extension points`](../../architecture/etl-core/extension-points.md)
 
 ## Implementation notes
 

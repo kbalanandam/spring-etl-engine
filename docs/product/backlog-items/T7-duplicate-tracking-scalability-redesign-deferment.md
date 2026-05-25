@@ -1,4 +1,4 @@
-# T7 — Duplicate-tracking scalability redesign deferment
+# T7 â€” Duplicate-tracking scalability redesign deferment
 
 ## Summary
 
@@ -70,9 +70,9 @@ When activated, expected impact should include:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`T4 — Transformation quarantine and duplicate hardening`](T4-transformation-quarantine-and-duplicate-hardening.md)
-- [`Validation extension architecture`](../../architecture/validation-extension-architecture.md)
-- [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md)
+- [`T4 â€” Transformation quarantine and duplicate hardening`](T4-transformation-quarantine-and-duplicate-hardening.md)
+- [`Validation extension architecture`](../../architecture/etl-core/validation-extension-architecture.md)
+- [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md)
 
 ## Implementation notes
 

@@ -1,4 +1,4 @@
-# P4 — Prove CSV and XML parser maturity through preserved scenarios and verification
+# P4 â€” Prove CSV and XML parser maturity through preserved scenarios and verification
 
 ## Summary
 
@@ -59,7 +59,7 @@ Treat parser maturity like any other shipped runtime capability: preserve runnab
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`OneFlow file parser capabilities and boundaries`](../../architecture/oneflow-file-parser-capabilities.md)
+- [`OneFlow file parser capabilities and boundaries`](../../architecture/etl-core/oneflow-file-parser-capabilities.md)
 - [`Verification evidence and reporting`](../epics/epic-v-verification-evidence-and-reporting.md)
 
 ## Implementation notes

@@ -185,16 +185,18 @@ That dependency means now is the right time to design the UI boundary and first 
 
 A practical first screen set would be:
 
-- **Jobs** — list registered bundles and validate readiness
-- **Runs** — show current and recent runs with status and counts
-- **Run detail** — show step outcomes, evidence, artifacts, and logs
-- **Schedules** — create/manage schedules for existing bundles
-- **System** — show control-plane health, worker reachability, and later environment/admin settings
+- **Jobs** - list registered bundles and validate readiness
+- **Runs** - show current and recent runs with status and counts
+- **Run detail** - show step outcomes, evidence, artifacts, and logs
+- **Schedules** - create/manage schedules for existing bundles
+- **System** - show control-plane health, worker reachability, and later environment/admin settings
+
+For one practical implementation-oriented follow-on if the team chooses Angular for the first UI slice, continue in [`angular-ui-mvp-structure.md`](angular-ui-mvp-structure.md).
 
 ## Related documents
 
-- [`../control-plane-worker-boundary.md`](../control-plane-worker-boundary.md)
+- [`../control-plane-worker-boundary.md`](../control-plane/control-plane-worker-boundary.md)
 - [`../control-plane/scheduler-architecture-direction.md`](../control-plane/scheduler-architecture-direction.md)
-- [`../control-plane-operational-data-model.md`](../control-plane-operational-data-model.md)
-- [`../job-history-and-operational-observability.md`](../job-history-and-operational-observability.md)
-- [`../scenario-driven-runtime-direction.md`](../scenario-driven-runtime-direction.md)
+- [`../control-plane-operational-data-model.md`](../control-plane/control-plane-operational-data-model.md)
+- [`../job-history-and-operational-observability.md`](../control-plane/job-history-and-operational-observability.md)
+- [`../scenario-driven-runtime-direction.md`](../etl-core/scenario-driven-runtime-direction.md)

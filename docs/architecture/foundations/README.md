@@ -14,16 +14,13 @@ Use it when you want to understand:
 
 ## Current anchor notes
 
-- [`overview.md`](overview.md) — current high-level architecture baseline
-- [`etl-product-evolution-roadmap.md`](etl-product-evolution-roadmap.md) — ETL-first roadmap and later platform direction
-- [`architectural-risks-and-watchpoints.md`](architectural-risks-and-watchpoints.md) — key architecture risks and watchpoints
-- [`security-test-strategy.md`](security-test-strategy.md) — cross-cutting security validation direction
-- [`TEMPLATE.md`](TEMPLATE.md) — template for new architecture notes
+- [`overview.md`](overview.md) - current high-level architecture baseline
+- [`etl-product-evolution-roadmap.md`](etl-product-evolution-roadmap.md) - ETL-first roadmap and later platform direction
+- [`architectural-risks-and-watchpoints.md`](architectural-risks-and-watchpoints.md) - key architecture risks and watchpoints
+- [`security-test-strategy.md`](security-test-strategy.md) - cross-cutting security validation direction
+- [`TEMPLATE.md`](TEMPLATE.md) - template for new architecture notes
 
 ## Layering note
 
 This folder now holds the cross-cutting architecture notes directly.
-
-Compatibility stubs remain temporarily at old root paths under `docs/architecture/` so existing links can continue to resolve during migration cleanup.
-
 

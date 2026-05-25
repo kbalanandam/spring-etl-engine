@@ -1,4 +1,4 @@
-# X1 — SFTP transport contract and deployment boundary
+# X1 â€” SFTP transport contract and deployment boundary
 
 ## Summary
 
@@ -80,8 +80,8 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`SFTP transport capability`](../../architecture/sftp-transport-capability.md)
-- [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
+- [`SFTP transport capability`](../../architecture/etl-core/sftp-transport-capability.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
 

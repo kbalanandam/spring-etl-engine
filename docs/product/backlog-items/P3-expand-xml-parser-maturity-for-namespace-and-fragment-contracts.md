@@ -1,4 +1,4 @@
-# P3 — Expand XML parser maturity for namespace-aware and fragment-contract scenarios
+# P3 â€” Expand XML parser maturity for namespace-aware and fragment-contract scenarios
 
 ## Summary
 
@@ -59,7 +59,7 @@ Use the current XML reader/validation seam as the extension point and only open 
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`OneFlow file parser capabilities and boundaries`](../../architecture/oneflow-file-parser-capabilities.md)
+- [`OneFlow file parser capabilities and boundaries`](../../architecture/etl-core/oneflow-file-parser-capabilities.md)
 - [`XML source reference`](../../config/source/xml-source.md)
 
 ## Implementation notes

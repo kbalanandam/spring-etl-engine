@@ -1,1 +1,555 @@
-# Scenario-Driven Runtime Direction  ## Purpose  This document defines the target runtime direction after the current `1.4.x` bridge phase: one ETL run should be assembled strictly from one selected scenario and only the assets that scenario requires.  It exists to keep the product moving toward a harder, more explicit execution model without compromising future scale, UI views, or richer transformation capability.  ## Status  - Classification: **Current baseline + future evolution** - The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.  Read this as the preferred next runtime direction, building from the shipped explicit `job-config.yaml` path rather than replacing it with a second orchestration model.  ## Scope  This note covers:  - the target runtime contract for one selected scenario - how one selected scenario may contain one step or multiple composed steps - the architectural guardrails for moving away from fallback-first behavior - how scenario-driven execution should stay compatible with future scale, UI views, and more complex transformations - what should be preserved, bridged, or removed during migration  This note does **not** define:  - one final build plugin or generation pipeline implementation - UI screens or API contracts in detail - every future step type beyond the current `source -> processor -> target` baseline - one final scheduler or orchestration product surface  Those should build on this runtime direction later.  ## Context  The shipped runtime already has the right foundation for this move:  - one selected `job-config.yaml` can define one explicit business scenario - explicit `steps` already replaced positional source-target pairing for the normal path - startup validation is increasingly strict and scenario-aware - generated model classes remain a central runtime contract - readers, processors, writers, validation, and duplicate handling already enter through shared extension seams  The remaining problem is that bridge-era behavior still leaks around that path:  - demo fallback can still synthesize steps and continue into classpath YAML - legacy runtime generation is still present as a compatibility path - some defaults still infer behavior instead of requiring explicit scenario contracts - broad wrappers and repo-level assumptions still sit close to runtime assembly  Because of that, the next architecture should make the selected scenario the only normal execution boundary.  ## Target runtime contract  One ETL run should mean:  1. select exactly one scenario through `etl.config.job` 2. resolve exactly one `job-config.yaml` 3. load only the source, target, and processor configs referenced by that job config 4. resolve only the explicit `steps` declared by that job config 5. generate or resolve only the model classes required by those selected steps 6. assemble only the runtime graph needed for those steps 7. fail fast if any required config, model, mapping, or step contract is missing  The scenario is therefore the runtime execution boundary.  Execution boundary does **not** mean single-step boundary. One selected scenario may contain one step or multiple ordered steps, and those steps together form the complete business flow for that run. In the current baseline, the composition model is an explicit ordered step list. Over time, richer chaining or graph-style handoff may evolve, but it must still remain part of the same single-scenario contract.  The frozen working direction for that evolution is:  - reusable jobs and components remain reusable - one selected scenario executes one main flow - one main flow may contain multiple reusable subflows - each subflow may contain one or more ordered executable steps  In that model, `MainFlow` should act as the shared execution context/platform for the full selected run. It should be able to carry the control-plane metadata needed across reusable subflow execution, including logging context, recovery context, and cross-subflow handshake/artifact-reference metadata.  That is the bounded first implementation slice. The longer-term reuse direction should allow a main flow to be embedded as a subflow in a higher-level flow, as long as the selected scenario still resolves to one explicit execution plan.  That hierarchy is documented in more detail in [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md).  It is **not**:  - a scenario-specific custom code boundary - a separate processor implementation boundary - a reason to fork duplicate logic, validation logic, or connector logic per use case  ## Flow  Read this as current baseline + future evolution for the scenario-driven runtime direction.  ```mermaid flowchart TD     A[Select one etl.config.job] --> B[Load one job-config.yaml]     B --> C[Resolve referenced source / target / processor configs]     C --> D[Resolve explicit steps for the selected scenario]     D --> E[Build scenario runtime descriptor]     E --> F[Generate or resolve only step-required model classes]     F --> G[Assemble reader / processor / writer only for selected steps]     G --> H[Execute the selected scenario end to end]     H --> I[Emit scenario-aware logs, evidence, and outcomes] ```  ## Scenario runtime descriptor  The next runtime should introduce one scenario-scoped assembly object, for example:  - `JobRuntimeDescriptor` - or `ScenarioExecutionPlan`  Its job is to carry only the assets required for one selected run, such as:  - selected scenario name - selected config paths - explicit step list in execution order - main-flow shared-context metadata that spans all contained subflows and steps - explicit start/block/handoff control metadata that later subflows can consume from upstream state - step handoff or chaining metadata where one step's output becomes later step input - selected source config by step - selected target config by step - selected processor mapping by step - resolved model metadata by step - run-mode metadata and validation outcomes  `BatchConfig`, factories, and runtime listeners should assemble from that descriptor rather than from broad repo-level assumptions. The descriptor should be able to represent both the shipped ordered-step baseline and future richer step chaining without introducing a second orchestration contract outside the selected scenario.  ### Focused descriptor model view  This class diagram is intentionally narrow. It does **not** try to show every config subtype or every runtime service. It shows the descriptor objects that explain one selected scenario run and the main links between them.  ```mermaid classDiagram     class JobRuntimeDescriptor {         +String scenarioName         +String displayName         +JobMainFlowContextDescriptor mainFlowContext         +String flowSummary         +String jobConfigPath         +int stepCount()         +boolean hasStep(String)         +JobStepDescriptor firstStep()         +JobStepDescriptor finalStep()         +List~String~ orderedStepNames()     }      class JobMainFlowContextDescriptor {         +boolean sharedLoggingContext         +boolean sharedRecoveryContext         +boolean supportsCrossSubFlowHandshake         +List~String~ handoffAliases         +String summary     }      class JobConfigPaths {         +String sourceConfigPath         +String targetConfigPath         +String processorConfigPath         +String summary()     }      class JobValidationSummary {         +boolean sourceValidated         +boolean targetValidated         +boolean processorValidated         +boolean modelValidated         +List~String~ warnings         +List~String~ blockers         +String summary         +boolean passed()     }      class JobStepDescriptor {         +String stepName         +int stepOrder         +String sourceName         +String targetName         +String processorType         +String displayName         +String flowSummary         +boolean emitsFinalScenarioOutput()     }      class JobStepInputDescriptor {         +JobStepInputType type         +String sourceName         +String upstreamStepName         +String inputAlias         +String displayLabel         +String summary     }      class JobStepOutputDescriptor {         +JobStepOutputType type         +String targetName         +String outputAlias         +boolean finalScenarioOutput         +String displayLabel         +String summary     }      class JobStepModelDescriptor {         +String sourceClassName         +String targetProcessingClassName         +String targetWriteClassName         +boolean wrapperRequired         +String wrapperFieldName         +JobModelResolutionMode resolutionMode         +String summary     }      class JobStepValidationSummary {         +boolean mappingValidated         +boolean sourceValidated         +boolean targetValidated         +boolean modelValidated         +List~String~ warnings         +List~String~ blockers         +String summary         +boolean passed()     }      class JobStepLinkDescriptor {         +String fromStepName         +String toStepName         +JobStepLinkType linkType         +String outputAlias         +String inputAlias         +JobStepLinkControlDescriptor control         +String summary     }      class JobSubFlowDescriptor {         +String subFlowName         +int subFlowOrder         +List~String~ stepNames         +JobSubFlowExecutionStatus initialStatus         +JobSubFlowControlDescriptor control         +List~String~ dependsOnSubFlowNames         +List~String~ consumesHandoffAliases         +List~String~ producesHandoffAliases         +String summary     }      class JobSubFlowControlDescriptor {         +List~JobSubFlowExecutionStatus~ startAfterStatuses         +List~JobSubFlowExecutionStatus~ blockOnStatuses         +boolean requiresHandoffReady         +String summary     }      class JobStepLinkControlDescriptor {         +List~JobSubFlowExecutionStatus~ requiredUpstreamStatuses         +List~JobSubFlowExecutionStatus~ blockingUpstreamStatuses         +boolean requiresHandoffReady         +String summary     }      class JobSubFlowExecutionStatus {         <<enumeration>>         NOT_STARTED         READY         RUNNING         COMPLETED         FAILED         BLOCKED         SKIPPED     }      class JobRunMode {         <<enumeration>>         EXPLICIT_JOB         DEMO_FALLBACK     }      class JobStepInputType {         <<enumeration>>         CONFIG_SOURCE         UPSTREAM_STEP_OUTPUT         NAMED_INTERMEDIATE     }      class JobStepOutputType {         <<enumeration>>         CONFIG_TARGET         INTERMEDIATE_DATASET         FINAL_OUTPUT     }      class JobModelResolutionMode {         <<enumeration>>         PREGENERATED         SCENARIO_GENERATED         LEGACY_BRIDGE     }      class JobStepLinkType {         <<enumeration>>         ORDER_ONLY         DATA_HANDOFF         NAMED_INTERMEDIATE     }      JobRuntimeDescriptor *-- "1" JobConfigPaths     JobRuntimeDescriptor *-- "1" JobMainFlowContextDescriptor     JobRuntimeDescriptor *-- "0..*" JobSubFlowDescriptor     JobRuntimeDescriptor *-- "0..*" JobStepDescriptor     JobRuntimeDescriptor *-- "0..*" JobStepLinkDescriptor     JobRuntimeDescriptor *-- "1" JobValidationSummary     JobRuntimeDescriptor --> JobRunMode      JobStepDescriptor *-- "1" JobStepInputDescriptor     JobStepDescriptor *-- "1" JobStepOutputDescriptor     JobStepDescriptor *-- "1" JobStepModelDescriptor     JobStepDescriptor *-- "1" JobStepValidationSummary      JobStepInputDescriptor --> JobStepInputType     JobStepOutputDescriptor --> JobStepOutputType     JobStepModelDescriptor --> JobModelResolutionMode     JobStepLinkDescriptor --> JobStepLinkType     JobStepLinkDescriptor *-- "1" JobStepLinkControlDescriptor     JobSubFlowDescriptor *-- "1" JobSubFlowControlDescriptor     JobSubFlowDescriptor --> JobSubFlowExecutionStatus ```  Read this diagram from top to bottom:  1. `JobRuntimeDescriptor` describes one full selected run. 2. each `JobStepDescriptor` describes one executable unit inside that run. 3. input, output, model, validation, and step-link descriptors make the scenario self-explanatory enough for runtime assembly, diagnostics, logging, and later UI projection. 4. enums such as `JobStepLinkType` and `JobModelResolutionMode` keep step relationships and model expectations explicit instead of hidden in runtime assumptions.  ## Hierarchical composition direction  The current shipped baseline is still an explicit flat `steps` list in `job-config.yaml`.  The frozen target shape should preserve that explicitness while allowing a clearer reusable hierarchy:  ```text Scenario execution   -> Main Flow       -> SubFlow           -> Step ```  Use that hierarchy with these meanings:  - **scenario execution** ΓÇö the selected runtime boundary and run context - **main flow** ΓÇö the top-level reusable business flow executed inside the selected scenario - **subflow** ΓÇö a reusable grouped phase within the main flow - **step** ΓÇö the smallest executable `source -> processor -> target` unit in the current baseline  For the first implementation slice, keep that hierarchy bounded. For the longer-term direction, a reusable flow should be able to play either a top-level main-flow role or a nested subflow role depending on the selected composition.  For the normalization rules that keep simple flows lightweight while still preserving one internal model, continue in [`flow-normalization-rules.md`](flow-normalization-rules.md).  The preferred implementation rule is still:  > nested in design, explicit in execution  That means the model may remain hierarchical for reuse, logging, tracking, and evidence, while the selected scenario still resolves to one explicit and predictable execution plan.  If reusable flow composition later becomes deeper than the first bounded slice, that deeper composition must still compile back into the same single-scenario runtime contract rather than introducing nested runtime boundaries.  This direction is meant to preserve the product motto that reusable jobs and components evolve into scenario-driven execution rather than being replaced by it.  ## Architectural guardrails  ### 1. Scenario-driven does not mean scenario-specific code  The scenario selects configuration and execution metadata.  It should **not** become a place where the product grows one-off processors, one-off readers, or one-off writer branches for each business flow.  Shared seams should remain shared:  - source validation SPI - processor validation SPI - processor transform SPI - duplicate/reject runtime support - reader / processor / writer factories - relational dialect abstractions  ### 2. Scale policy stays orthogonal to scenario identity  Future scale work should remain execution policy, not a different scenario model.  Examples:  - chunk vs tasklet stays an execution choice - duplicate memory vs embedded-db staging stays an execution/runtime support concern - relational fetch size, batch size, and count strategy stay connector/runtime tuning concerns - large-volume optimizations should not require a different scenario contract  ### 3. UI is a view over scenario metadata, not a second runtime contract  A future UI, API, scheduler, or catalog may select scenarios by short name, tags, ownership, schedule, or operational grouping.  Those capabilities may also live in an optional control-plane service rather than inside the ETL worker runtime itself.  External schedulers and orchestrators are equally valid at this boundary, as long as they resolve back to the same selected-scenario contract instead of introducing a different launch/runtime model.  That is acceptable **only if** those views resolve back to the same underlying scenario contract:  - one selected scenario - one job-config reference or registry entry - one explicit step list or an evolved scenario-scoped step graph - one scenario runtime descriptor  UI should be a view and control surface over the scenario model, not a replacement contract that bypasses it.  The directly runnable path through `etl.config.job` therefore remains a first-class execution entry even if a future control plane, watcher service, scheduler, or UI is added around it.  The same rule applies to external orchestration: enterprise schedulers, workload platforms, or deployment-native trigger systems should be able to launch this exact boundary without adopting OneFlow-native scheduling first.  For the dedicated note that defines the optional-control-plane versus mandatory-worker boundary around that rule, continue in [`control-plane-worker-boundary.md`](../control-plane/control-plane-worker-boundary.md).  ### 4. Richer transformations stay inside shared extension seams  Future transformation growth must remain compatible with scenario-driven execution.  That means:  - more complex transforms still belong in shared processor or source extension seams - future expressions, conditions, enrichments, or source-native transforms should remain reusable and testable - scenarios should select those capabilities declaratively, not re-implement them in scenario-specific code paths  ### 5. Exceptions should replace silent fallback on the normal path  Normal runtime should be explicit and fail fast.  That means:  - missing explicit config should fail startup - missing referenced model classes should fail startup - malformed mappings or rules should fail startup - unknown or unsupported behavior should fail with scenario-aware error messages  Demo-only fallback, if retained temporarily, should stay isolated and clearly non-core.  ## What should be preserved  Preserve these as the main reuse set:  - `JobConfig` - source, target, and processor config models - `SourceValidationService` and active source validators - `ValidationRuleEvaluator` and processor rules - `FileIngestionRuntimeSupport` and duplicate resolver support - reader, processor, and writer factory seams - `GeneratedModelClassResolver` as a compatibility boundary during migration - scenario-aware run and step logging  ## What should be broken or removed  Break these assumptions as part of the migration:  - normal runtime dependence on demo fallback - synthesized step definitions by index for the main runtime model - startup-triggered runtime model generation as a normal boot behavior - repo-root and handwritten generated-source assumptions as the target contract - silent inference where the scenario contract should be explicit  Remove these only after replacement is proven:  - `ModelGeneratorFactory` as the normal runtime generation center - production dependence on bundled fallback YAML - generated model classes mixed into handwritten source trees - deprecated validation framework and related resources  ## Impact on existing architecture  This direction should change:  - `ConfigLoader` from broad config resolution toward scenario runtime descriptor assembly - `BatchConfig` from wrapper-oriented orchestration toward descriptor-driven step assembly - model generation lifecycle from runtime/dev-profile behavior toward scenario-scoped generation or pre-generation - startup rules from compatibility defaults toward stricter scenario-aware failure behavior  This direction should **not** change the main reusable seams:  - config models - validation SPI boundaries - processor transform/rule extensibility - reader/processor/writer factory concepts - relational dialect abstraction - logging and verification evidence direction  ## Migration order  ### Phase 1 ΓÇö freeze the target contract  - document scenario-first runtime as the only normal execution model - keep the current explicit job-config path stable - stop expanding fallback-centric or legacy generation-centric behavior  ### Phase 2 ΓÇö introduce scenario-scoped assembly  - add a scenario runtime descriptor / execution plan - resolve only selected steps and their required configs - carry scenario-scoped model metadata through that descriptor  ### Phase 3 ΓÇö move generation and resolution under the selected scenario  - generate or resolve only the classes needed by the selected steps - stop treating model generation as a broad repo-level startup concern - preserve `GeneratedModelClassResolver` as the migration boundary while internals evolve  ### Phase 4 ΓÇö harden the runtime  - tighten config parsing and validation - reduce compatibility defaults that still leak into the normal path - keep fallback isolated to local/demo use only, if retained temporarily  ### Phase 5 ΓÇö remove bridge-era dependencies  - retire legacy runtime generation - remove production dependence on demo fallback - delete bridge or legacy paths once verification proves the replacement is stable  ## Risks and watchpoints  - XML job-scoped generation is a stronger starting point today than CSV/relational parity, so generation maturity must be extended before legacy deletion - UI, built-in scheduler, or external orchestration integration may accidentally introduce a second scenario contract unless the docs stay explicit - richer transformation work may drift into scenario-specific code if the shared processor/source seams are not protected - hardening too aggressively before scenario-scoped generation is proven could break preserved flows without a stable replacement  ## Future extensions that still fit this direction  This scenario-driven model is still compatible with:  - richer transformation maturity such as expressions, conditions, and enrichment - relational hardening and future vendor growth - schedule-driven execution, whether provided by an optional native control plane or by external orchestration - UI catalog or operator views over scenarios and runs - API-triggered scenario selection - richer multi-step chaining where one step output can become the next step input inside the same selected scenario - broader operational evidence, job history, and verification reporting  Those capabilities should layer on top of the same scenario contract rather than creating a second runtime model.  ## Related docs  - [`overview.md`](../foundations/overview.md) - [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md) - [`Flow normalization rules`](flow-normalization-rules.md) - [`Runtime flow`](runtime-flow.md) - [`Control plane and worker boundary`](../control-plane/control-plane-worker-boundary.md) - [`1.4-to-next architecture classification`](1-4-to-next-architecture-classification.md) - [`ETL product evolution roadmap`](../foundations/etl-product-evolution-roadmap.md) - [`Transformation capability roadmap`](transformation-capability-roadmap.md) - [`Use explicit job-config for business-scenario selection`](../../adr/0004-use-explicit-job-config-for-business-scenario-selection.md)   
+# Scenario-Driven Runtime Direction
+
+## Purpose
+
+This document defines the target runtime direction after the current `1.4.x` bridge phase: one ETL run should be assembled strictly from one selected scenario and only the assets that scenario requires.
+
+It exists to keep the product moving toward a harder, more explicit execution model without compromising future scale, UI views, or richer transformation capability.
+
+## Status
+
+- Classification: **Current baseline + future evolution**
+- The Mermaid diagrams in this document describe the current baseline and the future evolution that should build from it.
+
+Read this as the preferred next runtime direction, building from the shipped explicit `job-config.yaml` path rather than replacing it with a second orchestration model.
+
+## Scope
+
+This note covers:
+
+- the target runtime contract for one selected scenario
+- how one selected scenario may contain one step or multiple composed steps
+- the architectural guardrails for moving away from fallback-first behavior
+- how scenario-driven execution should stay compatible with future scale, UI views, and more complex transformations
+- what should be preserved, bridged, or removed during migration
+
+This note does **not** define:
+
+- one final build plugin or generation pipeline implementation
+- UI screens or API contracts in detail
+- every future step type beyond the current `source -> processor -> target` baseline
+- one final scheduler or orchestration product surface
+
+Those should build on this runtime direction later.
+
+## Context
+
+The shipped runtime already has the right foundation for this move:
+
+- one selected `job-config.yaml` can define one explicit business scenario
+- explicit `steps` already replaced positional source-target pairing for the normal path
+- startup validation is increasingly strict and scenario-aware
+- generated model classes remain a central runtime contract
+- readers, processors, writers, validation, and duplicate handling already enter through shared extension seams
+
+The remaining problem is that bridge-era behavior still leaks around that path:
+
+- demo fallback can still synthesize steps and continue into classpath YAML
+- legacy runtime generation is still present as a compatibility path
+- some defaults still infer behavior instead of requiring explicit scenario contracts
+- broad wrappers and repo-level assumptions still sit close to runtime assembly
+
+Because of that, the next architecture should make the selected scenario the only normal execution boundary.
+
+## Target runtime contract
+
+One ETL run should mean:
+
+1. select exactly one scenario through `etl.config.job`
+2. resolve exactly one `job-config.yaml`
+3. load only the source, target, and processor configs referenced by that job config
+4. resolve only the explicit `steps` declared by that job config
+5. generate or resolve only the model classes required by those selected steps
+6. assemble only the runtime graph needed for those steps
+7. fail fast if any required config, model, mapping, or step contract is missing
+
+The scenario is therefore the runtime execution boundary.
+
+Execution boundary does **not** mean single-step boundary. One selected scenario may contain one step or multiple ordered steps, and those steps together form the complete business flow for that run. In the current baseline, the composition model is an explicit ordered step list. Over time, richer chaining or graph-style handoff may evolve, but it must still remain part of the same single-scenario contract.
+
+The frozen working direction for that evolution is:
+
+- reusable jobs and components remain reusable
+- one selected scenario executes one main flow
+- one main flow may contain multiple reusable subflows
+- each subflow may contain one or more ordered executable steps
+
+In that model, `MainFlow` should act as the shared execution context/platform for the full selected run. It should be able to carry the control-plane metadata needed across reusable subflow execution, including logging context, recovery context, and cross-subflow handshake/artifact-reference metadata.
+
+That is the bounded first implementation slice. The longer-term reuse direction should allow a main flow to be embedded as a subflow in a higher-level flow, as long as the selected scenario still resolves to one explicit execution plan.
+
+That hierarchy is documented in more detail in [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md).
+
+It is **not**:
+
+- a scenario-specific custom code boundary
+- a separate processor implementation boundary
+- a reason to fork duplicate logic, validation logic, or connector logic per use case
+
+## Flow
+
+Read this as current baseline + future evolution for the scenario-driven runtime direction.
+
+```mermaid
+flowchart TD
+    A[Select one etl.config.job] --> B[Load one job-config.yaml]
+    B --> C[Resolve referenced source / target / processor configs]
+    C --> D[Resolve explicit steps for the selected scenario]
+    D --> E[Build scenario runtime descriptor]
+    E --> F[Generate or resolve only step-required model classes]
+    F --> G[Assemble reader / processor / writer only for selected steps]
+    G --> H[Execute the selected scenario end to end]
+    H --> I[Emit scenario-aware logs, evidence, and outcomes]
+```
+
+## Scenario runtime descriptor
+
+The next runtime should introduce one scenario-scoped assembly object, for example:
+
+- `JobRuntimeDescriptor`
+- or `ScenarioExecutionPlan`
+
+Its job is to carry only the assets required for one selected run, such as:
+
+- selected scenario name
+- selected config paths
+- explicit step list in execution order
+- main-flow shared-context metadata that spans all contained subflows and steps
+- explicit start/block/handoff control metadata that later subflows can consume from upstream state
+- step handoff or chaining metadata where one step's output becomes later step input
+- selected source config by step
+- selected target config by step
+- selected processor mapping by step
+- resolved model metadata by step
+- run-mode metadata and validation outcomes
+
+`BatchConfig`, factories, and runtime listeners should assemble from that descriptor rather than from broad repo-level assumptions. The descriptor should be able to represent both the shipped ordered-step baseline and future richer step chaining without introducing a second orchestration contract outside the selected scenario.
+
+### Focused descriptor model view
+
+This class diagram is intentionally narrow. It does **not** try to show every config subtype or every runtime service. It shows the descriptor objects that explain one selected scenario run and the main links between them.
+
+```mermaid
+classDiagram
+    class JobRuntimeDescriptor {
+        +String scenarioName
+        +String displayName
+        +JobMainFlowContextDescriptor mainFlowContext
+        +String flowSummary
+        +String jobConfigPath
+        +int stepCount()
+        +boolean hasStep(String)
+        +JobStepDescriptor firstStep()
+        +JobStepDescriptor finalStep()
+        +List~String~ orderedStepNames()
+    }
+
+    class JobMainFlowContextDescriptor {
+        +boolean sharedLoggingContext
+        +boolean sharedRecoveryContext
+        +boolean supportsCrossSubFlowHandshake
+        +List~String~ handoffAliases
+        +String summary
+    }
+
+    class JobConfigPaths {
+        +String sourceConfigPath
+        +String targetConfigPath
+        +String processorConfigPath
+        +String summary()
+    }
+
+    class JobValidationSummary {
+        +boolean sourceValidated
+        +boolean targetValidated
+        +boolean processorValidated
+        +boolean modelValidated
+        +List~String~ warnings
+        +List~String~ blockers
+        +String summary
+        +boolean passed()
+    }
+
+    class JobStepDescriptor {
+        +String stepName
+        +int stepOrder
+        +String sourceName
+        +String targetName
+        +String processorType
+        +String displayName
+        +String flowSummary
+        +boolean emitsFinalScenarioOutput()
+    }
+
+    class JobStepInputDescriptor {
+        +JobStepInputType type
+        +String sourceName
+        +String upstreamStepName
+        +String inputAlias
+        +String displayLabel
+        +String summary
+    }
+
+    class JobStepOutputDescriptor {
+        +JobStepOutputType type
+        +String targetName
+        +String outputAlias
+        +boolean finalScenarioOutput
+        +String displayLabel
+        +String summary
+    }
+
+    class JobStepModelDescriptor {
+        +String sourceClassName
+        +String targetProcessingClassName
+        +String targetWriteClassName
+        +boolean wrapperRequired
+        +String wrapperFieldName
+        +JobModelResolutionMode resolutionMode
+        +String summary
+    }
+
+    class JobStepValidationSummary {
+        +boolean mappingValidated
+        +boolean sourceValidated
+        +boolean targetValidated
+        +boolean modelValidated
+        +List~String~ warnings
+        +List~String~ blockers
+        +String summary
+        +boolean passed()
+    }
+
+    class JobStepLinkDescriptor {
+        +String fromStepName
+        +String toStepName
+        +JobStepLinkType linkType
+        +String outputAlias
+        +String inputAlias
+        +JobStepLinkControlDescriptor control
+        +String summary
+    }
+
+    class JobSubFlowDescriptor {
+        +String subFlowName
+        +int subFlowOrder
+        +List~String~ stepNames
+        +JobSubFlowExecutionStatus initialStatus
+        +JobSubFlowControlDescriptor control
+        +List~String~ dependsOnSubFlowNames
+        +List~String~ consumesHandoffAliases
+        +List~String~ producesHandoffAliases
+        +String summary
+    }
+
+    class JobSubFlowControlDescriptor {
+        +List~JobSubFlowExecutionStatus~ startAfterStatuses
+        +List~JobSubFlowExecutionStatus~ blockOnStatuses
+        +boolean requiresHandoffReady
+        +String summary
+    }
+
+    class JobStepLinkControlDescriptor {
+        +List~JobSubFlowExecutionStatus~ requiredUpstreamStatuses
+        +List~JobSubFlowExecutionStatus~ blockingUpstreamStatuses
+        +boolean requiresHandoffReady
+        +String summary
+    }
+
+    class JobSubFlowExecutionStatus {
+        <<enumeration>>
+        NOT_STARTED
+        READY
+        RUNNING
+        COMPLETED
+        FAILED
+        BLOCKED
+        SKIPPED
+    }
+
+    class JobRunMode {
+        <<enumeration>>
+        EXPLICIT_JOB
+        DEMO_FALLBACK
+    }
+
+    class JobStepInputType {
+        <<enumeration>>
+        CONFIG_SOURCE
+        UPSTREAM_STEP_OUTPUT
+        NAMED_INTERMEDIATE
+    }
+
+    class JobStepOutputType {
+        <<enumeration>>
+        CONFIG_TARGET
+        INTERMEDIATE_DATASET
+        FINAL_OUTPUT
+    }
+
+    class JobModelResolutionMode {
+        <<enumeration>>
+        PREGENERATED
+        SCENARIO_GENERATED
+        LEGACY_BRIDGE
+    }
+
+    class JobStepLinkType {
+        <<enumeration>>
+        ORDER_ONLY
+        DATA_HANDOFF
+        NAMED_INTERMEDIATE
+    }
+
+    JobRuntimeDescriptor *-- "1" JobConfigPaths
+    JobRuntimeDescriptor *-- "1" JobMainFlowContextDescriptor
+    JobRuntimeDescriptor *-- "0..*" JobSubFlowDescriptor
+    JobRuntimeDescriptor *-- "0..*" JobStepDescriptor
+    JobRuntimeDescriptor *-- "0..*" JobStepLinkDescriptor
+    JobRuntimeDescriptor *-- "1" JobValidationSummary
+    JobRuntimeDescriptor --> JobRunMode
+
+    JobStepDescriptor *-- "1" JobStepInputDescriptor
+    JobStepDescriptor *-- "1" JobStepOutputDescriptor
+    JobStepDescriptor *-- "1" JobStepModelDescriptor
+    JobStepDescriptor *-- "1" JobStepValidationSummary
+
+    JobStepInputDescriptor --> JobStepInputType
+    JobStepOutputDescriptor --> JobStepOutputType
+    JobStepModelDescriptor --> JobModelResolutionMode
+    JobStepLinkDescriptor --> JobStepLinkType
+    JobStepLinkDescriptor *-- "1" JobStepLinkControlDescriptor
+    JobSubFlowDescriptor *-- "1" JobSubFlowControlDescriptor
+    JobSubFlowDescriptor --> JobSubFlowExecutionStatus
+```
+
+Read this diagram from top to bottom:
+
+1. `JobRuntimeDescriptor` describes one full selected run.
+2. each `JobStepDescriptor` describes one executable unit inside that run.
+3. input, output, model, validation, and step-link descriptors make the scenario self-explanatory enough for runtime assembly, diagnostics, logging, and later UI projection.
+4. enums such as `JobStepLinkType` and `JobModelResolutionMode` keep step relationships and model expectations explicit instead of hidden in runtime assumptions.
+
+## Hierarchical composition direction
+
+The current shipped baseline is still an explicit flat `steps` list in `job-config.yaml`.
+
+The frozen target shape should preserve that explicitness while allowing a clearer reusable hierarchy:
+
+```text
+Scenario execution
+  -> Main Flow
+      -> SubFlow
+          -> Step
+```
+
+Use that hierarchy with these meanings:
+
+- **scenario execution** ΓÇö the selected runtime boundary and run context
+- **main flow** ΓÇö the top-level reusable business flow executed inside the selected scenario
+- **subflow** ΓÇö a reusable grouped phase within the main flow
+- **step** ΓÇö the smallest executable `source -> processor -> target` unit in the current baseline
+
+For the first implementation slice, keep that hierarchy bounded. For the longer-term direction, a reusable flow should be able to play either a top-level main-flow role or a nested subflow role depending on the selected composition.
+
+For the normalization rules that keep simple flows lightweight while still preserving one internal model, continue in [`flow-normalization-rules.md`](flow-normalization-rules.md).
+
+The preferred implementation rule is still:
+
+> nested in design, explicit in execution
+
+That means the model may remain hierarchical for reuse, logging, tracking, and evidence, while the selected scenario still resolves to one explicit and predictable execution plan.
+
+If reusable flow composition later becomes deeper than the first bounded slice, that deeper composition must still compile back into the same single-scenario runtime contract rather than introducing nested runtime boundaries.
+
+This direction is meant to preserve the product motto that reusable jobs and components evolve into scenario-driven execution rather than being replaced by it.
+
+## Architectural guardrails
+
+### 1. Scenario-driven does not mean scenario-specific code
+
+The scenario selects configuration and execution metadata.
+
+It should **not** become a place where the product grows one-off processors, one-off readers, or one-off writer branches for each business flow.
+
+Shared seams should remain shared:
+
+- source validation SPI
+- processor validation SPI
+- processor transform SPI
+- duplicate/reject runtime support
+- reader / processor / writer factories
+- relational dialect abstractions
+
+### 2. Scale policy stays orthogonal to scenario identity
+
+Future scale work should remain execution policy, not a different scenario model.
+
+Examples:
+
+- chunk vs tasklet stays an execution choice
+- duplicate memory vs embedded-db staging stays an execution/runtime support concern
+- relational fetch size, batch size, and count strategy stay connector/runtime tuning concerns
+- large-volume optimizations should not require a different scenario contract
+
+### 3. UI is a view over scenario metadata, not a second runtime contract
+
+A future UI, API, scheduler, or catalog may select scenarios by short name, tags, ownership, schedule, or operational grouping.
+
+Those capabilities may also live in an optional control-plane service rather than inside the ETL worker runtime itself.
+
+External schedulers and orchestrators are equally valid at this boundary, as long as they resolve back to the same selected-scenario contract instead of introducing a different launch/runtime model.
+
+That is acceptable **only if** those views resolve back to the same underlying scenario contract:
+
+- one selected scenario
+- one job-config reference or registry entry
+- one explicit step list or an evolved scenario-scoped step graph
+- one scenario runtime descriptor
+
+UI should be a view and control surface over the scenario model, not a replacement contract that bypasses it.
+
+The directly runnable path through `etl.config.job` therefore remains a first-class execution entry even if a future control plane, watcher service, scheduler, or UI is added around it.
+
+The same rule applies to external orchestration: enterprise schedulers, workload platforms, or deployment-native trigger systems should be able to launch this exact boundary without adopting OneFlow-native scheduling first.
+
+For the dedicated note that defines the optional-control-plane versus mandatory-worker boundary around that rule, continue in [`control-plane-worker-boundary.md`](../control-plane/control-plane-worker-boundary.md).
+
+### 4. Richer transformations stay inside shared extension seams
+
+Future transformation growth must remain compatible with scenario-driven execution.
+
+That means:
+
+- more complex transforms still belong in shared processor or source extension seams
+- future expressions, conditions, enrichments, or source-native transforms should remain reusable and testable
+- scenarios should select those capabilities declaratively, not re-implement them in scenario-specific code paths
+
+### 5. Exceptions should replace silent fallback on the normal path
+
+Normal runtime should be explicit and fail fast.
+
+That means:
+
+- missing explicit config should fail startup
+- missing referenced model classes should fail startup
+- malformed mappings or rules should fail startup
+- unknown or unsupported behavior should fail with scenario-aware error messages
+
+Demo-only fallback, if retained temporarily, should stay isolated and clearly non-core.
+
+## What should be preserved
+
+Preserve these as the main reuse set:
+
+- `JobConfig`
+- source, target, and processor config models
+- `SourceValidationService` and active source validators
+- `ValidationRuleEvaluator` and processor rules
+- `FileIngestionRuntimeSupport` and duplicate resolver support
+- reader, processor, and writer factory seams
+- `GeneratedModelClassResolver` as a compatibility boundary during migration
+- scenario-aware run and step logging
+
+## What should be broken or removed
+
+Break these assumptions as part of the migration:
+
+- normal runtime dependence on demo fallback
+- synthesized step definitions by index for the main runtime model
+- startup-triggered runtime model generation as a normal boot behavior
+- repo-root and handwritten generated-source assumptions as the target contract
+- silent inference where the scenario contract should be explicit
+
+Remove these only after replacement is proven:
+
+- `ModelGeneratorFactory` as the normal runtime generation center
+- production dependence on bundled fallback YAML
+- generated model classes mixed into handwritten source trees
+- deprecated validation framework and related resources
+
+## Impact on existing architecture
+
+This direction should change:
+
+- `ConfigLoader` from broad config resolution toward scenario runtime descriptor assembly
+- `BatchConfig` from wrapper-oriented orchestration toward descriptor-driven step assembly
+- model generation lifecycle from runtime/dev-profile behavior toward scenario-scoped generation or pre-generation
+- startup rules from compatibility defaults toward stricter scenario-aware failure behavior
+
+This direction should **not** change the main reusable seams:
+
+- config models
+- validation SPI boundaries
+- processor transform/rule extensibility
+- reader/processor/writer factory concepts
+- relational dialect abstraction
+- logging and verification evidence direction
+
+## Migration order
+
+### Phase 1 ΓÇö freeze the target contract
+
+- document scenario-first runtime as the only normal execution model
+- keep the current explicit job-config path stable
+- stop expanding fallback-centric or legacy generation-centric behavior
+
+### Phase 2 ΓÇö introduce scenario-scoped assembly
+
+- add a scenario runtime descriptor / execution plan
+- resolve only selected steps and their required configs
+- carry scenario-scoped model metadata through that descriptor
+
+### Phase 3 ΓÇö move generation and resolution under the selected scenario
+
+- generate or resolve only the classes needed by the selected steps
+- stop treating model generation as a broad repo-level startup concern
+- preserve `GeneratedModelClassResolver` as the migration boundary while internals evolve
+
+### Phase 4 ΓÇö harden the runtime
+
+- tighten config parsing and validation
+- reduce compatibility defaults that still leak into the normal path
+- keep fallback isolated to local/demo use only, if retained temporarily
+
+### Phase 5 ΓÇö remove bridge-era dependencies
+
+- retire legacy runtime generation
+- remove production dependence on demo fallback
+- delete bridge or legacy paths once verification proves the replacement is stable
+
+## Risks and watchpoints
+
+- XML job-scoped generation is a stronger starting point today than CSV/relational parity, so generation maturity must be extended before legacy deletion
+- UI, built-in scheduler, or external orchestration integration may accidentally introduce a second scenario contract unless the docs stay explicit
+- richer transformation work may drift into scenario-specific code if the shared processor/source seams are not protected
+- hardening too aggressively before scenario-scoped generation is proven could break preserved flows without a stable replacement
+
+## Future extensions that still fit this direction
+
+This scenario-driven model is still compatible with:
+
+- richer transformation maturity such as expressions, conditions, and enrichment
+- relational hardening and future vendor growth
+- schedule-driven execution, whether provided by an optional native control plane or by external orchestration
+- UI catalog or operator views over scenarios and runs
+- API-triggered scenario selection
+- richer multi-step chaining where one step output can become the next step input inside the same selected scenario
+- broader operational evidence, job history, and verification reporting
+
+Those capabilities should layer on top of the same scenario contract rather than creating a second runtime model.
+
+## Related docs
+
+- [`overview.md`](../foundations/overview.md)
+- [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md)
+- [`Flow normalization rules`](flow-normalization-rules.md)
+- [`Runtime flow`](runtime-flow.md)
+- [`Control plane and worker boundary`](../control-plane/control-plane-worker-boundary.md)
+- [`1.4-to-next architecture classification`](1-4-to-next-architecture-classification.md)
+- [`ETL product evolution roadmap`](../foundations/etl-product-evolution-roadmap.md)
+- [`Transformation capability roadmap`](transformation-capability-roadmap.md)
+- [`Use explicit job-config for business-scenario selection`](../../adr/0004-use-explicit-job-config-for-business-scenario-selection.md)
+
+
+

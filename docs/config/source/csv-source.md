@@ -1,4 +1,4 @@
-﻿# CSV Source Config
+# CSV Source Config
 
 ## Purpose
 
@@ -246,9 +246,9 @@ The important authoring rule is choice, not accumulation:
 
 ## Related design note
 
-The broader file-ingestion hardening direction, including future expansion beyond the current CSV slice, is documented in [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md).
+The broader file-ingestion hardening direction, including future expansion beyond the current CSV slice, is documented in [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md).
 
-The parser-boundary rule for what CSV parsing should and should not own is documented in [`OneFlow file parser capabilities and boundaries`](../../architecture/oneflow-file-parser-capabilities.md).
+The parser-boundary rule for what CSV parsing should and should not own is documented in [`OneFlow file parser capabilities and boundaries`](../../architecture/etl-core/oneflow-file-parser-capabilities.md).
 
 ## Related docs
 

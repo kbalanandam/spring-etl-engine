@@ -10,10 +10,14 @@ and this project adheres to **Semantic Versioning**.
 - Added first-pass architecture folder taxonomy scaffolding under `docs/architecture/` with new layer indexes for `foundations/`, `etl-core/`, `control-plane/`, and `operator-ui/` to keep ETL, control-plane, and UI direction easier to navigate.
 - Added a new scheduler design note at `docs/architecture/control-plane/scheduler-architecture-direction.md` defining scheduler-as-control-plane boundaries, MVP scope, and selected-job launch-contract guardrails.
 - Added a new operator UI design note at `docs/architecture/operator-ui/operator-ui-architecture-direction.md` covering admin, monitoring, schedule management, and UI-authored bundle guardrails.
+- Added a follow-on Angular UI MVP note at `docs/architecture/operator-ui/angular-ui-mvp-structure.md` describing a practical monitoring-first Angular route map, component structure, phased rollout, and control-plane-facing API client boundary.
+- Added a follow-on wireframes note at `docs/architecture/operator-ui/angular-ui-mvp-wireframes.md` capturing low-fidelity Jobs, Runs, Run detail, Schedules, and System screens for the Angular MVP.
+- Added a first control-plane API contract note at `docs/architecture/control-plane/operator-ui-mvp-api-surface.md` defining MVP endpoints and view-model-aligned payloads for Jobs, Runs, Run detail, Schedules, and System screens.
+- Added a machine-readable OpenAPI 3.1 draft at `docs/architecture/control-plane/operator-ui-mvp-openapi.yaml` for the same operator-UI MVP control-plane API surface.
 
 ### Changed
 - Updated architecture and product index/navigation docs (`README.md`, `docs/README.md`, `docs/architecture/README.md`, and related Epic S / S1 / S3 / S4 references) to surface the new layer-oriented architecture map and UI/scheduler design anchors.
-- Moved existing root-level architecture notes into their layer folders under `docs/architecture/foundations/`, `docs/architecture/etl-core/`, `docs/architecture/control-plane/`, and `docs/architecture/operator-ui/`, and left temporary compatibility stubs at old root paths to reduce immediate link breakage during follow-on cleanup.
+- Moved existing root-level architecture notes into their layer folders under `docs/architecture/foundations/`, `docs/architecture/etl-core/`, `docs/architecture/control-plane/`, and `docs/architecture/operator-ui/`, and completed cleanup by removing temporary root-level compatibility stubs after link updates.
 
 ## [1.7.6] - 2026-05-24
 
@@ -83,7 +87,7 @@ and this project adheres to **Semantic Versioning**.
 - Added shared zip-on-archive packaging for plain file-backed CSV and XML sources through the same ZIP utility boundary, so archive-on-success can now publish one ZIP artifact containing the original source file as a single entry.
 - Added optional ZIP publication for processor-owned reject CSV artifacts through `processor-config.yaml -> rejectHandling.packageAsZip`, so rejected-record evidence can now publish as one ZIP artifact after the reject file is finalized.
 - Added optional ZIP publication for CSV, JSON, and XML file targets through target `packageAsZip`, so staged successful output can now publish as one ZIP artifact containing the native target file as a single entry.
-- Added a dedicated `docs/architecture/security-test-strategy.md` note defining the phased security test baseline for selected-job guardrails, ZIP/path hardening, CI security scans, release gates, and verification-evidence expectations.
+- Added a dedicated `docs/architecture/foundations/security-test-strategy.md` note defining the phased security test baseline for selected-job guardrails, ZIP/path hardening, CI security scans, release gates, and verification-evidence expectations.
 
 ### Changed
 - ZIP-backed file sources now auto-prepare from `filePath: ...zip` by convention, while the optional `unzip` block remains only for advanced overrides such as multi-entry selection or a custom extract directory.
@@ -121,7 +125,7 @@ and this project adheres to **Semantic Versioning**.
 - Added stricter XML source file validation with optional XSD/schema validation, reject-file-on-validation-failure behavior, and focused validation coverage for malformed XML, root/record mismatches, and schema failures.
 - Added reader-specific exception types plus a runtime-categorizing item-stream reader wrapper so reader open/read/update/close failures surface through clearer reader-oriented error boundaries.
 - Added a generalized `scripts/remove-job-bundle.ps1` cleanup utility so developers can remove a selected job bundle and its generated artifacts through one script instead of the older private-job-specific entry point.
-- Added a dedicated `docs/architecture/csv-to-xml-runtime-flow.md` operational guide covering the shipped `CSV -> XML` path, including flat vs nested XML targets, duplicate handling, staged publication, reject/archive behavior, and operator-facing evidence.
+- Added a dedicated `docs/architecture/etl-core/csv-to-xml-runtime-flow.md` operational guide covering the shipped `CSV -> XML` path, including flat vs nested XML targets, duplicate handling, staged publication, reject/archive behavior, and operator-facing evidence.
 - Added focused `customer-load` flow-proof coverage through `CsvSourceToXmlTargetFlowTest`, plus refreshed scenario-reference coverage for preserved job bundles and hierarchy-logging coverage for descriptor-backed run evidence.
 
 ### Changed
@@ -161,7 +165,7 @@ and this project adheres to **Semantic Versioning**.
 - Added a shared file-backed archive-on-success contract so archive behavior now applies across supported file sources such as CSV and XML, with scenario-relative archive path normalization and step-finished `archivedSourcePath` evidence on the active runtime path.
 - Added a preserved `xml-nested-to-csv-to-nested-xml-archive-e2e` scenario bundle proving nested XML -> CSV -> nested XML execution together with XML source archive-on-success behavior.
 - Added descriptor-backed `MAIN_FLOW_PLAN`, `SUBFLOW_PLAN`, and `SUBFLOW_SUMMARY` evidence so logs can explain synthesized subflows and report blocked downstream subflows when an upstream step fails.
-- Added a refreshed hierarchy-aware `docs/architecture/runtime-flow-walkthrough.html` GUI walkthrough so the product flow now shows `MainFlow -> SubFlow -> Step` alongside shipped logging and evidence vocabulary.
+- Added a refreshed hierarchy-aware `docs/architecture/etl-core/runtime-flow-walkthrough.html` GUI walkthrough so the product flow now shows `MainFlow -> SubFlow -> Step` alongside shipped logging and evidence vocabulary.
 
 ### Changed
 - Refreshed architecture, config, scenario, and product-tracking documentation so archive-on-success is now described consistently as a shared file-backed source concern instead of CSV-only wording, and preserved XML archive proof guidance is now included in the active docs set.
@@ -226,7 +230,7 @@ and this project adheres to **Semantic Versioning**.
 - Added `etl.config.allow-demo-fallback` as an explicit local/demo-only switch for legacy direct-path and bundled classpath fallback.
 - Added scenario/job-run Logback output with MDC fields for `scenario`, `runCorrelationId`, `jobExecutionId`, and `stepName`, including daily scenario log files.
 - Added `docs/product/product-backlog.md` as the execution-facing product backlog, including milestone-aligned board-style tracking from current state to enterprise-grade target.
-- Added `docs/architecture/transformation-capability-roadmap.md` to make transformation maturity an explicit part of the enterprise-grade ETL product direction.
+- Added `docs/architecture/etl-core/transformation-capability-roadmap.md` to make transformation maturity an explicit part of the enterprise-grade ETL product direction.
 
 ### Changed
 - Configuration loading is now strict by default; startup fails fast when `etl.config.job` is not provided.
@@ -330,12 +334,12 @@ and this project adheres to **Semantic Versioning**.
 
 ## [1.1.0] - 2025-12-10
 ### Added
-- Introduced **dynamic mapping engine** to support flexible source–target transformations.
+- Introduced **dynamic mapping engine** to support flexible sourceâ€“target transformations.
 - Added **TypeConversionUtils** as a centralized utility for field conversion and reflection handling.
 - Added **custom exception hierarchy** (`TypeConversionException`, `ReflectionException`) for more meaningful error reporting.
 - Added **AOP-based logging** for Reader, Processor, Writer, Step, and Job execution.
 - Added **Spring Profiles** to toggle dynamic ETL and environment-specific configurations.
-- Added support for **multiple source–target pairs** within a single ETL job.
+- Added support for **multiple sourceâ€“target pairs** within a single ETL job.
 - Added generic **DynamicReader**, **DynamicProcessor**, and **DynamicWriter** infrastructure.
 - Added reusable **ReflectionHelper** and **TypeConversionUtils** for field-level mapping.
 
@@ -343,7 +347,7 @@ and this project adheres to **Semantic Versioning**.
 - Refactored FieldSetMapper to use centralized TypeConversionUtils and Reflection utilities.
 - Overhauled DynamicProcessor architecture to introduce MappingEngine and improve modularity.
 - Refactored ETL pipeline to use **builder-pattern configuration** for dynamic steps.
-- Updated BatchConfig to handle dynamic step creation per Source–Target pair.
+- Updated BatchConfig to handle dynamic step creation per Sourceâ€“Target pair.
 
 ### Fixed
 - Fixed class-loading issues when resolving source/target model classes dynamically.

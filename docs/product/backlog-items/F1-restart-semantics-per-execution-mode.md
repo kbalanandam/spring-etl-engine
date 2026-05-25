@@ -1,4 +1,4 @@
-# F1 — Define restart semantics per execution mode
+# F1 â€” Define restart semantics per execution mode
 
 ## Summary
 
@@ -55,9 +55,9 @@ Start with a design/documentation slice that clarifies restart boundaries before
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Runtime flow`](../../architecture/runtime-flow.md)
-- [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
-- [`Control-plane operational data model`](../../architecture/control-plane-operational-data-model.md)
+- [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
+- [`Control-plane operational data model`](../../architecture/control-plane/control-plane-operational-data-model.md)
 
 ## Implementation notes
 

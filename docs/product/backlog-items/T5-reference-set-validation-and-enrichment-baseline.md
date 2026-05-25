@@ -1,4 +1,4 @@
-# T5 — Reference-set validation and enrichment baseline
+# T5 â€” Reference-set validation and enrichment baseline
 
 ## Summary
 
@@ -83,7 +83,7 @@ The frozen first slice is:
 
 ### Illustrative future config shape (draft only)
 
-Illustrative example only — frozen for planning, not a shipped contract yet:
+Illustrative example only â€” frozen for planning, not a shipped contract yet:
 
 ```yaml
 type: default
@@ -141,9 +141,9 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Reference-set validation and enrichment`](../../architecture/reference-set-validation-and-enrichment.md)
-- [`Validation extension architecture`](../../architecture/validation-extension-architecture.md)
-- [`Relational database support`](../../architecture/relational-db-support.md)
+- [`Reference-set validation and enrichment`](../../architecture/etl-core/reference-set-validation-and-enrichment.md)
+- [`Validation extension architecture`](../../architecture/etl-core/validation-extension-architecture.md)
+- [`Relational database support`](../../architecture/etl-core/relational-db-support.md)
 - [`Default processor reference`](../../config/processor/default-processor.md)
 
 ## Implementation notes
@@ -161,5 +161,5 @@ The first slice should stay narrow: validation against a loaded reference set, n
 
 ## Status notes
 
-Added to turn generic “lookup/enrichment” language into a concrete first delivery shape: reference-set validation before broader enrichment joins or derived lookup outputs.
+Added to turn generic â€œlookup/enrichmentâ€ language into a concrete first delivery shape: reference-set validation before broader enrichment joins or derived lookup outputs.
 

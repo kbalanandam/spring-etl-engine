@@ -1,4 +1,4 @@
-# S2 — Add time-based schedule definitions with pause/resume controls
+# S2 â€” Add time-based schedule definitions with pause/resume controls
 
 ## Summary
 
@@ -55,8 +55,8 @@ Build S2 only after S1 freezes the schedule/trigger contract, and keep the ETL w
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Control-plane worker boundary`](../../architecture/control-plane-worker-boundary.md)
-- [`Control-plane operational data model`](../../architecture/control-plane-operational-data-model.md)
+- [`Control-plane worker boundary`](../../architecture/control-plane/control-plane-worker-boundary.md)
+- [`Control-plane operational data model`](../../architecture/control-plane/control-plane-operational-data-model.md)
 
 ## Implementation notes
 

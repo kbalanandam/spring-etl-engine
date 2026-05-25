@@ -1,4 +1,4 @@
-# E3 — Centralize product-brand naming and doc refresh automation
+# E3 - Centralize product-brand naming and doc refresh automation
 
 ## Summary
 

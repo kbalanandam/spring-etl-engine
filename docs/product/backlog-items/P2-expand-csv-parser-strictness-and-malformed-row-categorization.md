@@ -1,4 +1,4 @@
-# P2 — Expand CSV parser strictness and malformed-row categorization on the read path
+# P2 â€” Expand CSV parser strictness and malformed-row categorization on the read path
 
 ## Summary
 
@@ -59,12 +59,12 @@ Start from the shipped `B5` reader baseline and grow only the narrowest parser c
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`OneFlow file parser capabilities and boundaries`](../../architecture/oneflow-file-parser-capabilities.md)
+- [`OneFlow file parser capabilities and boundaries`](../../architecture/etl-core/oneflow-file-parser-capabilities.md)
 - [`CSV source reference`](../../config/source/csv-source.md)
 
 ## Implementation notes
 
-Use `B5` as the shipped baseline and avoid reopening that item’s intentionally narrow design unless preserved scenarios prove the need. Keep config additions minimal and source-native.
+Use `B5` as the shipped baseline and avoid reopening that itemâ€™s intentionally narrow design unless preserved scenarios prove the need. Keep config additions minimal and source-native.
 
 ## Status notes
 

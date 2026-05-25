@@ -1,4 +1,4 @@
-# Epic X — File transport and SFTP boundary
+# Epic X - File transport and SFTP boundary
 
 ## Summary
 
@@ -17,15 +17,15 @@ This epic is **not** the place to make transport mandatory for the ETL core or t
 
 ## Related backlog items
 
-- [`X1 ? — Define SFTP transport contract and deployment boundary`](../backlog-items/X1-sftp-transport-contract-and-deployment-boundary.md)
-- [`X2 ? — Add first inbound SFTP staged pull capability`](../backlog-items/X2-first-inbound-sftp-staged-pull-capability.md)
-- [`X3 ? — Add remote post-success file handling and failure categorization for SFTP`](../backlog-items/X3-remote-post-success-file-handling-and-failure-categorization.md)
-- [`X4 ? — Define partner-facing transport security rules and optional isolated worker deployment`](../backlog-items/X4-partner-facing-transport-security-and-isolated-worker-boundary.md)
+- [`X1 - Define SFTP transport contract and deployment boundary`](../backlog-items/X1-sftp-transport-contract-and-deployment-boundary.md)
+- [`X2 - Add first inbound SFTP staged pull capability`](../backlog-items/X2-first-inbound-sftp-staged-pull-capability.md)
+- [`X3 - Add remote post-success file handling and failure categorization for SFTP`](../backlog-items/X3-remote-post-success-file-handling-and-failure-categorization.md)
+- [`X4 - Define partner-facing transport security rules and optional isolated worker deployment`](../backlog-items/X4-partner-facing-transport-security-and-isolated-worker-boundary.md)
 
 ## Related docs
 
-- [`../../architecture/sftp-transport-capability.md`](../../architecture/sftp-transport-capability.md)
-- [`../../architecture/control-plane-worker-boundary.md`](../../architecture/control-plane-worker-boundary.md)
+- [`../../architecture/etl-core/sftp-transport-capability.md`](../../architecture/etl-core/sftp-transport-capability.md)
+- [`../../architecture/control-plane/control-plane-worker-boundary.md`](../../architecture/control-plane/control-plane-worker-boundary.md)
 
 ## Maintenance note
 

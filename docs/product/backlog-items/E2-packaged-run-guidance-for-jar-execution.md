@@ -1,4 +1,4 @@
-# E2 — Add packaged-run guidance for jar execution with scenario configs
+# E2 - Add packaged-run guidance for jar execution with scenario configs
 
 ## Summary
 

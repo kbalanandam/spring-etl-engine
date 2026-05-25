@@ -1,4 +1,4 @@
-# A1 — Replace positional source-target pairing with explicit step pairing or step definitions
+# A1 â€” Replace positional source-target pairing with explicit step pairing or step definitions
 
 ## Summary
 
@@ -56,7 +56,7 @@ Keep one flat ordered Spring Batch plan, but require each runnable selected job 
 
 - [`Product backlog`](../product-backlog.md)
 - [`Job config reference`](../../config/job-config.md)
-- [`Runtime flow`](../../architecture/runtime-flow.md)
+- [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
 
 ## Implementation notes
 

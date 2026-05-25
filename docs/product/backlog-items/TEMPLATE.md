@@ -1,4 +1,4 @@
-# <ID> — <Short item title>
+# <ID> - <Short item title>
 
 ## Summary
 
@@ -6,7 +6,7 @@ One short paragraph explaining what this item is, why it exists, and the intende
 
 ## Current board status
 
-- Epic: **[<Epic>](../epics/<epic-file>.md)**
+- Epic: **<Epic>** (link: `../epics/<epic-file>.md`)
 - Priority: **<P0 | P1 | P2>**
 - Status: **<Ready | In Progress | Blocked | Done | Deferred>**
 - Milestone: **<M1 | M2 | M3>**

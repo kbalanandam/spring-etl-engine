@@ -1,0 +1,895 @@
+openapi: 3.1.0
+info:
+  title: OneFlow Control Plane - Operator UI MVP API
+  version: 0.1.0-draft
+  description: |
+    Draft OpenAPI contract for the first control-plane API surface that supports
+    the Angular operator UI MVP screens (Jobs, Runs, Run detail, Schedules, System).
+
+servers:
+  - url: /api/v1
+    description: Relative base path for the first MVP cut
+
+tags:
+  - name: Jobs
+  - name: Runs
+  - name: Schedules
+  - name: System
+
+paths:
+  /jobs:
+    get:
+      tags: [Jobs]
+      operationId: listJobs
+      summary: List registered job bundles for the Jobs screen
+      parameters:
+        - in: query
+          name: q
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: readinessStatus
+          required: false
+          schema:
+            $ref: '#/components/schemas/ReadinessStatus'
+        - in: query
+          name: hasSchedule
+          required: false
+          schema:
+            type: boolean
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 25
+      responses:
+        '200':
+          description: Job bundle summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobBundleSummaryPage'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /jobs/{jobKey}:
+    get:
+      tags: [Jobs]
+      operationId: getJobByKey
+      summary: Get details for one job bundle
+      parameters:
+        - $ref: '#/components/parameters/jobKey'
+      responses:
+        '200':
+          description: Job bundle detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobBundleDetailView'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /jobs/{jobKey}:trigger-now:
+    post:
+      tags: [Jobs]
+      operationId: triggerJobNow
+      summary: Request an immediate run for a registered job bundle
+      parameters:
+        - $ref: '#/components/parameters/jobKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TriggerNowRequest'
+      responses:
+        '200':
+          description: Trigger decision and launched run reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerNowResponse'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /runs:
+    get:
+      tags: [Runs]
+      operationId: listRuns
+      summary: List run summaries for monitoring
+      parameters:
+        - in: query
+          name: jobKey
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: status
+          required: false
+          schema:
+            $ref: '#/components/schemas/RunStatus'
+        - in: query
+          name: triggerOrigin
+          required: false
+          schema:
+            $ref: '#/components/schemas/TriggerOrigin'
+        - in: query
+          name: startedFrom
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: startedTo
+          required: false
+          schema:
+            type: string
+            format: date-time
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 25
+      responses:
+        '200':
+          description: Run summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunRecordPage'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /runs/{runId}:
+    get:
+      tags: [Runs]
+      operationId: getRunDetail
+      summary: Get one run detail for investigation
+      parameters:
+        - $ref: '#/components/parameters/runId'
+      responses:
+        '200':
+          description: Run detail payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunDetailView'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /schedules:
+    get:
+      tags: [Schedules]
+      operationId: listSchedules
+      summary: List schedules
+      parameters:
+        - in: query
+          name: jobKey
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: enabled
+          required: false
+          schema:
+            type: boolean
+        - in: query
+          name: owner
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: timezone
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 25
+      responses:
+        '200':
+          description: Schedule summaries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SchedulePage'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+    post:
+      tags: [Schedules]
+      operationId: createSchedule
+      summary: Create a schedule bound to one selected job bundle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleCreateRequest'
+      responses:
+        '201':
+          description: Created schedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleView'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /schedules/{scheduleId}:
+    get:
+      tags: [Schedules]
+      operationId: getSchedule
+      summary: Get one schedule detail
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      responses:
+        '200':
+          description: Schedule detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleView'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+    put:
+      tags: [Schedules]
+      operationId: updateSchedule
+      summary: Update schedule expression and metadata
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleUpdateRequest'
+      responses:
+        '200':
+          description: Updated schedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleView'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /schedules/{scheduleId}:enable:
+    post:
+      tags: [Schedules]
+      operationId: enableSchedule
+      summary: Enable a schedule
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      responses:
+        '200':
+          description: Schedule state changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleStateChangeResponse'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /schedules/{scheduleId}:disable:
+    post:
+      tags: [Schedules]
+      operationId: disableSchedule
+      summary: Disable a schedule
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      responses:
+        '200':
+          description: Schedule state changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleStateChangeResponse'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /schedules/{scheduleId}:pause:
+    post:
+      tags: [Schedules]
+      operationId: pauseSchedule
+      summary: Pause a schedule
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      responses:
+        '200':
+          description: Schedule state changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleStateChangeResponse'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /schedules/{scheduleId}:resume:
+    post:
+      tags: [Schedules]
+      operationId: resumeSchedule
+      summary: Resume a schedule
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      responses:
+        '200':
+          description: Schedule state changed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleStateChangeResponse'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /schedules/{scheduleId}/trigger-events:
+    get:
+      tags: [Schedules]
+      operationId: listScheduleTriggerEvents
+      summary: List trigger history for one schedule
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 25
+      responses:
+        '200':
+          description: Trigger history entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerEventPage'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /system/health:
+    get:
+      tags: [System]
+      operationId: getSystemHealth
+      summary: Get control-plane and worker health status
+      responses:
+        '200':
+          description: System health summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemHealthView'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+  /system/info:
+    get:
+      tags: [System]
+      operationId: getSystemInfo
+      summary: Get environment and version information
+      responses:
+        '200':
+          description: System info payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemInfoView'
+        default:
+          $ref: '#/components/responses/ErrorEnvelope'
+
+components:
+  parameters:
+    jobKey:
+      in: path
+      name: jobKey
+      required: true
+      schema:
+        type: string
+    runId:
+      in: path
+      name: runId
+      required: true
+      schema:
+        type: string
+    scheduleId:
+      in: path
+      name: scheduleId
+      required: true
+      schema:
+        type: string
+
+  responses:
+    ErrorEnvelope:
+      description: Error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+
+  schemas:
+    ReadinessStatus:
+      type: string
+      enum: [READY, WARNING, BLOCKED]
+
+    RunStatus:
+      type: string
+      enum: [REQUESTED, RUNNING, SUCCESS, FAILED, BLOCKED, CANCELLED]
+
+    TriggerOrigin:
+      type: string
+      enum: [SCHEDULE, WATCHER, MANUAL, EXTERNAL_ORCHESTRATOR]
+
+    TriggerDecisionStatus:
+      type: string
+      enum: [REQUESTED, LAUNCHED, SKIPPED, BLOCKED, REJECTED, DUPLICATE_SUPPRESSED]
+
+    JobBundleLastRunSummary:
+      type: object
+      properties:
+        runId:
+          type: string
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        finishedAt:
+          type: string
+          format: date-time
+      required: [runId, status, finishedAt]
+
+    JobBundleSummaryView:
+      type: object
+      properties:
+        jobKey:
+          type: string
+        displayName:
+          type: string
+        jobConfigPath:
+          type: string
+        readinessStatus:
+          $ref: '#/components/schemas/ReadinessStatus'
+        validationMessages:
+          type: array
+          items:
+            type: string
+        scheduleCount:
+          type: integer
+        lastRunSummary:
+          oneOf:
+            - $ref: '#/components/schemas/JobBundleLastRunSummary'
+            - type: 'null'
+      required:
+        [jobKey, displayName, jobConfigPath, readinessStatus, validationMessages, scheduleCount]
+
+    JobBundleDetailView:
+      allOf:
+        - $ref: '#/components/schemas/JobBundleSummaryView'
+        - type: object
+          properties:
+            schedules:
+              type: array
+              items:
+                $ref: '#/components/schemas/ScheduleView'
+            recentRuns:
+              type: array
+              items:
+                $ref: '#/components/schemas/RunRecordView'
+
+    JobBundleSummaryPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/JobBundleSummaryView'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+      required: [items, page, size, totalItems]
+
+    TriggerNowRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+        requestedBy:
+          type: string
+      required: [reason, requestedBy]
+
+    TriggerNowResponse:
+      type: object
+      properties:
+        triggerEventId:
+          type: string
+        decisionStatus:
+          $ref: '#/components/schemas/TriggerDecisionStatus'
+        launchedRunId:
+          oneOf:
+            - type: string
+            - type: 'null'
+      required: [triggerEventId, decisionStatus, launchedRunId]
+
+    RunRecordView:
+      type: object
+      properties:
+        runId:
+          type: string
+        jobKey:
+          type: string
+        jobDisplayName:
+          type: string
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        triggerOrigin:
+          $ref: '#/components/schemas/TriggerOrigin'
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        durationMs:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        sourceCount:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        writtenCount:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        rejectedCount:
+          oneOf:
+            - type: integer
+            - type: 'null'
+      required:
+        [runId, jobKey, jobDisplayName, status, triggerOrigin, startedAt]
+
+    RunRecordPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunRecordView'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+      required: [items, page, size, totalItems]
+
+    StepRecordView:
+      type: object
+      properties:
+        stepName:
+          type: string
+        sequence:
+          type: integer
+        status:
+          $ref: '#/components/schemas/RunStatus'
+        readCount:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        writeCount:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        filterCount:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        skipCount:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        rejectedCount:
+          oneOf:
+            - type: integer
+            - type: 'null'
+        startedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        finishedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        failureCategory:
+          oneOf:
+            - type: string
+            - type: 'null'
+      required: [stepName, sequence, status]
+
+    ArtifactRecordView:
+      type: object
+      properties:
+        artifactId:
+          type: string
+        role:
+          type: string
+        label:
+          type: string
+        pathOrUri:
+          type: string
+        createdAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        recordCount:
+          oneOf:
+            - type: integer
+            - type: 'null'
+      required: [artifactId, role, label, pathOrUri]
+
+    EvidenceLink:
+      type: object
+      properties:
+        label:
+          type: string
+        href:
+          type: string
+      required: [label, href]
+
+    FailureSummary:
+      type: object
+      properties:
+        category:
+          type: string
+        message:
+          type: string
+      required: [category, message]
+
+    RunDetailView:
+      type: object
+      properties:
+        run:
+          $ref: '#/components/schemas/RunRecordView'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/StepRecordView'
+        artifacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtifactRecordView'
+        failureSummary:
+          oneOf:
+            - $ref: '#/components/schemas/FailureSummary'
+            - type: 'null'
+        evidenceLinks:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceLink'
+      required: [run, steps, artifacts, evidenceLinks, failureSummary]
+
+    ScheduleView:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+        jobKey:
+          type: string
+        enabled:
+          type: boolean
+        paused:
+          type: boolean
+        expression:
+          type: string
+        timezone:
+          type: string
+        nextRunAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        owner:
+          oneOf:
+            - type: string
+            - type: 'null'
+        description:
+          oneOf:
+            - type: string
+            - type: 'null'
+      required: [scheduleId, jobKey, enabled, paused, expression, timezone]
+
+    SchedulePage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleView'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+      required: [items, page, size, totalItems]
+
+    ScheduleCreateRequest:
+      type: object
+      properties:
+        jobKey:
+          type: string
+        expression:
+          type: string
+        timezone:
+          type: string
+        enabled:
+          type: boolean
+        description:
+          type: string
+      required: [jobKey, expression, timezone, enabled]
+
+    ScheduleUpdateRequest:
+      type: object
+      properties:
+        expression:
+          type: string
+        timezone:
+          type: string
+        description:
+          oneOf:
+            - type: string
+            - type: 'null'
+      required: [expression, timezone]
+
+    ScheduleStateChangeResponse:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+        enabled:
+          type: boolean
+        paused:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+      required: [scheduleId, enabled, paused, updatedAt]
+
+    TriggerEventView:
+      type: object
+      properties:
+        triggerEventId:
+          type: string
+        origin:
+          $ref: '#/components/schemas/TriggerOrigin'
+        scheduleId:
+          oneOf:
+            - type: string
+            - type: 'null'
+        jobKey:
+          type: string
+        decisionStatus:
+          $ref: '#/components/schemas/TriggerDecisionStatus'
+        triggeredAt:
+          type: string
+          format: date-time
+        launchedRunId:
+          oneOf:
+            - type: string
+            - type: 'null'
+        explanation:
+          oneOf:
+            - type: string
+            - type: 'null'
+      required:
+        [triggerEventId, origin, jobKey, decisionStatus, triggeredAt, scheduleId, launchedRunId, explanation]
+
+    TriggerEventPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/TriggerEventView'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+      required: [items, page, size, totalItems]
+
+    SystemHealthView:
+      type: object
+      properties:
+        status:
+          type: string
+        operatorApi:
+          type: string
+        scheduler:
+          type: string
+        workerReachability:
+          type: string
+        historyStore:
+          type: string
+        checkedAt:
+          type: string
+          format: date-time
+      required: [status, operatorApi, scheduler, workerReachability, historyStore, checkedAt]
+
+    SystemInfoView:
+      type: object
+      properties:
+        environment:
+          type: string
+        version:
+          type: string
+        build:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+      required: [environment, version, build, timestamp]
+
+    ErrorEnvelope:
+      type: object
+      properties:
+        errorCode:
+          type: string
+        message:
+          type: string
+        details:
+          oneOf:
+            - type: object
+              additionalProperties: true
+            - type: 'null'
+        correlationId:
+          type: string
+      required: [errorCode, message, details, correlationId]
+

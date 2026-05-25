@@ -1,1 +1,396 @@
-# File Ingestion Hardening  ## Purpose  This note preserves the first implemented file-based ingestion hardening slice in `spring-etl-engine` and the remaining follow-on direction that is still deferred.  Use it to answer four questions when extending this area further:  1. where archive behavior should be configured 2. where rejected-record behavior should be configured 3. where field-level validation rules should be configured 4. where future cleaner / normalization behavior should be configured and what the first supported file-ingestion slice should and should not do  The first CSV-focused slice described here is now part of the shipped config contract, and the archive seam has since been generalized across shared file-backed source configs such as CSV and XML. Broader expansion beyond that slice remains forward-looking architecture guidance.  For the longer-term extension model that separates future source-validation and processor-rule SPIs, see [`validation-extension-architecture.md`](validation-extension-architecture.md).  ## Why this note exists  The current runtime already has:  - explicit `job-config.yaml` driven scenario selection - explicit `steps`-driven orchestration - current file readers and writers - machine-readable step/run evidence - a stronger documentation and backlog discipline  The practical product slice that followed from that baseline was not more connector breadth first.  It is safer file ingestion behavior for real scenarios:  - configurable field validation - controlled rejected-record output - archive handling for processed source files - operator-visible evidence about what was accepted, rejected, and archived  ## Current implemented state  Today, the shipped config contract supports:  - `job-config.yaml` for selected scenario execution and explicit step order - file-based source selection such as CSV and XML through source config files - default processor field mapping through `processor-config.yaml` - target writing through the selected target config  Today, the shipped config contract now supports a first file-ingestion hardening slice with the strongest preserved proof on CSV scenarios for:  - per-field validation rules in processor mappings (`notNull`, `timeFormat`) - duplicate handling for keep-first/reject-later semantics plus ordered winner selection across single-field and composite-key matching - explicit rejected-record output configuration in processor config - optional reject quarantine publication through `rejectHandling.quarantinePath`, so completed steps with rejected records can publish a quarantined copy of the finalized reject artifact under a dedicated operator-owned directory - processed-source-file archive configuration in file-based source config - convention-based unzip-before-read preparation for ZIP-backed CSV/XML source artifacts through the shared file-source contract, while still treating the configured `filePath` as the original artifact used for reject/archive disposition - optional zip-on-archive packaging for plain CSV/XML file sources through the same shared ZIP utility boundary, so archive-on-success can publish one ZIP artifact instead of moving the plain source file directly - optional zip-on-reject packaging for processor-owned reject CSV artifacts through `rejectHandling.packageAsZip`, so rejected-record evidence can publish as one ZIP artifact after the reject CSV is finalized - explicit CSV source header handling through `skipHeader` so header-bearing handoff files can keep the current default while headerless CSV sources can opt out of first-line skipping - opt-in CSV parser quote-character configuration through `CsvSourceConfig.parser.quoteCharacter`, so the active CSV reader and header validator can honor alternate quoted-field contracts while keeping Spring Batch's default `"` behavior when that setting is omitted - staged file-target publication for CSV/XML outputs so partial rerun artifacts are not treated as final published outputs - optional zip-on-successful-output packaging for CSV, JSON, and XML file targets through target `packageAsZip`, reusing the same staged local artifact and shared ZIP utility boundary once step completion succeeds - active staged CSV/XML/JSON writers now also clean failed in-progress `.part` output on the writer path before any final-file promotion can occur, while keeping the same publish-on-success semantics for completed steps - when a previous run is interrupted before step-end callbacks execute, the next selected-job step start now sweeps stale target-side `.part` artifacts (including ZIP publication staging `.zip.part` files) before opening a fresh writer so orphan staging files do not survive as misleading downstream flow context - when step-start orphan cleanup hits a transient file-lock race (for example Windows "used by another process"), staged cleanup now retries with short bounded backoff before failing the step; if the lock persists after retries, runtime still fails fast to avoid continuing from ambiguous staged output state - orphan cleanup is strictly scoped to the two writer-owned staged artifact paths derived from the selected target (`<final>.part` and, when ZIP publication is enabled, `<published>.zip.part`); runtime does not wildcard-delete sibling files from source/target directories - for parallel job executions, each job should publish to a distinct target output path; staged cleanup remains per-target-path scoped and therefore does not clean another session's staged files when that session writes a different target file in the same directory - accepted vs rejected record artifact semantics for the preserved CSV proof scenario - step execution context evidence for reject counts, reject output path, optional quarantined reject path (`quarantinedRejectPath`), and archived source path  The preserved unzip-before-read proof is `src/main/resources/config-jobs/customer-load-zipped/`, which keeps the familiar flat `CSV -> XML` flow while proving that the runtime can infer ZIP preparation directly from `filePath: input/Customers.zip`, extract one readable CSV file before normal validation, counting, and reading begin, and still reserve the optional `unzip` block for advanced overrides such as multi-entry selection.  That ZIP behavior now sits behind the shared `com.etl.common.util.ZipFileUtility` boundary rather than a file-runtime-local helper. The current shipped callers are still the file-source preparation and archive-on-success paths, but the utility is intentionally transport-agnostic for any later OneFlow feature that has a staged local file artifact, such as a future SFTP ingress flow that needs the same zip/unzip behavior after download.  The shared ZIP boundary now also preserves ZIP-specific low-level exception types such as extraction vs packaging failures, but those still roll up through the existing outer `config` and `runtime` failure surfaces. That keeps operator-facing category stability intact while giving developers and tests a more precise cause type when a ZIP-specific step fails underneath.  The remaining gaps are now the broader follow-on work beyond that first slice.  For duplicate handling specifically, the shipped runtime currently uses:  - optional duplicate checking only when a `duplicate` processor rule is configured for the mapping; when no such rule is present, runtime does not apply duplicate-based filtering for that mapping - keep-first duplicate handling when `duplicate` is configured with the mapped field alone or with `keyFields` but without `orderBy` - ordered winner selection when `duplicate` is configured with `orderBy`, so the best record per duplicate key is retained before final write - a shared processor-level duplicate contract intended for CSV, flat XML, relational, and other future record-oriented sources once records are available as normal runtime objects - step-local in-memory duplicate tracking for keep-first duplicate elimination - automatic storage selection for ordered duplicate winner selection by default (`storageMode: auto`), with optional explicit per-rule override (`storageMode: memory|embeddedDb`) when operators need deterministic resolver choice - operator-visible ordered duplicate resolver evidence (`resolverMode` and `resolverReason`) emitted at startup planning and step runtime for orderBy-based winner selection  The product direction now keeps `storageMode: auto` as the default while also allowing explicit per-rule storage-mode override for ordered winner selection when needed.  For configuration details and backlog rationale, see [`Default processor reference`](../../config/processor/default-processor.md) and [`T4 ΓÇö Transformation quarantine and duplicate hardening`](../../product/backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md).  The main deferred exception to preserve is source-native duplicate identity that cannot be expressed cleanly through flat mapped fields. If a future XML scenario needs duplicate keys based on XPath, namespaces, nested collections, or other pre-flattening structure details, that should be treated as separate XML/source-level duplicate scope rather than stretching the current processor rule beyond its intended contract.  For ordered duplicate winner selection, the current shipped slice resolves the final winner per duplicate key before the write phase and therefore forces tasklet-style final buffering for that mapping.  For observability, that same path now emits explicit resolver-selection evidence:  - startup planning log: `STEP_READY event=duplicate_resolver_plan` with `resolverMode` and `resolverReason` - step runtime log: `STEP_EVENT event=duplicate_resolver_selected` with the same resolver fields - step execution context keys: `orderedDuplicateResolverMode`, `orderedDuplicateResolverReason`  ## Design goals for the follow-on slice  The next follow-on slice should:  - stay file-ingestion focused - stay operator-visible and testable - preserve explicit config-driven behavior - avoid introducing a broad rule engine too early - avoid changing every config type at once  It should prove one preserved realistic file scenario that shows:  - accepted records written to the target - rejected records written to reject output - original input file archived after successful processing  ## Proposed config placement  ### 1. Archive behavior belongs in the file source config  Archive behavior is a file-lifecycle concern.  It should live with the file source definition, not with field mapping rules.  For the current shipped slice, archive behavior is available only on file-based source configs such as:  - `CsvSourceConfig` - `XmlSourceConfig`  The same shared file-source boundary now also owns ZIP preparation for ZIP-backed file inputs, while delegating the actual ZIP extraction/packaging work to the reusable common utility. That keeps archive and unzip centralized on the file-artifact lifecycle instead of drifting into parser-specific logic, without making the ZIP implementation itself CSV/XML-specific.  On the active reader path, that separation now stays explicit: readers such as `CsvDynamicReader` and `XmlDynamicReader` remain responsible for parser setup only after `FileSourceArtifactSupport` has already resolved the readable local file path. This keeps tokenization, fragment streaming, and model mapping separate from ZIP staging and prepared-file lifecycle rules.  Use the naming intentionally on this path: keep `artifact` for lifecycle-owned original/reject/archive identity, and use `file` or `path` for prepared readable working files. That distinction matches the shipped runtime contract where one logical source may involve both the original inbound artifact and a separate prepared readable file.  ### 2. Validation rules belong in the processor config  Validation rules are part of transformation acceptance behavior.  They should live next to the source-to-target mapping they affect.  For the first slice, that means validation rules should be attached to mapping fields inside `processor-config.yaml`.  ### 2a. Future generic cleaner / normalization transforms also belong in the processor config first  Most upcoming cleanup behavior such as status decoding, null fallback, country-code normalization, trim, or case normalization should live beside the mapping in `processor-config.yaml`, not in source config.  That keeps shared field/value rewriting on the active default-processor path once a normal runtime record exists.  Future source-transform YAML should be added only for true source-native adaptation cases such as XPath-, namespace-, header-, token-, or other pre-flattening/source-shape concerns that cannot be expressed cleanly through processor-side field transforms.  ### 3. Rejected-record output belongs in the processor config  Rejected-record behavior is part of validation-aware processing.  It should be configured alongside the mapping and validation rules that determine whether a record is accepted or rejected.  The shipped contract now also allows reject publication to stay on that same processor-owned seam when operators want compressed reject artifacts: `rejectHandling.packageAsZip=true` keeps the generated reject CSV as the single ZIP entry and publishes the outer artifact with `.zip` appended when needed.  The same reject-handling seam now also supports optional quarantine publication: when `rejectHandling.quarantinePath` is configured, the finalized reject artifact (CSV or ZIP, based on `packageAsZip`) is also published into the quarantine directory only when the step completes successfully and rejected records were actually produced.  ## Proposed YAML shape  ## Source config proposal  The first proposed archive shape is intentionally small and file-source specific.  ```yaml sources:   - format: csv     sourceName: Events     filePath: input/events.csv     delimiter: ","     archive:       enabled: true       successPath: archive/success/       namePattern: "{originalName}-{timestamp}"     fields:       - name: id         type: int       - name: eventTime         type: String       - name: description         type: String ```  `packageName` is omitted on purpose here. On the active explicit selected-job path, source/target generated packages are derived internally from `job-config.yaml -> name`, and authored `packageName` now fails fast.  ### Proposed archive semantics  For the first slice:  - archive only applies to file-based sources - archive happens only after successful step completion - if the step fails technically, the original file remains in place - if records are rejected but the step completes successfully, the original file is still archived - when `archive.packageAsZip=true`, the runtime writes one ZIP archive artifact that contains the original source file as a single entry and records that ZIP path in `archivedSourcePath` - `archive.packageAsZip=true` is only valid for plain file-backed source artifacts; sources that are already `.zip` stay on the existing original-artifact archive path instead of producing double-zipped archives  ### Shared unzip-before-read semantics  The first shipped ZIP preparation contract is intentionally narrow:  - ZIP preparation applies automatically when a file-based source `filePath` points to a `.zip` artifact - the configured `filePath` still names the original ingress artifact, which may now be a `.zip` - the runtime extracts one readable file before normal CSV/XML validation, record counting, and reader consumption begin - when `unzip.extractDir` is omitted, the runtime stages that readable file under a runtime-owned JVM temp work root instead of mutating the ingress/input folder - `unzip.extractDir` is optional and resolves relative to the selected source-config folder just like other file-based paths when authored - when `unzip.entryName` is omitted, the ZIP must contain exactly one file entry - when `unzip.entryName` is present, it must match one entry inside the ZIP artifact - validation and reader logic consume the extracted readable file, but archive-on-success still moves the original configured artifact - after step completion or reject-file validation failure, the prepared extracted file is cleaned up so temporary working copies do not accumulate - when the runtime-owned default prepared location is used, cleanup also prunes now-empty prepared directories so repeated runs do not leave empty temp folders behind  ## Processor config proposal  This YAML block mixes shipped and future-looking examples intentionally:  - `rejectHandling`, `rules`, and the duplicate examples reflect shipped first-slice behavior - the `transforms:` / `valueMap` example is future-facing and illustrates the intended next processor-transform contract, not behavior that is shipped today  ```yaml processor:   type: default   rejectHandling:     enabled: true     outputPath: target/rejects/     includeReasonColumns: true   mappings:     - source: Events       target: EventsCsv       fields:         - from: id           to: id           rules:             - type: notNull             - type: duplicate               keyFields:                 - id               orderBy:                 - field: eventTime                   direction: DESC                 - field: sequenceNo                   direction: ASC         - from: eventTime           to: event_time           rules:             - type: notNull             - type: timeFormat               pattern: HH:mm:ss         - from: countryCode           to: countryCode           transforms:             - type: valueMap               mappings:                 IND: IN                 USA: US               defaultValue: UNKNOWN         - from: sequenceNo           to: sequenceNo         - from: description           to: description ```  ### Proposed rule semantics  For the current shipped slice, support stays narrow:  - `notNull` - `timeFormat` - `duplicate` for single-field or composite-key matching with either keep-first/reject-later behavior or ordered winner selection  Future slices may add:  - ordered optional `transforms[]` chains beside `rules` - a first processor-side `valueMap` cleaner for coded fields - expressions - conditional rules - regex - ranges - lookup/enrichment-driven validation - client-selectable duplicate tracking storage (`memory` vs future disk-backed mode)  Planned transform semantics should stay explicit:  - omit `transforms` entirely when no cleanup behavior is needed - allow zero, one, or many ordered transform steps per field - evaluate processor rules after transforms, not before them - allow transform-then-reject behavior when a normalized value such as `UNKNOWN` must still be rejected by a business/target rule - fail fast or at least warn once source transforms exist and equivalent generic value rewriting is configured for the same field in both source and processor layers  ## Proposed reject output shape  The first slice should prefer one simple reject output over a broad quarantine model.  ### Proposed output columns  Rejected records should preserve the original mapped fields and append reason metadata such as:  - `_rejectField` - `_rejectRule` - `_rejectMessage`  Example:  ```csv id,event_time,description,_rejectField,_rejectRule,_rejectMessage ,12:45:00,missing id,id,notNull,"id must not be null" 10,25:99:00,bad time,eventTime,timeFormat,"eventTime must match HH:mm:ss" ```  ## Proposed runtime behavior  For the first slice, one record should move through this decision path:  1. reader reads record from file source 2. any future source-native adaptation runs only when the selected source type requires it 3. processor applies field mapping and any configured field transforms 4. processor evaluates configured field rules on the transformed value 5. if ordered duplicate winner selection is configured, the runtime first determines the winning record per duplicate key before final processing/writing 6. if rules pass, record is written to the selected target 7. if rules fail or an older duplicate is discarded, the record is written to reject output with reason metadata when rejected-record output is enabled 8. when the step completes successfully, the original file is archived if archive is enabled  For current file targets, the write path should also remain idempotent for the bounded `rerun-from-start` recovery slice:  1. the writer produces a sibling staged file first 2. the staged file is promoted to the configured final path only after successful step completion 3. if the step fails, the staged file is cleaned and the previous published final output is left untouched 4. if a JVM/process was interrupted before step cleanup, the next step attempt deletes any leftover staged `.part` artifact before writing again  This is the current bounded file-output hardening policy. Richer manifest-driven checkpoint/restart behavior remains future work.  ## Proposed operator evidence  The first slice should produce evidence that operators can use without reading full stack traces.  At minimum, one successful run should be able to show:  - records read - records accepted - records rejected - records written - reject output path - archive result and archive path  ## First supported scope  The first slice should support:  - CSV file source - default processor mappings - file-based reject output - file-source archive behavior - one preserved realistic file scenario with mixed valid and invalid rows  ## Explicitly deferred from the first slice  The first slice should not yet try to solve:  - relational-source archiving - complex XML nested validation rules - a broad source-transform YAML model for generic cleanup behavior - a generic CSV escape framework beyond the active reader path's quoted-field and doubled quote-character semantics - expression-based mapping itself - conditional transformation rules - quarantine workflow orchestration - replay/retry semantics for archived or rejected files - multi-destination reject routing - rule severity levels - explicit operator selection of duplicate storage strategy per mapping or scenario  ## Relationship to other docs  - `docs/product/product-backlog.md` records that this is the next planned slice - `docs/architecture/transformation-capability-roadmap.md` places this work before broader expression-based mapping - `docs/architecture/runtime-flow.md` shows where this future behavior should plug into the runtime - `docs/architecture/file-ingestion-hardening-checklist.md` turns this design into an execution-ready checklist of likely code touch points, tests, and the first preserved proof scenario - `docs/config/*` continues to describe only the currently implemented config contract  ## Suggested first proof scenario  A preserved realistic CSV scenario should include at least:  - one valid row - one row with a missing required field - one row with an invalid time field - one additional valid row  That scenario should prove:  - accepted output - rejected output - archived-original-file behavior - visible counts in runtime evidence  
+# File Ingestion Hardening
+
+## Purpose
+
+This note preserves the first implemented file-based ingestion hardening slice in `spring-etl-engine` and the remaining follow-on direction that is still deferred.
+
+Use it to answer four questions when extending this area further:
+
+1. where archive behavior should be configured
+2. where rejected-record behavior should be configured
+3. where field-level validation rules should be configured
+4. where future cleaner / normalization behavior should be configured and what the first supported file-ingestion slice should and should not do
+
+The first CSV-focused slice described here is now part of the shipped config contract, and the archive seam has since been generalized across shared file-backed source configs such as CSV and XML. Broader expansion beyond that slice remains forward-looking architecture guidance.
+
+For the longer-term extension model that separates future source-validation and processor-rule SPIs, see [`validation-extension-architecture.md`](validation-extension-architecture.md).
+
+## Why this note exists
+
+The current runtime already has:
+
+- explicit `job-config.yaml` driven scenario selection
+- explicit `steps`-driven orchestration
+- current file readers and writers
+- machine-readable step/run evidence
+- a stronger documentation and backlog discipline
+
+The practical product slice that followed from that baseline was not more connector breadth first.
+
+It is safer file ingestion behavior for real scenarios:
+
+- configurable field validation
+- controlled rejected-record output
+- archive handling for processed source files
+- operator-visible evidence about what was accepted, rejected, and archived
+
+## Current implemented state
+
+Today, the shipped config contract supports:
+
+- `job-config.yaml` for selected scenario execution and explicit step order
+- file-based source selection such as CSV and XML through source config files
+- default processor field mapping through `processor-config.yaml`
+- target writing through the selected target config
+
+Today, the shipped config contract now supports a first file-ingestion hardening slice with the strongest preserved proof on CSV scenarios for:
+
+- per-field validation rules in processor mappings (`notNull`, `timeFormat`)
+- duplicate handling for keep-first/reject-later semantics plus ordered winner selection across single-field and composite-key matching
+- explicit rejected-record output configuration in processor config
+- optional reject quarantine publication through `rejectHandling.quarantinePath`, so completed steps with rejected records can publish a quarantined copy of the finalized reject artifact under a dedicated operator-owned directory
+- processed-source-file archive configuration in file-based source config
+- convention-based unzip-before-read preparation for ZIP-backed CSV/XML source artifacts through the shared file-source contract, while still treating the configured `filePath` as the original artifact used for reject/archive disposition
+- optional zip-on-archive packaging for plain CSV/XML file sources through the same shared ZIP utility boundary, so archive-on-success can publish one ZIP artifact instead of moving the plain source file directly
+- optional zip-on-reject packaging for processor-owned reject CSV artifacts through `rejectHandling.packageAsZip`, so rejected-record evidence can publish as one ZIP artifact after the reject CSV is finalized
+- explicit CSV source header handling through `skipHeader` so header-bearing handoff files can keep the current default while headerless CSV sources can opt out of first-line skipping
+- opt-in CSV parser quote-character configuration through `CsvSourceConfig.parser.quoteCharacter`, so the active CSV reader and header validator can honor alternate quoted-field contracts while keeping Spring Batch's default `"` behavior when that setting is omitted
+- staged file-target publication for CSV/XML outputs so partial rerun artifacts are not treated as final published outputs
+- optional zip-on-successful-output packaging for CSV, JSON, and XML file targets through target `packageAsZip`, reusing the same staged local artifact and shared ZIP utility boundary once step completion succeeds
+- active staged CSV/XML/JSON writers now also clean failed in-progress `.part` output on the writer path before any final-file promotion can occur, while keeping the same publish-on-success semantics for completed steps
+- when a previous run is interrupted before step-end callbacks execute, the next selected-job step start now sweeps stale target-side `.part` artifacts (including ZIP publication staging `.zip.part` files) before opening a fresh writer so orphan staging files do not survive as misleading downstream flow context
+- when step-start orphan cleanup hits a transient file-lock race (for example Windows "used by another process"), staged cleanup now retries with short bounded backoff before failing the step; if the lock persists after retries, runtime still fails fast to avoid continuing from ambiguous staged output state
+- orphan cleanup is strictly scoped to the two writer-owned staged artifact paths derived from the selected target (`<final>.part` and, when ZIP publication is enabled, `<published>.zip.part`); runtime does not wildcard-delete sibling files from source/target directories
+- for parallel job executions, each job should publish to a distinct target output path; staged cleanup remains per-target-path scoped and therefore does not clean another session's staged files when that session writes a different target file in the same directory
+- accepted vs rejected record artifact semantics for the preserved CSV proof scenario
+- step execution context evidence for reject counts, reject output path, optional quarantined reject path (`quarantinedRejectPath`), and archived source path
+
+The preserved unzip-before-read proof is `src/main/resources/config-jobs/customer-load-zipped/`, which keeps the familiar flat `CSV -> XML` flow while proving that the runtime can infer ZIP preparation directly from `filePath: input/Customers.zip`, extract one readable CSV file before normal validation, counting, and reading begin, and still reserve the optional `unzip` block for advanced overrides such as multi-entry selection.
+
+That ZIP behavior now sits behind the shared `com.etl.common.util.ZipFileUtility` boundary rather than a file-runtime-local helper. The current shipped callers are still the file-source preparation and archive-on-success paths, but the utility is intentionally transport-agnostic for any later OneFlow feature that has a staged local file artifact, such as a future SFTP ingress flow that needs the same zip/unzip behavior after download.
+
+The shared ZIP boundary now also preserves ZIP-specific low-level exception types such as extraction vs packaging failures, but those still roll up through the existing outer `config` and `runtime` failure surfaces. That keeps operator-facing category stability intact while giving developers and tests a more precise cause type when a ZIP-specific step fails underneath.
+
+The remaining gaps are now the broader follow-on work beyond that first slice.
+
+For duplicate handling specifically, the shipped runtime currently uses:
+
+- optional duplicate checking only when a `duplicate` processor rule is configured for the mapping; when no such rule is present, runtime does not apply duplicate-based filtering for that mapping
+- keep-first duplicate handling when `duplicate` is configured with the mapped field alone or with `keyFields` but without `orderBy`
+- ordered winner selection when `duplicate` is configured with `orderBy`, so the best record per duplicate key is retained before final write
+- a shared processor-level duplicate contract intended for CSV, flat XML, relational, and other future record-oriented sources once records are available as normal runtime objects
+- step-local in-memory duplicate tracking for keep-first duplicate elimination
+- automatic storage selection for ordered duplicate winner selection by default (`storageMode: auto`), with optional explicit per-rule override (`storageMode: memory|embeddedDb`) when operators need deterministic resolver choice
+- operator-visible ordered duplicate resolver evidence (`resolverMode` and `resolverReason`) emitted at startup planning and step runtime for orderBy-based winner selection
+
+The product direction now keeps `storageMode: auto` as the default while also allowing explicit per-rule storage-mode override for ordered winner selection when needed.
+
+For configuration details and backlog rationale, see [`Default processor reference`](../../config/processor/default-processor.md) and [`T4 ΓÇö Transformation quarantine and duplicate hardening`](../../product/backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md).
+
+The main deferred exception to preserve is source-native duplicate identity that cannot be expressed cleanly through flat mapped fields. If a future XML scenario needs duplicate keys based on XPath, namespaces, nested collections, or other pre-flattening structure details, that should be treated as separate XML/source-level duplicate scope rather than stretching the current processor rule beyond its intended contract.
+
+For ordered duplicate winner selection, the current shipped slice resolves the final winner per duplicate key before the write phase and therefore forces tasklet-style final buffering for that mapping.
+
+For observability, that same path now emits explicit resolver-selection evidence:
+
+- startup planning log: `STEP_READY event=duplicate_resolver_plan` with `resolverMode` and `resolverReason`
+- step runtime log: `STEP_EVENT event=duplicate_resolver_selected` with the same resolver fields
+- step execution context keys: `orderedDuplicateResolverMode`, `orderedDuplicateResolverReason`
+
+## Design goals for the follow-on slice
+
+The next follow-on slice should:
+
+- stay file-ingestion focused
+- stay operator-visible and testable
+- preserve explicit config-driven behavior
+- avoid introducing a broad rule engine too early
+- avoid changing every config type at once
+
+It should prove one preserved realistic file scenario that shows:
+
+- accepted records written to the target
+- rejected records written to reject output
+- original input file archived after successful processing
+
+## Proposed config placement
+
+### 1. Archive behavior belongs in the file source config
+
+Archive behavior is a file-lifecycle concern.
+
+It should live with the file source definition, not with field mapping rules.
+
+For the current shipped slice, archive behavior is available only on file-based source configs such as:
+
+- `CsvSourceConfig`
+- `XmlSourceConfig`
+
+The same shared file-source boundary now also owns ZIP preparation for ZIP-backed file inputs, while delegating the actual ZIP extraction/packaging work to the reusable common utility. That keeps archive and unzip centralized on the file-artifact lifecycle instead of drifting into parser-specific logic, without making the ZIP implementation itself CSV/XML-specific.
+
+On the active reader path, that separation now stays explicit: readers such as `CsvDynamicReader` and `XmlDynamicReader` remain responsible for parser setup only after `FileSourceArtifactSupport` has already resolved the readable local file path. This keeps tokenization, fragment streaming, and model mapping separate from ZIP staging and prepared-file lifecycle rules.
+
+Use the naming intentionally on this path: keep `artifact` for lifecycle-owned original/reject/archive identity, and use `file` or `path` for prepared readable working files. That distinction matches the shipped runtime contract where one logical source may involve both the original inbound artifact and a separate prepared readable file.
+
+### 2. Validation rules belong in the processor config
+
+Validation rules are part of transformation acceptance behavior.
+
+They should live next to the source-to-target mapping they affect.
+
+For the first slice, that means validation rules should be attached to mapping fields inside `processor-config.yaml`.
+
+### 2a. Future generic cleaner / normalization transforms also belong in the processor config first
+
+Most upcoming cleanup behavior such as status decoding, null fallback, country-code normalization, trim, or case normalization should live beside the mapping in `processor-config.yaml`, not in source config.
+
+That keeps shared field/value rewriting on the active default-processor path once a normal runtime record exists.
+
+Future source-transform YAML should be added only for true source-native adaptation cases such as XPath-, namespace-, header-, token-, or other pre-flattening/source-shape concerns that cannot be expressed cleanly through processor-side field transforms.
+
+### 3. Rejected-record output belongs in the processor config
+
+Rejected-record behavior is part of validation-aware processing.
+
+It should be configured alongside the mapping and validation rules that determine whether a record is accepted or rejected.
+
+The shipped contract now also allows reject publication to stay on that same processor-owned seam when operators want compressed reject artifacts: `rejectHandling.packageAsZip=true` keeps the generated reject CSV as the single ZIP entry and publishes the outer artifact with `.zip` appended when needed.
+
+The same reject-handling seam now also supports optional quarantine publication: when `rejectHandling.quarantinePath` is configured, the finalized reject artifact (CSV or ZIP, based on `packageAsZip`) is also published into the quarantine directory only when the step completes successfully and rejected records were actually produced.
+
+## Proposed YAML shape
+
+## Source config proposal
+
+The first proposed archive shape is intentionally small and file-source specific.
+
+```yaml
+sources:
+  - format: csv
+    sourceName: Events
+    filePath: input/events.csv
+    delimiter: ","
+    archive:
+      enabled: true
+      successPath: archive/success/
+      namePattern: "{originalName}-{timestamp}"
+    fields:
+      - name: id
+        type: int
+      - name: eventTime
+        type: String
+      - name: description
+        type: String
+```
+
+`packageName` is omitted on purpose here. On the active explicit selected-job path, source/target generated packages are derived internally from `job-config.yaml -> name`, and authored `packageName` now fails fast.
+
+### Proposed archive semantics
+
+For the first slice:
+
+- archive only applies to file-based sources
+- archive happens only after successful step completion
+- if the step fails technically, the original file remains in place
+- if records are rejected but the step completes successfully, the original file is still archived
+- when `archive.packageAsZip=true`, the runtime writes one ZIP archive artifact that contains the original source file as a single entry and records that ZIP path in `archivedSourcePath`
+- `archive.packageAsZip=true` is only valid for plain file-backed source artifacts; sources that are already `.zip` stay on the existing original-artifact archive path instead of producing double-zipped archives
+
+### Shared unzip-before-read semantics
+
+The first shipped ZIP preparation contract is intentionally narrow:
+
+- ZIP preparation applies automatically when a file-based source `filePath` points to a `.zip` artifact
+- the configured `filePath` still names the original ingress artifact, which may now be a `.zip`
+- the runtime extracts one readable file before normal CSV/XML validation, record counting, and reader consumption begin
+- when `unzip.extractDir` is omitted, the runtime stages that readable file under a runtime-owned JVM temp work root instead of mutating the ingress/input folder
+- `unzip.extractDir` is optional and resolves relative to the selected source-config folder just like other file-based paths when authored
+- when `unzip.entryName` is omitted, the ZIP must contain exactly one file entry
+- when `unzip.entryName` is present, it must match one entry inside the ZIP artifact
+- validation and reader logic consume the extracted readable file, but archive-on-success still moves the original configured artifact
+- after step completion or reject-file validation failure, the prepared extracted file is cleaned up so temporary working copies do not accumulate
+- when the runtime-owned default prepared location is used, cleanup also prunes now-empty prepared directories so repeated runs do not leave empty temp folders behind
+
+## Processor config proposal
+
+This YAML block mixes shipped and future-looking examples intentionally:
+
+- `rejectHandling`, `rules`, and the duplicate examples reflect shipped first-slice behavior
+- the `transforms:` / `valueMap` example is future-facing and illustrates the intended next processor-transform contract, not behavior that is shipped today
+
+```yaml
+processor:
+  type: default
+  rejectHandling:
+    enabled: true
+    outputPath: target/rejects/
+    includeReasonColumns: true
+  mappings:
+    - source: Events
+      target: EventsCsv
+      fields:
+        - from: id
+          to: id
+          rules:
+            - type: notNull
+            - type: duplicate
+              keyFields:
+                - id
+              orderBy:
+                - field: eventTime
+                  direction: DESC
+                - field: sequenceNo
+                  direction: ASC
+        - from: eventTime
+          to: event_time
+          rules:
+            - type: notNull
+            - type: timeFormat
+              pattern: HH:mm:ss
+        - from: countryCode
+          to: countryCode
+          transforms:
+            - type: valueMap
+              mappings:
+                IND: IN
+                USA: US
+              defaultValue: UNKNOWN
+        - from: sequenceNo
+          to: sequenceNo
+        - from: description
+          to: description
+```
+
+### Proposed rule semantics
+
+For the current shipped slice, support stays narrow:
+
+- `notNull`
+- `timeFormat`
+- `duplicate` for single-field or composite-key matching with either keep-first/reject-later behavior or ordered winner selection
+
+Future slices may add:
+
+- ordered optional `transforms[]` chains beside `rules`
+- a first processor-side `valueMap` cleaner for coded fields
+- expressions
+- conditional rules
+- regex
+- ranges
+- lookup/enrichment-driven validation
+- client-selectable duplicate tracking storage (`memory` vs future disk-backed mode)
+
+Planned transform semantics should stay explicit:
+
+- omit `transforms` entirely when no cleanup behavior is needed
+- allow zero, one, or many ordered transform steps per field
+- evaluate processor rules after transforms, not before them
+- allow transform-then-reject behavior when a normalized value such as `UNKNOWN` must still be rejected by a business/target rule
+- fail fast or at least warn once source transforms exist and equivalent generic value rewriting is configured for the same field in both source and processor layers
+
+## Proposed reject output shape
+
+The first slice should prefer one simple reject output over a broad quarantine model.
+
+### Proposed output columns
+
+Rejected records should preserve the original mapped fields and append reason metadata such as:
+
+- `_rejectField`
+- `_rejectRule`
+- `_rejectMessage`
+
+Example:
+
+```csv
+id,event_time,description,_rejectField,_rejectRule,_rejectMessage
+,12:45:00,missing id,id,notNull,"id must not be null"
+10,25:99:00,bad time,eventTime,timeFormat,"eventTime must match HH:mm:ss"
+```
+
+## Proposed runtime behavior
+
+For the first slice, one record should move through this decision path:
+
+1. reader reads record from file source
+2. any future source-native adaptation runs only when the selected source type requires it
+3. processor applies field mapping and any configured field transforms
+4. processor evaluates configured field rules on the transformed value
+5. if ordered duplicate winner selection is configured, the runtime first determines the winning record per duplicate key before final processing/writing
+6. if rules pass, record is written to the selected target
+7. if rules fail or an older duplicate is discarded, the record is written to reject output with reason metadata when rejected-record output is enabled
+8. when the step completes successfully, the original file is archived if archive is enabled
+
+For current file targets, the write path should also remain idempotent for the bounded `rerun-from-start` recovery slice:
+
+1. the writer produces a sibling staged file first
+2. the staged file is promoted to the configured final path only after successful step completion
+3. if the step fails, the staged file is cleaned and the previous published final output is left untouched
+4. if a JVM/process was interrupted before step cleanup, the next step attempt deletes any leftover staged `.part` artifact before writing again
+
+This is the current bounded file-output hardening policy. Richer manifest-driven checkpoint/restart behavior remains future work.
+
+## Proposed operator evidence
+
+The first slice should produce evidence that operators can use without reading full stack traces.
+
+At minimum, one successful run should be able to show:
+
+- records read
+- records accepted
+- records rejected
+- records written
+- reject output path
+- archive result and archive path
+
+## First supported scope
+
+The first slice should support:
+
+- CSV file source
+- default processor mappings
+- file-based reject output
+- file-source archive behavior
+- one preserved realistic file scenario with mixed valid and invalid rows
+
+## Explicitly deferred from the first slice
+
+The first slice should not yet try to solve:
+
+- relational-source archiving
+- complex XML nested validation rules
+- a broad source-transform YAML model for generic cleanup behavior
+- a generic CSV escape framework beyond the active reader path's quoted-field and doubled quote-character semantics
+- expression-based mapping itself
+- conditional transformation rules
+- quarantine workflow orchestration
+- replay/retry semantics for archived or rejected files
+- multi-destination reject routing
+- rule severity levels
+- explicit operator selection of duplicate storage strategy per mapping or scenario
+
+## Relationship to other docs
+
+- `docs/product/product-backlog.md` records that this is the next planned slice
+- `docs/architecture/transformation-capability-roadmap.md` places this work before broader expression-based mapping
+- `docs/architecture/runtime-flow.md` shows where this future behavior should plug into the runtime
+- `docs/architecture/file-ingestion-hardening-checklist.md` turns this design into an execution-ready checklist of likely code touch points, tests, and the first preserved proof scenario
+- `docs/config/*` continues to describe only the currently implemented config contract
+
+## Suggested first proof scenario
+
+A preserved realistic CSV scenario should include at least:
+
+- one valid row
+- one row with a missing required field
+- one row with an invalid time field
+- one additional valid row
+
+That scenario should prove:
+
+- accepted output
+- rejected output
+- archived-original-file behavior
+- visible counts in runtime evidence
+
+

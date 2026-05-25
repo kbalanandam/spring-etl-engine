@@ -1,4 +1,4 @@
-# T2 — Add expression-based derived field support
+# T2 â€” Add expression-based derived field support
 
 ## Summary
 
@@ -56,7 +56,7 @@ Keep expressions inside processor transforms so derivation stays explicit, order
 
 - [`Product backlog`](../product-backlog.md)
 - [`Default processor config`](../../config/processor/default-processor.md)
-- [`Transformation capability roadmap`](../../architecture/transformation-capability-roadmap.md)
+- [`Transformation capability roadmap`](../../architecture/etl-core/transformation-capability-roadmap.md)
 
 ## Implementation notes
 

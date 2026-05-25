@@ -1,4 +1,4 @@
-﻿# Default Processor Config
+# Default Processor Config
 
 ## Purpose
 
@@ -495,15 +495,15 @@ That separation keeps shipped behavior readable today and leaves room for future
 
 This page documents the shipped processor contract. For future-only design direction such as broader transformation maturity, source-transform ownership, and expression/conditional roadmap items, continue in:
 
-- [`Transformation capability roadmap`](../../architecture/transformation-capability-roadmap.md)
-- [`Extension points`](../../architecture/extension-points.md)
-- [`Reference-set validation and enrichment`](../../architecture/reference-set-validation-and-enrichment.md)
+- [`Transformation capability roadmap`](../../architecture/etl-core/transformation-capability-roadmap.md)
+- [`Extension points`](../../architecture/etl-core/extension-points.md)
+- [`Reference-set validation and enrichment`](../../architecture/etl-core/reference-set-validation-and-enrichment.md)
 
 ## Related design note
 
-The broader file-ingestion hardening direction, including future expansion beyond the current CSV slice, is documented in [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md).
+The broader file-ingestion hardening direction, including future expansion beyond the current CSV slice, is documented in [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md).
 
-For resolver-planning and runtime observability details, see [`Runtime flow`](../../architecture/runtime-flow.md), [`CSV to XML runtime flow`](../../architecture/csv-to-xml-runtime-flow.md), and [`Validation extension architecture`](../../architecture/validation-extension-architecture.md).
+For resolver-planning and runtime observability details, see [`Runtime flow`](../../architecture/etl-core/runtime-flow.md), [`CSV to XML runtime flow`](../../architecture/etl-core/csv-to-xml-runtime-flow.md), and [`Validation extension architecture`](../../architecture/etl-core/validation-extension-architecture.md).
 
 ## Related docs
 

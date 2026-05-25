@@ -1,4 +1,4 @@
-# C1 — Emit machine-readable run summary with scenario, status, and duration
+# C1 â€” Emit machine-readable run summary with scenario, status, and duration
 
 ## Summary
 
@@ -55,8 +55,8 @@ Add run-level evidence directly on the active runtime path so logs and later rep
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Runtime flow`](../../architecture/runtime-flow.md)
-- [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
+- [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
 

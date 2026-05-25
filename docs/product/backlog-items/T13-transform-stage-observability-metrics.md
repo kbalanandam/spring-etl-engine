@@ -1,4 +1,4 @@
-# T13 — Transform-stage observability metrics and operational evidence
+# T13 â€” Transform-stage observability metrics and operational evidence
 
 ## Summary
 
@@ -104,9 +104,9 @@ Expected behavior:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Transformation capability catalog`](../../architecture/transformation-capability-catalog.md)
+- [`Transformation capability catalog`](../../architecture/etl-core/transformation-capability-catalog.md)
 - [`Enterprise verification evidence model`](V1-enterprise-verification-evidence-model-and-report-categories.md)
-- [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
 
