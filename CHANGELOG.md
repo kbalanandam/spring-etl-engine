@@ -6,6 +6,14 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Added
+- Added first-pass architecture folder taxonomy scaffolding under `docs/architecture/` with new layer indexes for `foundations/`, `etl-core/`, `control-plane/`, and `operator-ui/` to keep ETL, control-plane, and UI direction easier to navigate.
+- Added a new scheduler design note at `docs/architecture/control-plane/scheduler-architecture-direction.md` defining scheduler-as-control-plane boundaries, MVP scope, and selected-job launch-contract guardrails.
+- Added a new operator UI design note at `docs/architecture/operator-ui/operator-ui-architecture-direction.md` covering admin, monitoring, schedule management, and UI-authored bundle guardrails.
+
+### Changed
+- Updated architecture and product index/navigation docs (`README.md`, `docs/README.md`, `docs/architecture/README.md`, and related Epic S / S1 / S3 / S4 references) to surface the new layer-oriented architecture map and UI/scheduler design anchors.
+
 ## [1.7.6] - 2026-05-24
 
 ### Changed

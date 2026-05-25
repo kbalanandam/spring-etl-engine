@@ -2,7 +2,7 @@
 
 Use this page as the folder-level index for `docs/architecture/`.
 
-It organizes the design notes by concern so the architecture set stays navigable as OneFlow grows.
+It now organizes the design notes by **product layer first** so the architecture set stays navigable as OneFlow grows across ETL runtime, optional control-plane work, and future operator UI design.
 
 ## Purpose
 
@@ -21,16 +21,33 @@ Use it to:
 - **Future direction** — design guidance, not a shipped runtime path today
 - **Template** — authoring helper, not a product/runtime contract
 
+## Folder map
+
+The architecture set now starts with four layer-oriented buckets:
+
+- [`foundations/README.md`](foundations/README.md) — cross-cutting architecture baseline, roadmap fit, and broad guardrails
+- [`etl-core/README.md`](etl-core/README.md) — shipped ETL worker runtime, execution flow, and extension seams
+- [`control-plane/README.md`](control-plane/README.md) — optional scheduler, trigger, watcher, and retained-history backend direction
+- [`operator-ui/README.md`](operator-ui/README.md) — future admin, monitoring, scheduling, and job-authoring UI direction
+
+## Migration note
+
+This is the first pass of the reorganization.
+
+- the new folder taxonomy is now in place
+- new architecture notes should land in the layer folder that matches their concern
+- high-signal legacy notes still remain in `docs/architecture/` for now so existing links stay stable
+- older notes can move into the new folders incrementally in follow-on cleanup slices instead of one large disruptive rename
+
 ## Start here
 
 If you are not sure where to begin, use one of these entry points first:
 
-- [`overview.md`](overview.md) — high-level system architecture (**Current baseline + future evolution**)
-- [`runtime-flow.md`](runtime-flow.md) — shipped end-to-end ETL runtime flow (**Shipped**)
+- [`foundations/README.md`](foundations/README.md) — cross-cutting architecture baseline and roadmap entry points
+- [`etl-core/README.md`](etl-core/README.md) — shipped ETL runtime flow and extension seams
+- [`control-plane/README.md`](control-plane/README.md) — optional scheduler/control-plane boundary and retained-history direction
+- [`operator-ui/README.md`](operator-ui/README.md) — future operator UI direction for admin, monitoring, scheduling, and authoring
 - [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md) — next runtime-direction target (**Future direction**)
-- [`extension-points.md`](extension-points.md) — where new formats, shared default-processor behavior, and capabilities should plug in (**Current baseline + future evolution**)
-- [`oneflow-file-parser-capabilities.md`](oneflow-file-parser-capabilities.md) — parser boundary for file sources (**Current baseline + future evolution**)
-- [`etl-product-evolution-roadmap.md`](etl-product-evolution-roadmap.md) — what belongs now vs later in the product/runtime evolution (**Current baseline + future evolution**)
 
 ## Recently added / high-signal notes
 
@@ -43,6 +60,15 @@ Use this short list when you want the newest or most actively discussed architec
 - [`generated-model-naming-standard.md`](generated-model-naming-standard.md) — selected-job naming/package standard and bridge-cleanup direction (**Current baseline + future evolution**)
 - [`job-history-and-operational-observability.md`](job-history-and-operational-observability.md) — current observability baseline plus retained-history direction (**Current baseline + future evolution**)
 - [`security-test-strategy.md`](security-test-strategy.md) — phased security test strategy aligned to selected-job runtime and verification evidence (**Current baseline + future evolution**)
+- [`control-plane/scheduler-architecture-direction.md`](control-plane/scheduler-architecture-direction.md) — first scheduler-specific architecture direction under the optional control plane (**Future direction**)
+- [`operator-ui/operator-ui-architecture-direction.md`](operator-ui/operator-ui-architecture-direction.md) — first operator UI architecture direction for admin, monitoring, scheduling, and job authoring (**Future direction**)
+
+## Layer-oriented indexes
+
+- [`foundations/README.md`](foundations/README.md)
+- [`etl-core/README.md`](etl-core/README.md)
+- [`control-plane/README.md`](control-plane/README.md)
+- [`operator-ui/README.md`](operator-ui/README.md)
 
 ## Runtime foundations and flow
 
@@ -83,6 +109,12 @@ Use this short list when you want the newest or most actively discussed architec
 - [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md) — future boundary between ETL core worker and optional control plane (**Future direction**)
 - [`control-plane-operational-data-model.md`](control-plane-operational-data-model.md) — retained data model for schedules, triggers, runs, steps, and artifacts (**Future direction**)
 - [`control-plane-local-relational-schema.md`](control-plane-local-relational-schema.md) — SQLite-first local persistence direction for control-plane history (**Future direction**)
+- [`control-plane/scheduler-architecture-direction.md`](control-plane/scheduler-architecture-direction.md) — scheduler backend direction that preserves the selected-job launch contract (**Future direction**)
+
+## Operator UI direction
+
+- [`operator-ui/README.md`](operator-ui/README.md) — UI-layer entry point for admin, monitoring, scheduling, and authoring notes (**Future direction**)
+- [`operator-ui/operator-ui-architecture-direction.md`](operator-ui/operator-ui-architecture-direction.md) — first UI architecture direction over the optional control plane (**Future direction**)
 
 ## Observability, operations, and watchpoints
 

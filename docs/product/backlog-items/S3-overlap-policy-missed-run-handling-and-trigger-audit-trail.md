@@ -56,6 +56,7 @@ Treat S3 as the first scheduler-governance slice after S2, and keep it aligned w
 
 - [`Product backlog`](../product-backlog.md)
 - [`Control-plane worker boundary`](../../architecture/control-plane-worker-boundary.md)
+- [`Scheduler architecture direction`](../../architecture/control-plane/scheduler-architecture-direction.md)
 - [`Control-plane operational data model`](../../architecture/control-plane-operational-data-model.md)
 
 ## Implementation notes

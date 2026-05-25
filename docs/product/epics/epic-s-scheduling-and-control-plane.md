@@ -27,6 +27,8 @@ This epic is **not** the place to redesign the ETL worker launch contract or mak
 - [`../../architecture/control-plane-worker-boundary.md`](../../architecture/control-plane-worker-boundary.md)
 - [`../../architecture/control-plane-operational-data-model.md`](../../architecture/control-plane-operational-data-model.md)
 - [`../../architecture/control-plane-local-relational-schema.md`](../../architecture/control-plane-local-relational-schema.md)
+- [`../../architecture/control-plane/scheduler-architecture-direction.md`](../../architecture/control-plane/scheduler-architecture-direction.md)
+- [`../../architecture/operator-ui/operator-ui-architecture-direction.md`](../../architecture/operator-ui/operator-ui-architecture-direction.md)
 - [`../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md`](../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
 - [`../../adr/0009-formalize-sqlite-first-local-control-plane-persistence.md`](../../adr/0009-formalize-sqlite-first-local-control-plane-persistence.md)
 

@@ -122,8 +122,8 @@ Use this table as the recommended reading order by goal:
 | First local run | [Quick Start](#quick-start) | [Run Modes](#run-modes) |
 | Run a real scenario | [Explicit job-config mode](#explicit-job-config-mode) | [`docs/config/job-config.md`](docs/config/job-config.md) |
 | Understand the config model | [`docs/config/README.md`](docs/config/README.md) | [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md) |
-| Explore architecture/runtime flow | [Architecture Docs](#architecture-docs) | [`docs/architecture/README.md`](docs/architecture/README.md) and [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md) |
-| Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/control-plane-worker-boundary.md`](docs/architecture/control-plane-worker-boundary.md) and [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
+| Explore architecture/runtime flow | [Architecture Docs](#architecture-docs) | [`docs/architecture/README.md`](docs/architecture/README.md) and [`docs/architecture/etl-core/README.md`](docs/architecture/etl-core/README.md) |
+| Understand the next architecture target | [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md) | [`docs/architecture/control-plane/README.md`](docs/architecture/control-plane/README.md) and [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md) |
 | Assess current gaps to the reusable scenario model | [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md) | [`docs/architecture/hierarchical-flow-composition.md`](docs/architecture/hierarchical-flow-composition.md) |
 | See preserved runnable examples | `src/main/resources/config-jobs/` | [`docs/config/README.md#scenario-examples`](docs/config/README.md#scenario-examples) |
 | Set up a developer-local private job bundle or collection | [`private-jobs/`](private-jobs/README.md) | [Explicit job-config mode](#explicit-job-config-mode) |
@@ -157,13 +157,19 @@ Start here:
 
 - [`docs/README.md`](docs/README.md)
 - [`docs/architecture/README.md`](docs/architecture/README.md)
+- [`docs/architecture/foundations/README.md`](docs/architecture/foundations/README.md)
 - [`docs/architecture/overview.md`](docs/architecture/overview.md)
+- [`docs/architecture/etl-core/README.md`](docs/architecture/etl-core/README.md)
 - [`docs/architecture/scenario-driven-runtime-direction.md`](docs/architecture/scenario-driven-runtime-direction.md)
+- [`docs/architecture/control-plane/README.md`](docs/architecture/control-plane/README.md)
 - [`docs/architecture/control-plane-worker-boundary.md`](docs/architecture/control-plane-worker-boundary.md)
+- [`docs/architecture/operator-ui/README.md`](docs/architecture/operator-ui/README.md)
 - [`docs/architecture/runtime-to-scenario-gap-assessment.md`](docs/architecture/runtime-to-scenario-gap-assessment.md)
 - [`docs/architecture/1-4-to-next-architecture-classification.md`](docs/architecture/1-4-to-next-architecture-classification.md)
 - [`docs/architecture/runtime-flow.md`](docs/architecture/runtime-flow.md)
 - [`docs/architecture/extension-points.md`](docs/architecture/extension-points.md)
+- [`docs/architecture/control-plane/scheduler-architecture-direction.md`](docs/architecture/control-plane/scheduler-architecture-direction.md)
+- [`docs/architecture/operator-ui/operator-ui-architecture-direction.md`](docs/architecture/operator-ui/operator-ui-architecture-direction.md)
 - [`docs/architecture/transformation-capability-roadmap.md`](docs/architecture/transformation-capability-roadmap.md)
 - [`docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
 - [`docs/README.md#adrs`](docs/README.md#adrs)

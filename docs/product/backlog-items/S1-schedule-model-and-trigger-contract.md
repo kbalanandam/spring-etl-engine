@@ -95,6 +95,7 @@ Expected impact when this item ships:
 - [`Product backlog`](../product-backlog.md)
 - [`ADR-0008: formalize control-plane and ETL worker boundary`](../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
 - [`Control plane and worker boundary`](../../architecture/control-plane-worker-boundary.md)
+- [`Scheduler architecture direction`](../../architecture/control-plane/scheduler-architecture-direction.md)
 - [`S4 — Control-plane operational data model`](S4-control-plane-operational-data-model.md)
 - [`Scenario-driven runtime direction`](../../architecture/scenario-driven-runtime-direction.md)
 - [`Runtime flow`](../../architecture/runtime-flow.md)

@@ -70,6 +70,8 @@ That optionality also means external enterprise schedulers, workload orchestrato
 
 For the dedicated boundary note that defines how optional control-plane layers must relate to the worker runtime, continue in [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md).
 
+For the first architecture notes that split future scheduler/backend concerns from future operator-facing UI concerns, continue in [`control-plane/scheduler-architecture-direction.md`](control-plane/scheduler-architecture-direction.md) and [`operator-ui/operator-ui-architecture-direction.md`](operator-ui/operator-ui-architecture-direction.md).
+
 ## Technology stance for that layering
 
 - stay Java-first for the ETL core and the first scheduler/control-plane/backend slices
@@ -325,6 +327,8 @@ This roadmap should be read together with:
 - `docs/architecture/overview.md`
 - `docs/architecture/runtime-flow.md`
 - `docs/architecture/control-plane-worker-boundary.md`
+- `docs/architecture/control-plane/scheduler-architecture-direction.md`
+- `docs/architecture/operator-ui/operator-ui-architecture-direction.md`
 - `docs/architecture/extension-points.md`
 - `docs/architecture/relational-db-support.md`
 - `docs/architecture/transformation-capability-roadmap.md`

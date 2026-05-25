@@ -100,6 +100,8 @@ Expected impact when this item ships:
 - [`Control plane and worker boundary`](../../architecture/control-plane-worker-boundary.md)
 - [`Control-plane operational data model`](../../architecture/control-plane-operational-data-model.md)
 - [`Control-plane local relational schema`](../../architecture/control-plane-local-relational-schema.md)
+- [`Scheduler architecture direction`](../../architecture/control-plane/scheduler-architecture-direction.md)
+- [`Operator UI architecture direction`](../../architecture/operator-ui/operator-ui-architecture-direction.md)
 - [`S1 — Schedule model and trigger contract`](S1-schedule-model-and-trigger-contract.md)
 - [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
 - [`Runtime flow`](../../architecture/runtime-flow.md)

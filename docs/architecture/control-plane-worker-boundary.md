@@ -108,6 +108,8 @@ Related architecture notes that constrain the boundary:
 - [`runtime-flow.md`](runtime-flow.md)
 - [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md)
 - [`etl-product-evolution-roadmap.md`](etl-product-evolution-roadmap.md)
+- [`control-plane/scheduler-architecture-direction.md`](control-plane/scheduler-architecture-direction.md)
+- [`operator-ui/operator-ui-architecture-direction.md`](operator-ui/operator-ui-architecture-direction.md)
 - [`transformation-capability-roadmap.md`](transformation-capability-roadmap.md)
 - [`job-history-and-operational-observability.md`](job-history-and-operational-observability.md)
 - [`control-plane-operational-data-model.md`](control-plane-operational-data-model.md)
@@ -178,7 +180,9 @@ Follow-on work that should build from this boundary includes:
 - file-watcher trigger management and stabilization rules
 - persisted run ledger and trigger audit history
 - conceptual retained operational data model for schedules, watchers, triggers, runs, steps, artifacts, and recovery anchors
+- scheduler-specific backend design notes that preserve the selected-job launch contract
 - operator APIs and integrated UI views over jobs, schedules, watchers, and evidence
+- dedicated operator UI notes for monitoring, schedule management, admin, and job authoring
 - restartability and recovery workflows built on retained operational evidence
 - deployment guidance for native control plane versus external scheduler integration
 - continued transformation maturity through shared processor/source extension seams
