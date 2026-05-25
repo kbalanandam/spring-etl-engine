@@ -15,16 +15,16 @@ Use it when you want to understand:
 
 ## Current anchor notes
 
-- [`../control-plane-worker-boundary.md`](../control-plane-worker-boundary.md) — mandatory worker versus optional control-plane boundary
-- [`../control-plane-operational-data-model.md`](../control-plane-operational-data-model.md) — retained conceptual model for trigger, run, step, and artifact history
-- [`../control-plane-local-relational-schema.md`](../control-plane-local-relational-schema.md) — SQLite-first local persistence direction
+- [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md) — mandatory worker versus optional control-plane boundary
+- [`control-plane-operational-data-model.md`](control-plane-operational-data-model.md) — retained conceptual model for trigger, run, step, and artifact history
+- [`control-plane-local-relational-schema.md`](control-plane-local-relational-schema.md) — SQLite-first local persistence direction
 - [`./scheduler-architecture-direction.md`](./scheduler-architecture-direction.md) — first scheduler-specific design direction under the control-plane layer
 
 ## Related notes
 
-- [`../job-history-and-operational-observability.md`](../job-history-and-operational-observability.md) — current observability baseline plus retained-history direction
-- [`../scenario-driven-runtime-direction.md`](../scenario-driven-runtime-direction.md) — selected-job runtime contract that scheduler launches must preserve
-- [`../oneflow-runtime-fallback-reference.md`](../oneflow-runtime-fallback-reference.md) — current runtime decisions that scheduler/control-plane work must not bypass
+- [`job-history-and-operational-observability.md`](job-history-and-operational-observability.md) — current observability baseline plus retained-history direction
+- [`../etl-core/scenario-driven-runtime-direction.md`](../etl-core/scenario-driven-runtime-direction.md) — selected-job runtime contract that scheduler launches must preserve
+- [`../etl-core/oneflow-runtime-fallback-reference.md`](../etl-core/oneflow-runtime-fallback-reference.md) — current runtime decisions that scheduler/control-plane work must not bypass
 - [`../operator-ui/README.md`](../operator-ui/README.md) — future UI layer that will consume this control-plane surface
 
 ## Layering rule
@@ -32,3 +32,4 @@ Use it when you want to understand:
 Scheduler is grouped here, not under the UI folder.
 
 The UI may manage schedules, but the scheduler itself is a control-plane/backend capability that must still exist conceptually even when no browser UI is present.
+

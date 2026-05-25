@@ -13,6 +13,7 @@ and this project adheres to **Semantic Versioning**.
 
 ### Changed
 - Updated architecture and product index/navigation docs (`README.md`, `docs/README.md`, `docs/architecture/README.md`, and related Epic S / S1 / S3 / S4 references) to surface the new layer-oriented architecture map and UI/scheduler design anchors.
+- Moved existing root-level architecture notes into their layer folders under `docs/architecture/foundations/`, `docs/architecture/etl-core/`, `docs/architecture/control-plane/`, and `docs/architecture/operator-ui/`, and left temporary compatibility stubs at old root paths to reduce immediate link breakage during follow-on cleanup.
 
 ## [1.7.6] - 2026-05-24
 

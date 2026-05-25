@@ -15,21 +15,24 @@ Use it when you want to understand:
 
 ## Current anchor notes
 
-- [`../runtime-flow.md`](../runtime-flow.md) — shipped end-to-end ETL runtime flow
-- [`../csv-to-xml-runtime-flow.md`](../csv-to-xml-runtime-flow.md) — operational deep dive for the shipped `CSV -> XML` path
-- [`../extension-points.md`](../extension-points.md) — ETL extension seams and guardrails
-- [`../oneflow-runtime-fallback-reference.md`](../oneflow-runtime-fallback-reference.md) — shipped fallback/default decision matrix
-- [`../generated-model-naming-standard.md`](../generated-model-naming-standard.md) — generated-model naming and package contract
-- [`../file-ingestion-hardening.md`](../file-ingestion-hardening.md) — hardening direction on the active ETL path
-- [`../validation-extension-architecture.md`](../validation-extension-architecture.md) — validation extension boundaries
+- [`runtime-flow.md`](runtime-flow.md) — shipped end-to-end ETL runtime flow
+- [`csv-to-xml-runtime-flow.md`](csv-to-xml-runtime-flow.md) — operational deep dive for the shipped `CSV -> XML` path
+- [`extension-points.md`](extension-points.md) — ETL extension seams and guardrails
+- [`oneflow-runtime-fallback-reference.md`](oneflow-runtime-fallback-reference.md) — shipped fallback/default decision matrix
+- [`generated-model-naming-standard.md`](generated-model-naming-standard.md) — generated-model naming and package contract
+- [`file-ingestion-hardening.md`](file-ingestion-hardening.md) — hardening direction on the active ETL path
+- [`validation-extension-architecture.md`](validation-extension-architecture.md) — validation extension boundaries
 
 ## Related notes
 
-- [`../scenario-driven-runtime-direction.md`](../scenario-driven-runtime-direction.md) — future runtime direction that still stays rooted in one selected scenario per run
-- [`../hierarchical-flow-composition.md`](../hierarchical-flow-composition.md) — current descriptor projection and future composition direction
-- [`../runtime-to-scenario-gap-assessment.md`](../runtime-to-scenario-gap-assessment.md) — shipped-to-target gap assessment
+- [`scenario-driven-runtime-direction.md`](scenario-driven-runtime-direction.md) — future runtime direction that still stays rooted in one selected scenario per run
+- [`hierarchical-flow-composition.md`](hierarchical-flow-composition.md) — current descriptor projection and future composition direction
+- [`runtime-to-scenario-gap-assessment.md`](runtime-to-scenario-gap-assessment.md) — shipped-to-target gap assessment
 
 ## Migration note
 
-This folder starts the ETL-core grouping without breaking existing references all at once. The anchor notes above still live in `docs/architecture/` in this first pass, while new ETL-core notes can land here directly and older notes can move here incrementally in follow-on cleanup.
+This folder now holds the ETL-core notes directly.
+
+Compatibility stubs remain temporarily at old root paths under `docs/architecture/` so older links continue to resolve during migration cleanup.
+
 
