@@ -1,4 +1,4 @@
-# T11 â€” Cross-record window and aggregation transformation semantics
+# T11 - Cross-record window and aggregation transformation semantics
 
 ## Summary
 

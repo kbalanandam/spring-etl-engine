@@ -345,10 +345,10 @@ Scenario execution
 
 Use that hierarchy with these meanings:
 
-- **scenario execution** ΓÇö the selected runtime boundary and run context
-- **main flow** ΓÇö the top-level reusable business flow executed inside the selected scenario
-- **subflow** ΓÇö a reusable grouped phase within the main flow
-- **step** ΓÇö the smallest executable `source -> processor -> target` unit in the current baseline
+- **scenario execution** - the selected runtime boundary and run context
+- **main flow** - the top-level reusable business flow executed inside the selected scenario
+- **subflow** - a reusable grouped phase within the main flow
+- **step** - the smallest executable `source -> processor -> target` unit in the current baseline
 
 For the first implementation slice, keep that hierarchy bounded. For the longer-term direction, a reusable flow should be able to play either a top-level main-flow role or a nested subflow role depending on the selected composition.
 
@@ -488,31 +488,31 @@ This direction should **not** change the main reusable seams:
 
 ## Migration order
 
-### Phase 1 ΓÇö freeze the target contract
+### Phase 1 - freeze the target contract
 
 - document scenario-first runtime as the only normal execution model
 - keep the current explicit job-config path stable
 - stop expanding fallback-centric or legacy generation-centric behavior
 
-### Phase 2 ΓÇö introduce scenario-scoped assembly
+### Phase 2 - introduce scenario-scoped assembly
 
 - add a scenario runtime descriptor / execution plan
 - resolve only selected steps and their required configs
 - carry scenario-scoped model metadata through that descriptor
 
-### Phase 3 ΓÇö move generation and resolution under the selected scenario
+### Phase 3 - move generation and resolution under the selected scenario
 
 - generate or resolve only the classes needed by the selected steps
 - stop treating model generation as a broad repo-level startup concern
 - preserve `GeneratedModelClassResolver` as the migration boundary while internals evolve
 
-### Phase 4 ΓÇö harden the runtime
+### Phase 4 - harden the runtime
 
 - tighten config parsing and validation
 - reduce compatibility defaults that still leak into the normal path
 - keep fallback isolated to local/demo use only, if retained temporarily
 
-### Phase 5 ΓÇö remove bridge-era dependencies
+### Phase 5 - remove bridge-era dependencies
 
 - retire legacy runtime generation
 - remove production dependence on demo fallback

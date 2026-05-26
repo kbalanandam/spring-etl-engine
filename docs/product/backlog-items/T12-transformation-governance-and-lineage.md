@@ -1,4 +1,4 @@
-# T12 â€” Transformation governance and lineage evidence model
+# T12 - Transformation governance and lineage evidence model
 
 ## Summary
 

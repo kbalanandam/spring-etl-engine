@@ -139,7 +139,7 @@ Examples:
 
 The architecture should support both of these modes:
 
-#### Mode A ΓÇö external MFT-managed edge
+#### Mode A - external MFT-managed edge
 
 Example:
 
@@ -148,7 +148,7 @@ Example:
 - `spring-etl-engine` processes staged files
 - the runtime may later hand off generated outbound files back to MFT
 
-#### Mode B ΓÇö native product SFTP mode
+#### Mode B - native product SFTP mode
 
 Example:
 

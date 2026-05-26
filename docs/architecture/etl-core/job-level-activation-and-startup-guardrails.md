@@ -107,12 +107,12 @@ That placement is preferred because:
 
 ## Key Components / Classes
 
-- `src/main/java/com/etl/config/job/JobConfig.java` ΓÇö home of optional `isActive`
-- `src/main/java/com/etl/config/ConfigLoader.java` ΓÇö fail-fast guardrail location
-- `src/main/java/com/etl/config/BatchConfig.java` ΓÇö should remain untouched by ensuring inactive jobs never reach step assembly
-- `src/main/java/com/etl/config/exception/ConfigException.java` ΓÇö likely base category for an inactive-job startup failure
-- `docs/config/job-config.md` ΓÇö contract documentation that must stay aligned with the field and default behavior
-- `docs/adr/0004-use-explicit-job-config-for-business-scenario-selection.md` ΓÇö architectural baseline this future guardrail should extend, not weaken
+- `src/main/java/com/etl/config/job/JobConfig.java` - home of optional `isActive`
+- `src/main/java/com/etl/config/ConfigLoader.java` - fail-fast guardrail location
+- `src/main/java/com/etl/config/BatchConfig.java` - should remain untouched by ensuring inactive jobs never reach step assembly
+- `src/main/java/com/etl/config/exception/ConfigException.java` - likely base category for an inactive-job startup failure
+- `docs/config/job-config.md` - contract documentation that must stay aligned with the field and default behavior
+- `docs/adr/0004-use-explicit-job-config-for-business-scenario-selection.md` - architectural baseline this future guardrail should extend, not weaken
 
 ## Decisions
 

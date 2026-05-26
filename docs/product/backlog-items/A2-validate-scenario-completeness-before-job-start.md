@@ -1,4 +1,4 @@
-# A2 â€” Validate scenario completeness before job start
+# A2 - Validate scenario completeness before job start
 
 ## Summary
 

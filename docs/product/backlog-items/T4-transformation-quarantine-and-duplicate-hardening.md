@@ -1,4 +1,4 @@
-# T4 â€” Transformation quarantine and duplicate hardening
+# T4 - Transformation quarantine and duplicate hardening
 
 ## Summary
 

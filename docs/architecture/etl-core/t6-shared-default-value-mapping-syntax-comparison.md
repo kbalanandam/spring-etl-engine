@@ -49,7 +49,7 @@ flowchart TD
 
 ## Options compared
 
-### Option 1 ΓÇö keep everything inside `fields[]`
+### Option 1 - keep everything inside `fields[]`
 
 Illustrative direction:
 
@@ -78,7 +78,7 @@ fields:
 - encourages repetitive expressions for common values such as job name and current timestamp
 - makes ambiguity harder to explain when a field could be both mapped and defaulted
 
-### Option 2 ΓÇö add mapping-level `defaultValues[]`
+### Option 2 - add mapping-level `defaultValues[]`
 
 Illustrative direction:
 
@@ -114,7 +114,7 @@ defaultValues:
 - still needs a clear rule for how expression-based defaults access runtime metadata
 - requires deliberate compatibility handling if future authors try to mix `defaultValues[]` with equivalent `fields[]` assignments
 
-### Option 3 ΓÇö hidden writer-side defaults
+### Option 3 - hidden writer-side defaults
 
 Examples would be target-specific auto-filling in relational or file writers without explicit processor config.
 
@@ -123,11 +123,11 @@ Examples would be target-specific auto-filling in relational or file writers wit
 - it hides behavior from config authors and operators
 - it makes target behavior diverge by connector type
 - it weakens fail-fast validation because assignment is no longer fully visible in mapping config
-- it conflicts with the repoΓÇÖs preference for explicit config contracts over spread-out implicit behavior
+- it conflicts with the repo's preference for explicit config contracts over spread-out implicit behavior
 
 ## Recommended direction
 
-Prefer **Option 2 ΓÇö mapping-level `defaultValues[]`**.
+Prefer **Option 2 - mapping-level `defaultValues[]`**.
 
 Why this is the strongest fit for the current repo direction:
 
@@ -145,7 +145,7 @@ Implementation should still resolve through the same processor-side flow, not th
 - `currentDate` / `currentTimestamp` style tokens should resolve through one shared runtime date/time provider rather than through per-job custom clock logic
 - richer formulas may still use `expression`, but only when the standard tokens are not enough
 - startup validation should fail fast for unknown `valueFrom` tokens, ambiguous double assignment, and incompatible combinations
-- the product must define what ΓÇ£current timestampΓÇ¥ means before implementation claims a standard audit default
+- the product must define what "current timestamp" means before implementation claims a standard audit default
 
 ## Open questions
 

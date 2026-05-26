@@ -1,4 +1,4 @@
-# D1 â€” Stable error taxonomy and categories
+# D1 - Stable error taxonomy and categories
 
 ## Summary
 

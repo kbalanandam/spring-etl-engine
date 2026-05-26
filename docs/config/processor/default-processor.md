@@ -317,16 +317,16 @@ mappings:
 
 ### Transform and rule order
 
-- Cleaning/normalization behavior should not be modeled as validation-only `rules`. Validation answers â€œaccept or reject this recordâ€; cleaning/normalization answers â€œrewrite this value before it is validated or writtenâ€.
-- The shipped processor order for configurable field cleanup is: read raw value â†’ apply configured transforms/cleaners â†’ evaluate validation rules on the transformed value â†’ write the target field.
+- Cleaning/normalization behavior should not be modeled as validation-only `rules`. Validation answers "accept or reject this record"; cleaning/normalization answers "rewrite this value before it is validated or written".
+- The shipped processor order for configurable field cleanup is: read raw value -> apply configured transforms/cleaners -> evaluate validation rules on the transformed value -> write the target field.
 - Transform-then-reject is valid and expected. For example, a `valueMap` transform may normalize `IND -> IN`, `USA -> US`, and all other codes to `UNKNOWN`, after which a processor rule may reject `UNKNOWN` if that value is not allowed.
 - Multiple `transforms[]` entries on the same field run in the order configured.
 - The shipped transform types are `valueMap`, `expression`, and `conditional`.
 - `valueMap` supports direct code normalization, optional `defaultValue`, and optional case-insensitive matching through `caseSensitive: false`.
 - `expression` uses Spring Expression Language (SpEL) and can reference:
-  - `#input` or `#source` â€” the original runtime record
-  - `#value` â€” the current field value entering that transform step
-  - `#resolved` â€” previously resolved mapping values from earlier `fields[]` entries
+  - `#input` or `#source` - the original runtime record
+  - `#value` - the current field value entering that transform step
+  - `#resolved` - previously resolved mapping values from earlier `fields[]` entries
 - `conditional` uses ordered `cases[]` with SpEL `when` conditions and literal `then` outputs; first matching case wins.
 - When `from` is omitted for a derived field, the first transform must be `expression`.
 - The shipped validation rule types are `notNull`, `timeFormat`, and `duplicate`.
@@ -350,7 +350,7 @@ mappings:
 - If a `duplicate` rule is configured with `keyFields` but without `orderBy`, the first encountered record for that duplicate key is retained and later matching records are treated as duplicates.
 - If `orderBy` is present, the retained record per duplicate key is selected using the configured ordered fields such as `eventTime DESC` followed by `sequenceNo ASC`.
 - Repeating the same `orderBy[].field` more than once in one `duplicate` rule is invalid and is rejected during processor-config validation.
-- When `orderBy` is not present, duplicate handling does not do â€œbest record winsâ€ selection; it stays in simple keep-first mode.
+- When `orderBy` is not present, duplicate handling does not do "best record wins" selection; it stays in simple keep-first mode.
 - The current shipped `duplicate` rule uses step-local in-memory tracking for keep-first duplicate elimination.
 - When `orderBy` is present, runtime upgrades duplicate handling into ordered winner selection and uses a shared ordered-duplicate resolver before the final write phase.
 - Ordered duplicate winner selection still uses tasklet-style final buffering for that mapping so earlier writes do not need to be undone.
@@ -497,6 +497,7 @@ This page documents the shipped processor contract. For future-only design direc
 
 - [`Transformation capability roadmap`](../../architecture/etl-core/transformation-capability-roadmap.md)
 - [`Extension points`](../../architecture/etl-core/extension-points.md)
+- [`Customer-owned processor transform seam`](../../architecture/etl-core/customer-owned-processor-transform-seam.md)
 - [`Reference-set validation and enrichment`](../../architecture/etl-core/reference-set-validation-and-enrichment.md)
 
 ## Related design note

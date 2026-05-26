@@ -91,6 +91,7 @@ Use this page as the main browse index when you want to navigate backlog items b
 - [`T13 - Define transform-stage observability metrics and operational evidence`](./T13-transform-stage-observability-metrics.md)
 - [`T14 - Define secure data-shaping transforms for sensitive fields`](./T14-secure-data-shaping-transforms.md)
 - [`T15 - Define XML-native duplicate identity for nested XML source scenarios`](./T15-xml-native-duplicate-identity-for-nested-xml-sources.md)
+- [`T16 - Define customer-owned processor transform extension seam`](./T16-customer-owned-processor-transform-extension-seam.md)
 
 ### Epic V - Verification evidence and reporting
 

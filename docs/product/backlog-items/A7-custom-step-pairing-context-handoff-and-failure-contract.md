@@ -220,6 +220,7 @@ Expected review artifacts:
 - [`Epic D - Error taxonomy and failure categorization`](../epics/epic-d-error-taxonomy-and-failure-categorization.md)
 - [`Extension points`](../../architecture/etl-core/extension-points.md)
 - [`ETL custom-step pairing and context handoff`](../../architecture/etl-core/custom-step-pairing-and-context-handoff.md)
+- [`A7 + T16 extensibility charter`](../../architecture/etl-core/a7-t16-extensibility-charter.md)
 - [`Job config reference`](../../config/job-config.md)
 
 ## Implementation notes

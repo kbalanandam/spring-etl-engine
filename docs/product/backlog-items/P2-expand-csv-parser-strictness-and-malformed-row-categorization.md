@@ -1,4 +1,4 @@
-# P2 â€” Expand CSV parser strictness and malformed-row categorization on the read path
+# P2 - Expand CSV parser strictness and malformed-row categorization on the read path
 
 ## Summary
 
@@ -64,7 +64,7 @@ Start from the shipped `B5` reader baseline and grow only the narrowest parser c
 
 ## Implementation notes
 
-Use `B5` as the shipped baseline and avoid reopening that itemâ€™s intentionally narrow design unless preserved scenarios prove the need. Keep config additions minimal and source-native.
+Use `B5` as the shipped baseline and avoid reopening that item's intentionally narrow design unless preserved scenarios prove the need. Keep config additions minimal and source-native.
 
 ## Status notes
 

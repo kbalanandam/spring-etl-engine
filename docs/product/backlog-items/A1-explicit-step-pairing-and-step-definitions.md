@@ -1,4 +1,4 @@
-# A1 â€” Replace positional source-target pairing with explicit step pairing or step definitions
+# A1 - Replace positional source-target pairing with explicit step pairing or step definitions
 
 ## Summary
 

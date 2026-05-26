@@ -1,4 +1,4 @@
-# A5 â€” Relational source column alias contract
+# A5 - Relational source column alias contract
 
 ## Summary
 

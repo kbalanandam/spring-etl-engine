@@ -46,13 +46,13 @@ The product formally adopts this persistence direction:
 - the first implementation may under-represent later concurrency and multi-user deployment concerns
 - some contributors may be tempted to rely on SQLite-specific conveniences unless portability stays explicit
 - future migration work will still be required when stronger relational deployment targets are introduced
-- documentation and schema reviews must stay disciplined so â€œSQLite-firstâ€ is not misread as â€œSQLite-onlyâ€
+- documentation and schema reviews must stay disciplined so "SQLite-first" is not misread as "SQLite-only"
 
 ## Alternatives considered
 
-- **Wait until PostgreSQL or SQL Server is selected before defining any persistence direction** â€” rejected because that would slow local development and postpone useful design discipline for optional control-plane history.
-- **Treat SQLite as the permanent control-plane store** â€” rejected because the product direction already anticipates stronger relational deployment targets as history volume, operator concurrency, and enterprise requirements grow.
-- **Keep the retained model mostly in generic blobs or files instead of a relational shape** â€” rejected because trigger, run, step, artifact, and recovery lineage need to remain queryable, auditable, and portable.
+- **Wait until PostgreSQL or SQL Server is selected before defining any persistence direction** - rejected because that would slow local development and postpone useful design discipline for optional control-plane history.
+- **Treat SQLite as the permanent control-plane store** - rejected because the product direction already anticipates stronger relational deployment targets as history volume, operator concurrency, and enterprise requirements grow.
+- **Keep the retained model mostly in generic blobs or files instead of a relational shape** - rejected because trigger, run, step, artifact, and recovery lineage need to remain queryable, auditable, and portable.
 
 ## Notes
 
@@ -66,5 +66,5 @@ The product formally adopts this persistence direction:
 - [`Control-plane operational data model`](../architecture/control-plane/control-plane-operational-data-model.md)
 - [`Control-plane local relational schema`](../architecture/control-plane/control-plane-local-relational-schema.md)
 - [`Job history and operational observability`](../architecture/control-plane/job-history-and-operational-observability.md)
-- [`S4 â€” Control-plane operational data model`](../product/backlog-items/S4-control-plane-operational-data-model.md)
+- [`S4 - Control-plane operational data model`](../product/backlog-items/S4-control-plane-operational-data-model.md)
 

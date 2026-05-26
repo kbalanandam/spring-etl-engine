@@ -58,7 +58,7 @@ That is the bounded first implementation slice.
 
 The longer-term direction goes further: reusable flow units should eventually be composable at any level, so a main flow in one composition can later be reused as a subflow in another composition without changing the single-scenario execution boundary.
 
-That means the target is not merely ΓÇ£more steps.ΓÇ¥
+That means the target is not merely "more steps."
 
 It is a shift from:
 

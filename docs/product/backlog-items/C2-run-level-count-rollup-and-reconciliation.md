@@ -1,4 +1,4 @@
-# C2 â€” Run-level count rollup and reconciliation
+# C2 - Run-level count rollup and reconciliation
 
 ## Summary
 

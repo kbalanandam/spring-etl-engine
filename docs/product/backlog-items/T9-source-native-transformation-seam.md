@@ -1,4 +1,4 @@
-# T9 â€” Source-native transformation seam before runtime records
+# T9 - Source-native transformation seam before runtime records
 
 ## Summary
 

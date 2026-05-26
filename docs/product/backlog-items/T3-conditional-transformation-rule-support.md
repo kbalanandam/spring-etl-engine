@@ -1,4 +1,4 @@
-# T3 â€” Add conditional transformation rule support
+# T3 - Add conditional transformation rule support
 
 ## Summary
 

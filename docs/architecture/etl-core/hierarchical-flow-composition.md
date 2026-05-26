@@ -362,10 +362,10 @@ flowchart TD
 
 Use these terms consistently:
 
-- **scenario execution** ΓÇö the explicit runtime selection and run context
-- **main flow** ΓÇö the top-level reusable business flow inside one selected execution in the bounded first slice
-- **subflow** ΓÇö a reusable grouped phase inside the main flow in the bounded first slice; longer term, this should be one reusable flow playing a nested role inside another flow
-- **step** ΓÇö the smallest executable `source -> processor -> target` unit in the current baseline
+- **scenario execution** - the explicit runtime selection and run context
+- **main flow** - the top-level reusable business flow inside one selected execution in the bounded first slice
+- **subflow** - a reusable grouped phase inside the main flow in the bounded first slice; longer term, this should be one reusable flow playing a nested role inside another flow
+- **step** - the smallest executable `source -> processor -> target` unit in the current baseline
 
 When discussing the longer-term model, it is acceptable to collapse `main flow` and `subflow` into the broader term **flow** so reuse at any level remains explicit.
 

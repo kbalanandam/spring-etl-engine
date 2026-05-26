@@ -1,4 +1,4 @@
-# P5 â€” Define native parser adoptability and CSV-first sidecar integration readiness
+# P5 - Define native parser adoptability and CSV-first sidecar integration readiness
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# B4 â€” Strict XML source validation and optional XSD checks
+# B4 - Strict XML source validation and optional XSD checks
 
 ## Summary
 

@@ -38,9 +38,9 @@ The parser seam exists to turn a source artifact into a valid runtime record bou
 
 Without an explicit parser boundary, three different concerns easily get mixed together:
 
-1. **source-native parsing** ΓÇö delimiters, quoted tokens, XML record fragments, schema/file checks
-2. **runtime record shaping** ΓÇö generated source model creation and field binding
-3. **ETL-core behavior** ΓÇö transforms, processor rules, duplicate logic, orchestration, and write policy
+1. **source-native parsing** - delimiters, quoted tokens, XML record fragments, schema/file checks
+2. **runtime record shaping** - generated source model creation and field binding
+3. **ETL-core behavior** - transforms, processor rules, duplicate logic, orchestration, and write policy
 
 OneFlow already has separate seams for those downstream concerns. Preserving that separation keeps parser growth safe, testable, and format-focused.
 
@@ -248,14 +248,14 @@ Avoid these as parser features:
 
 Use the surrounding docs like this:
 
-- [`runtime-flow.md`](runtime-flow.md) ΓÇö end-to-end execution order
-- [`extension-points.md`](extension-points.md) ΓÇö where reader/validator/processor/writer seams live
-- [`file-ingestion-hardening.md`](file-ingestion-hardening.md) ΓÇö validation, reject, archive, and hardening direction
-- [`native-parser-adoptability.md`](native-parser-adoptability.md) ΓÇö future boundary for adopting C/C++ or other native parser engines without replacing the Java reader/runtime seam
-- [`csv-native-parser-sidecar-protocol.md`](csv-native-parser-sidecar-protocol.md) ΓÇö first concrete CSV-first sidecar protocol sketch for future native parser adoption while preserving the Java reader seam
-- [`java-native-parser-reader-adapter-contract.md`](java-native-parser-reader-adapter-contract.md) ΓÇö Java-side `DynamicReader` / `ItemStreamReader` contract for future sidecar-backed native parsers, including lifecycle, checkpoint, and generated-model handoff rules
-- [`transformation-capability-roadmap.md`](transformation-capability-roadmap.md) ΓÇö what must stay in processor-side transformation instead of migrating into parsing
-- [`../config/source/csv-source.md`](../../config/source/csv-source.md) and [`../config/source/xml-source.md`](../../config/source/xml-source.md) ΓÇö field-level source config contracts
+- [`runtime-flow.md`](runtime-flow.md) - end-to-end execution order
+- [`extension-points.md`](extension-points.md) - where reader/validator/processor/writer seams live
+- [`file-ingestion-hardening.md`](file-ingestion-hardening.md) - validation, reject, archive, and hardening direction
+- [`native-parser-adoptability.md`](native-parser-adoptability.md) - future boundary for adopting C/C++ or other native parser engines without replacing the Java reader/runtime seam
+- [`csv-native-parser-sidecar-protocol.md`](csv-native-parser-sidecar-protocol.md) - first concrete CSV-first sidecar protocol sketch for future native parser adoption while preserving the Java reader seam
+- [`java-native-parser-reader-adapter-contract.md`](java-native-parser-reader-adapter-contract.md) - Java-side `DynamicReader` / `ItemStreamReader` contract for future sidecar-backed native parsers, including lifecycle, checkpoint, and generated-model handoff rules
+- [`transformation-capability-roadmap.md`](transformation-capability-roadmap.md) - what must stay in processor-side transformation instead of migrating into parsing
+- [`../config/source/csv-source.md`](../../config/source/csv-source.md) and [`../config/source/xml-source.md`](../../config/source/xml-source.md) - field-level source config contracts
 
 ## Bottom line
 
@@ -263,7 +263,7 @@ OneFlow should continue to strengthen file parsing, but only as a **source-nativ
 
 The parser may grow deeper in CSV, XML, or future JSON support, but it must remain decoupled from ETL-core business activities. The runtime should still read as:
 
-**validate source ΓåÆ parse source-native structure ΓåÆ emit runtime record ΓåÆ transform ΓåÆ validate/reject ΓåÆ write**
+**validate source -> parse source-native structure -> emit runtime record -> transform -> validate/reject -> write**
 
 not as a parser-centered ETL engine.
 

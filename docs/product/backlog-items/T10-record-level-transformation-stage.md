@@ -1,4 +1,4 @@
-# T10 â€” Record-level transformation stage beyond field-centric mapping
+# T10 - Record-level transformation stage beyond field-centric mapping
 
 ## Summary
 

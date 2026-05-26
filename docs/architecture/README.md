@@ -102,6 +102,8 @@ Use this short list when you want the newest or most actively discussed architec
 
 - [`extension-points.md`](etl-core/extension-points.md) - where readers, processors, writers, and validation seams live (**Current baseline + future evolution**)
 - [`custom-step-pairing-and-context-handoff.md`](etl-core/custom-step-pairing-and-context-handoff.md) - future custom-step pairing seam for customer-owned pre/post steps, context handoff, and failure-category boundaries (**Future direction**)
+- [`customer-owned-processor-transform-seam.md`](etl-core/customer-owned-processor-transform-seam.md) - future customer-owned processor transform seam for additive project-specific field transformation without core forking (**Future direction**)
+- [`a7-t16-extensibility-charter.md`](etl-core/a7-t16-extensibility-charter.md) - unified extensibility charter for job-level custom steps plus processor-level custom transforms (**Future direction**)
 - [`transformation-capability-roadmap.md`](etl-core/transformation-capability-roadmap.md) - phased transformation maturity direction (**Future direction**)
 - [`transformation-capability-catalog.md`](etl-core/transformation-capability-catalog.md) - comprehensive now/next/future transformation family catalog with examples and backlog-seeding map (**Current baseline + future evolution**)
 - [`reference-set-validation-and-enrichment.md`](etl-core/reference-set-validation-and-enrichment.md) - future processor-side reference-set validation and later enrichment growth (**Future direction**)

@@ -1,4 +1,4 @@
-# T13 â€” Transform-stage observability metrics and operational evidence
+# T13 - Transform-stage observability metrics and operational evidence
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# C1 â€” Emit machine-readable run summary with scenario, status, and duration
+# C1 - Emit machine-readable run summary with scenario, status, and duration
 
 ## Summary
 

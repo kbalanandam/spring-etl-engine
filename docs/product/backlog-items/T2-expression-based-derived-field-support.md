@@ -1,4 +1,4 @@
-# T2 â€” Add expression-based derived field support
+# T2 - Add expression-based derived field support
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# S4 â€” Control-plane operational data model
+# S4 - Control-plane operational data model
 
 ## Summary
 
@@ -102,7 +102,7 @@ Expected impact when this item ships:
 - [`Control-plane local relational schema`](../../architecture/control-plane/control-plane-local-relational-schema.md)
 - [`Scheduler architecture direction`](../../architecture/control-plane/scheduler-architecture-direction.md)
 - [`Operator UI architecture direction`](../../architecture/operator-ui/operator-ui-architecture-direction.md)
-- [`S1 â€” Schedule model and trigger contract`](S1-schedule-model-and-trigger-contract.md)
+- [`S1 - Schedule model and trigger contract`](S1-schedule-model-and-trigger-contract.md)
 - [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 - [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
 

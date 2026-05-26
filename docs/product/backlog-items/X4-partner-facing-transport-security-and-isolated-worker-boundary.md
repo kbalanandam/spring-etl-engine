@@ -1,4 +1,4 @@
-# X4 â€” Define partner-facing transport security rules and optional isolated worker deployment
+# X4 - Define partner-facing transport security rules and optional isolated worker deployment
 
 ## Summary
 

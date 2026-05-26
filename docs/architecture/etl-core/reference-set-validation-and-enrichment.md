@@ -63,7 +63,7 @@ flowchart TD
 
 ## Draft config direction
 
-Illustrative example only ΓÇö not a shipped contract yet:
+Illustrative example only - not a shipped contract yet:
 
 ```yaml
 type: default
@@ -104,7 +104,7 @@ Preferred direction:
 
 That gives config authors a simple mental model:
 
-- `agencyCodes` means ΓÇ£load the allowed agency-code set at runtimeΓÇ¥
+- `agencyCodes` means "load the allowed agency-code set at runtime"
 - the rule only states that the field must exist in that set
 
 ## Key components / classes

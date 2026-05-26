@@ -19,6 +19,8 @@ Use it when you want to understand:
 - [`csv-to-xml-runtime-flow.md`](csv-to-xml-runtime-flow.md) - operational deep dive for the shipped `CSV -> XML` path
 - [`extension-points.md`](extension-points.md) - ETL extension seams and guardrails
 - [`custom-step-pairing-and-context-handoff.md`](custom-step-pairing-and-context-handoff.md) - future custom-step pairing contract, class skeletons, exception categories, and context handoff policy
+- [`customer-owned-processor-transform-seam.md`](customer-owned-processor-transform-seam.md) - future customer-owned processor transform seam with one common transform envelope and Epic D-aligned failure categories
+- [`a7-t16-extensibility-charter.md`](a7-t16-extensibility-charter.md) - unified extensibility charter that aligns job-level custom steps and processor-level custom transforms
 - [`oneflow-runtime-fallback-reference.md`](oneflow-runtime-fallback-reference.md) - shipped fallback/default decision matrix
 - [`generated-model-naming-standard.md`](generated-model-naming-standard.md) - generated-model naming and package contract
 - [`file-ingestion-hardening.md`](file-ingestion-hardening.md) - hardening direction on the active ETL path

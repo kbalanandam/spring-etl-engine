@@ -1,4 +1,4 @@
-# P4 â€” Prove CSV and XML parser maturity through preserved scenarios and verification
+# P4 - Prove CSV and XML parser maturity through preserved scenarios and verification
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# V1 â€” Define enterprise verification evidence model and report categories
+# V1 - Define enterprise verification evidence model and report categories
 
 ## Summary
 

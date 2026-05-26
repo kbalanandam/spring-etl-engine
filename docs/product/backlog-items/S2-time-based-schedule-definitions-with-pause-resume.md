@@ -1,4 +1,4 @@
-# S2 â€” Add time-based schedule definitions with pause/resume controls
+# S2 - Add time-based schedule definitions with pause/resume controls
 
 ## Summary
 

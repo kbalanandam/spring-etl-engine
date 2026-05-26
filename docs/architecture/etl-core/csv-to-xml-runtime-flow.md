@@ -23,9 +23,9 @@ For the broader one-run baseline across all formats, start with [`runtime-flow.m
 
 This note uses the following checked-in bundles as the main proof anchors:
 
-- [`src/main/resources/config-jobs/customer-load/README.md`](../../../src/main/resources/config-jobs/customer-load/README.md) ΓÇö simplest shipped `CSV -> XML` path writing a final XML output
-- [`src/main/resources/config-jobs/csv-to-nested-xml/README.md`](../../../src/main/resources/config-jobs/csv-to-nested-xml/README.md) ΓÇö advanced shipped `CSV -> nested XML` path using `modelDefinitionPath`
-- [`src/main/resources/config-jobs/csv-validation-reject-archive/README.md`](../../../src/main/resources/config-jobs/csv-validation-reject-archive/README.md) ΓÇö shipped proof for CSV-ingestion reject handling and archive-on-success on the same active CSV file-ingestion path
+- [`src/main/resources/config-jobs/customer-load/README.md`](../../../src/main/resources/config-jobs/customer-load/README.md) - simplest shipped `CSV -> XML` path writing a final XML output
+- [`src/main/resources/config-jobs/csv-to-nested-xml/README.md`](../../../src/main/resources/config-jobs/csv-to-nested-xml/README.md) - advanced shipped `CSV -> nested XML` path using `modelDefinitionPath`
+- [`src/main/resources/config-jobs/csv-validation-reject-archive/README.md`](../../../src/main/resources/config-jobs/csv-validation-reject-archive/README.md) - shipped proof for CSV-ingestion reject handling and archive-on-success on the same active CSV file-ingestion path
 
 The product does **not** currently rely on one single preserved bundle to prove every optional hardening feature together with XML output. Instead, the shipped CSV-to-XML runtime shape shares the same CSV ingestion, processor, duplicate, reject, archive, and staged-publication seams proven across those preserved bundles.
 
@@ -240,7 +240,7 @@ implementation from step volume:
 
 Terminology note: processor config uses `memory`, while runtime resolver evidence emits `inMemory`.
 
-See also: [`Default processor reference`](../../config/processor/default-processor.md), [`File ingestion hardening`](file-ingestion-hardening.md), and [`T4 ΓÇö Transformation quarantine and duplicate hardening`](../../product/backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md).
+See also: [`Default processor reference`](../../config/processor/default-processor.md), [`File ingestion hardening`](file-ingestion-hardening.md), and [`T4 - Transformation quarantine and duplicate hardening`](../../product/backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md).
 
 ### 4. `target-config.yaml` (XML)
 Controls:
@@ -286,8 +286,8 @@ For a CSV source to XML target step, it resolves:
 
 This distinction matters because XML targets may use:
 
-- **processing class** ΓÇö one logical XML record item
-- **write class** ΓÇö wrapper/root object used to publish the final XML document
+- **processing class** - one logical XML record item
+- **write class** - wrapper/root object used to publish the final XML document
 
 That split is what lets the same runtime support both chunk-oriented XML record output and tasklet/wrapper-style final document publication.
 

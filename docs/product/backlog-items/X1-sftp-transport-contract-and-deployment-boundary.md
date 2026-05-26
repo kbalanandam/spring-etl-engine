@@ -1,4 +1,4 @@
-# X1 â€” SFTP transport contract and deployment boundary
+# X1 - SFTP transport contract and deployment boundary
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# F1 â€” Define restart semantics per execution mode
+# F1 - Define restart semantics per execution mode
 
 ## Summary
 

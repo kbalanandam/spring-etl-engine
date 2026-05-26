@@ -1,4 +1,4 @@
-# T1 â€” Add field-level validation rules and first reject-handling slice for file scenarios
+# T1 - Add field-level validation rules and first reject-handling slice for file scenarios
 
 ## Summary
 

@@ -1,4 +1,4 @@
-# P3 â€” Expand XML parser maturity for namespace-aware and fragment-contract scenarios
+# P3 - Expand XML parser maturity for namespace-aware and fragment-contract scenarios
 
 ## Summary
 

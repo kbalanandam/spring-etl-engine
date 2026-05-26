@@ -1,4 +1,4 @@
-# G1 â€” Support secret injection via environment or secure config source
+# G1 - Support secret injection via environment or secure config source
 
 ## Summary
 

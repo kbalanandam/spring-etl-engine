@@ -1,4 +1,4 @@
-# A3 â€” Job-level activation guardrail
+# A3 - Job-level activation guardrail
 
 ## Summary
 

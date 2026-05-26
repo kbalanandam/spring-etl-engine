@@ -1,4 +1,4 @@
-# V4 â€” Define verification-report retention, provenance, and release gating rules
+# V4 - Define verification-report retention, provenance, and release gating rules
 
 ## Summary
 

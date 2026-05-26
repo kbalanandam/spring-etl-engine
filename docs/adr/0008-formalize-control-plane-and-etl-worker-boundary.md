@@ -63,9 +63,9 @@ The product formally adopts this boundary:
 
 ## Alternatives considered
 
-- **Make the OneFlow scheduler mandatory for all launches** â€” rejected because it would break the independently runnable ETL core model and reduce compatibility with enterprise scheduling estates already in use.
-- **Embed watcher, scheduling, and operator controls directly into the worker runtime** â€” rejected because it would blur trigger governance with ETL execution and make optional capabilities harder to deploy, disable, or replace.
-- **Treat scheduler/control-plane work as a separate pseudo-product with its own launch contract** â€” rejected because it would encourage orchestration drift away from the explicit selected-job runtime that the ETL core already uses.
+- **Make the OneFlow scheduler mandatory for all launches** - rejected because it would break the independently runnable ETL core model and reduce compatibility with enterprise scheduling estates already in use.
+- **Embed watcher, scheduling, and operator controls directly into the worker runtime** - rejected because it would blur trigger governance with ETL execution and make optional capabilities harder to deploy, disable, or replace.
+- **Treat scheduler/control-plane work as a separate pseudo-product with its own launch contract** - rejected because it would encourage orchestration drift away from the explicit selected-job runtime that the ETL core already uses.
 
 ## Notes
 
@@ -81,6 +81,6 @@ The product formally adopts this boundary:
 - [`Runtime flow`](../architecture/etl-core/runtime-flow.md)
 - [`ETL product evolution roadmap`](../architecture/foundations/etl-product-evolution-roadmap.md)
 - [`Transformation capability roadmap`](../architecture/etl-core/transformation-capability-roadmap.md)
-- [`S1 â€” Schedule model and trigger contract`](../product/backlog-items/S1-schedule-model-and-trigger-contract.md)
+- [`S1 - Schedule model and trigger contract`](../product/backlog-items/S1-schedule-model-and-trigger-contract.md)
 
 

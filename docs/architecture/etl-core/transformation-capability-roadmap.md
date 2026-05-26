@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines what ΓÇ£transformationΓÇ¥ should mean in `spring-etl-engine` as the product evolves from a config-driven ETL foundation into an enterprise-grade ETL product.
+This document defines what "transformation" should mean in `spring-etl-engine` as the product evolves from a config-driven ETL foundation into an enterprise-grade ETL product.
 
 Use this note to answer three questions before expanding transformation behavior: what transformation means at the current product stage, which transformation features belong in the next slice, and which capabilities should wait until the runtime and operator model are stronger. It is a transformation-maturity guide, not the execution backlog and not a field-by-field processor config reference.
 
@@ -21,7 +21,7 @@ The product already supports real transformation, but at an early maturity level
 
 - source-to-target field mapping
 - source-specific and target-specific mapping selection
-- schema reshaping through `from` ΓåÆ `to` field mapping
+- schema reshaping through `from` -> `to` field mapping
 - generated-model-aware transformation flow
 - typed ETL contracts that align with source and target definitions
 - first shipped rule-based validation/reject behavior for file-backed scenarios through processor rules, controlled rejected-record output, and adjacent archive-on-success behavior, with the strongest preserved proof still centered on CSV
@@ -36,7 +36,7 @@ That is valid ETL transformation, but it is not yet equal to the breadth of trad
 
 ## Transformation Maturity Levels
 
-## Level 1 ΓÇö Structural transformation foundation
+## Level 1 - Structural transformation foundation
 
 This remains the baseline every supported scenario still builds on.
 
@@ -49,8 +49,8 @@ This remains the baseline every supported scenario still builds on.
 
 ### Example outcomes
 
-- `Customers.id` ΓåÆ `CustomersSql.id`
-- `Department.name` ΓåÆ `Departments.name`
+- `Customers.id` -> `CustomersSql.id`
+- `Department.name` -> `Departments.name`
 
 ### What this level does not yet provide
 
@@ -62,7 +62,7 @@ This remains the baseline every supported scenario still builds on.
 
 ---
 
-## Level 2 ΓÇö Rule-based transformation
+## Level 2 - Rule-based transformation
 
 This is the active maturity track.
 
@@ -116,7 +116,7 @@ That means transform-then-reject is valid by design. A value may be normalized f
 
 ---
 
-## Level 3 ΓÇö Enrichment and multi-source transformation
+## Level 3 - Enrichment and multi-source transformation
 
 This is the medium-term enterprise transformation target.
 
@@ -271,7 +271,7 @@ For active contracts and shipped processor semantics, continue to anchor impleme
 
 ---
 
-## Level 4 ΓÇö Enterprise-grade transformation platform behavior
+## Level 4 - Enterprise-grade transformation platform behavior
 
 This is the longer-term enterprise-grade target.
 
@@ -295,7 +295,7 @@ This level supports enterprise-grade ETL expectations around control, governance
 
 ---
 
-## What ΓÇ£TransformationΓÇ¥ Should Mean in This Product
+## What "Transformation" Should Mean in This Product
 
 For `spring-etl-engine`, transformation should eventually include:
 
@@ -318,7 +318,7 @@ It should not immediately mean:
 
 Transformation capability should evolve with the broader ETL roadmap, not separately from it.
 
-### Phase 1 alignment ΓÇö operational ETL foundation
+### Phase 1 alignment - operational ETL foundation
 
 Focus on:
 
@@ -327,7 +327,7 @@ Focus on:
 - config validation
 - typed structural transformation
 
-### Phase 2 alignment ΓÇö integration maturity
+### Phase 2 alignment - integration maturity
 
 Focus on:
 
@@ -338,12 +338,12 @@ Focus on:
 - source-transform YAML only when source-native adaptation is required, not as a parallel default home for generic cleanup
 - expression-based mapping
 - conditional rules after the shipped expression contract remains stable in normal scenario use
-- deferred processor-side default/placeholder mapping for shared audit and operational fields so jobs do not need to repeat the same constant, job-name, or standard timestamp assignment field by field; track under [`T6 ΓÇö Shared default-value and placeholder mapping`](../../product/backlog-items/T6-shared-default-value-and-placeholder-mapping.md)
+- deferred processor-side default/placeholder mapping for shared audit and operational fields so jobs do not need to repeat the same constant, job-name, or standard timestamp assignment field by field; track under [`T6 - Shared default-value and placeholder mapping`](../../product/backlog-items/T6-shared-default-value-and-placeholder-mapping.md)
 - lookup/enrichment patterns, starting with runtime-loaded reference-set validation for reject/accept checks before broader enrichment joins
 
 Adjacent file-ingestion hardening such as archiving processed source files should evolve with this phase, but it should remain a file lifecycle capability rather than being treated as a separate transformation maturity level.
 
-### Phase 3 alignment ΓÇö enterprise mediation platform
+### Phase 3 alignment - enterprise mediation platform
 
 Focus on:
 
@@ -385,10 +385,10 @@ The next meaningful transformation priorities are:
 - [`File ingestion hardening`](file-ingestion-hardening.md)
 - [`Runtime flow`](runtime-flow.md)
 - [`Transformation capability catalog`](transformation-capability-catalog.md)
-- [`ADR 0007 ΓÇö Add separate processor transform SPI for cleaning and normalization`](../../adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
+- [`ADR 0007 - Add separate processor transform SPI for cleaning and normalization`](../../adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
 - [`Default processor config`](../../config/processor/default-processor.md)
 - [`Reference-set validation and enrichment`](reference-set-validation-and-enrichment.md)
 - [`Product backlog`](../../product/product-backlog.md)
-- [`T6 ΓÇö Shared default-value and placeholder mapping`](../../product/backlog-items/T6-shared-default-value-and-placeholder-mapping.md)
+- [`T6 - Shared default-value and placeholder mapping`](../../product/backlog-items/T6-shared-default-value-and-placeholder-mapping.md)
 - [`T6 shared default-value mapping syntax comparison`](t6-shared-default-value-mapping-syntax-comparison.md)
 

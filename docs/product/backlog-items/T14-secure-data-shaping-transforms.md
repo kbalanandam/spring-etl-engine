@@ -1,4 +1,4 @@
-# T14 â€” Secure data-shaping transforms for sensitive fields
+# T14 - Secure data-shaping transforms for sensitive fields
 
 ## Summary
 

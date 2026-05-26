@@ -1,4 +1,4 @@
-# B2 â€” Introduce configurable retry policy support where appropriate
+# B2 - Introduce configurable retry policy support where appropriate
 
 ## Summary
 

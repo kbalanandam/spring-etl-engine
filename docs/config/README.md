@@ -43,20 +43,20 @@ This keeps the docs readable for new authors while still keeping them executable
 
 ## Status legend
 
-- **Supported** â€” part of the active runtime contract today
-- **Supported (phase 1)** â€” shipped today with explicit current limitations
-- **Future** â€” preserved in architecture notes, not part of the active config contract yet
-- **Deprecated** â€” retained temporarily for cleanup or migration and not part of the active runtime contract
+- **Supported** - part of the active runtime contract today
+- **Supported (phase 1)** - shipped today with explicit current limitations
+- **Future** - preserved in architecture notes, not part of the active config contract yet
+- **Deprecated** - retained temporarily for cleanup or migration and not part of the active runtime contract
 
 ## Recommended reading order
 
 Use this reading order when authoring or reviewing one scenario:
 
-1. [`Job config reference`](job-config.md) â€” start here; this is the primary entry point for one selected run, including the shipped optional `isActive` startup guardrail on `job-config.yaml`
+1. [`Job config reference`](job-config.md) - start here; this is the primary entry point for one selected run, including the shipped optional `isActive` startup guardrail on `job-config.yaml`
 2. one source reference such as [`CSV source reference`](source/csv-source.md), [`XML source reference`](source/xml-source.md), or [`Relational source reference`](source/relational-source.md)
 3. one target reference such as [`CSV target reference`](target/csv-target.md), [`JSON target reference`](target/json-target.md), [`XML target reference`](target/xml-target.md), or [`Relational target reference`](target/relational-target.md)
-4. [`Default processor reference`](processor/default-processor.md) â€” define field mappings, transforms, and rules
-5. [Scenario examples](#scenario-examples) â€” compare with a preserved runnable bundle closest to your use case
+4. [`Default processor reference`](processor/default-processor.md) - define field mappings, transforms, and rules
+5. [Scenario examples](#scenario-examples) - compare with a preserved runnable bundle closest to your use case
 
 For future-only config proposals that are not shipped yet, stop here and continue in `docs/architecture/` rather than treating them as active config contracts. In particular, proposals for new runtime entry points, registries, UI selectors, or richer step models should still align with the scenario-driven runtime contract in [`Scenario-driven runtime direction`](../architecture/etl-core/scenario-driven-runtime-direction.md) instead of bypassing `job-config.yaml`.
 

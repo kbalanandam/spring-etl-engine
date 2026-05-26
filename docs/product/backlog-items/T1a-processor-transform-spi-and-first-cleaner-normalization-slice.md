@@ -1,4 +1,4 @@
-# T1a â€” Define processor transform SPI and first cleaner/normalization slice
+# T1a - Define processor transform SPI and first cleaner/normalization slice
 
 ## Summary
 

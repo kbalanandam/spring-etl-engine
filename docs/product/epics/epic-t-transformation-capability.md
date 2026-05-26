@@ -4,6 +4,8 @@
 
 Epic T covers how the product evolves from structural mapping into richer transformation behavior while keeping the active runtime centered on the processor path. It groups the shipped validation and transform slices with the deferred enrichment and conditional-processing work.
 
+It also now includes the additive customer-owned processor transform extensibility direction so project-specific transformations can scale without core forking.
+
 ## Scope
 
 This epic is the home for work that:
@@ -33,6 +35,7 @@ This epic is **not** the place for source-transport concerns, orchestration/sche
 - [`T13 - Define transform-stage observability metrics and operational evidence`](../backlog-items/T13-transform-stage-observability-metrics.md)
 - [`T14 - Define secure data-shaping transforms for sensitive fields`](../backlog-items/T14-secure-data-shaping-transforms.md)
 - [`T15 - Define XML-native duplicate identity for nested XML source scenarios`](../backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md)
+- [`T16 - Define customer-owned processor transform extension seam`](../backlog-items/T16-customer-owned-processor-transform-extension-seam.md)
 
 ## Current T15 closure snapshot
 
@@ -74,6 +77,7 @@ This sequence is a recommended start order, not a replacement for execution-boar
 - [`../transformation-checkpoint.md`](../transformation-checkpoint.md)
 - [`../../architecture/etl-core/transformation-capability-roadmap.md`](../../architecture/etl-core/transformation-capability-roadmap.md)
 - [`../../architecture/etl-core/extension-points.md`](../../architecture/etl-core/extension-points.md)
+- [`../../architecture/etl-core/customer-owned-processor-transform-seam.md`](../../architecture/etl-core/customer-owned-processor-transform-seam.md)
 - [`../../architecture/etl-core/reference-set-validation-and-enrichment.md`](../../architecture/etl-core/reference-set-validation-and-enrichment.md)
 - [`../../architecture/etl-core/t6-shared-default-value-mapping-syntax-comparison.md`](../../architecture/etl-core/t6-shared-default-value-mapping-syntax-comparison.md)
 - [`../../config/processor/default-processor.md`](../../config/processor/default-processor.md)

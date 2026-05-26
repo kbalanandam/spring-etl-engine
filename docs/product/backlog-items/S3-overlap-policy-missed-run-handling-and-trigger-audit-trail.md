@@ -1,4 +1,4 @@
-# S3 â€” Add overlap policy, missed-run handling, and basic trigger audit trail
+# S3 - Add overlap policy, missed-run handling, and basic trigger audit trail
 
 ## Summary
 

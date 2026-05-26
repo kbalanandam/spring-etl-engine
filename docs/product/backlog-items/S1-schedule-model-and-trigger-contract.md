@@ -1,4 +1,4 @@
-# S1 â€” Schedule model and trigger contract
+# S1 - Schedule model and trigger contract
 
 ## Summary
 
@@ -96,7 +96,7 @@ Expected impact when this item ships:
 - [`ADR-0008: formalize control-plane and ETL worker boundary`](../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
 - [`Control plane and worker boundary`](../../architecture/control-plane/control-plane-worker-boundary.md)
 - [`Scheduler architecture direction`](../../architecture/control-plane/scheduler-architecture-direction.md)
-- [`S4 â€” Control-plane operational data model`](S4-control-plane-operational-data-model.md)
+- [`S4 - Control-plane operational data model`](S4-control-plane-operational-data-model.md)
 - [`Scenario-driven runtime direction`](../../architecture/etl-core/scenario-driven-runtime-direction.md)
 - [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
 

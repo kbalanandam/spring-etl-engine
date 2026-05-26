@@ -1,4 +1,4 @@
-# B6 â€” Shared zip/unzip service boundary for file-based source preparation and archive packaging
+# B6 - Shared zip/unzip service boundary for file-based source preparation and archive packaging
 
 ## Summary
 
@@ -83,7 +83,7 @@ Current impact across the shipped boundary:
 
 ## Implementation notes
 
-Keep this backlog item narrow and reality-first. The value is not â€œsupport every archive formatâ€; it is to define one reusable OneFlow-owned zip/unzip service boundary, then apply it first to real file-based scenarios without letting compression drift into parser-specific logic or one-off scenario scripts.
+Keep this backlog item narrow and reality-first. The value is not "support every archive format"; it is to define one reusable OneFlow-owned zip/unzip service boundary, then apply it first to real file-based scenarios without letting compression drift into parser-specific logic or one-off scenario scripts.
 
 ## Status notes
 

@@ -1,4 +1,4 @@
-# B3 â€” Archive processed source files after successful file-based runs
+# B3 - Archive processed source files after successful file-based runs
 
 ## Summary
 

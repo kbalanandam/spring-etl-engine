@@ -1,4 +1,4 @@
-# B1 â€” Introduce configurable skip policy support
+# B1 - Introduce configurable skip policy support
 
 ## Summary
 

@@ -134,6 +134,18 @@ Phase-1 identity split for this seam should stay fixed: `steps[].name` for opera
 
 These categories should align with Epic D taxonomy evolution so startup faults and runtime faults stay distinguishable in operator evidence.
 
+## Planned customer-owned processor transform seam (future direction)
+
+This seam is planned under backlog item [`T16`](../../product/backlog-items/T16-customer-owned-processor-transform-extension-seam.md).
+
+Detailed design note:
+
+- [`customer-owned-processor-transform-seam.md`](customer-owned-processor-transform-seam.md)
+
+Goal: keep customer-specific field transformation growth on the existing processor transform SPI instead of introducing alternate processor types or core forks.
+
+Phase-1 identity split for this seam should stay fixed: `transforms[].type` for provider binding and `transforms[].config` for provider-owned options.
+
 ## How to add a new source/target format
 
 ### New source format
@@ -175,11 +187,11 @@ For future field-cleaning behavior such as status-code decoding or country-code 
 
 1. keep the behavior inside the active default-processor path
 2. model it as a processor **transform**, not as a processor **validation rule**
-3. keep the execution order explicit: read ΓåÆ transform ΓåÆ validate ΓåÆ write
+3. keep the execution order explicit: read -> transform -> validate -> write
 4. validate config fail-fast in `ConfigLoader`
 5. add focused mapping/evaluator tests and at least one preserved scenario example
 
-This avoids mixing ΓÇ£rewrite the valueΓÇ¥ behavior with ΓÇ£reject the recordΓÇ¥ behavior and gives future N-step cleaner chains a coherent extension home.
+This avoids mixing "rewrite the value" behavior with "reject the record" behavior and gives future N-step cleaner chains a coherent extension home.
 
 ## Ownership and precedence rule
 

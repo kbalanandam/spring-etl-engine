@@ -60,9 +60,9 @@ The broader product vision is larger than ETL alone. Over time, the product may 
 
 The intended product layering is:
 
-1. **OneFlow ETL core** ΓÇö the independently runnable Java/Spring Batch execution engine that already runs one selected `job-config.yaml`
-2. **optional control plane** ΓÇö a future scheduler/watcher/history layer that launches and observes the same explicit-job runtime without becoming a second orchestration contract
-3. **integrated operator UI** ΓÇö a future dashboard and control surface over jobs, schedules, watchers, run history, evidence, and recovery workflows
+1. **OneFlow ETL core** - the independently runnable Java/Spring Batch execution engine that already runs one selected `job-config.yaml`
+2. **optional control plane** - a future scheduler/watcher/history layer that launches and observes the same explicit-job runtime without becoming a second orchestration contract
+3. **integrated operator UI** - a future dashboard and control surface over jobs, schedules, watchers, run history, evidence, and recovery workflows
 
 The control plane is important future roadmap work, but it should remain optional from the ETL core point of view. The core runtime must stay directly runnable even when no scheduler, watcher, persistence service, or UI is present.
 
@@ -256,7 +256,7 @@ Future phases may add new runtime families or orchestration layers, but they sho
 ### Costs
 - some future capabilities will be intentionally deferred
 - current architecture may need later expansion for streaming, routing, and security controls
-- some ΓÇ£nice future abstractionsΓÇ¥ should be resisted in the present phase
+- some "nice future abstractions" should be resisted in the present phase
 
 ### Alternatives considered
 
@@ -305,7 +305,7 @@ Future changes should be validated against both technical quality and roadmap fi
 When proposing a new feature, ask:
 
 - Does this primarily strengthen connector operability in the ETL-first phase?
-- Does it preserve the current architectureΓÇÖs extension model?
+- Does it preserve the current architecture's extension model?
 - Is it introducing future platform complexity too early?
 - If it is future-facing, does it still avoid blocking current delivery?
 

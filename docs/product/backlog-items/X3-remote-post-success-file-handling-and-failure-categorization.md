@@ -1,4 +1,4 @@
-# X3 â€” Add remote post-success file handling and failure categorization for SFTP
+# X3 - Add remote post-success file handling and failure categorization for SFTP
 
 ## Summary
 

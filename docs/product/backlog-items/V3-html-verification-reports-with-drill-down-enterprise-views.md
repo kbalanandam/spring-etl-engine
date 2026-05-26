@@ -1,4 +1,4 @@
-# V3 â€” HTML verification reports with drill-down enterprise views
+# V3 - HTML verification reports with drill-down enterprise views
 
 ## Summary
 

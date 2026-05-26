@@ -1,4 +1,4 @@
-# P1 â€” Freeze parser roadmap around CSV and XML source-native maturity
+# P1 - Freeze parser roadmap around CSV and XML source-native maturity
 
 ## Summary
 

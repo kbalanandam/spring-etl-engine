@@ -1,4 +1,4 @@
-# T5 â€” Reference-set validation and enrichment baseline
+# T5 - Reference-set validation and enrichment baseline
 
 ## Summary
 
@@ -83,7 +83,7 @@ The frozen first slice is:
 
 ### Illustrative future config shape (draft only)
 
-Illustrative example only â€” frozen for planning, not a shipped contract yet:
+Illustrative example only - frozen for planning, not a shipped contract yet:
 
 ```yaml
 type: default
@@ -161,5 +161,5 @@ The first slice should stay narrow: validation against a loaded reference set, n
 
 ## Status notes
 
-Added to turn generic â€œlookup/enrichmentâ€ language into a concrete first delivery shape: reference-set validation before broader enrichment joins or derived lookup outputs.
+Added to turn generic "lookup/enrichment" language into a concrete first delivery shape: reference-set validation before broader enrichment joins or derived lookup outputs.
 

@@ -87,9 +87,9 @@ Keep package derivation separate from runtime role classification. `source` and 
 
 Besides config side, every generated model may still participate in a **flow role** derived from the selected job steps:
 
-- **Source** ΓÇö an ingress source that is read but was not produced by an earlier step in the same selected job
-- **Intermediate** ΓÇö a handoff artifact that is written by one step and later read by another step in the same selected job
-- **Target** ΓÇö a final target written by the selected job and not read again later in the same selected job
+- **Source** - an ingress source that is read but was not produced by an earlier step in the same selected job
+- **Intermediate** - a handoff artifact that is written by one step and later read by another step in the same selected job
+- **Target** - a final target written by the selected job and not read again later in the same selected job
 
 Canonical technical role names should still be:
 

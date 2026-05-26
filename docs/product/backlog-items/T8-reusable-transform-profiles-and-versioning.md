@@ -1,4 +1,4 @@
-# T8 â€” Reusable transform profiles and versioning contract
+# T8 - Reusable transform profiles and versioning contract
 
 ## Summary
 

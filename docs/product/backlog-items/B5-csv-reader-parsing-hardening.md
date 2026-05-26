@@ -1,4 +1,4 @@
-# B5 â€” CSV reader parsing hardening
+# B5 - CSV reader parsing hardening
 
 ## Summary
 

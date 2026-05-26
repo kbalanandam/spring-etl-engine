@@ -1,4 +1,4 @@
-# V2 â€” Generate Markdown verification reports from the shared evidence model
+# V2 - Generate Markdown verification reports from the shared evidence model
 
 ## Summary
 
