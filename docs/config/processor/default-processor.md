@@ -119,6 +119,7 @@ If custom behavior was previously attached to an alternate processor type, migra
 | `mappings[].fields[].rules` | no | list | Optional field-level validation rules. If no `duplicate` rule is configured, runtime does not perform duplicate detection for that mapping |
 | `mappings[].fields[].rules[].onFailure` | no | string | Optional validation outcome override: `failStep` or `rejectRecord` |
 | `mappings[].fields[].transforms[].type` | yes, when a transform is present | string | Shipped transform types are `valueMap`, `expression`, and `conditional` |
+| `mappings[].fields[].transforms[].config` | no | object | Optional provider-owned payload for extension transform types; built-in transforms continue to use their existing top-level transform fields |
 | `mappings[].fields[].transforms[].expression` | yes for `expression` | string | Spring Expression Language (SpEL) expression used to derive or rewrite the field value |
 | `mappings[].fields[].transforms[].mappings` | yes for `valueMap` | object | Source-value to rewritten-value map, such as `"1": Success` or `USA: US` |
 | `mappings[].fields[].transforms[].cases` | yes for `conditional` | list | Ordered conditional branches; first matching case wins |
@@ -457,6 +458,7 @@ Current shipped shape:
 - first built-in transform type: `valueMap`
 - built-in derived-field transform type: `expression`
 - built-in conditional transform type: `conditional`
+- optional provider-owned `transforms[].config` envelope for custom transform implementations
 - optional default fallback such as `Unknown`
 - optional case handling for code normalization
 - additive support for multiple transform steps on the same field so future scenarios can chain cleaners

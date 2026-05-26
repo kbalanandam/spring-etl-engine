@@ -2411,6 +2411,134 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void loadsProcessorConfigWhenCustomTransformUsesProviderOwnedConfigEnvelope() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+      - format: csv
+        sourceName: Events
+        filePath: input/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+      - format: csv
+        targetName: EventsCsv
+        filePath: output/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+      - source: Events
+        target: EventsCsv
+        fields:
+        - from: id
+          to: id
+          transforms:
+          - type: configPrefix
+            config:
+              prefix: CFG-
+      """);
+    Files.writeString(jobConfig, """
+      name: csv-custom-transform-config
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+      - name: events-step
+        source: Events
+        target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader(
+        new SourceValidationService(),
+        new ValidationRuleEvaluator(ProcessorExtensionDefaults.defaultValidationRules(new FileIngestionRuntimeSupport())),
+        transformEvaluatorWith(new ConfigPrefixNoOpTransform())
+    );
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ensureSelectedJobFlatModels("csv-custom-transform-config", List.of("Events"), List.of("EventsCsv"));
+
+    ProcessorConfig loadedProcessorConfig = loader.processorConfig();
+    ProcessorConfig.FieldTransform transform = loadedProcessorConfig.getMappings().get(0).getFields().get(0).getTransforms().get(0);
+    assertEquals("configPrefix", transform.getType());
+    assertEquals("CFG-", String.valueOf(transform.getConfig().get("prefix")));
+  }
+
+  @Test
+  void failsFastWhenCustomTransformConfigEnvelopeIsInvalid() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+      - format: csv
+        sourceName: Events
+        filePath: input/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+      - format: csv
+        targetName: EventsCsv
+        filePath: output/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+      - source: Events
+        target: EventsCsv
+        fields:
+        - from: id
+          to: id
+          transforms:
+          - type: configPrefix
+      """);
+    Files.writeString(jobConfig, """
+      name: csv-custom-transform-config-invalid
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+      - name: events-step
+        source: Events
+        target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader(
+        new SourceValidationService(),
+        new ValidationRuleEvaluator(ProcessorExtensionDefaults.defaultValidationRules(new FileIngestionRuntimeSupport())),
+        transformEvaluatorWith(new ConfigPrefixNoOpTransform())
+    );
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(messageChain(exception).contains("transforms[].config.prefix"));
+  }
+
+  @Test
   void failsFastWhenCsvMappingUsesXmlScopedTransform() throws IOException {
     Path sourceConfig = tempDir.resolve("source-config.yaml");
     Path targetConfig = tempDir.resolve("target-config.yaml");
@@ -3873,6 +4001,29 @@ class ConfigLoaderJobConfigTest {
     @Override
     public java.util.Set<ModelFormat> supportedSourceFormats() {
       return java.util.Set.of(ModelFormat.XML);
+    }
+
+    @Override
+    public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
+      return value;
+    }
+  }
+
+  private static final class ConfigPrefixNoOpTransform implements ProcessorFieldTransform {
+
+    @Override
+    public String getTransformType() {
+      return "configPrefix";
+    }
+
+    @Override
+    public void validateConfiguration(ProcessorConfig.EntityMapping entityMapping,
+                                      ProcessorConfig.FieldMapping fieldMapping,
+                                      ProcessorConfig.FieldTransform transform) {
+      if (transform == null || transform.getConfig() == null || transform.getConfig().get("prefix") == null
+          || String.valueOf(transform.getConfig().get("prefix")).isBlank()) {
+        throw new IllegalStateException("FieldMapping transform 'configPrefix' requires transforms[].config.prefix.");
+      }
     }
 
     @Override

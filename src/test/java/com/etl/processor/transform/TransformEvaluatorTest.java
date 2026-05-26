@@ -44,6 +44,37 @@ class TransformEvaluatorTest {
 	}
 
 	@Test
+	void supportsProviderOwnedTransformConfigEnvelope() {
+		TransformEvaluator evaluator = new TransformEvaluator(List.of(new ConfigPrefixProcessorTransform()));
+		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
+		transform.setType("configPrefix");
+		transform.setConfig(Map.of("prefix", "CFG-"));
+		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
+		fieldMapping.setFrom("id");
+		fieldMapping.setTo("id");
+		fieldMapping.setTransforms(List.of(transform));
+
+		assertEquals("CFG-1001", evaluator.apply("1001", fieldMapping));
+	}
+
+	@Test
+	void failsFastWhenProviderOwnedTransformConfigIsInvalid() {
+		TransformEvaluator evaluator = new TransformEvaluator(List.of(new ConfigPrefixProcessorTransform()));
+		ProcessorConfig.EntityMapping entityMapping = new ProcessorConfig.EntityMapping();
+		entityMapping.setSource("Customers");
+		entityMapping.setTarget("CustomersOut");
+		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
+		fieldMapping.setFrom("id");
+		fieldMapping.setTo("id");
+		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
+		transform.setType("configPrefix");
+
+		IllegalStateException failure = assertThrows(IllegalStateException.class,
+				() -> evaluator.validateConfiguration(entityMapping, fieldMapping, transform));
+		assertTrue(failure.getMessage().contains("transforms[].config.prefix"));
+	}
+
+	@Test
 	void appliesBuiltInExpressionTransformUsingCurrentValue() {
 		TransformEvaluator evaluator = builtInTransformEvaluator();
 		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
@@ -276,6 +307,37 @@ class TransformEvaluatorTest {
 		@Override
 		public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
 			return String.valueOf(transform.getDefaultValue()) + value;
+		}
+	}
+
+	private static final class ConfigPrefixProcessorTransform implements ProcessorFieldTransform {
+
+		@Override
+		public String getTransformType() {
+			return "configPrefix";
+		}
+
+		@Override
+		public void validateConfiguration(ProcessorConfig.EntityMapping entityMapping,
+		                               ProcessorConfig.FieldMapping fieldMapping,
+		                               ProcessorConfig.FieldTransform transform) {
+			String prefix = prefix(transform);
+			if (prefix == null || prefix.isBlank()) {
+				throw new IllegalStateException("configPrefix requires transforms[].config.prefix.");
+			}
+		}
+
+		@Override
+		public Object apply(Object value, ProcessorConfig.FieldTransform transform) {
+			return prefix(transform) + value;
+		}
+
+		private String prefix(ProcessorConfig.FieldTransform transform) {
+			if (transform == null || transform.getConfig() == null) {
+				return null;
+			}
+			Object configured = transform.getConfig().get("prefix");
+			return configured == null ? null : String.valueOf(configured);
 		}
 	}
 

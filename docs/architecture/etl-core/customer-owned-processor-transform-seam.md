@@ -56,6 +56,12 @@ Intent:
 - `type` identifies the transform implementation
 - `config` carries provider-owned options without forcing new core fields per transform family
 
+### Implementation snapshot (phase-1 slice)
+
+- `ProcessorConfig.FieldTransform` now accepts optional `config` as an additive provider-owned object.
+- Built-in transforms (`valueMap`, `expression`, `conditional`) remain backward compatible and continue using their existing transform fields.
+- Runtime processor type remains locked to `type: default`; this slice does not introduce alternate processor types.
+
 ## Class-level seam anchors
 
 Use existing seams as the architecture center:
