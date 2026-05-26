@@ -24,6 +24,7 @@ Use this page as the main browse index when you want to navigate backlog items b
 - [`A4 - Standardize generated-model naming and package derivation`](A4-standardize-generated-model-naming-and-package-derivation.md)
 - [`A5 - Add relational source column alias contract and reader mapping`](A5-relational-source-column-alias-contract.md)
 - [`A6 - Retire remaining internal generated-model package bridge`](A6-retire-internal-generated-model-package-bridge.md)
+- [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](A7-custom-step-pairing-context-handoff-and-failure-contract.md)
 
 ### Epic B - Runtime hardening and file behavior
 
@@ -126,4 +127,3 @@ Examples:
 - `A1-explicit-step-pairing-and-step-definitions.md`
 - `T1a-processor-transform-spi-and-first-cleaner-normalization-slice.md`
 - `V4-verification-report-retention-provenance-and-release-gating.md`
-

@@ -101,6 +101,7 @@ Use this short list when you want the newest or most actively discussed architec
 ## Transformation, enrichment, and mapping growth
 
 - [`extension-points.md`](etl-core/extension-points.md) - where readers, processors, writers, and validation seams live (**Current baseline + future evolution**)
+- [`custom-step-pairing-and-context-handoff.md`](etl-core/custom-step-pairing-and-context-handoff.md) - future custom-step pairing seam for customer-owned pre/post steps, context handoff, and failure-category boundaries (**Future direction**)
 - [`transformation-capability-roadmap.md`](etl-core/transformation-capability-roadmap.md) - phased transformation maturity direction (**Future direction**)
 - [`transformation-capability-catalog.md`](etl-core/transformation-capability-catalog.md) - comprehensive now/next/future transformation family catalog with examples and backlog-seeding map (**Current baseline + future evolution**)
 - [`reference-set-validation-and-enrichment.md`](etl-core/reference-set-validation-and-enrichment.md) - future processor-side reference-set validation and later enrichment growth (**Future direction**)
@@ -153,4 +154,3 @@ When working in `docs/architecture/`:
 - [`../README.md`](../README.md)
 - [`../adr/TEMPLATE.md`](../adr/TEMPLATE.md)
 - [`../product/product-backlog.md`](../product/product-backlog.md)
-

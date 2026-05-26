@@ -223,6 +223,7 @@ This table is the day-to-day execution view for the current product stage.
 | [A4](backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | Done | M2 | A2 | Shipped selected-job contract: package-free source/target YAML, required non-blank job names, centralized package resolution, collision and handoff guardrails, standardized generated headers, and XML `XmlRecord` / `XmlRoot` class-shape separation on the active path |
 | [A5](backlog-items/A5-relational-source-column-alias-contract.md) | Add relational source column alias contract and reader mapping | Epic A | P2 | Deferred | M2 | none | Parked for later review so relational reads can support source-column-to-property differences without disturbing the current phase-1 baseline |
 | [A6](backlog-items/A6-retire-internal-generated-model-package-bridge.md) | Retire remaining internal generated-model package bridge | Epic A | P2 | Deferred | M2 | A4 | Parked for later as optional internal cleanup after higher-priority work; do not reopen authored `packageName` support while it is deferred |
+| [A7](backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md) | Add custom-step pairing, context handoff, and failure-contract baseline | Epic A | P1 | Blocked | M2 | A1, D1 | Blocked until pre-implementation multi-review artifacts (runtime, scheduler/control-plane, UI/operations) are completed; contract remains non-shipped |
 | [T1](backlog-items/T1-field-level-validation-and-first-reject-handling-slice.md) | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | [T1a](backlog-items/T1a-processor-transform-spi-and-first-cleaner-normalization-slice.md) | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | [T2](backlog-items/T2-expression-based-derived-field-support.md) | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
@@ -276,15 +277,16 @@ This table is the day-to-day execution view for the current product stage.
 Use this section as the near-term sequencing view behind the execution board:
 
 1. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
-2. Keep `E2` as the next portability/documentation step.
-3. Keep duplicate-handling follow-on split explicitly: `T15` is closed and larger duplicate-state scale redesign remains deferred under `T7`.
-4. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
-5. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
-6. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
-7. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
-8. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
-9. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-10. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
+2. Keep `A7` near-term so custom-step pairing, context handoff, and failure finalization can be bounded before ad hoc customer hooks spread.
+3. Keep `E2` as the next portability/documentation step.
+4. Keep duplicate-handling follow-on split explicitly: `T15` is closed and larger duplicate-state scale redesign remains deferred under `T7`.
+5. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
+6. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
+7. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
+8. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
+9. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
+10. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
+11. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -386,6 +388,7 @@ Make each run explicit, predictable, and less fragile.
 - [x] Add job-level activation guardrail so `isActive: false` blocks the selected job before wiring
 - [x] Complete the generated-model naming and package-derivation standard for the shipped active selected-job contract
 - [ ] Retire the remaining internal generated-model package bridge after the shipped contract is complete
+- [ ] Add additive custom-step pairing and context handoff contract for bounded customer-owned pre/post steps without changing explicit ordered runtime semantics
 - [ ] Add a relational source column alias contract so selected database column names can differ from generated/runtime property names without ad hoc query-only workarounds
 - [ ] Add stronger config validation error messages for operators
 - [ ] Make step definitions more business-meaningful and less index-driven
@@ -397,6 +400,7 @@ Make each run explicit, predictable, and less fragile.
 - inactive selected jobs fail early and never reach `BatchConfig` step assembly
 - generated-model package/class identity is deterministic from the selected job and logical config names
 - supported step orchestration patterns are documented
+- custom and standard step pairing semantics are explicit, fail-fast, and observable
 
 ---
 
@@ -760,14 +764,14 @@ Exit signal:
 
 Use this as the condensed near-term priority order:
 
-1. `B1` / `B2` / `D1` â€” fault tolerance and remaining error-taxonomy / operator-evidence hardening
-2. `E2` â€” packaged-run guidance
-3. duplicate follow-on â€” `T7` (larger duplicate-scale redesign)
-4. deferred `Epic T` advanced sequence â€” `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
-5. `Epic P` â€” first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
-6. `X1` / `X2` â€” SFTP contract and first inbound slice
-7. `F1` / `S1` / `S2` â€” restartability and scheduler baseline
-8. `V3` / `V4` / `G1` â€” reporting, release gating, and secure config
+1. `B1` / `B2` / `D1` / `A7` - fault tolerance, error-taxonomy hardening, and bounded custom-step pairing contract for customer pre/post hooks
+2. `E2` - packaged-run guidance
+3. duplicate follow-on - `T7` (larger duplicate-scale redesign)
+4. deferred `Epic T` advanced sequence - `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
+5. `Epic P` - first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
+6. `X1` / `X2` - SFTP contract and first inbound slice
+7. `F1` / `S1` / `S2` - restartability and scheduler baseline
+8. `V3` / `V4` / `G1` - reporting, release gating, and secure config
 
 ---
 

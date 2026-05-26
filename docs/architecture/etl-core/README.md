@@ -18,6 +18,7 @@ Use it when you want to understand:
 - [`runtime-flow.md`](runtime-flow.md) - shipped end-to-end ETL runtime flow
 - [`csv-to-xml-runtime-flow.md`](csv-to-xml-runtime-flow.md) - operational deep dive for the shipped `CSV -> XML` path
 - [`extension-points.md`](extension-points.md) - ETL extension seams and guardrails
+- [`custom-step-pairing-and-context-handoff.md`](custom-step-pairing-and-context-handoff.md) - future custom-step pairing contract, class skeletons, exception categories, and context handoff policy
 - [`oneflow-runtime-fallback-reference.md`](oneflow-runtime-fallback-reference.md) - shipped fallback/default decision matrix
 - [`generated-model-naming-standard.md`](generated-model-naming-standard.md) - generated-model naming and package contract
 - [`file-ingestion-hardening.md`](file-ingestion-hardening.md) - hardening direction on the active ETL path
@@ -32,4 +33,3 @@ Use it when you want to understand:
 ## Migration note
 
 This folder now holds the ETL-core notes directly.
-

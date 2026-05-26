@@ -45,6 +45,10 @@ The engine is designed around three runtime extension points:
 - processor transforms/rules/providers on the shared default processor path
 - writer implementations
 
+Planned additive seam (future direction):
+
+- custom step providers/handlers for bounded customer-owned pre/post behavior that still runs inside one explicit ordered `steps[]` plan
+
 Reader and writer implementations are selected dynamically by format config.
 
 Processor runtime selection is intentionally narrowed after the `S6` cutover: selected-job runs route through one shared `type: default` processor contract, while processor behavior remains extensible through transform/rule/provider SPIs.
@@ -89,6 +93,46 @@ Validation and field-level processing behavior now use both shipped and planned 
 - Built-in source validators: `CsvSourceValidator`, `XmlSourceValidator`, `RelationalSourceValidator`.
 - Built-in processor rules: `NotNullProcessorValidationRule`, `TimeFormatProcessorValidationRule`, `DuplicateProcessorValidationRule`.
 - Processor transform extension point remains on the active runtime path with `ProcessorConfig`, `DefaultDynamicProcessor`, and mapping components under `src/main/java/com/etl/mapping/`.
+
+## Planned custom-step pairing seam (future direction)
+
+This seam is planned under backlog item [`A7`](../../product/backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md).
+
+Detailed design note:
+
+- [`custom-step-pairing-and-context-handoff.md`](custom-step-pairing-and-context-handoff.md)
+
+Goal: allow customer-owned custom behavior (for example relational header audit start/finalize logic) before or after standard OneFlow steps without creating a second orchestration model.
+
+Phase-1 identity split for this seam should stay fixed: `steps[].name` for operator-visible step identity and `steps[].custom.type` for provider binding identity.
+
+### Proposed class-level anchors
+
+- `JobConfig.JobStepConfig` extension for step `kind` and optional custom metadata block
+- `CustomStepConfig` for typed custom-step fields (`type`, optional context keys, optional result policy)
+- `DynamicCustomStepFactory` for custom provider dispatch
+- `CustomStepProvider` for registration/discovery of customer step types
+- `CustomStepHandler` for executable user code
+- `CustomStepContextBridge` for controlled context publish/consume between custom and standard steps
+- `CustomStepOutcomeMapper` for shared `CONTINUE`/`STOP`/`FAIL` mapping
+- `CustomStepFailureFinalizer` for guaranteed status-finalization on failure paths
+
+### Context handoff rule set
+
+- publish shared values through explicit namespaced keys (example: `header.fileId`)
+- consume shared values only through declared bindings
+- keep key ownership write-once by default to avoid silent overwrite drift
+- fail fast before dependent step execution when required keys are missing or type-incompatible
+- emit structured evidence when keys are published or consumed
+
+### Exception category rule set
+
+- `config`: malformed custom-step YAML or invalid required-field combinations
+- `binding`: unknown custom-step type or provider conflict
+- `context`: missing required key, forbidden overwrite, or incompatible value type
+- `execution`: customer handler SQL/IO/business failure
+
+These categories should align with Epic D taxonomy evolution so startup faults and runtime faults stay distinguishable in operator evidence.
 
 ## How to add a new source/target format
 
