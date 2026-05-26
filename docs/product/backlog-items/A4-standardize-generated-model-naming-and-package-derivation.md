@@ -1,4 +1,4 @@
-# A4 — Standardize generated-model naming and package derivation
+# A4 - Standardize generated-model naming and package derivation
 
 ## Summary
 
@@ -87,7 +87,7 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Generated model naming standard`](../../architecture/generated-model-naming-standard.md)
+- [`Generated model naming standard`](../../architecture/etl-core/generated-model-naming-standard.md)
 - [`Adaptive step selection and generated-model contract`](../../adr/0003-adaptive-step-selection-and-generated-model-contract.md)
 - [`Job config reference`](../../config/job-config.md)
 
@@ -101,21 +101,21 @@ A developer-local multi-step TVL-style example in `private-jobs/<collection>/xml
 
 Treat `packageName` removal as a phased compatibility change, not a one-shot cleanup.
 
-### Phase 1 — shipped package-free explicit-job baseline
+### Phase 1 - shipped package-free explicit-job baseline
 
 - explicit `job-config.yaml` runs are now package-free and derive packages internally
 - runtime and build-time generation already derive `...source` and `...target` packages from the selected non-blank job name
 - generated-name collision checks and cross-step handoff-order checks are already active on the selected-job path
 
-### Phase 2 — remove the field from docs and preserved examples
+### Phase 2 - remove the field from docs and preserved examples
 
 - selected-job source/target YAML, runtime-owned XML definition YAML, and bundled demo fallback YAML are now package-free
 - config reference docs now describe `packageName` as unsupported in runtime YAML rather than as a normal authored field
 - operator-facing errors name the selected job, config file, logical source/target name, and derived value
 
-### Phase 3 — follow-on internal bridge retirement
+### Phase 3 - follow-on internal bridge retirement
 
-- remaining internal cleanup now moves to [`A6 — Retire remaining internal generated-model package bridge`](A6-retire-internal-generated-model-package-bridge.md)
+- remaining internal cleanup now moves to [`A6 - Retire remaining internal generated-model package bridge`](A6-retire-internal-generated-model-package-bridge.md)
 - that follow-on item covers config-object package cache removal, remaining compatibility defaults, and other non-contract bridge seams that no longer need to block A4 completion
 
 ## Status notes

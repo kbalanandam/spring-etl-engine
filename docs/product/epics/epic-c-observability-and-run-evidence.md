@@ -1,4 +1,4 @@
-# Epic C — Observability and run evidence
+# Epic C - Observability and run evidence
 
 ## Summary
 
@@ -16,13 +16,13 @@ This epic is **not** the place for full scheduler/control-plane persistence, tho
 
 ## Related backlog items
 
-- [`C1 ? — Emit machine-readable run summary with scenario, status, and duration`](../backlog-items/C1-machine-readable-run-summary.md)
-- [`C2 ? — Complete run-level source / written / rejected count rollup`](../backlog-items/C2-run-level-count-rollup-and-reconciliation.md)
+- [`C1 - Emit machine-readable run summary with scenario, status, and duration`](../backlog-items/C1-machine-readable-run-summary.md)
+- [`C2 - Complete run-level source / written / rejected count rollup`](../backlog-items/C2-run-level-count-rollup-and-reconciliation.md)
 
 ## Related docs
 
-- [`../../architecture/runtime-flow.md`](../../architecture/runtime-flow.md)
-- [`../../architecture/job-history-and-operational-observability.md`](../../architecture/job-history-and-operational-observability.md)
+- [`../../architecture/etl-core/runtime-flow.md`](../../architecture/etl-core/runtime-flow.md)
+- [`../../architecture/control-plane/job-history-and-operational-observability.md`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Maintenance note
 

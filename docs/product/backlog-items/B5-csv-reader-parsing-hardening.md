@@ -1,4 +1,4 @@
-# B5 — CSV reader parsing hardening
+# B5 - CSV reader parsing hardening
 
 ## Summary
 
@@ -74,8 +74,8 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Extension points`](../../architecture/extension-points.md)
-- [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md)
+- [`Extension points`](../../architecture/etl-core/extension-points.md)
+- [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md)
 - [`CSV source reference`](../../config/source/csv-source.md)
 
 ## Implementation notes

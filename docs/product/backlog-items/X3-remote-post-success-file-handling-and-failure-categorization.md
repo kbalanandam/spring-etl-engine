@@ -1,4 +1,4 @@
-# X3 — Add remote post-success file handling and failure categorization for SFTP
+# X3 - Add remote post-success file handling and failure categorization for SFTP
 
 ## Summary
 
@@ -55,8 +55,8 @@ Build on the staged inbound slice first, then add remote file-disposition rules 
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`SFTP transport capability`](../../architecture/sftp-transport-capability.md)
-- [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
+- [`SFTP transport capability`](../../architecture/etl-core/sftp-transport-capability.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
 

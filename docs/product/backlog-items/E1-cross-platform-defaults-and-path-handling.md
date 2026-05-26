@@ -1,4 +1,4 @@
-# E1 — Finalize cross-platform defaults and path handling rules
+# E1 - Finalize cross-platform defaults and path handling rules
 
 ## Summary
 

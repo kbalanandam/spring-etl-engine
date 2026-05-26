@@ -23,15 +23,15 @@ Anything beyond the ETL core should be treated as additive and optional. If a te
 
 It is intentionally different from the architecture roadmap:
 
-- [`ETL product evolution roadmap`](../architecture/etl-product-evolution-roadmap.md) explains **direction and phases**
+- [`ETL product evolution roadmap`](../architecture/foundations/etl-product-evolution-roadmap.md) explains **direction and phases**
 - this backlog explains **what to do next, why it matters, and how to know when it is done**
 
 Use this file to keep the team aligned when implementation pressure, feature requests, or uncertainty create drift.
 
 This file now serves two purposes at the same time:
 
-- **narrative backlog** — preserve product intent, capability gaps, and milestone outcomes
-- **execution board** — track what should start next, what is in progress now, and what is blocked
+- **narrative backlog** - preserve product intent, capability gaps, and milestone outcomes
+- **execution board** - track what should start next, what is in progress now, and what is blocked
 
 ---
 
@@ -126,8 +126,8 @@ Avoid work that adds broad platform complexity before the ETL foundation is stab
 This backlog is organized in three layers:
 
 1. **Completed / established foundation**
-2. **Near-term backlog** — needed to become a reliable ETL product
-3. **Enterprise backlog** — needed to become an enterprise-grade product
+2. **Near-term backlog** - needed to become a reliable ETL product
+3. **Enterprise backlog** - needed to become an enterprise-grade product
 
 It also includes a lightweight execution board so the team can work from the same document day to day.
 
@@ -159,17 +159,17 @@ Use the execution board to answer:
 
 ### Priority legend
 
-- **P0** — critical now; should be completed before lower-priority work expands
-- **P1** — important next; should follow once P0 items are stable
-- **P2** — useful later; valuable but not urgent for the current milestone
+- **P0** - critical now; should be completed before lower-priority work expands
+- **P1** - important next; should follow once P0 items are stable
+- **P2** - useful later; valuable but not urgent for the current milestone
 
 ### Status legend
 
-- **Ready** — approved to start when capacity is available
-- **In Progress** — actively being worked
-- **Blocked** — cannot move until a dependency or decision is resolved
-- **Done** — completed to the expected operational level
-- **Deferred** — intentionally postponed to a later milestone
+- **Ready** - approved to start when capacity is available
+- **In Progress** - actively being worked
+- **Blocked** - cannot move until a dependency or decision is resolved
+- **Done** - completed to the expected operational level
+- **Deferred** - intentionally postponed to a later milestone
 
 ### Board detail pages
 
@@ -219,10 +219,11 @@ This table is the day-to-day execution view for the current product stage.
 |---|---|---|---|---|---|---|---|
 | [A1](backlog-items/A1-explicit-step-pairing-and-step-definitions.md) | Replace positional source-target pairing with explicit step pairing or step definitions | Epic A | P0 | Done | M1 | none | Explicit `steps` orchestration is now the selected-scenario runtime contract |
 | [A2](backlog-items/A2-validate-scenario-completeness-before-job-start.md) | Validate scenario completeness before job start | Epic A | P0 | Done | M1 | A1 | Startup now fails fast for missing `steps`, missing referenced files, and unknown named step bindings |
-| [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Done | M1 | A2 | Shipped through optional top-level `job-config.yaml -> isActive`, with fail-fast `ConfigLoader` startup errors before referenced config resolution; see [`Job activation and startup guardrails`](../architecture/job-level-activation-and-startup-guardrails.md) |
+| [A3](backlog-items/A3-job-level-activation-guardrail.md) | Add job-level activation guardrail so inactive selected jobs fail before wiring | Epic A | P1 | Done | M1 | A2 | Shipped through optional top-level `job-config.yaml -> isActive`, with fail-fast `ConfigLoader` startup errors before referenced config resolution; see [`Job activation and startup guardrails`](../architecture/etl-core/job-level-activation-and-startup-guardrails.md) |
 | [A4](backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | Done | M2 | A2 | Shipped selected-job contract: package-free source/target YAML, required non-blank job names, centralized package resolution, collision and handoff guardrails, standardized generated headers, and XML `XmlRecord` / `XmlRoot` class-shape separation on the active path |
 | [A5](backlog-items/A5-relational-source-column-alias-contract.md) | Add relational source column alias contract and reader mapping | Epic A | P2 | Deferred | M2 | none | Parked for later review so relational reads can support source-column-to-property differences without disturbing the current phase-1 baseline |
 | [A6](backlog-items/A6-retire-internal-generated-model-package-bridge.md) | Retire remaining internal generated-model package bridge | Epic A | P2 | Deferred | M2 | A4 | Parked for later as optional internal cleanup after higher-priority work; do not reopen authored `packageName` support while it is deferred |
+| [A7](backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md) | Add custom-step pairing, context handoff, and failure-contract baseline | Epic A | P1 | Blocked | M2 | A1, D1 | Blocked until pre-implementation multi-review artifacts (runtime, scheduler/control-plane, UI/operations) are completed; contract remains non-shipped |
 | [T1](backlog-items/T1-field-level-validation-and-first-reject-handling-slice.md) | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | [T1a](backlog-items/T1a-processor-transform-spi-and-first-cleaner-normalization-slice.md) | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | [T2](backlog-items/T2-expression-based-derived-field-support.md) | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
@@ -239,6 +240,7 @@ This table is the day-to-day execution view for the current product stage.
 | [T13](backlog-items/T13-transform-stage-observability-metrics.md) | Define transform-stage observability metrics and operational evidence | Epic T | P2 | Deferred | M3 | T10, V1 | #4 in deferred advanced transform sequence. Emit transform-stage metrics and outcomes independently from validation-rule evidence so operators can diagnose transform behavior directly |
 | [T14](backlog-items/T14-secure-data-shaping-transforms.md) | Define secure data-shaping transforms for sensitive fields | Epic T | P2 | Deferred | M3 | T8, G1 | #6 in deferred advanced transform sequence. Add governed masking/tokenization/hash transform patterns so sensitive-field handling is explicit, reusable, and auditable |
 | [T15](backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) | Define XML-native duplicate identity for nested XML source scenarios | Epic T | P2 | Done | M3 | T4, P3 | Advanced follow-on for nested XML duplicate correctness is now complete (`S1`-`S6`), including the intentional non-compatible processor-contract cutover |
+| [T16](backlog-items/T16-customer-owned-processor-transform-extension-seam.md) | Define customer-owned processor transform extension seam | Epic T | P1 | In Progress | M2 | T3, D1 | Planning and contract-shaping started for additive custom transform extensibility on the active `type: default` processor seam; remains non-shipped |
 | [B1](backlog-items/B1-configurable-skip-policy-support.md) | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
 | [B2](backlog-items/B2-configurable-retry-policy-support.md) | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
 | [B3](backlog-items/B3-archive-processed-source-files-after-success.md) | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
@@ -276,15 +278,17 @@ This table is the day-to-day execution view for the current product stage.
 Use this section as the near-term sequencing view behind the execution board:
 
 1. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
-2. Keep `E2` as the next portability/documentation step.
-3. Keep duplicate-handling follow-on split explicitly: `T15` is closed and larger duplicate-state scale redesign remains deferred under `T7`.
-4. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
-5. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
-6. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
-7. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
-8. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
-9. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-10. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
+2. Keep `A7` near-term so custom-step pairing, context handoff, and failure finalization can be bounded before ad hoc customer hooks spread.
+3. Keep `T16` near-term with `A7` so customer-owned processor transforms and customer-owned job steps evolve as one bounded extension model, both aligned to `D1` failure taxonomy direction.
+4. Keep `E2` as the next portability/documentation step.
+5. Keep duplicate-handling follow-on split explicitly: `T15` is closed and larger duplicate-state scale redesign remains deferred under `T7`.
+6. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
+7. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
+8. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
+9. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
+10. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
+11. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
+12. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -323,8 +327,8 @@ Current proof anchors:
 
 Architecture anchors:
 
-- [`Validation extension architecture`](../architecture/validation-extension-architecture.md)
-- [`File ingestion hardening`](../architecture/file-ingestion-hardening.md)
+- [`Validation extension architecture`](../architecture/etl-core/validation-extension-architecture.md)
+- [`File ingestion hardening`](../architecture/etl-core/file-ingestion-hardening.md)
 - [`Default processor reference`](../config/processor/default-processor.md)
 
 Latest completed implementation step:
@@ -346,9 +350,9 @@ Avoid starting new `P1` or `P2` items while `P0` items remain open unless the hi
 
 ---
 
-## Layer 1 — Completed / Established Foundation
+## Layer 1 - Completed / Established Foundation
 
-These are not “finished forever,” but they represent meaningful product progress already made.
+These are not "finished forever," but they represent meaningful product progress already made.
 
 ### Foundation backlog already achieved
 
@@ -371,11 +375,11 @@ These are not “finished forever,” but they represent meaningful product prog
 
 ---
 
-## Layer 2 — Near-Term Backlog
+## Layer 2 - Near-Term Backlog
 
-These items move the product from “strong ETL foundation” to “reliable product for real operational use.”
+These items move the product from "strong ETL foundation" to "reliable product for real operational use."
 
-## Epic A — Runtime correctness and orchestration clarity
+## Epic A - Runtime correctness and orchestration clarity
 
 ### Goal
 Make each run explicit, predictable, and less fragile.
@@ -386,6 +390,7 @@ Make each run explicit, predictable, and less fragile.
 - [x] Add job-level activation guardrail so `isActive: false` blocks the selected job before wiring
 - [x] Complete the generated-model naming and package-derivation standard for the shipped active selected-job contract
 - [ ] Retire the remaining internal generated-model package bridge after the shipped contract is complete
+- [ ] Add additive custom-step pairing and context handoff contract for bounded customer-owned pre/post steps without changing explicit ordered runtime semantics
 - [ ] Add a relational source column alias contract so selected database column names can differ from generated/runtime property names without ad hoc query-only workarounds
 - [ ] Add stronger config validation error messages for operators
 - [ ] Make step definitions more business-meaningful and less index-driven
@@ -397,10 +402,11 @@ Make each run explicit, predictable, and less fragile.
 - inactive selected jobs fail early and never reach `BatchConfig` step assembly
 - generated-model package/class identity is deterministic from the selected job and logical config names
 - supported step orchestration patterns are documented
+- custom and standard step pairing semantics are explicit, fail-fast, and observable
 
 ---
 
-## Epic B — Fault tolerance and data quality behavior
+## Epic B - Fault tolerance and data quality behavior
 
 ### Goal
 Handle bad data and transient failures in a controlled way.
@@ -425,7 +431,7 @@ Handle bad data and transient failures in a controlled way.
 
 ---
 
-## Epic P — Source-native parser maturity
+## Epic P - Source-native parser maturity
 
 ### Goal
 Make parser growth explicit, source-native, and disciplined so OneFlow first proves a few real business scenarios on the existing Java runtime and real files, then matures CSV and XML parsing further without turning parsing into a second ETL core.
@@ -449,7 +455,7 @@ Make parser growth explicit, source-native, and disciplined so OneFlow first pro
 
 ---
 
-## Epic T — Transformation capability maturity
+## Epic T - Transformation capability maturity
 
 ### Goal
 Grow the product from structural field mapping into richer transformation behavior comparable to traditional ETL expectations, but in phased and controlled steps.
@@ -461,20 +467,21 @@ Grow the product from structural field mapping into richer transformation behavi
 - [x] Add conditional transformation rule support
 - [x] Add validation-aware transformation behavior
 - [x] Add controlled rejected-record output for invalid records
+- [ ] Define customer-owned processor transform extension seam so project-specific field transformations can scale without core forking
 - [ ] Define lookup/enrichment processor baseline; frozen first slice is runtime-loaded reference-set validation for reject/accept checks before broader enrichment work
 - [ ] Add shared default-value mapping for audit columns, constants, and future formula-ready placeholders
 - [ ] Document transformation maturity levels and non-goals
 - [ ] Add guardrails against ambiguous generic value rewriting across future source and processor layers
 
 ### Done criteria
-- transformation support extends beyond direct `from` → `to` mapping
+- transformation support extends beyond direct `from` -> `to` mapping
 - shipped validation and cleaner slices are explicit, configurable, and testable
 - derived-field and conditional behavior are defined and testable before broader expansion
 - transformation and reject behavior are operator-visible and documented
 
 ---
 
-## Epic C — Run summary, audit, and reconciliation
+## Epic C - Run summary, audit, and reconciliation
 
 ### Goal
 Make each ETL run auditable beyond raw logs.
@@ -493,7 +500,7 @@ Make each ETL run auditable beyond raw logs.
 
 ---
 
-## Epic D — Observability and operator usability
+## Epic D - Observability and operator usability
 
 ### Goal
 Make operations support practical for production-like usage.
@@ -512,7 +519,7 @@ Make operations support practical for production-like usage.
 
 ---
 
-## Epic E — Portability and packaging
+## Epic E - Portability and packaging
 
 ### Goal
 Make local, CI, and deployment usage more consistent across environments.
@@ -533,7 +540,7 @@ Make local, CI, and deployment usage more consistent across environments.
 
 ---
 
-## Epic X — Transport-oriented file acquisition and delivery
+## Epic X - Transport-oriented file acquisition and delivery
 
 ### Goal
 Add a controlled near-term transport capability for repeated file pickup and delivery scenarios, starting with staged inbound SFTP behavior while keeping partner-facing transport and security concerns separable from the ETL core.
@@ -554,7 +561,7 @@ Add a controlled near-term transport capability for repeated file pickup and del
 
 ---
 
-## Epic S — Scheduling and control-plane capability
+## Epic S - Scheduling and control-plane capability
 
 ### Goal
 Add controlled trigger and operator-control capability around the ETL core while keeping scheduler evolution inside the main roadmap instead of creating a separate scheduler roadmap or pseudo-product too early.
@@ -584,11 +591,11 @@ That capability must remain optional from the ETL core point of view and must no
 
 ---
 
-## Layer 3 — Enterprise Backlog
+## Layer 3 - Enterprise Backlog
 
-These items move the product from “reliable ETL engine” to “enterprise-grade ETL product.”
+These items move the product from "reliable ETL engine" to "enterprise-grade ETL product."
 
-## Epic F — Restartability and idempotent re-run model
+## Epic F - Restartability and idempotent re-run model
 
 ### Goal
 Ensure production-safe reruns and recovery.
@@ -607,7 +614,7 @@ Ensure production-safe reruns and recovery.
 
 ---
 
-## Epic G — Security and secret handling
+## Epic G - Security and secret handling
 
 ### Goal
 Make runtime configuration safe for enterprise environments.
@@ -626,7 +633,7 @@ Make runtime configuration safe for enterprise environments.
 
 ---
 
-## Epic H — Governance and compliance readiness
+## Epic H - Governance and compliance readiness
 
 ### Goal
 Support enterprise audit, control, and change visibility.
@@ -645,7 +652,7 @@ Support enterprise audit, control, and change visibility.
 
 ---
 
-## Epic I — Scale and performance maturity
+## Epic I - Scale and performance maturity
 
 ### Goal
 Make large-volume flows predictable and tunable.
@@ -664,7 +671,7 @@ Make large-volume flows predictable and tunable.
 
 ---
 
-## Epic J — Operator product experience
+## Epic J - Operator product experience
 
 ### Goal
 Make the product usable by operators, not just developers.
@@ -684,7 +691,7 @@ Make the product usable by operators, not just developers.
 
 ---
 
-## Epic V — Verification reporting and release evidence
+## Epic V - Verification reporting and release evidence
 
 ### Goal
 Turn local test output and scenario evidence into a structured verification-reporting capability that supports enterprise-grade change validation, regression visibility, and release-readiness decisions.
@@ -708,7 +715,7 @@ Turn local test output and scenario evidence into a structured verification-repo
 
 ## Milestone View
 
-## Milestone M1 — Reliable ETL Core
+## Milestone M1 - Reliable ETL Core
 
 Focus:
 - orchestration clarity
@@ -724,7 +731,7 @@ Current state:
 Exit signal:
 - product is credible for repeated controlled ETL runs across supported file scenarios
 
-## Milestone M2 — Operable Product
+## Milestone M2 - Operable Product
 
 Focus:
 - structured run history
@@ -736,7 +743,7 @@ Focus:
 Exit signal:
 - operations support can answer what failed, why, and what to do next
 
-## Milestone M3 — Enterprise Readiness Baseline
+## Milestone M3 - Enterprise Readiness Baseline
 
 Focus:
 - secret handling
@@ -760,20 +767,20 @@ Exit signal:
 
 Use this as the condensed near-term priority order:
 
-1. `B1` / `B2` / `D1` — fault tolerance and remaining error-taxonomy / operator-evidence hardening
-2. `E2` — packaged-run guidance
-3. duplicate follow-on — `T7` (larger duplicate-scale redesign)
-4. deferred `Epic T` advanced sequence — `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
-5. `Epic P` — first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
-6. `X1` / `X2` — SFTP contract and first inbound slice
-7. `F1` / `S1` / `S2` — restartability and scheduler baseline
-8. `V3` / `V4` / `G1` — reporting, release gating, and secure config
+1. `B1` / `B2` / `D1` / `A7` / `T16` - fault tolerance, error-taxonomy hardening, and bounded customer extensibility through job-level custom steps plus processor-level custom transforms
+2. `E2` - packaged-run guidance
+3. duplicate follow-on - `T7` (larger duplicate-scale redesign)
+4. deferred `Epic T` advanced sequence - `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
+5. `Epic P` - first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
+6. `X1` / `X2` - SFTP contract and first inbound slice
+7. `F1` / `S1` / `S2` - restartability and scheduler baseline
+8. `V3` / `V4` / `G1` - reporting, release gating, and secure config
 
 ---
 
-## What “Enterprise Grade” Means Here
+## What "Enterprise Grade" Means Here
 
-For this product, “enterprise grade” should mean:
+For this product, "enterprise grade" should mean:
 
 - runs are explicit and reproducible
 - failures are diagnosable and recoverable

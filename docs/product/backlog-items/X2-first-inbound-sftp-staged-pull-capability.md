@@ -1,4 +1,4 @@
-# X2 — Add first inbound SFTP staged pull capability
+# X2 - Add first inbound SFTP staged pull capability
 
 ## Summary
 
@@ -38,7 +38,7 @@ Add one narrow staged inbound SFTP capability that hands off a local file to the
 
 ## Proposed approach
 
-Keep the first slice file-staging-only so transport remains clearly separated from the ETL worker’s main processing contract.
+Keep the first slice file-staging-only so transport remains clearly separated from the ETL worker's main processing contract.
 
 ## Operator / runtime impact
 
@@ -55,8 +55,8 @@ Keep the first slice file-staging-only so transport remains clearly separated fr
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`SFTP transport capability`](../../architecture/sftp-transport-capability.md)
-- [`Control-plane worker boundary`](../../architecture/control-plane-worker-boundary.md)
+- [`SFTP transport capability`](../../architecture/etl-core/sftp-transport-capability.md)
+- [`Control-plane worker boundary`](../../architecture/control-plane/control-plane-worker-boundary.md)
 
 ## Implementation notes
 

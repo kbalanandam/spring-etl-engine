@@ -1,4 +1,4 @@
-# T1 — Add field-level validation rules and first reject-handling slice for file scenarios
+# T1 - Add field-level validation rules and first reject-handling slice for file scenarios
 
 ## Summary
 
@@ -56,8 +56,8 @@ Keep validation on the active processor seam, emit rejected-record artifacts in 
 
 - [`Product backlog`](../product-backlog.md)
 - [`Default processor config`](../../config/processor/default-processor.md)
-- [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md)
-- [`Validation extension architecture`](../../architecture/validation-extension-architecture.md)
+- [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md)
+- [`Validation extension architecture`](../../architecture/etl-core/validation-extension-architecture.md)
 
 ## Implementation notes
 

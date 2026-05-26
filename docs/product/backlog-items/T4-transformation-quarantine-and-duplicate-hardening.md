@@ -1,4 +1,4 @@
-# T4 — Transformation quarantine and duplicate hardening
+# T4 - Transformation quarantine and duplicate hardening
 
 ## Summary
 
@@ -91,17 +91,17 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md)
-- [`Validation extension architecture`](../../architecture/validation-extension-architecture.md)
-- [`Runtime flow`](../../architecture/runtime-flow.md)
-- [`CSV to XML runtime flow`](../../architecture/csv-to-xml-runtime-flow.md)
+- [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md)
+- [`Validation extension architecture`](../../architecture/etl-core/validation-extension-architecture.md)
+- [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
+- [`CSV to XML runtime flow`](../../architecture/etl-core/csv-to-xml-runtime-flow.md)
 - [`Default processor reference`](../../config/processor/default-processor.md)
 
 Suggested reading order for this topic:
 
 1. [`Default processor reference`](../../config/processor/default-processor.md) for the shipped YAML contract (`storageMode`)
-2. [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md) for resolver behavior and operational rationale
-3. [`Runtime flow`](../../architecture/runtime-flow.md) and [`CSV to XML runtime flow`](../../architecture/csv-to-xml-runtime-flow.md) for emitted evidence events and execution context
+2. [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md) for resolver behavior and operational rationale
+3. [`Runtime flow`](../../architecture/etl-core/runtime-flow.md) and [`CSV to XML runtime flow`](../../architecture/etl-core/csv-to-xml-runtime-flow.md) for emitted evidence events and execution context
 
 ## Implementation notes
 

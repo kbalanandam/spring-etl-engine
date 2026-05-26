@@ -1,4 +1,4 @@
-# T8 — Reusable transform profiles and versioning contract
+# T8 - Reusable transform profiles and versioning contract
 
 ## Summary
 
@@ -102,8 +102,8 @@ Expected behavior:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Transformation capability catalog`](../../architecture/transformation-capability-catalog.md)
-- [`Transformation capability roadmap`](../../architecture/transformation-capability-roadmap.md)
+- [`Transformation capability catalog`](../../architecture/etl-core/transformation-capability-catalog.md)
+- [`Transformation capability roadmap`](../../architecture/etl-core/transformation-capability-roadmap.md)
 - [`Default processor reference`](../../config/processor/default-processor.md)
 
 ## Implementation notes

@@ -28,6 +28,6 @@ Describe what changed and why.
 ## Helpful links
 
 - [`docs/README.md`](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/README.md)
-- [`docs/architecture/TEMPLATE.md`](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/architecture/TEMPLATE.md)
+- [`docs/architecture/foundations/TEMPLATE.md`](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/architecture/foundations/TEMPLATE.md)
 - [`docs/adr/TEMPLATE.md`](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/adr/TEMPLATE.md)
 

@@ -1,4 +1,4 @@
-# Epic P — Source-native parser maturity
+# Epic P - Source-native parser maturity
 
 ## Summary
 
@@ -24,20 +24,20 @@ The most important real-file proof anchors for this epic are the preserved bundl
 
 ## Related backlog items
 
-- [`P1 — Freeze parser roadmap around CSV and XML source-native maturity`](../backlog-items/P1-freeze-parser-roadmap-around-csv-and-xml-maturity.md)
-- [`P2 — Expand CSV parser strictness and malformed-row categorization on the read path`](../backlog-items/P2-expand-csv-parser-strictness-and-malformed-row-categorization.md)
-- [`P3 — Expand XML parser maturity for namespace-aware and fragment-contract scenarios`](../backlog-items/P3-expand-xml-parser-maturity-for-namespace-and-fragment-contracts.md)
-- [`P4 — Prove CSV and XML parser maturity through preserved scenarios and verification`](../backlog-items/P4-prove-csv-and-xml-parser-maturity-through-preserved-scenarios-and-verification.md)
-- [`P5 — Define native parser adoptability and CSV-first sidecar integration readiness`](../backlog-items/P5-native-parser-adoptability-and-sidecar-integration-readiness.md)
+- [`P1 - Freeze parser roadmap around CSV and XML source-native maturity`](../backlog-items/P1-freeze-parser-roadmap-around-csv-and-xml-maturity.md)
+- [`P2 - Expand CSV parser strictness and malformed-row categorization on the read path`](../backlog-items/P2-expand-csv-parser-strictness-and-malformed-row-categorization.md)
+- [`P3 - Expand XML parser maturity for namespace-aware and fragment-contract scenarios`](../backlog-items/P3-expand-xml-parser-maturity-for-namespace-and-fragment-contracts.md)
+- [`P4 - Prove CSV and XML parser maturity through preserved scenarios and verification`](../backlog-items/P4-prove-csv-and-xml-parser-maturity-through-preserved-scenarios-and-verification.md)
+- [`P5 - Define native parser adoptability and CSV-first sidecar integration readiness`](../backlog-items/P5-native-parser-adoptability-and-sidecar-integration-readiness.md)
 
 ## Related docs
 
-- [`../../architecture/oneflow-file-parser-capabilities.md`](../../architecture/oneflow-file-parser-capabilities.md)
-- [`../../architecture/native-parser-adoptability.md`](../../architecture/native-parser-adoptability.md)
-- [`../../architecture/csv-native-parser-sidecar-protocol.md`](../../architecture/csv-native-parser-sidecar-protocol.md)
-- [`../../architecture/java-native-parser-reader-adapter-contract.md`](../../architecture/java-native-parser-reader-adapter-contract.md)
-- [`../../architecture/etl-product-evolution-roadmap.md`](../../architecture/etl-product-evolution-roadmap.md)
-- [`../../architecture/extension-points.md`](../../architecture/extension-points.md)
+- [`../../architecture/etl-core/oneflow-file-parser-capabilities.md`](../../architecture/etl-core/oneflow-file-parser-capabilities.md)
+- [`../../architecture/etl-core/native-parser-adoptability.md`](../../architecture/etl-core/native-parser-adoptability.md)
+- [`../../architecture/etl-core/csv-native-parser-sidecar-protocol.md`](../../architecture/etl-core/csv-native-parser-sidecar-protocol.md)
+- [`../../architecture/etl-core/java-native-parser-reader-adapter-contract.md`](../../architecture/etl-core/java-native-parser-reader-adapter-contract.md)
+- [`../../architecture/foundations/etl-product-evolution-roadmap.md`](../../architecture/foundations/etl-product-evolution-roadmap.md)
+- [`../../architecture/etl-core/extension-points.md`](../../architecture/etl-core/extension-points.md)
 - [`../../config/source/csv-source.md`](../../config/source/csv-source.md)
 - [`../../config/source/xml-source.md`](../../config/source/xml-source.md)
 

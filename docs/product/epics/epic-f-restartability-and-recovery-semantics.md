@@ -1,4 +1,4 @@
-# Epic F — Restartability and recovery semantics
+# Epic F - Restartability and recovery semantics
 
 ## Summary
 
@@ -16,13 +16,13 @@ This epic is **not** the place for broader control-plane persistence design by i
 
 ## Related backlog items
 
-- [`F1 ? — Define restart semantics per execution mode`](../backlog-items/F1-restart-semantics-per-execution-mode.md)
+- [`F1 - Define restart semantics per execution mode`](../backlog-items/F1-restart-semantics-per-execution-mode.md)
 
 ## Related docs
 
-- [`../../architecture/runtime-flow.md`](../../architecture/runtime-flow.md)
-- [`../../architecture/job-history-and-operational-observability.md`](../../architecture/job-history-and-operational-observability.md)
-- [`../../architecture/control-plane-operational-data-model.md`](../../architecture/control-plane-operational-data-model.md)
+- [`../../architecture/etl-core/runtime-flow.md`](../../architecture/etl-core/runtime-flow.md)
+- [`../../architecture/control-plane/job-history-and-operational-observability.md`](../../architecture/control-plane/job-history-and-operational-observability.md)
+- [`../../architecture/control-plane/control-plane-operational-data-model.md`](../../architecture/control-plane/control-plane-operational-data-model.md)
 
 ## Maintenance note
 

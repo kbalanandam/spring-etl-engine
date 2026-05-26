@@ -1,4 +1,4 @@
-# V4 — Define verification-report retention, provenance, and release gating rules
+# V4 - Define verification-report retention, provenance, and release gating rules
 
 ## Summary
 
@@ -56,7 +56,7 @@ Keep V4 definition-oriented first: decide what must be retained and trusted befo
 
 - [`Product backlog`](../product-backlog.md)
 - [`ADR 0005`](../../adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
-- [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
 

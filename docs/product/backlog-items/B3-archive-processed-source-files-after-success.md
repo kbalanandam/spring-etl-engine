@@ -1,4 +1,4 @@
-# B3 — Archive processed source files after successful file-based runs
+# B3 - Archive processed source files after successful file-based runs
 
 ## Summary
 
@@ -55,8 +55,8 @@ Treat archiving as a shared file-backed source concern, not a CSV-only special c
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md)
-- [`CSV to XML runtime flow`](../../architecture/csv-to-xml-runtime-flow.md)
+- [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md)
+- [`CSV to XML runtime flow`](../../architecture/etl-core/csv-to-xml-runtime-flow.md)
 
 ## Implementation notes
 

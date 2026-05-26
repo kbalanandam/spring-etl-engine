@@ -1,4 +1,4 @@
-# P1 — Freeze parser roadmap around CSV and XML source-native maturity
+# P1 - Freeze parser roadmap around CSV and XML source-native maturity
 
 ## Summary
 
@@ -59,8 +59,8 @@ Capture the parser roadmap as a dedicated epic with a small set of parser-native
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`OneFlow file parser capabilities and boundaries`](../../architecture/oneflow-file-parser-capabilities.md)
-- [`ETL product evolution roadmap`](../../architecture/etl-product-evolution-roadmap.md)
+- [`OneFlow file parser capabilities and boundaries`](../../architecture/etl-core/oneflow-file-parser-capabilities.md)
+- [`ETL product evolution roadmap`](../../architecture/foundations/etl-product-evolution-roadmap.md)
 
 ## Implementation notes
 

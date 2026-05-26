@@ -1,4 +1,4 @@
-# S4 — Control-plane operational data model
+# S4 - Control-plane operational data model
 
 ## Summary
 
@@ -97,12 +97,14 @@ Expected impact when this item ships:
 
 - [`Product backlog`](../product-backlog.md)
 - [`ADR-0008: formalize control-plane and ETL worker boundary`](../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
-- [`Control plane and worker boundary`](../../architecture/control-plane-worker-boundary.md)
-- [`Control-plane operational data model`](../../architecture/control-plane-operational-data-model.md)
-- [`Control-plane local relational schema`](../../architecture/control-plane-local-relational-schema.md)
-- [`S1 — Schedule model and trigger contract`](S1-schedule-model-and-trigger-contract.md)
-- [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
-- [`Runtime flow`](../../architecture/runtime-flow.md)
+- [`Control plane and worker boundary`](../../architecture/control-plane/control-plane-worker-boundary.md)
+- [`Control-plane operational data model`](../../architecture/control-plane/control-plane-operational-data-model.md)
+- [`Control-plane local relational schema`](../../architecture/control-plane/control-plane-local-relational-schema.md)
+- [`Scheduler architecture direction`](../../architecture/control-plane/scheduler-architecture-direction.md)
+- [`Operator UI architecture direction`](../../architecture/operator-ui/operator-ui-architecture-direction.md)
+- [`S1 - Schedule model and trigger contract`](S1-schedule-model-and-trigger-contract.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
+- [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
 
 ## Implementation notes
 

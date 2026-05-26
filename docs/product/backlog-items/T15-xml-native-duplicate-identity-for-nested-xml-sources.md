@@ -214,7 +214,7 @@ Cutover-day checks:
 - [`T7 - Duplicate tracking scalability redesign deferment`](T7-duplicate-tracking-scalability-redesign-deferment.md)
 - [`P3 - XML parser maturity`](P3-expand-xml-parser-maturity-for-namespace-and-fragment-contracts.md)
 - [`Default processor reference`](../../config/processor/default-processor.md)
-- [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md)
+- [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md)
 
 ## Implementation notes
 

@@ -1,4 +1,4 @@
-# A2 — Validate scenario completeness before job start
+# A2 - Validate scenario completeness before job start
 
 ## Summary
 
@@ -56,7 +56,7 @@ Centralize startup validation in config-loading/orchestration boundaries so brok
 
 - [`Product backlog`](../product-backlog.md)
 - [`Job config reference`](../../config/job-config.md)
-- [`Runtime flow`](../../architecture/runtime-flow.md)
+- [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
 
 ## Implementation notes
 

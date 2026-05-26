@@ -118,6 +118,59 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - Processor-config validation failures in explicit runs are surfaced with the selected scenario name and processor-config path so operators can identify the broken scenario bundle quickly.
 - Generated-model naming/package failures in explicit runs are surfaced as config errors with the selected scenario name, job-config path, and the failing `step` / `source` / `target` so support can narrow model-resolution issues quickly.
 
+## Planned enhancement: custom-step pairing with standard steps
+
+This is a future-direction enhancement, not a shipped runtime field set today.
+
+Tracked backlog item:
+
+- [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../product/backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+
+Design intent:
+
+- keep one explicit ordered `steps[]` contract
+- add bounded customer-owned `custom` steps before/after standard steps
+- allow controlled context handoff (for example `header.fileId`) from custom to standard steps
+- preserve one shared continuation/failure model across both step kinds
+
+Backward-compatibility guardrails for the planned first slice:
+
+- `steps[].kind` stays optional; omission continues to mean `standard`
+- existing standard-only jobs require no config migration and keep current runtime semantics
+- existing standard step fields (`name`, `source`, `target`) stay unchanged for `kind: standard`
+- custom-step evidence is additive; existing standard-step evidence remains stable
+
+Conceptual example (future contract shape):
+
+```yaml
+name: csv-to-relational-with-header-status
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: header-start
+    kind: custom
+    custom:
+      type: headerStart
+      publish:
+        fileId: header.fileId
+  - name: detail-load
+    kind: standard
+    source: Customers
+    target: CustomerDetail
+  - name: header-finalize
+    kind: custom
+    custom:
+      type: headerFinalize
+```
+
+In this planned shape, `custom.publish` maps custom-handler output fields to shared context keys consumed by downstream steps (for example `fileId -> header.fileId`).
+
+Planned preserved examples for this enhancement:
+
+- `src/main/resources/config-jobs/csv-to-relational-with-header-status/`
+- `src/main/resources/config-jobs/xml-to-csv-with-custom-run-audit/`
+
 ## Validation / usage notes
 
 - Every `steps[].source` value must match a configured `sourceName` in the selected source config file.
@@ -135,7 +188,7 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 
 ## Related design note
 
-The broader file-ingestion hardening direction beyond the first preserved CSV proof slice and the current shared file-source archive contract is documented in [`File ingestion hardening`](../architecture/file-ingestion-hardening.md).
+The broader file-ingestion hardening direction beyond the first preserved CSV proof slice and the current shared file-source archive contract is documented in [`File ingestion hardening`](../architecture/etl-core/file-ingestion-hardening.md).
 
 ## Preserved examples
 
@@ -176,8 +229,8 @@ Single-level private bundles such as `private-jobs/partner-orders/` still work, 
 
 - [`Config docs overview`](README.md)
 - [`Default processor reference`](processor/default-processor.md)
-- [`OneFlow runtime fallback reference`](../architecture/oneflow-runtime-fallback-reference.md)
-- [`Hierarchical flow composition`](../architecture/hierarchical-flow-composition.md)
-- [`Flow normalization rules`](../architecture/flow-normalization-rules.md)
-- [`Runtime flow`](../architecture/runtime-flow.md)
+- [`OneFlow runtime fallback reference`](../architecture/etl-core/oneflow-runtime-fallback-reference.md)
+- [`Hierarchical flow composition`](../architecture/etl-core/hierarchical-flow-composition.md)
+- [`Flow normalization rules`](../architecture/etl-core/flow-normalization-rules.md)
+- [`Runtime flow`](../architecture/etl-core/runtime-flow.md)
 

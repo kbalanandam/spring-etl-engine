@@ -1,4 +1,4 @@
-# T9 — Source-native transformation seam before runtime records
+# T9 - Source-native transformation seam before runtime records
 
 ## Summary
 
@@ -103,9 +103,9 @@ Expected behavior:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Transformation capability catalog`](../../architecture/transformation-capability-catalog.md)
-- [`Extension points`](../../architecture/extension-points.md)
-- [`OneFlow file parser capabilities`](../../architecture/oneflow-file-parser-capabilities.md)
+- [`Transformation capability catalog`](../../architecture/etl-core/transformation-capability-catalog.md)
+- [`Extension points`](../../architecture/etl-core/extension-points.md)
+- [`OneFlow file parser capabilities`](../../architecture/etl-core/oneflow-file-parser-capabilities.md)
 
 ## Implementation notes
 

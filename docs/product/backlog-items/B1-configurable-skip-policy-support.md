@@ -1,4 +1,4 @@
-# B1 — Introduce configurable skip policy support
+# B1 - Introduce configurable skip policy support
 
 ## Summary
 
@@ -55,8 +55,8 @@ Add skip behavior only after orchestration and failure categories are explicit e
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md)
-- [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
+- [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
 

@@ -1,4 +1,4 @@
-# A3 — Job-level activation guardrail
+# A3 - Job-level activation guardrail
 
 ## Summary
 
@@ -80,7 +80,7 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Job activation and startup guardrails`](../../architecture/job-level-activation-and-startup-guardrails.md)
+- [`Job activation and startup guardrails`](../../architecture/etl-core/job-level-activation-and-startup-guardrails.md)
 - [`Job config reference`](../../config/job-config.md)
 - [`Use explicit job-config for business-scenario selection`](../../adr/0004-use-explicit-job-config-for-business-scenario-selection.md)
 

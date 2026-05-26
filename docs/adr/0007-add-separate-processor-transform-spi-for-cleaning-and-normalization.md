@@ -103,8 +103,8 @@ That means transform-then-reject is valid by design. For example, a transform ma
 ## Related
 
 - [`Separate source-validation and processor-rule SPIs`](0006-separate-source-validation-and-processor-rule-spis.md)
-- [`Extension points`](../architecture/extension-points.md)
-- [`Transformation capability roadmap`](../architecture/transformation-capability-roadmap.md)
+- [`Extension points`](../architecture/etl-core/extension-points.md)
+- [`Transformation capability roadmap`](../architecture/etl-core/transformation-capability-roadmap.md)
 - [`Default processor reference`](../config/processor/default-processor.md)
 
 

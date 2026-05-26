@@ -1,4 +1,4 @@
-# X4 — Define partner-facing transport security rules and optional isolated worker deployment
+# X4 - Define partner-facing transport security rules and optional isolated worker deployment
 
 ## Summary
 
@@ -55,8 +55,8 @@ Treat X4 as a boundary-definition item before any broad partner-facing transport
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`SFTP transport capability`](../../architecture/sftp-transport-capability.md)
-- [`Control-plane worker boundary`](../../architecture/control-plane-worker-boundary.md)
+- [`SFTP transport capability`](../../architecture/etl-core/sftp-transport-capability.md)
+- [`Control-plane worker boundary`](../../architecture/control-plane/control-plane-worker-boundary.md)
 
 ## Implementation notes
 

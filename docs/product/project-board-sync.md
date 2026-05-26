@@ -8,9 +8,9 @@ The intent is to keep the Markdown execution board as the canonical execution-pl
 
 ## Source-of-truth rule
 
-- **Canonical source** — [`product-backlog.md`](product-backlog.md) `## Current Execution Board`
-- **Projected live view** — GitHub Project **OneFlow Executive Dashboard**
-- **Sync direction** — Markdown table → GitHub Project
+- **Canonical source** - [`product-backlog.md`](product-backlog.md) `## Current Execution Board`
+- **Projected live view** - GitHub Project **OneFlow Executive Dashboard**
+- **Sync direction** - Markdown table → GitHub Project
 
 When the sync is enabled, update the execution-board table first and avoid manually editing the mirrored Project fields unless you are doing emergency cleanup.
 
@@ -22,7 +22,7 @@ Current field mapping:
 
 | Markdown column | Project field / value |
 |---|---|
-| `ID` + `Item` | draft-item title in the form `A4 — Standardize generated-model naming and package derivation` |
+| `ID` + `Item` | draft-item title in the form `A4 - Standardize generated-model naming and package derivation` |
 | `Status` | Project field `Status` |
 | `Priority` | Project field `Priority` |
 | `Epic` | Project field `Epic` |
@@ -123,9 +123,9 @@ Use a Personal Access Token that can update Project V2 items. For private reposi
 
 ### Variables
 
-- `ONEFLOW_PROJECT_NUMBER` — the numeric project number from the Project URL, for example `3`
-- `ONEFLOW_PROJECT_OWNER` — optional; defaults to the repository owner when omitted. If the Project URL is user-owned (`/users/<login>/projects/<number>`), set this to that user login. If the Project URL is organization-owned (`/orgs/<org>/projects/<number>`), set it to that organization login.
-- `ONEFLOW_PROJECT_PUBLIC_MODE` — optional; set to `true` to omit internal notes and relative drill-down links from the synced draft-item body
+- `ONEFLOW_PROJECT_NUMBER` - the numeric project number from the Project URL, for example `3`
+- `ONEFLOW_PROJECT_OWNER` - optional; defaults to the repository owner when omitted. If the Project URL is user-owned (`/users/<login>/projects/<number>`), set this to that user login. If the Project URL is organization-owned (`/orgs/<org>/projects/<number>`), set it to that organization login.
+- `ONEFLOW_PROJECT_PUBLIC_MODE` - optional; set to `true` to omit internal notes and relative drill-down links from the synced draft-item body
 
 ## Public-mode guidance
 

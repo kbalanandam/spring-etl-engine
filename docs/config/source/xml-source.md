@@ -1,4 +1,4 @@
-﻿# XML Source Config
+# XML Source Config
 
 ## Purpose
 
@@ -319,9 +319,9 @@ Current guidance:
 
 ## Related design note
 
-The broader file-ingestion hardening direction, including future XML-oriented validation and malformed-input growth, is documented in [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md).
+The broader file-ingestion hardening direction, including future XML-oriented validation and malformed-input growth, is documented in [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md).
 
-The parser-boundary rule for what XML parsing should and should not own is documented in [`OneFlow file parser capabilities and boundaries`](../../architecture/oneflow-file-parser-capabilities.md).
+The parser-boundary rule for what XML parsing should and should not own is documented in [`OneFlow file parser capabilities and boundaries`](../../architecture/etl-core/oneflow-file-parser-capabilities.md).
 
 ## Build-time generation command
 
@@ -348,7 +348,7 @@ When the profile is enabled:
 
 - [`CSV source reference`](csv-source.md)
 - [`Default processor reference`](../processor/default-processor.md)
-- [`File ingestion hardening`](../../architecture/file-ingestion-hardening.md)
+- [`File ingestion hardening`](../../architecture/etl-core/file-ingestion-hardening.md)
 
 
 

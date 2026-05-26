@@ -1,4 +1,4 @@
-# P5 — Define native parser adoptability and CSV-first sidecar integration readiness
+# P5 - Define native parser adoptability and CSV-first sidecar integration readiness
 
 ## Summary
 
@@ -59,9 +59,9 @@ Capture native-parser adoption in a dedicated future backlog item, anchor it to 
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Native parser adoptability`](../../architecture/native-parser-adoptability.md)
-- [`CSV native parser sidecar protocol`](../../architecture/csv-native-parser-sidecar-protocol.md)
-- [`Java native parser reader adapter contract`](../../architecture/java-native-parser-reader-adapter-contract.md)
+- [`Native parser adoptability`](../../architecture/etl-core/native-parser-adoptability.md)
+- [`CSV native parser sidecar protocol`](../../architecture/etl-core/csv-native-parser-sidecar-protocol.md)
+- [`Java native parser reader adapter contract`](../../architecture/etl-core/java-native-parser-reader-adapter-contract.md)
 
 ## Implementation notes
 

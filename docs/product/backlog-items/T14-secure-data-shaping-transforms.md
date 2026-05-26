@@ -1,4 +1,4 @@
-# T14 — Secure data-shaping transforms for sensitive fields
+# T14 - Secure data-shaping transforms for sensitive fields
 
 ## Summary
 
@@ -106,9 +106,9 @@ Expected behavior:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Transformation capability catalog`](../../architecture/transformation-capability-catalog.md)
+- [`Transformation capability catalog`](../../architecture/etl-core/transformation-capability-catalog.md)
 - [`Secret injection and secure configuration`](G1-secret-injection-via-environment-or-secure-config-source.md)
-- [`Security test strategy`](../../architecture/security-test-strategy.md)
+- [`Security test strategy`](../../architecture/foundations/security-test-strategy.md)
 
 ## Implementation notes
 

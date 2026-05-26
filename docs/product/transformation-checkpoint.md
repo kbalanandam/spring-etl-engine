@@ -26,6 +26,8 @@ The active shipped transformation path is still the processor-centered contract 
 
 Current state: ordered-duplicate resolver evidence, optional `storageMode` override (`auto|memory|embeddedDb`) for `duplicate + orderBy`, additive reject-quarantine publication, additive XML duplicate identity support through `duplicateIdentityMode: flatMapped|xmlNative`, and the intentional non-compatible `S6` processor-contract cutover are shipped.
 
+Near-term roadmap addition: `T16` is now the active planning track for customer-owned processor transform extensibility on the existing `type: default` processor seam.
+
 ### 3. What remains future or conceptual
 
 The examples on deferred items `T8` through `T14` are planning examples for development expectations.
@@ -80,15 +82,16 @@ Do not forget these boundaries:
 
 If you need to resume quickly, read in this order:
 
-1. [`product-backlog.md`](./product-backlog.md) — canonical status and sequencing
-2. [`Epic T`](./epics/epic-t-transformation-capability.md) — shared transformation boundary
-3. [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) — completed quarantine and duplicate hardening baseline
-4. [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) — closed XML-native duplicate identity item (`S1`-`S6` complete)
-5. [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) — deferred duplicate-scale boundary
-6. [`default-processor.md`](../config/processor/default-processor.md) — shipped contract today
-7. [`transformation-capability-roadmap.md`](../architecture/transformation-capability-roadmap.md) — future direction
+1. [`product-backlog.md`](./product-backlog.md) - canonical status and sequencing
+2. [`Epic T`](./epics/epic-t-transformation-capability.md) - shared transformation boundary
+3. [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) - completed quarantine and duplicate hardening baseline
+4. [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) - closed XML-native duplicate identity item (`S1`-`S6` complete)
+5. [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) - deferred duplicate-scale boundary
+6. [`default-processor.md`](../config/processor/default-processor.md) - shipped contract today
+7. [`transformation-capability-roadmap.md`](../architecture/etl-core/transformation-capability-roadmap.md) - future direction
+8. [`A7 + T16 extensibility charter`](../architecture/etl-core/a7-t16-extensibility-charter.md) - bounded extension model for custom steps and custom transforms
 
 ## One-line reminder
 
-**Today we keep the shipped runtime processor-centered, treat `T4` and `T15` (including `S6`) as completed, keep larger duplicate-scale redesign under `T7`, and treat `T8`-`T14` examples as future planning only.**
+**Today we keep the shipped runtime processor-centered, treat `T4` and `T15` (including `S6`) as completed, keep larger duplicate-scale redesign under `T7`, keep `T16` as additive customer-transform seam planning on the same processor path, and treat `T8`-`T14` examples as future planning only.**
 

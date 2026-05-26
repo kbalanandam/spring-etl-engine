@@ -1,4 +1,4 @@
-# Epic V — Verification evidence and reporting
+# Epic V - Verification evidence and reporting
 
 ## Summary
 
@@ -17,15 +17,15 @@ This epic is **not** the place for runtime observability emission itself; it con
 
 ## Related backlog items
 
-- [`V1 ? — Define enterprise verification evidence model and report categories`](../backlog-items/V1-enterprise-verification-evidence-model-and-report-categories.md)
-- [`V2 ? — Generate Markdown verification reports from the shared evidence model`](../backlog-items/V2-markdown-verification-reports-from-shared-evidence-model.md)
-- [`V3 ? — Generate HTML verification reports with drill-down enterprise views`](../backlog-items/V3-html-verification-reports-with-drill-down-enterprise-views.md)
-- [`V4 ? — Define verification-report retention, provenance, and release gating rules`](../backlog-items/V4-verification-report-retention-provenance-and-release-gating.md)
+- [`V1 - Define enterprise verification evidence model and report categories`](../backlog-items/V1-enterprise-verification-evidence-model-and-report-categories.md)
+- [`V2 - Generate Markdown verification reports from the shared evidence model`](../backlog-items/V2-markdown-verification-reports-from-shared-evidence-model.md)
+- [`V3 - Generate HTML verification reports with drill-down enterprise views`](../backlog-items/V3-html-verification-reports-with-drill-down-enterprise-views.md)
+- [`V4 - Define verification-report retention, provenance, and release gating rules`](../backlog-items/V4-verification-report-retention-provenance-and-release-gating.md)
 
 ## Related docs
 
 - [`../../adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md`](../../adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
-- [`../../architecture/job-history-and-operational-observability.md`](../../architecture/job-history-and-operational-observability.md)
+- [`../../architecture/control-plane/job-history-and-operational-observability.md`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Maintenance note
 

@@ -1,4 +1,4 @@
-# S3 — Add overlap policy, missed-run handling, and basic trigger audit trail
+# S3 - Add overlap policy, missed-run handling, and basic trigger audit trail
 
 ## Summary
 
@@ -55,8 +55,9 @@ Treat S3 as the first scheduler-governance slice after S2, and keep it aligned w
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Control-plane worker boundary`](../../architecture/control-plane-worker-boundary.md)
-- [`Control-plane operational data model`](../../architecture/control-plane-operational-data-model.md)
+- [`Control-plane worker boundary`](../../architecture/control-plane/control-plane-worker-boundary.md)
+- [`Scheduler architecture direction`](../../architecture/control-plane/scheduler-architecture-direction.md)
+- [`Control-plane operational data model`](../../architecture/control-plane/control-plane-operational-data-model.md)
 
 ## Implementation notes
 

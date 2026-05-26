@@ -1,4 +1,4 @@
-# C2 — Run-level count rollup and reconciliation
+# C2 - Run-level count rollup and reconciliation
 
 ## Summary
 
@@ -80,8 +80,8 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`Job history and operational observability`](../../architecture/job-history-and-operational-observability.md)
-- [`Runtime flow`](../../architecture/runtime-flow.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
+- [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
 
 ## Implementation notes
 
