@@ -10,6 +10,7 @@ Define a bounded extension contract so customers can add new processor-side fiel
 - Priority: **P1**
 - Status: **In Progress**
 - Milestone: **M2**
+- M2 scope lock: this milestone does not introduce custom processor types and is transformation-only extensibility on the existing `type: default` processor seam.
 - Dependency: **T3, D1**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
