@@ -17,6 +17,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -72,6 +73,36 @@ class JobBundleControllerTest {
 
 		verify(jobBundleReadModelService).findBundle(eq("missing-job"));
 	}
+
+	@Test
+	void triggerNowReturnsAcceptedPlaceholderForKnownJob() throws Exception {
+		when(jobBundleReadModelService.findBundle(eq("customer-load"))).thenReturn(Optional.of(
+				new JobBundleSummaryView("customer-load", "Customer Load",
+						"src/main/resources/config-jobs/customer-load/job-config.yaml", "READY", List.of())
+		));
+
+		mockMvc.perform(post("/api/v1/jobs/customer-load:trigger-now")
+						.contentType("application/json")
+						.content("{\"reason\":\"manual_operator_request\",\"requestedBy\":\"operator@example\"}"))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.jobKey").value("customer-load"))
+				.andExpect(jsonPath("$.decisionStatus").value("ACCEPTED"))
+				.andExpect(jsonPath("$.triggerEventId").value("te-placeholder-customer-load"));
+
+		verify(jobBundleReadModelService).findBundle(eq("customer-load"));
+	}
+
+	@Test
+	void triggerNowReturnsNotFoundForUnknownJob() throws Exception {
+		when(jobBundleReadModelService.findBundle(eq("missing-job"))).thenReturn(Optional.empty());
+
+		mockMvc.perform(post("/api/v1/jobs/missing-job:trigger-now"))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.decisionStatus").value("NOT_FOUND"));
+
+		verify(jobBundleReadModelService).findBundle(eq("missing-job"));
+	}
 }
+
 
 

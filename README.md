@@ -131,6 +131,7 @@ First monitoring endpoints:
 
 - `GET /api/v1/jobs`
 - `GET /api/v1/jobs/{jobKey}`
+- `POST /api/v1/jobs/{jobKey}:trigger-now`
 - `GET /api/v1/runs`
 - `GET /api/v1/runs/{jobExecutionId}`
 - `GET /api/v1/system/health`
