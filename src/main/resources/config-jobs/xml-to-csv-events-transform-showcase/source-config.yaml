@@ -1,0 +1,16 @@
+sources:
+  - format: xml
+    sourceName: Events
+    filePath: input/events-showcase.xml
+    rootElement: Events
+    recordElement: Event
+    fields:
+      - name: eventCode
+        type: String
+      - name: eventTime
+        type: String
+      - name: description
+        type: String
+      - name: sourceSystem
+        type: String
+

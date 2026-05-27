@@ -60,6 +60,7 @@ Intent:
 
 - `ProcessorConfig.FieldTransform` now accepts optional `config` as an additive provider-owned object.
 - Built-in transforms remain backward compatible; current shipped built-ins are `valueMap`, `expression`, `conditional`, and `zoneConvert` (`zoneConvert` uses the shared `config` envelope).
+- One shipped showcase provider now demonstrates custom-transform extensibility through `ProcessorExtensionProvider` + ServiceLoader (`partnerStatusTranslate`).
 - Runtime processor type remains locked to `type: default`; this slice does not introduce alternate processor types.
 
 ## Class-level seam anchors

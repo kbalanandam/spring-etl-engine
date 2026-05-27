@@ -58,6 +58,24 @@ class TransformEvaluatorTest {
 	}
 
 	@Test
+	void supportsShowcasePartnerStatusTranslateFromDefaultRegistry() {
+		TransformEvaluator evaluator = builtInTransformEvaluator();
+		ProcessorConfig.FieldTransform transform = new ProcessorConfig.FieldTransform();
+		transform.setType("partnerStatusTranslate");
+		transform.setConfig(Map.of(
+				"mappings", Map.of("PARTNER_OPS", "Operations"),
+				"fallbackValue", "Unknown"
+		));
+		ProcessorConfig.FieldMapping fieldMapping = new ProcessorConfig.FieldMapping();
+		fieldMapping.setFrom("sourceSystem");
+		fieldMapping.setTo("sourceSystem");
+		fieldMapping.setTransforms(List.of(transform));
+
+		assertEquals("Operations", evaluator.apply("PARTNER_OPS", fieldMapping));
+		assertEquals("Unknown", evaluator.apply("OTHER", fieldMapping));
+	}
+
+	@Test
 	void failsFastWhenProviderOwnedTransformConfigIsInvalid() {
 		TransformEvaluator evaluator = new TransformEvaluator(List.of(new ConfigPrefixProcessorTransform()));
 		ProcessorConfig.EntityMapping entityMapping = new ProcessorConfig.EntityMapping();

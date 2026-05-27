@@ -41,6 +41,7 @@ class ProcessorExtensionDefaultsTest {
         assertTrue(transformTypes.contains("expression"));
         assertTrue(transformTypes.contains("conditional"));
         assertTrue(transformTypes.contains("zoneConvert"));
+        assertTrue(transformTypes.contains("partnerStatusTranslate"));
         assertTrue(transformTypes.contains("test-transform"));
     }
 

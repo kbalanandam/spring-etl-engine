@@ -118,7 +118,7 @@ If custom behavior was previously attached to an alternate processor type, migra
 | `mappings[].fields[].transforms` | no | list | Optional ordered field-level transform/cleaner chain. Omit the block when no cleanup/normalization is needed |
 | `mappings[].fields[].rules` | no | list | Optional field-level validation rules. If no `duplicate` rule is configured, runtime does not perform duplicate detection for that mapping |
 | `mappings[].fields[].rules[].onFailure` | no | string | Optional validation outcome override: `failStep` or `rejectRecord` |
-| `mappings[].fields[].transforms[].type` | yes, when a transform is present | string | Shipped transform types are `valueMap`, `expression`, `conditional`, and `zoneConvert` |
+| `mappings[].fields[].transforms[].type` | yes, when a transform is present | string | Shipped built-in transform types are `valueMap`, `expression`, `conditional`, and `zoneConvert`; the shipped showcase extension type is `partnerStatusTranslate` |
 | `mappings[].fields[].transforms[].config` | no | object | Optional provider-owned payload for extension transform types and shipped `zoneConvert` (`fromZone`, `toZone`, `inputPattern`, optional `outputPattern`, optional `fallbackValue`) |
 | `mappings[].fields[].transforms[].expression` | yes for `expression` | string | Spring Expression Language (SpEL) expression used to derive or rewrite the field value |
 | `mappings[].fields[].transforms[].mappings` | yes for `valueMap` | object | Source-value to rewritten-value map, such as `"1": Success` or `USA: US` |
@@ -322,7 +322,8 @@ mappings:
 - The shipped processor order for configurable field cleanup is: read raw value -> apply configured transforms/cleaners -> evaluate validation rules on the transformed value -> write the target field.
 - Transform-then-reject is valid and expected. For example, a `valueMap` transform may normalize `IND -> IN`, `USA -> US`, and all other codes to `UNKNOWN`, after which a processor rule may reject `UNKNOWN` if that value is not allowed.
 - Multiple `transforms[]` entries on the same field run in the order configured.
-- The shipped transform types are `valueMap`, `expression`, `conditional`, and `zoneConvert`.
+- The shipped built-in transform types are `valueMap`, `expression`, `conditional`, and `zoneConvert`.
+- The shipped showcase extension provider contributes `partnerStatusTranslate` through `ProcessorExtensionProvider` discovery.
 - `valueMap` supports direct code normalization, optional `defaultValue`, and optional case-insensitive matching through `caseSensitive: false`.
 - `expression` uses Spring Expression Language (SpEL) and can reference:
   - `#input` or `#source` - the original runtime record
@@ -459,6 +460,7 @@ Current shipped shape:
 - built-in derived-field transform type: `expression`
 - built-in conditional transform type: `conditional`
 - built-in zone conversion transform type: `zoneConvert`
+- showcase extension transform type: `partnerStatusTranslate` (loaded through `ProcessorExtensionProvider`)
 - optional provider-owned `transforms[].config` envelope for custom transform implementations
 - optional default fallback such as `Unknown`
 - optional case handling for code normalization
@@ -483,6 +485,7 @@ That separation keeps shipped behavior readable today and leaves room for future
 - `src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/processor-config.yaml` - nested XML flattening scenario proving the shared processor rule/reject contract on a file-backed XML flow
 - `src/main/resources/config-jobs/relational-to-relational/processor-config.yaml` - relational source to relational target mapping example
 - `src/main/resources/config-jobs/cust-dept-load/processor-config.yaml` - multi-step scenario with multiple processor mappings in one file
+- `src/main/resources/config-jobs/xml-to-csv-events-transform-showcase/processor-config.yaml` - chained built-in transforms (`expression`, `zoneConvert`, `valueMap`) plus one service-extended showcase transform (`partnerStatusTranslate`)
 
 ## Current limitations
 

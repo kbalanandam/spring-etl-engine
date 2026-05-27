@@ -136,6 +136,6 @@ Keep phase-1 narrow: field-scoped transform extensibility only. Do not combine t
 
 - This item is planned as additive extensibility, not a replacement of the shipped transform contract.
 - Phase-1 (`transforms[].config` on the existing `type: default` processor seam) is implemented on `feature/t16-transform-seam-phase1` and queued for PR review/merge.
-- Preserved runnable scenario plan (identified): add `src/main/resources/config-jobs/csv-custom-transform-config/` with one `configPrefix` proof mapping plus one invalid-config fail-fast variant for operator guidance.
+- Preserved runnable showcase bundle added: `src/main/resources/config-jobs/xml-to-csv-events-transform-showcase/` with chained built-in transforms plus one ServiceLoader extension transform (`partnerStatusTranslate`).
 
 
