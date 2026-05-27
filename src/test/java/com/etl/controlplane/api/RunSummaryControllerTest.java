@@ -42,7 +42,10 @@ class RunSummaryControllerTest {
 		mockMvc.perform(get("/api/v1/runs"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items[0].scenario").value("customer-load"))
-				.andExpect(jsonPath("$.items[0].jobExecutionId").value(101));
+				.andExpect(jsonPath("$.items[0].jobExecutionId").value(101))
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.size").value(25))
+				.andExpect(jsonPath("$.totalItems").value(1));
 
 		verify(runSummaryReadModelService).latestRuns(eq(25));
 	}
@@ -53,7 +56,10 @@ class RunSummaryControllerTest {
 
 		mockMvc.perform(get("/api/v1/runs").param("limit", "999"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.items").isArray());
+				.andExpect(jsonPath("$.items").isArray())
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.size").value(200))
+				.andExpect(jsonPath("$.totalItems").value(0));
 
 		verify(runSummaryReadModelService).latestRuns(eq(200));
 	}
@@ -83,6 +89,7 @@ class RunSummaryControllerTest {
 		verify(runSummaryReadModelService).findRunByJobExecutionId(eq(999L));
 	}
 }
+
 
 
 

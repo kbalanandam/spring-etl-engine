@@ -7,6 +7,12 @@ import java.util.List;
 /**
  * Minimal list envelope for /api/v1/runs.
  */
-public record RunSummaryListResponse(List<RunSummaryView> items) {
+public record RunSummaryListResponse(
+		List<RunSummaryView> items,
+		int page,
+		int size,
+		long totalItems
+) {
 }
+
 

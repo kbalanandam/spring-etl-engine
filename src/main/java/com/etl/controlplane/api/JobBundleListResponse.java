@@ -7,6 +7,12 @@ import java.util.List;
 /**
  * Minimal list envelope for /api/v1/jobs.
  */
-public record JobBundleListResponse(List<JobBundleSummaryView> items) {
+public record JobBundleListResponse(
+		List<JobBundleSummaryView> items,
+		int page,
+		int size,
+		long totalItems
+) {
 }
+
 

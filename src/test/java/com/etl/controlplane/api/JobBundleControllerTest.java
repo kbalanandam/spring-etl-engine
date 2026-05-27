@@ -41,7 +41,10 @@ class JobBundleControllerTest {
 		mockMvc.perform(get("/api/v1/jobs"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items[0].jobKey").value("customer-load"))
-				.andExpect(jsonPath("$.items[0].readinessStatus").value("READY"));
+				.andExpect(jsonPath("$.items[0].readinessStatus").value("READY"))
+				.andExpect(jsonPath("$.page").value(0))
+				.andExpect(jsonPath("$.size").value(1))
+				.andExpect(jsonPath("$.totalItems").value(1));
 
 		verify(jobBundleReadModelService).listBundles();
 	}
@@ -70,4 +73,5 @@ class JobBundleControllerTest {
 		verify(jobBundleReadModelService).findBundle(eq("missing-job"));
 	}
 }
+
 

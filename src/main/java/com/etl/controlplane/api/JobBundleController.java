@@ -20,7 +20,8 @@ public class JobBundleController {
 
 	@GetMapping
 	public JobBundleListResponse listJobs() {
-		return new JobBundleListResponse(jobBundleReadModelService.listBundles());
+		var bundles = jobBundleReadModelService.listBundles();
+		return new JobBundleListResponse(bundles, 0, bundles.size(), bundles.size());
 	}
 
 	@GetMapping("/{jobKey}")
@@ -30,4 +31,5 @@ public class JobBundleController {
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
 }
+
 

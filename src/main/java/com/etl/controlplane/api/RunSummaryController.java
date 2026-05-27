@@ -25,7 +25,8 @@ public class RunSummaryController {
 	@GetMapping
 	public RunSummaryListResponse latestRuns(@RequestParam(name = "limit", required = false) Integer limit) {
 		int effectiveLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
-		return new RunSummaryListResponse(runSummaryReadModelService.latestRuns(effectiveLimit));
+		var runs = runSummaryReadModelService.latestRuns(effectiveLimit);
+		return new RunSummaryListResponse(runs, 0, effectiveLimit, runs.size());
 	}
 
 	@GetMapping("/{jobExecutionId}")
@@ -35,5 +36,6 @@ public class RunSummaryController {
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
 }
+
 
 
