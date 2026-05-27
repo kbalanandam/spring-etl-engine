@@ -2605,6 +2605,138 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void failsFastWhenZoneConvertTransformHasInvalidInputPatternInSelectedJobConfig() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+      - format: csv
+        sourceName: Events
+        filePath: input/events.csv
+        delimiter: ","
+        fields:
+        - name: eventTimeUtc
+          type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+      - format: csv
+        targetName: EventsCsv
+        filePath: output/events.csv
+        delimiter: ","
+        fields:
+        - name: eventTimeLocal
+          type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+      - source: Events
+        target: EventsCsv
+        fields:
+        - from: eventTimeUtc
+          to: eventTimeLocal
+          transforms:
+          - type: zoneConvert
+            config:
+              fromZone: UTC
+              toZone: America/Chicago
+              inputPattern: yyyy-MM-dd HH:mm:ss'
+              outputPattern: yyyy-MM-dd HH:mm:ss
+      """);
+    Files.writeString(jobConfig, """
+      name: zone-convert-invalid-input-pattern
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+      - name: events-step
+        source: Events
+        target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ensureSelectedJobFlatModels("zone-convert-invalid-input-pattern", List.of("Events"), List.of("EventsCsv"));
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
+    assertTrue(messageChain(exception).contains("Invalid processor configuration for scenario 'zone-convert-invalid-input-pattern'"));
+    assertTrue(messageChain(exception).contains("invalid transforms[].config.inputPattern"));
+    assertFalse(messageChain(exception).contains("Target model class not found"));
+  }
+
+  @Test
+  void failsFastWhenZoneConvertTransformHasInvalidOutputPatternInSelectedJobConfig() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+      - format: csv
+        sourceName: Events
+        filePath: input/events.csv
+        delimiter: ","
+        fields:
+        - name: eventTimeUtc
+          type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+      - format: csv
+        targetName: EventsCsv
+        filePath: output/events.csv
+        delimiter: ","
+        fields:
+        - name: eventTimeLocal
+          type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+      - source: Events
+        target: EventsCsv
+        fields:
+        - from: eventTimeUtc
+          to: eventTimeLocal
+          transforms:
+          - type: zoneConvert
+            config:
+              fromZone: UTC
+              toZone: America/Chicago
+              inputPattern: yyyy-MM-dd HH:mm:ss
+              outputPattern: yyyy-MM-dd HH:mm:ss'
+      """);
+    Files.writeString(jobConfig, """
+      name: zone-convert-invalid-output-pattern
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+      - name: events-step
+        source: Events
+        target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ensureSelectedJobFlatModels("zone-convert-invalid-output-pattern", List.of("Events"), List.of("EventsCsv"));
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
+    assertTrue(messageChain(exception).contains("Invalid processor configuration for scenario 'zone-convert-invalid-output-pattern'"));
+    assertTrue(messageChain(exception).contains("invalid transforms[].config.outputPattern"));
+    assertFalse(messageChain(exception).contains("Target model class not found"));
+  }
+
+  @Test
   void failsFastWhenCsvMappingUsesXmlScopedTransform() throws IOException {
     Path sourceConfig = tempDir.resolve("source-config.yaml");
     Path targetConfig = tempDir.resolve("target-config.yaml");
