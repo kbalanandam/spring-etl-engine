@@ -14,10 +14,16 @@ and this project adheres to **Semantic Versioning**.
 - Added a follow-on wireframes note at `docs/architecture/operator-ui/angular-ui-mvp-wireframes.md` capturing low-fidelity Jobs, Runs, Run detail, Schedules, and System screens for the Angular MVP.
 - Added a first control-plane API contract note at `docs/architecture/control-plane/operator-ui-mvp-api-surface.md` defining MVP endpoints and view-model-aligned payloads for Jobs, Runs, Run detail, Schedules, and System screens.
 - Added a machine-readable OpenAPI 3.1 draft at `docs/architecture/control-plane/operator-ui-mvp-openapi.yaml` for the same operator-UI MVP control-plane API surface.
+- Added T16 phase-1 processor transform extensibility support on the active `type: default` path through additive `mappings[].fields[].transforms[].config` provider-owned payload support.
+- Added a built-in `zoneConvert` processor transform for timezone conversion (`fromZone`, `toZone`, `inputPattern`, optional `outputPattern`) with optional `fallbackValue`, including `fallbackValue: systemTime` support for conversion-failure fallback.
+- Added a shipped ServiceLoader showcase extension provider (`ShowcaseProcessorExtensionProvider`) contributing `partnerStatusTranslate` as a custom transform example on top of built-in transforms.
+- Added a preserved runnable showcase bundle at `src/main/resources/config-jobs/xml-to-csv-events-transform-showcase/` demonstrating chained built-ins (`expression`, `zoneConvert`, `valueMap`) plus one ServiceLoader extension transform (`partnerStatusTranslate`).
+- Added focused transform/provider coverage for `zoneConvert` and `partnerStatusTranslate`, plus startup/config binding verification for provider-owned transform config envelopes.
 
 ### Changed
 - Updated architecture and product index/navigation docs (`README.md`, `docs/README.md`, `docs/architecture/README.md`, and related Epic S / S1 / S3 / S4 references) to surface the new layer-oriented architecture map and UI/scheduler design anchors.
 - Moved existing root-level architecture notes into their layer folders under `docs/architecture/foundations/`, `docs/architecture/etl-core/`, `docs/architecture/control-plane/`, and `docs/architecture/operator-ui/`, and completed cleanup by removing temporary root-level compatibility stubs after link updates.
+- Updated processor/config/architecture/product docs to reflect the shipped T16 seam baseline, including built-in vs ServiceLoader extension behavior and class-level call flow guidance.
 
 ## [1.7.6] - 2026-05-24
 
