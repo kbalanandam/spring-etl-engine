@@ -118,8 +118,8 @@ If custom behavior was previously attached to an alternate processor type, migra
 | `mappings[].fields[].transforms` | no | list | Optional ordered field-level transform/cleaner chain. Omit the block when no cleanup/normalization is needed |
 | `mappings[].fields[].rules` | no | list | Optional field-level validation rules. If no `duplicate` rule is configured, runtime does not perform duplicate detection for that mapping |
 | `mappings[].fields[].rules[].onFailure` | no | string | Optional validation outcome override: `failStep` or `rejectRecord` |
-| `mappings[].fields[].transforms[].type` | yes, when a transform is present | string | Shipped transform types are `valueMap`, `expression`, and `conditional` |
-| `mappings[].fields[].transforms[].config` | no | object | Optional provider-owned payload for extension transform types; built-in transforms continue to use their existing top-level transform fields |
+| `mappings[].fields[].transforms[].type` | yes, when a transform is present | string | Shipped transform types are `valueMap`, `expression`, `conditional`, and `zoneConvert` |
+| `mappings[].fields[].transforms[].config` | no | object | Optional provider-owned payload for extension transform types and shipped `zoneConvert` (`fromZone`, `toZone`, `inputPattern`, optional `outputPattern`, optional `fallbackValue`) |
 | `mappings[].fields[].transforms[].expression` | yes for `expression` | string | Spring Expression Language (SpEL) expression used to derive or rewrite the field value |
 | `mappings[].fields[].transforms[].mappings` | yes for `valueMap` | object | Source-value to rewritten-value map, such as `"1": Success` or `USA: US` |
 | `mappings[].fields[].transforms[].cases` | yes for `conditional` | list | Ordered conditional branches; first matching case wins |
@@ -322,7 +322,7 @@ mappings:
 - The shipped processor order for configurable field cleanup is: read raw value -> apply configured transforms/cleaners -> evaluate validation rules on the transformed value -> write the target field.
 - Transform-then-reject is valid and expected. For example, a `valueMap` transform may normalize `IND -> IN`, `USA -> US`, and all other codes to `UNKNOWN`, after which a processor rule may reject `UNKNOWN` if that value is not allowed.
 - Multiple `transforms[]` entries on the same field run in the order configured.
-- The shipped transform types are `valueMap`, `expression`, and `conditional`.
+- The shipped transform types are `valueMap`, `expression`, `conditional`, and `zoneConvert`.
 - `valueMap` supports direct code normalization, optional `defaultValue`, and optional case-insensitive matching through `caseSensitive: false`.
 - `expression` uses Spring Expression Language (SpEL) and can reference:
   - `#input` or `#source` - the original runtime record
@@ -458,6 +458,7 @@ Current shipped shape:
 - first built-in transform type: `valueMap`
 - built-in derived-field transform type: `expression`
 - built-in conditional transform type: `conditional`
+- built-in zone conversion transform type: `zoneConvert`
 - optional provider-owned `transforms[].config` envelope for custom transform implementations
 - optional default fallback such as `Unknown`
 - optional case handling for code normalization
@@ -465,6 +466,7 @@ Current shipped shape:
 - ordered execution so customers can have zero, one, or many transform steps on the same field
 - derived fields may omit `from` only when the first transform is `expression`
 - expressions can read the original record plus previously resolved field values from earlier mapping entries
+- `zoneConvert` reads zone/pattern settings from `transforms[].config` and supports optional `fallbackValue`; set `fallbackValue: systemTime` to emit current time in the configured target zone when conversion fails
 
 The main design rule is:
 

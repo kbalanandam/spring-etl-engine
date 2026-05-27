@@ -92,6 +92,7 @@ Validation and field-level processing behavior now use both shipped and planned 
 - Non-Spring/manual paths merge built-in + classpath-discovered processor extensions through `ProcessorExtensionDefaults` (`ServiceLoader`).
 - Built-in source validators: `CsvSourceValidator`, `XmlSourceValidator`, `RelationalSourceValidator`.
 - Built-in processor rules: `NotNullProcessorValidationRule`, `TimeFormatProcessorValidationRule`, `DuplicateProcessorValidationRule`.
+- Built-in processor transforms: `ValueMapProcessorTransform`, `ExpressionProcessorTransform`, `ConditionalProcessorTransform`, `ZoneConvertProcessorTransform`.
 - Processor transform extension point remains on the active runtime path with `ProcessorConfig`, `DefaultDynamicProcessor`, and mapping components under `src/main/java/com/etl/mapping/`.
 
 ## Planned custom-step pairing seam (future direction)
