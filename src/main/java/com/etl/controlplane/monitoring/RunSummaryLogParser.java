@@ -2,29 +2,25 @@ package com.etl.controlplane.monitoring;
 
 import java.nio.file.Path;
 import java.time.LocalDateTime;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 final class RunSummaryLogParser {
 
-	private static final Pattern RUN_SUMMARY_PATTERN =
-			Pattern.compile("RUN_SUMMARY\\s+event=run_summary\\s+(.*)$");
-	private static final Pattern FIELD_PATTERN =
-			Pattern.compile("(\\w+)=((?:(?!\\s+\\w+=).)+)");
+	private final StructuredLogEventParser parser = new StructuredLogEventParser();
 
 	Optional<RunSummaryView> parse(String line, Path logPath) {
-		if (line == null || line.isBlank()) {
-			return Optional.empty();
-		}
-		Matcher matcher = RUN_SUMMARY_PATTERN.matcher(line);
-		if (!matcher.find()) {
+		Optional<StructuredLogEvent> maybeEvent = parser.parse(line, logPath);
+		if (maybeEvent.isEmpty()) {
 			return Optional.empty();
 		}
 
-		Map<String, String> fields = parseFields(matcher.group(1));
+		StructuredLogEvent event = maybeEvent.orElseThrow();
+		if (!"RUN_SUMMARY".equals(event.recordType()) || !"run_summary".equalsIgnoreCase(event.event())) {
+			return Optional.empty();
+		}
+
+		var fields = event.fields();
 		String scenario = field(fields, "scenario", "unknown-scenario");
 		String status = field(fields, "status", "UNKNOWN");
 
@@ -40,17 +36,6 @@ final class RunSummaryLogParser {
 				toLong(fields.get("rejectedCount")),
 				logPath.toString()
 		));
-	}
-
-	private static Map<String, String> parseFields(String fieldBlock) {
-		Map<String, String> fields = new HashMap<>();
-		Matcher matcher = FIELD_PATTERN.matcher(fieldBlock);
-		while (matcher.find()) {
-			String key = matcher.group(1);
-			String value = matcher.group(2);
-			fields.put(key, value == null ? "" : value.trim());
-		}
-		return fields;
 	}
 
 	private static String field(Map<String, String> fields, String key, String defaultValue) {
@@ -83,5 +68,7 @@ final class RunSummaryLogParser {
 		}
 	}
 }
+
+
 
 

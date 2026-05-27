@@ -1,5 +1,11 @@
 package com.etl.controlplane.api;
 
+import com.etl.controlplane.monitoring.RunDetailReadModelService;
+import com.etl.controlplane.monitoring.RunDetailView;
+import com.etl.controlplane.monitoring.EvidenceLinkView;
+import com.etl.controlplane.monitoring.StepRecordView;
+import com.etl.controlplane.monitoring.ArtifactRecordView;
+import com.etl.controlplane.monitoring.FailureSummaryView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryView;
 import org.junit.jupiter.api.Test;
@@ -31,6 +37,9 @@ class RunSummaryControllerTest {
 
 	@MockBean
 	private RunSummaryReadModelService runSummaryReadModelService;
+
+	@MockBean
+	private RunDetailReadModelService runDetailReadModelService;
 
 	@Test
 	void returnsRunsUsingDefaultLimit() throws Exception {
@@ -88,7 +97,45 @@ class RunSummaryControllerTest {
 
 		verify(runSummaryReadModelService).findRunByJobExecutionId(eq(999L));
 	}
+
+	@Test
+	void returnsRunDetailByJobExecutionId() throws Exception {
+		when(runDetailReadModelService.findRunDetailByJobExecutionId(eq(101L))).thenReturn(Optional.of(
+				new RunDetailView(
+						new RunSummaryView("customer-load", 101L, "FAILED", LocalDateTime.parse("2026-05-27T10:00:00"),
+								LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 8L, 2L, "logs/2026-05-27/customer-load.log"),
+						List.of(new StepRecordView("normalize-orders", 1, "COMPLETED", 201L, 10L, 8L, 0L, 0L, 0L, 2L,
+								LocalDateTime.parse("2026-05-27T10:00:01"), LocalDateTime.parse("2026-05-27T10:00:05"),
+								"normalize-orders-subflow", "Normalize orders step")),
+						List.of(new ArtifactRecordView("reject-201", "reject-output", "Rejected records for normalize-orders",
+								"output/rejects/orders.csv", LocalDateTime.parse("2026-05-27T10:00:05"), 2L, "normalize-orders")),
+						new FailureSummaryView("config", "ConfigException", "boom", "boom"),
+						List.of(new EvidenceLinkView("Scenario log", "logs/2026-05-27/customer-load.log", "log-file"))
+				)
+		));
+
+		mockMvc.perform(get("/api/v1/runs/101/detail"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.run.jobExecutionId").value(101))
+				.andExpect(jsonPath("$.steps[0].stepName").value("normalize-orders"))
+				.andExpect(jsonPath("$.artifacts[0].role").value("reject-output"))
+				.andExpect(jsonPath("$.failureSummary.category").value("config"))
+				.andExpect(jsonPath("$.evidenceLinks[0].href").value("logs/2026-05-27/customer-load.log"));
+
+		verify(runDetailReadModelService).findRunDetailByJobExecutionId(eq(101L));
+	}
+
+	@Test
+	void returnsNotFoundWhenRunDetailDoesNotExist() throws Exception {
+		when(runDetailReadModelService.findRunDetailByJobExecutionId(eq(999L))).thenReturn(Optional.empty());
+
+		mockMvc.perform(get("/api/v1/runs/999/detail"))
+				.andExpect(status().isNotFound());
+
+		verify(runDetailReadModelService).findRunDetailByJobExecutionId(eq(999L));
+	}
 }
+
 
 
 

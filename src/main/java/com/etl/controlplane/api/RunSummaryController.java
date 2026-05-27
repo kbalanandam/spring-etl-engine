@@ -1,5 +1,7 @@
 package com.etl.controlplane.api;
 
+import com.etl.controlplane.monitoring.RunDetailReadModelService;
+import com.etl.controlplane.monitoring.RunDetailView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryView;
 import org.springframework.http.ResponseEntity;
@@ -17,9 +19,12 @@ public class RunSummaryController {
 	private static final int MAX_LIMIT = 200;
 
 	private final RunSummaryReadModelService runSummaryReadModelService;
+	private final RunDetailReadModelService runDetailReadModelService;
 
-	public RunSummaryController(RunSummaryReadModelService runSummaryReadModelService) {
+	public RunSummaryController(RunSummaryReadModelService runSummaryReadModelService,
+	                            RunDetailReadModelService runDetailReadModelService) {
 		this.runSummaryReadModelService = runSummaryReadModelService;
+		this.runDetailReadModelService = runDetailReadModelService;
 	}
 
 	@GetMapping
@@ -35,7 +40,15 @@ public class RunSummaryController {
 				.map(ResponseEntity::ok)
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
+
+	@GetMapping("/{jobExecutionId}/detail")
+	public ResponseEntity<RunDetailView> runDetailByJobExecutionId(@PathVariable long jobExecutionId) {
+		return runDetailReadModelService.findRunDetailByJobExecutionId(jobExecutionId)
+				.map(ResponseEntity::ok)
+				.orElseGet(() -> ResponseEntity.notFound().build());
+	}
 }
+
 
 
 

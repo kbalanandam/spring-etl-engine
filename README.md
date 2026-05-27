@@ -135,6 +135,7 @@ First monitoring endpoints:
 - `GET /api/v1/jobs/{jobKey}/trigger-events` - lists recent trigger events for one job bundle
 - `GET /api/v1/runs` - lists recent `RUN_SUMMARY` log projections
 - `GET /api/v1/runs/{jobExecutionId}` - returns one projected run summary by job execution id
+- `GET /api/v1/runs/{jobExecutionId}/detail` - returns a richer run drill-down with step outcomes, artifacts, failure summary, and evidence links
 - `GET /api/v1/system/health` - returns minimal control-plane health status
 - `GET /api/v1/system/info` - returns service name, Java version, and active profile
 

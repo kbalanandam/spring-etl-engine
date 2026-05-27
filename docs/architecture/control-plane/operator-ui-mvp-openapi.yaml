@@ -136,6 +136,23 @@ paths:
         '404':
           description: Run summary not found
 
+  /runs/{jobExecutionId}/detail:
+    get:
+      tags: [Runs]
+      operationId: getRunDetailByJobExecutionId
+      summary: Get one richer run drill-down assembled from structured log evidence
+      parameters:
+        - $ref: '#/components/parameters/jobExecutionId'
+      responses:
+        '200':
+          description: Run detail projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunDetailView'
+        '404':
+          description: Run detail not found
+
   /system/health:
     get:
       tags: [System]
@@ -292,6 +309,138 @@ components:
           type: integer
           format: int64
       required: [items, page, size, totalItems]
+
+    StepRecordView:
+      type: object
+      properties:
+        stepName:
+          type: string
+        sequence:
+          type: integer
+        status:
+          type: string
+        stepExecutionId:
+          oneOf:
+            - type: integer
+              format: int64
+            - type: 'null'
+        readCount:
+          oneOf:
+            - type: integer
+              format: int64
+            - type: 'null'
+        writeCount:
+          oneOf:
+            - type: integer
+              format: int64
+            - type: 'null'
+        filterCount:
+          oneOf:
+            - type: integer
+              format: int64
+            - type: 'null'
+        skipCount:
+          oneOf:
+            - type: integer
+              format: int64
+            - type: 'null'
+        rollbackCount:
+          oneOf:
+            - type: integer
+              format: int64
+            - type: 'null'
+        rejectedCount:
+          oneOf:
+            - type: integer
+              format: int64
+            - type: 'null'
+        startedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        finishedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        subFlow:
+          type: string
+        stepSummary:
+          type: string
+      required: [stepName, sequence, status, stepExecutionId, readCount, writeCount, filterCount, skipCount, rollbackCount, rejectedCount, startedAt, finishedAt, subFlow, stepSummary]
+
+    ArtifactRecordView:
+      type: object
+      properties:
+        artifactId:
+          type: string
+        role:
+          type: string
+        label:
+          type: string
+        pathOrUri:
+          type: string
+        createdAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        recordCount:
+          oneOf:
+            - type: integer
+              format: int64
+            - type: 'null'
+        stepName:
+          type: string
+      required: [artifactId, role, label, pathOrUri, createdAt, recordCount, stepName]
+
+    FailureSummaryView:
+      type: object
+      properties:
+        category:
+          type: string
+        exceptionType:
+          type: string
+        rootCause:
+          type: string
+        message:
+          type: string
+      required: [category, exceptionType, rootCause, message]
+
+    EvidenceLinkView:
+      type: object
+      properties:
+        label:
+          type: string
+        href:
+          type: string
+        type:
+          type: string
+      required: [label, href, type]
+
+    RunDetailView:
+      type: object
+      properties:
+        run:
+          $ref: '#/components/schemas/RunSummaryView'
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/StepRecordView'
+        artifacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/ArtifactRecordView'
+        failureSummary:
+          oneOf:
+            - $ref: '#/components/schemas/FailureSummaryView'
+            - type: 'null'
+        evidenceLinks:
+          type: array
+          items:
+            $ref: '#/components/schemas/EvidenceLinkView'
+      required: [run, steps, artifacts, failureSummary, evidenceLinks]
 
     TriggerNowRequest:
       type: object

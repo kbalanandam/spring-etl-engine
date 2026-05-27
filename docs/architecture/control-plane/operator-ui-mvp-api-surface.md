@@ -10,7 +10,7 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 
 - Classification: **Future direction**
 - This note still carries future-direction design intent, but the monitoring-first subset below is now implemented by the optional `com.etl.controlplane.ControlPlaneApiApplication` starter.
-- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
+- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
 - Schedule endpoints in this document remain planned, not implemented.
 
 ## Scope
@@ -78,6 +78,7 @@ GET    /api/v1/jobs/{jobKey}/trigger-events
 
 GET    /api/v1/runs
 GET    /api/v1/runs/{jobExecutionId}
+GET    /api/v1/runs/{jobExecutionId}/detail
 
 GET    /api/v1/system/health
 GET    /api/v1/system/info
@@ -267,6 +268,77 @@ Response body shape:
 ### `GET /api/v1/runs/{jobExecutionId}`
 
 Returns one projected `RUN_SUMMARY` view by job execution id.
+
+### `GET /api/v1/runs/{jobExecutionId}/detail`
+
+Returns a richer run drill-down assembled from structured scenario-log evidence for the same job execution id.
+
+Current detail shape:
+
+```json
+{
+  "run": {
+    "scenario": "Customer Load",
+    "jobExecutionId": 101,
+    "status": "FAILED",
+    "startTime": "2026-05-27T10:00:00",
+    "endTime": "2026-05-27T10:00:10",
+    "durationSeconds": 10,
+    "sourceCount": 10,
+    "writtenCount": 8,
+    "rejectedCount": 2,
+    "logPath": "logs/2026-05-27/customer-load.log"
+  },
+  "steps": [
+    {
+      "stepName": "normalize-orders",
+      "sequence": 1,
+      "status": "COMPLETED",
+      "stepExecutionId": 201,
+      "readCount": 10,
+      "writeCount": 8,
+      "filterCount": 0,
+      "skipCount": 0,
+      "rollbackCount": 0,
+      "rejectedCount": 2,
+      "startedAt": "2026-05-27T10:00:01",
+      "finishedAt": "2026-05-27T10:00:05",
+      "subFlow": "normalize-orders-subflow",
+      "stepSummary": "Normalize orders step"
+    }
+  ],
+  "artifacts": [
+    {
+      "artifactId": "reject-201",
+      "role": "reject-output",
+      "label": "Rejected records for normalize-orders",
+      "pathOrUri": "output/rejects/orders.csv",
+      "createdAt": "2026-05-27T10:00:05",
+      "recordCount": 2,
+      "stepName": "normalize-orders"
+    }
+  ],
+  "failureSummary": {
+    "category": "target_write",
+    "exceptionType": "IllegalStateException",
+    "rootCause": "constraint failed",
+    "message": "constraint failed"
+  },
+  "evidenceLinks": [
+    {
+      "label": "Scenario log",
+      "href": "logs/2026-05-27/customer-load.log",
+      "type": "log-file"
+    }
+  ]
+}
+```
+
+Current evidence sources for this route:
+
+- `RUN_SUMMARY` for run-level counts and timestamps
+- `STEP_EVENT event=step_started|step_finished` for ordered step outcomes and artifact paths
+- `JOB_FAILURE event=job_failure` for failure categorization
 
 ## Schedules endpoints
 
