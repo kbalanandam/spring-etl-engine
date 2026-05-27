@@ -113,6 +113,26 @@ The near-term product focus is to make these recurring concerns consistent acros
 - richer fault tolerance, reconciliation, restartability, scheduling, and transport capabilities
 - deeper relational hardening and enterprise verification/reporting maturity
 
+## Optional control-plane API starter (monitoring-first)
+
+An optional monitoring-first control-plane API starter is now available as a separate launcher:
+
+- `com.etl.controlplane.ControlPlaneApiApplication`
+
+It intentionally runs as a separate process from the ETL worker so the selected-job runtime contract stays unchanged.
+
+Example local run:
+
+```powershell
+mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dspring-boot.run.mainClass=com.etl.controlplane.ControlPlaneApiApplication" "-Dspring-boot.run.profiles=controlplane" spring-boot:run
+```
+
+First monitoring endpoints:
+
+- `GET /api/v1/runs`
+- `GET /api/v1/system/health`
+- `GET /api/v1/system/info`
+
 ## Start here
 
 Use this table as the recommended reading order by goal:
