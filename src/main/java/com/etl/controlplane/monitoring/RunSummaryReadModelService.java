@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 /**
@@ -52,6 +53,16 @@ public class RunSummaryReadModelService {
 				.toList();
 	}
 
+	public Optional<RunSummaryView> findRunByJobExecutionId(long jobExecutionId) {
+		if (!Files.exists(logBaseDir)) {
+			return Optional.empty();
+		}
+
+		return latestRuns(Integer.MAX_VALUE).stream()
+				.filter(run -> run.jobExecutionId() != null && run.jobExecutionId() == jobExecutionId)
+				.findFirst();
+	}
+
 	private void collectRunSummaries(Path logPath, List<RunSummaryView> target) {
 		try (Stream<String> lines = Files.lines(logPath)) {
 			lines.map(line -> parser.parse(line, logPath))
@@ -63,4 +74,5 @@ public class RunSummaryReadModelService {
 		}
 	}
 }
+
 

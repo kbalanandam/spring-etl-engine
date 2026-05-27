@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -56,10 +57,31 @@ class RunSummaryReadModelServiceTest {
 		assertEquals(2002L, runs.get(0).jobExecutionId());
 	}
 
+	@Test
+	void findsRunByJobExecutionId() throws IOException {
+		createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T11:02:03.001+00:00 INFO [main] [scenario:customer-load] [run:20260527-110203-001] [job:1001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=1001 status=COMPLETED startTime=2026-05-27T11:00:00 endTime=2026-05-27T11:02:03 durationSeconds=123 sourceCount=10 writtenCount=10 rejectedCount=0"
+		);
+
+		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser());
+
+		Optional<RunSummaryView> run = service.findRunByJobExecutionId(1001L);
+		assertEquals(true, run.isPresent());
+		assertEquals("customer-load", run.orElseThrow().scenario());
+	}
+
+	@Test
+	void returnsEmptyWhenRunIdIsMissing() {
+		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser());
+		assertEquals(Optional.empty(), service.findRunByJobExecutionId(9999L));
+	}
+
 	private Path createLog(Path path, String... lines) throws IOException {
 		Files.createDirectories(path.getParent());
 		Files.write(path, List.of(lines));
 		return path;
 	}
 }
+
 

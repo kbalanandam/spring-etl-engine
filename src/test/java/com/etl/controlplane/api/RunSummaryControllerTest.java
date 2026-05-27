@@ -12,6 +12,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
@@ -56,6 +57,32 @@ class RunSummaryControllerTest {
 
 		verify(runSummaryReadModelService).latestRuns(eq(200));
 	}
+
+	@Test
+	void returnsRunByJobExecutionId() throws Exception {
+		when(runSummaryReadModelService.findRunByJobExecutionId(eq(101L))).thenReturn(Optional.of(
+				new RunSummaryView("customer-load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
+						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L, "logs/2026-05-27/customer-load.log")
+		));
+
+		mockMvc.perform(get("/api/v1/runs/101"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.scenario").value("customer-load"))
+				.andExpect(jsonPath("$.jobExecutionId").value(101));
+
+		verify(runSummaryReadModelService).findRunByJobExecutionId(eq(101L));
+	}
+
+	@Test
+	void returnsNotFoundWhenRunIdDoesNotExist() throws Exception {
+		when(runSummaryReadModelService.findRunByJobExecutionId(eq(999L))).thenReturn(Optional.empty());
+
+		mockMvc.perform(get("/api/v1/runs/999"))
+				.andExpect(status().isNotFound());
+
+		verify(runSummaryReadModelService).findRunByJobExecutionId(eq(999L));
+	}
 }
+
 
 
