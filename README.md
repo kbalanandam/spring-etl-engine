@@ -129,7 +129,10 @@ mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dspring-boot.run.
 
 First monitoring endpoints:
 
+- `GET /api/v1/jobs`
+- `GET /api/v1/jobs/{jobKey}`
 - `GET /api/v1/runs`
+- `GET /api/v1/runs/{jobExecutionId}`
 - `GET /api/v1/system/health`
 - `GET /api/v1/system/info`
 
