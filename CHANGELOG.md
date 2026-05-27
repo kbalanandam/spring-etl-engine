@@ -6,6 +6,11 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Changed
+- Bumped project version to `1.7.8-SNAPSHOT` to start the next patch development cycle.
+
+## [1.7.8] - 2026-05-27
+
 ### Added
 - Added post-merge hardening coverage for `zoneConvert`, including deterministic DST edge-case unit tests (spring-forward gap and fall-back overlap) and selected-job startup fail-fast assertions for invalid `toZone`, `inputPattern`, and `outputPattern` transform config values.
 - Added first-pass architecture folder taxonomy scaffolding under `docs/architecture/` with new layer indexes for `foundations/`, `etl-core/`, `control-plane/`, and `operator-ui/` to keep ETL, control-plane, and UI direction easier to navigate.
