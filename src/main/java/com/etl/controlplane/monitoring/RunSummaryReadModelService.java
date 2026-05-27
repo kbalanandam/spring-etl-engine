@@ -1,5 +1,6 @@
 package com.etl.controlplane.monitoring;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -21,6 +22,7 @@ public class RunSummaryReadModelService {
 	private final Path logBaseDir;
 	private final RunSummaryLogParser parser;
 
+	@Autowired
 	public RunSummaryReadModelService(@Value("${etl.logging.base-dir:logs}") String logBaseDir) {
 		this(Path.of(logBaseDir), new RunSummaryLogParser());
 	}
@@ -96,6 +98,7 @@ public class RunSummaryReadModelService {
 		return value == null ? "" : value.trim();
 	}
 }
+
 
 
 

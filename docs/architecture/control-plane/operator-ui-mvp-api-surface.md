@@ -9,7 +9,9 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 ## Status
 
 - Classification: **Future direction**
-- This note defines a first API shape for MVP planning, not a shipped production API.
+- This note still carries future-direction design intent, but the monitoring-first subset below is now implemented by the optional `com.etl.controlplane.ControlPlaneApiApplication` starter.
+- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
+- Schedule endpoints in this document remain planned, not implemented.
 
 ## Scope
 
@@ -75,7 +77,15 @@ POST   /api/v1/jobs/{jobKey}:trigger-now
 GET    /api/v1/jobs/{jobKey}/trigger-events
 
 GET    /api/v1/runs
-GET    /api/v1/runs/{runId}
+GET    /api/v1/runs/{jobExecutionId}
+
+GET    /api/v1/system/health
+GET    /api/v1/system/info
+```
+
+Planned later:
+
+```text
 
 GET    /api/v1/schedules
 GET    /api/v1/schedules/{scheduleId}
@@ -86,9 +96,6 @@ POST   /api/v1/schedules/{scheduleId}:disable
 POST   /api/v1/schedules/{scheduleId}:pause
 POST   /api/v1/schedules/{scheduleId}:resume
 GET    /api/v1/schedules/{scheduleId}/trigger-events
-
-GET    /api/v1/system/health
-GET    /api/v1/system/info
 ```
 
 ## Jobs endpoints
@@ -97,12 +104,9 @@ GET    /api/v1/system/info
 
 Returns job bundle summaries for the Jobs list screen.
 
-Query (suggested first slice):
+Current query support:
 
-- `q` (optional search text)
-- `readinessStatus` (optional)
-- `hasSchedule` (optional boolean)
-- `page`, `size` (optional)
+- no filters yet
 
 Response body:
 
@@ -114,24 +118,58 @@ Response body:
       "displayName": "Customer Load",
       "jobConfigPath": "src/main/resources/config-jobs/customer-load/job-config.yaml",
       "readinessStatus": "READY",
-      "validationMessages": [],
-      "scheduleCount": 2,
-      "lastRunSummary": {
-        "runId": "10420",
-        "status": "SUCCESS",
-        "finishedAt": "2026-05-25T10:12:00Z"
-      }
+      "validationMessages": []
     }
   ],
   "page": 0,
-  "size": 25,
+  "size": 1,
   "totalItems": 1
 }
 ```
 
 ### `GET /api/v1/jobs/{jobKey}`
 
-Returns one bundle detail with readiness and linked schedule summary.
+Returns an aggregated job detail payload for the first Jobs drill-down screen.
+
+Response body:
+
+```json
+{
+  "job": {
+    "jobKey": "customer-load",
+    "displayName": "Customer Load",
+    "jobConfigPath": "src/main/resources/config-jobs/customer-load/job-config.yaml",
+    "readinessStatus": "READY",
+    "validationMessages": []
+  },
+  "recentRuns": [
+    {
+      "scenario": "Customer Load",
+      "jobExecutionId": 101,
+      "status": "COMPLETED",
+      "startTime": "2026-05-27T10:00:00",
+      "endTime": "2026-05-27T10:00:10",
+      "durationSeconds": 10,
+      "sourceCount": 10,
+      "writtenCount": 10,
+      "rejectedCount": 0,
+      "logPath": "logs/2026-05-27/customer-load.log"
+    }
+  ],
+  "recentTriggerEvents": [
+    {
+      "triggerEventId": "te-123",
+      "jobKey": "customer-load",
+      "decisionStatus": "ACCEPTED",
+      "reason": "manual_operator_request",
+      "requestedBy": "operator@example",
+      "requestedAt": "2026-05-27T10:15:30Z",
+      "launchedRunId": null,
+      "message": "accepted"
+    }
+  ]
+}
+```
 
 ### `POST /api/v1/jobs/{jobKey}:trigger-now`
 
@@ -150,11 +188,18 @@ Response body:
 
 ```json
 {
-  "triggerEventId": "te-20260525-001",
-  "decisionStatus": "LAUNCHED",
-  "launchedRunId": "10421"
+  "jobKey": "customer-load",
+  "decisionStatus": "ACCEPTED",
+  "message": "Trigger request accepted as placeholder for reason='manual_operator_request' requestedBy='operator@example'.",
+  "triggerEventId": "te-20260525-001"
 }
 ```
+
+Current behavior:
+
+- returns `202 ACCEPTED` for known jobs
+- records an in-memory trigger event for UI integration and drill-down support
+- does not launch the worker yet; launch orchestration remains a later slice
 
 ### `GET /api/v1/jobs/{jobKey}/trigger-events`
 
@@ -164,20 +209,37 @@ Suggested first-slice query:
 
 - `limit` (optional)
 
+Response body shape:
+
+```json
+{
+  "items": [
+    {
+      "triggerEventId": "te-20260525-001",
+      "jobKey": "customer-load",
+      "decisionStatus": "ACCEPTED",
+      "reason": "manual_operator_request",
+      "requestedBy": "operator@example",
+      "requestedAt": "2026-05-27T10:15:30Z",
+      "launchedRunId": null,
+      "message": "Trigger request accepted as placeholder for reason='manual_operator_request' requestedBy='operator@example'."
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalItems": 1
+}
+```
+
 ## Runs endpoints
 
 ### `GET /api/v1/runs`
 
 Returns run summaries for the Runs screen.
 
-Query (suggested first slice):
+Current query support:
 
-- `jobKey`
-- `status`
-- `triggerOrigin`
-- `startedFrom`
-- `startedTo`
-- `page`, `size`
+- `limit` (optional)
 
 Response body shape:
 
@@ -185,16 +247,14 @@ Response body shape:
 {
   "items": [
     {
-      "runId": "10421",
-      "jobKey": "customer-load",
-      "jobDisplayName": "Customer Load",
-      "status": "RUNNING",
-      "triggerOrigin": "SCHEDULE",
-      "startedAt": "2026-05-25T10:41:00Z",
-      "finishedAt": null,
-      "durationMs": null,
+      "scenario": "Customer Load",
+      "jobExecutionId": 10421,
+      "status": "COMPLETED",
+      "startTime": "2026-05-25T10:41:00",
+      "endTime": "2026-05-25T10:42:00",
+      "durationSeconds": 60,
       "sourceCount": 250,
-      "writtenCount": null,
+      "writtenCount": 250,
       "rejectedCount": 0
     }
   ],
@@ -204,17 +264,9 @@ Response body shape:
 }
 ```
 
-### `GET /api/v1/runs/{runId}`
+### `GET /api/v1/runs/{jobExecutionId}`
 
-Returns one run detail for the Run detail screen.
-
-Response should include:
-
-- `run` (`RunRecordView`)
-- `steps` (`StepRecordView[]`)
-- `artifacts` (`ArtifactRecordView[]`)
-- `failureSummary` (nullable)
-- `evidenceLinks[]`
+Returns one projected `RUN_SUMMARY` view by job execution id.
 
 ## Schedules endpoints
 
@@ -306,12 +358,8 @@ Suggested response:
 
 ```json
 {
-  "status": "HEALTHY",
-  "operatorApi": "HEALTHY",
-  "scheduler": "HEALTHY",
-  "workerReachability": "REACHABLE",
-  "historyStore": "HEALTHY",
-  "checkedAt": "2026-05-25T11:05:00Z"
+  "status": "UP",
+  "timestamp": "2026-05-25T11:05:00Z"
 }
 ```
 
@@ -319,17 +367,33 @@ Suggested response:
 
 Returns environment and version metadata for display.
 
+Suggested response:
+
+```json
+{
+  "service": "spring-etl-engine-control-plane",
+  "javaVersion": "21",
+  "profile": "controlplane"
+}
+```
+
 ## View-model contract summary
 
 The MVP API should align with these response models:
 
 - `JobBundleSummaryView`
-- `RunRecordView`
+- `JobBundleDetailResponse`
+- `RunSummaryView`
+- `TriggerEventView`
+- `SystemHealthResponse`
+- `SystemInfoResponse`
+
+Planned later view models still include:
+
 - `RunDetailView`
 - `StepRecordView`
 - `ArtifactRecordView`
 - `ScheduleView`
-- `TriggerEventView`
 
 These names and fields are described in [`../operator-ui/angular-ui-mvp-structure.md`](../operator-ui/angular-ui-mvp-structure.md).
 
@@ -366,14 +430,20 @@ Treat these as non-negotiable for the MVP API surface:
 
 ## MVP delivery order
 
-Implement backend API slices in this order:
+Implemented so far:
 
 1. read-only Jobs and Runs endpoints
-2. Run detail endpoint
+2. Run summary lookup by job execution id
 3. System health/info endpoints
-4. Schedule list/detail/create/update/state-change endpoints
-5. Trigger history endpoint
-6. Trigger-now endpoint if not already covered
+4. Trigger-now placeholder endpoint plus trigger-event history
+5. aggregated job detail payload for the first Jobs drill-down view
+
+Recommended next backend slices:
+
+1. richer run-detail projection beyond `RUN_SUMMARY`
+2. persisted trigger-event history and run history storage
+3. schedule list/detail/create/update/state-change endpoints
+4. worker-launch orchestration behind trigger-now
 
 That order supports the monitoring-first UI rollout with minimal churn.
 

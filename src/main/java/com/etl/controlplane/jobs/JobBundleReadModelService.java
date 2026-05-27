@@ -3,6 +3,7 @@ package com.etl.controlplane.jobs;
 import com.etl.config.job.JobConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,7 @@ public class JobBundleReadModelService {
 	private final Path jobsRoot;
 	private final ObjectMapper yamlMapper;
 
+	@Autowired
 	public JobBundleReadModelService(@Value("${controlplane.jobs.root:src/main/resources/config-jobs}") String jobsRoot) {
 		this(Path.of(jobsRoot), new ObjectMapper(new YAMLFactory()));
 	}
@@ -98,4 +100,5 @@ public class JobBundleReadModelService {
 		);
 	}
 }
+
 
