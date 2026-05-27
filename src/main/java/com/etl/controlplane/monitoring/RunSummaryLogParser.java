@@ -12,6 +12,8 @@ final class RunSummaryLogParser {
 
 	private static final Pattern RUN_SUMMARY_PATTERN =
 			Pattern.compile("RUN_SUMMARY\\s+event=run_summary\\s+(.*)$");
+	private static final Pattern FIELD_PATTERN =
+			Pattern.compile("(\\w+)=((?:(?!\\s+\\w+=).)+)");
 
 	Optional<RunSummaryView> parse(String line, Path logPath) {
 		if (line == null || line.isBlank()) {
@@ -42,15 +44,11 @@ final class RunSummaryLogParser {
 
 	private static Map<String, String> parseFields(String fieldBlock) {
 		Map<String, String> fields = new HashMap<>();
-		String[] tokens = fieldBlock.split("\\s+");
-		for (String token : tokens) {
-			int separator = token.indexOf('=');
-			if (separator <= 0 || separator >= token.length() - 1) {
-				continue;
-			}
-			String key = token.substring(0, separator);
-			String value = token.substring(separator + 1);
-			fields.put(key, value);
+		Matcher matcher = FIELD_PATTERN.matcher(fieldBlock);
+		while (matcher.find()) {
+			String key = matcher.group(1);
+			String value = matcher.group(2);
+			fields.put(key, value == null ? "" : value.trim());
 		}
 		return fields;
 	}
@@ -85,4 +83,5 @@ final class RunSummaryLogParser {
 		}
 	}
 }
+
 

@@ -72,6 +72,7 @@ Suggested resource groups:
 GET    /api/v1/jobs
 GET    /api/v1/jobs/{jobKey}
 POST   /api/v1/jobs/{jobKey}:trigger-now
+GET    /api/v1/jobs/{jobKey}/trigger-events
 
 GET    /api/v1/runs
 GET    /api/v1/runs/{runId}
@@ -154,6 +155,14 @@ Response body:
   "launchedRunId": "10421"
 }
 ```
+
+### `GET /api/v1/jobs/{jobKey}/trigger-events`
+
+Returns recent trigger history for one registered job bundle.
+
+Suggested first-slice query:
+
+- `limit` (optional)
 
 ## Runs endpoints
 

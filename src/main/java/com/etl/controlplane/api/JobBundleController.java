@@ -2,6 +2,8 @@ package com.etl.controlplane.api;
 
 import com.etl.controlplane.jobs.JobBundleReadModelService;
 import com.etl.controlplane.jobs.JobBundleSummaryView;
+import com.etl.controlplane.monitoring.RunSummaryReadModelService;
+import com.etl.controlplane.triggers.TriggerEventRegistry;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -9,16 +11,26 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/jobs")
 public class JobBundleController {
+	private static final int DEFAULT_TRIGGER_EVENT_LIMIT = 20;
+	private static final int MAX_TRIGGER_EVENT_LIMIT = 200;
+	private static final int DEFAULT_RECENT_RUN_LIMIT = 10;
 
 	private final JobBundleReadModelService jobBundleReadModelService;
+	private final RunSummaryReadModelService runSummaryReadModelService;
+	private final TriggerEventRegistry triggerEventRegistry;
 
-	public JobBundleController(JobBundleReadModelService jobBundleReadModelService) {
+	public JobBundleController(JobBundleReadModelService jobBundleReadModelService,
+	                           RunSummaryReadModelService runSummaryReadModelService,
+	                           TriggerEventRegistry triggerEventRegistry) {
 		this.jobBundleReadModelService = jobBundleReadModelService;
+		this.runSummaryReadModelService = runSummaryReadModelService;
+		this.triggerEventRegistry = triggerEventRegistry;
 	}
 
 	@GetMapping
@@ -28,10 +40,27 @@ public class JobBundleController {
 	}
 
 	@GetMapping("/{jobKey}")
-	public ResponseEntity<JobBundleSummaryView> jobDetail(@PathVariable String jobKey) {
+	public ResponseEntity<JobBundleDetailResponse> jobDetail(@PathVariable String jobKey) {
 		return jobBundleReadModelService.findBundle(jobKey)
-				.map(ResponseEntity::ok)
+				.map(job -> ResponseEntity.ok(new JobBundleDetailResponse(
+						job,
+						runSummaryReadModelService.latestRunsForJob(job.jobKey(), job.displayName(), DEFAULT_RECENT_RUN_LIMIT),
+						triggerEventRegistry.listByJobKey(job.jobKey(), DEFAULT_TRIGGER_EVENT_LIMIT)
+				)))
 				.orElseGet(() -> ResponseEntity.notFound().build());
+	}
+
+	@GetMapping("/{jobKey}/trigger-events")
+	public ResponseEntity<TriggerEventListResponse> jobTriggerEvents(@PathVariable String jobKey,
+	                                                                @RequestParam(name = "limit", required = false) Integer limit) {
+		if (jobBundleReadModelService.findBundle(jobKey).isEmpty()) {
+			return ResponseEntity.notFound().build();
+		}
+		int effectiveLimit = limit == null
+				? DEFAULT_TRIGGER_EVENT_LIMIT
+				: Math.max(1, Math.min(limit, MAX_TRIGGER_EVENT_LIMIT));
+		var events = triggerEventRegistry.listByJobKey(jobKey, effectiveLimit);
+		return ResponseEntity.ok(new TriggerEventListResponse(events, 0, effectiveLimit, events.size()));
 	}
 
 	@PostMapping("/{jobKey}:trigger-now")
@@ -53,16 +82,18 @@ public class JobBundleController {
 				? "operator"
 				: request.requestedBy().trim();
 
-		String triggerEventId = "te-placeholder-" + jobKey;
 		String message = "Trigger request accepted as placeholder for reason='" + reason + "' requestedBy='" + requestedBy + "'.";
+		var triggerEvent = triggerEventRegistry.recordAccepted(jobKey, reason, requestedBy, message);
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(new TriggerNowDecisionResponse(
 				jobKey,
 				"ACCEPTED",
 				message,
-				triggerEventId
+				triggerEvent.triggerEventId()
 		));
 	}
 }
+
+
 
 
 

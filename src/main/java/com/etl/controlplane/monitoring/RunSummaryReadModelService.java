@@ -63,6 +63,18 @@ public class RunSummaryReadModelService {
 				.findFirst();
 	}
 
+	public List<RunSummaryView> latestRunsForJob(String jobKey, String displayName, int limit) {
+		if (limit <= 0) {
+			return List.of();
+		}
+		String normalizedJobKey = normalize(jobKey);
+		String normalizedDisplayName = normalize(displayName);
+		return latestRuns(Integer.MAX_VALUE).stream()
+				.filter(run -> matchesJob(run, normalizedJobKey, normalizedDisplayName))
+				.limit(limit)
+				.toList();
+	}
+
 	private void collectRunSummaries(Path logPath, List<RunSummaryView> target) {
 		try (Stream<String> lines = Files.lines(logPath)) {
 			lines.map(line -> parser.parse(line, logPath))
@@ -73,6 +85,17 @@ public class RunSummaryReadModelService {
 			// Read-model collection is best-effort for now; unavailable files are skipped.
 		}
 	}
+
+	private boolean matchesJob(RunSummaryView run, String normalizedJobKey, String normalizedDisplayName) {
+		String scenario = normalize(run.scenario());
+		return scenario.equalsIgnoreCase(normalizedJobKey)
+				|| (!normalizedDisplayName.isBlank() && scenario.equalsIgnoreCase(normalizedDisplayName));
+	}
+
+	private String normalize(String value) {
+		return value == null ? "" : value.trim();
+	}
 }
+
 
 

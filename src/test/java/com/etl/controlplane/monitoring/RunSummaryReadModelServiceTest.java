@@ -77,11 +77,29 @@ class RunSummaryReadModelServiceTest {
 		assertEquals(Optional.empty(), service.findRunByJobExecutionId(9999L));
 	}
 
+	@Test
+	void returnsRecentRunsForMatchingJobKeyOrDisplayName() throws IOException {
+		createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T09:00:00.000+00:00 INFO [main] [scenario:customer-load] [run:1] [job:2001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=2001 status=COMPLETED startTime=2026-05-27T09:00:00 endTime=2026-05-27T09:00:01 durationSeconds=1 sourceCount=1 writtenCount=1 rejectedCount=0",
+				"2026-05-27T09:10:00.000+00:00 INFO [main] [scenario:Customer Load] [run:2] [job:2002] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=Customer Load jobExecutionId=2002 status=COMPLETED startTime=2026-05-27T09:10:00 endTime=2026-05-27T09:10:02 durationSeconds=2 sourceCount=2 writtenCount=2 rejectedCount=0",
+				"2026-05-27T09:20:00.000+00:00 INFO [main] [scenario:other-job] [run:3] [job:2003] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=other-job jobExecutionId=2003 status=COMPLETED startTime=2026-05-27T09:20:00 endTime=2026-05-27T09:20:02 durationSeconds=2 sourceCount=2 writtenCount=2 rejectedCount=0"
+		);
+
+		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser());
+		List<RunSummaryView> runs = service.latestRunsForJob("customer-load", "Customer Load", 10);
+
+		assertEquals(2, runs.size());
+		assertEquals(2002L, runs.get(0).jobExecutionId());
+		assertEquals(2001L, runs.get(1).jobExecutionId());
+	}
+
 	private Path createLog(Path path, String... lines) throws IOException {
 		Files.createDirectories(path.getParent());
 		Files.write(path, List.of(lines));
 		return path;
 	}
 }
+
 
 
