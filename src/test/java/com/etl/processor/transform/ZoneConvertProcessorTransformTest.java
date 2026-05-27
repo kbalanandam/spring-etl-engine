@@ -29,6 +29,32 @@ class ZoneConvertProcessorTransformTest {
 	}
 
 	@Test
+	void convertsSpringForwardGapUsingDeterministicZoneRules() {
+		ProcessorConfig.FieldTransform declaration = declaration(Map.of(
+				"fromZone", "America/New_York",
+				"toZone", "UTC",
+				"inputPattern", "yyyy-MM-dd HH:mm:ss",
+				"outputPattern", "yyyy-MM-dd HH:mm:ss"
+		));
+
+		Object converted = transform.apply("2024-03-10 02:30:00", declaration);
+		assertEquals("2024-03-10 07:30:00", converted);
+	}
+
+	@Test
+	void convertsFallBackOverlapUsingEarlierOffsetByDefault() {
+		ProcessorConfig.FieldTransform declaration = declaration(Map.of(
+				"fromZone", "America/New_York",
+				"toZone", "UTC",
+				"inputPattern", "yyyy-MM-dd HH:mm:ss",
+				"outputPattern", "yyyy-MM-dd HH:mm:ss"
+		));
+
+		Object converted = transform.apply("2024-11-03 01:30:00", declaration);
+		assertEquals("2024-11-03 05:30:00", converted);
+	}
+
+	@Test
 	void usesSystemTimeFallbackWhenConfiguredAndInputCannotBeParsed() {
 		ProcessorConfig.FieldTransform declaration = declaration(Map.of(
 				"fromZone", "UTC",
@@ -93,6 +119,33 @@ class ZoneConvertProcessorTransformTest {
 		IllegalStateException failure = assertThrows(IllegalStateException.class,
 				() -> transform.validateConfiguration(entityMapping(), fieldMapping(), declaration));
 		assertTrue(failure.getMessage().contains("invalid transforms[].config.toZone"));
+	}
+
+	@Test
+	void failsValidationWhenInputPatternIsInvalid() {
+		ProcessorConfig.FieldTransform declaration = declaration(Map.of(
+				"fromZone", "UTC",
+				"toZone", "America/Chicago",
+				"inputPattern", "yyyy-MM-dd HH:mm:ss'"
+		));
+
+		IllegalStateException failure = assertThrows(IllegalStateException.class,
+				() -> transform.validateConfiguration(entityMapping(), fieldMapping(), declaration));
+		assertTrue(failure.getMessage().contains("invalid transforms[].config.inputPattern"));
+	}
+
+	@Test
+	void failsValidationWhenOutputPatternIsInvalid() {
+		ProcessorConfig.FieldTransform declaration = declaration(Map.of(
+				"fromZone", "UTC",
+				"toZone", "America/Chicago",
+				"inputPattern", "yyyy-MM-dd HH:mm:ss",
+				"outputPattern", "yyyy-MM-dd HH:mm:ss'"
+		));
+
+		IllegalStateException failure = assertThrows(IllegalStateException.class,
+				() -> transform.validateConfiguration(entityMapping(), fieldMapping(), declaration));
+		assertTrue(failure.getMessage().contains("invalid transforms[].config.outputPattern"));
 	}
 
 	private ProcessorConfig.FieldTransform declaration(Map<String, Object> config) {
