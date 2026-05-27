@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>com.etl</groupId>
 	<artifactId>spring-etl-engine</artifactId>
-	<version>1.7.6</version>
+	<version>1.7.7-SNAPSHOT</version>
 	<name>Spring ETL Engine</name>
 	<description>Focused config-driven runtime for repeatable file-based and integration-oriented flows.</description>
 	<url>https://github.com/kbalanandam/spring-etl-engine</url>

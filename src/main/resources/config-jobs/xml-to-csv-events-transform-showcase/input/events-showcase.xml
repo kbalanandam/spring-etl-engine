@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Events>
+  <Event>
+    <eventCode>EVT-2001</eventCode>
+    <eventTime>08:30:00</eventTime>
+    <description>Morning startup completed</description>
+    <sourceSystem>OPS</sourceSystem>
+  </Event>
+  <Event>
+    <eventCode>EVT-2002</eventCode>
+    <eventTime>17:45:10</eventTime>
+    <description>Evening processing completed</description>
+    <sourceSystem>BATCH</sourceSystem>
+  </Event>
+  <Event>
+    <eventCode>EVT-2003</eventCode>
+    <eventTime>25:99:00</eventTime>
+    <description>Invalid source time example</description>
+    <sourceSystem>LEGACY</sourceSystem>
+  </Event>
+</Events>
+

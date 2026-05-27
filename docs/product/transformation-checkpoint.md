@@ -15,7 +15,8 @@ This is **not** a second execution board. The canonical place for `Priority`, `S
 The active shipped transformation path is still the processor-centered contract documented in [`default-processor.md`](../config/processor/default-processor.md):
 
 - field-to-field mapping through `mappings[].fields[]`
-- shipped transform types: `valueMap`, `expression`, and `conditional`
+- shipped built-in transform types: `valueMap`, `expression`, `conditional`, and `zoneConvert`
+- shipped showcase extension transform type (ServiceLoader provider): `partnerStatusTranslate`
 - shipped validation rules: `notNull`, `timeFormat`, and `duplicate`
 - rejected-record output on the active processor path
 - duplicate handling on the active processor-rule path, not source validation

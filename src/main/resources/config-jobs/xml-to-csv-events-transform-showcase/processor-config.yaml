@@ -1,0 +1,36 @@
+type: default
+mappings:
+  - source: Events
+    target: EventsCsv
+    fields:
+      - from: eventCode
+        to: eventCode
+      - from: eventTime
+        to: eventTime
+        transforms:
+          - type: expression
+            expression: "'2026-05-27 ' + #value"
+          - type: zoneConvert
+            config:
+              fromZone: UTC
+              toZone: America/Chicago
+              inputPattern: yyyy-MM-dd HH:mm:ss
+              outputPattern: yyyy-MM-dd HH:mm:ss
+              fallbackValue: systemTime
+      - from: description
+        to: description
+      - from: sourceSystem
+        to: sourceSystem
+        transforms:
+          - type: valueMap
+            mappings:
+              OPS: PARTNER_OPS
+              BATCH: PARTNER_BATCH
+            defaultValue: PARTNER_UNKNOWN
+          - type: partnerStatusTranslate
+            config:
+              mappings:
+                PARTNER_OPS: Operations
+                PARTNER_BATCH: Batch
+              fallbackValue: Unknown
+

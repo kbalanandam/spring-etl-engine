@@ -4,6 +4,7 @@ import com.etl.processor.transform.ConditionalProcessorTransform;
 import com.etl.processor.transform.ExpressionProcessorTransform;
 import com.etl.processor.transform.ProcessorFieldTransform;
 import com.etl.processor.transform.ValueMapProcessorTransform;
+import com.etl.processor.transform.ZoneConvertProcessorTransform;
 import com.etl.processor.validation.DuplicateProcessorValidationRule;
 import com.etl.processor.validation.NotNullProcessorValidationRule;
 import com.etl.processor.validation.ProcessorValidationRule;
@@ -43,7 +44,8 @@ public final class BuiltInProcessorExtensionProvider implements ProcessorExtensi
         return List.of(
                 new ValueMapProcessorTransform(),
                 new ExpressionProcessorTransform(),
-                new ConditionalProcessorTransform()
+                new ConditionalProcessorTransform(),
+                new ZoneConvertProcessorTransform()
         );
     }
 }

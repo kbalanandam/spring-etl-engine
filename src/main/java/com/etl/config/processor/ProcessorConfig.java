@@ -109,6 +109,7 @@ public class ProcessorConfig {
 	public static class FieldTransform {
 
 		private String type;
+		private Map<String, Object> config;
 		private String expression;
 		private Map<String, Object> mappings;
 		private List<ConditionalCase> cases;
@@ -121,6 +122,14 @@ public class ProcessorConfig {
 
 		public void setType(String type) {
 			this.type = type;
+		}
+
+		public Map<String, Object> getConfig() {
+			return config;
+		}
+
+		public void setConfig(Map<String, Object> config) {
+			this.config = config;
 		}
 
 		public String getExpression() {

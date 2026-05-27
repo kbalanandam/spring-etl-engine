@@ -10,6 +10,7 @@ Define a bounded extension contract so customers can add new processor-side fiel
 - Priority: **P1**
 - Status: **In Progress**
 - Milestone: **M2**
+- M2 scope lock: this milestone does not introduce custom processor types and is transformation-only extensibility on the existing `type: default` processor seam.
 - Dependency: **T3, D1**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../product-backlog.md). The execution board remains the canonical source for changing status values.
@@ -96,12 +97,26 @@ T16 implementation and review should follow the architecture invariants in:
 
 ## Acceptance criteria
 
-- [ ] custom transform extension contract is documented as additive to the shipped `type: default` path
-- [ ] existing built-in transform behavior remains backward compatible when no custom transform is authored
-- [ ] startup validation fails fast for unknown custom transform `type`
-- [ ] startup validation fails fast for invalid transform-specific `config` values
-- [ ] one shared failure-category mapping is documented and aligned with Epic D
-- [ ] at least one preserved runnable scenario is identified/planned for custom-transform proof
+- [x] custom transform extension contract is documented as additive to the shipped `type: default` path
+- [x] existing built-in transform behavior remains backward compatible when no custom transform is authored
+- [x] startup validation fails fast for unknown custom transform `type`
+- [x] startup validation fails fast for invalid transform-specific `config` values
+- [x] one shared failure-category mapping is documented and aligned with Epic D
+- [x] at least one preserved runnable scenario is identified/planned for custom-transform proof
+
+## Phase-1 implementation evidence
+
+- additive provider-owned transform envelope implemented in `src/main/java/com/etl/config/processor/ProcessorConfig.java` (`FieldTransform.config`)
+- transform-level config envelope validation and behavior coverage in `src/test/java/com/etl/processor/transform/TransformEvaluatorTest.java`
+- startup fail-fast path coverage for custom transform config in `src/test/java/com/etl/config/ConfigLoaderJobConfigTest.java`
+- shipped processor contract docs updated in `docs/config/processor/default-processor.md`
+- T16 architecture invariant alignment updated in `docs/architecture/etl-core/customer-owned-processor-transform-seam.md`
+
+Focused verification executed on the branch:
+
+```powershell
+mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dtest=TransformEvaluatorTest,DynamicProcessorFactoryTest,ProcessorExtensionDefaultsTest,ConfigLoaderJobConfigTest#loadsProcessorConfigWhenCustomTransformUsesProviderOwnedConfigEnvelope+failsFastWhenCustomTransformConfigEnvelopeIsInvalid" test
+```
 
 ## Related docs
 
@@ -120,6 +135,7 @@ Keep phase-1 narrow: field-scoped transform extensibility only. Do not combine t
 ## Status notes
 
 - This item is planned as additive extensibility, not a replacement of the shipped transform contract.
-- This remains a future-direction design track and not a shipped processor config field contract yet.
+- Phase-1 (`transforms[].config` on the existing `type: default` processor seam) is implemented on `feature/t16-transform-seam-phase1` and queued for PR review/merge.
+- Preserved runnable showcase bundle added: `src/main/resources/config-jobs/xml-to-csv-events-transform-showcase/` with chained built-in transforms plus one ServiceLoader extension transform (`partnerStatusTranslate`).
 
 

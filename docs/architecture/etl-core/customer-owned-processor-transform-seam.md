@@ -56,6 +56,13 @@ Intent:
 - `type` identifies the transform implementation
 - `config` carries provider-owned options without forcing new core fields per transform family
 
+### Implementation snapshot (phase-1 slice)
+
+- `ProcessorConfig.FieldTransform` now accepts optional `config` as an additive provider-owned object.
+- Built-in transforms remain backward compatible; current shipped built-ins are `valueMap`, `expression`, `conditional`, and `zoneConvert` (`zoneConvert` uses the shared `config` envelope).
+- One shipped showcase provider now demonstrates custom-transform extensibility through `ProcessorExtensionProvider` + ServiceLoader (`partnerStatusTranslate`).
+- Runtime processor type remains locked to `type: default`; this slice does not introduce alternate processor types.
+
 ## Class-level seam anchors
 
 Use existing seams as the architecture center:
@@ -65,6 +72,44 @@ Use existing seams as the architecture center:
 - `src/main/java/com/etl/processor/transform/ProcessorTransformContext.java`
 - `src/main/java/com/etl/processor/spi/ProcessorExtensionProvider.java`
 - `src/main/java/com/etl/config/ConfigLoader.java` (startup validation path)
+
+## Call flow (validation and runtime)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant CL as ConfigLoader
+    participant TE as TransformEvaluator
+    participant PT as ProcessorFieldTransform(custom)
+    participant DP as DefaultDynamicProcessor
+    participant PP as DefaultProcessorExecutionPipeline
+    participant VDM as ValidationAwareDynamicMapping/DynamicMapping
+    participant MVR as MappedFieldValueResolver
+
+    rect rgb(245, 245, 245)
+    Note over CL,PT: Startup validation path (fail-fast)
+    CL->>CL: validateProcessorType(type: default)
+    CL->>CL: validateFieldTransforms(...)
+    CL->>TE: validateConfiguration(entity, field, transform)
+    TE->>PT: validateConfiguration(...)
+    Note over TE,PT: Unknown transforms[].type => binding failure\nInvalid transforms[].config => config failure
+    end
+
+    rect rgb(240, 248, 255)
+    Note over DP,MVR: Runtime value/output path
+    DP->>PP: createProcessor(...)
+    PP->>VDM: process(input)
+    VDM->>MVR: resolve(input, mapping)
+    MVR->>TE: apply(value, mapping, field, input, resolved)
+    TE->>PT: apply(value, transform, context)
+    PT-->>TE: transformed value
+    TE-->>MVR: transformed value
+    MVR-->>VDM: resolvedValues map
+    VDM->>MVR: createOutput(targetClass, mapping, resolvedValues)
+    MVR-->>VDM: output model
+    Note over PT,VDM: Transform exception during apply => execution failure
+    end
+```
 
 ## Failure-category mapping
 
