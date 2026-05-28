@@ -10,11 +10,11 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 
 - Classification: **Future direction**
 - This note still carries future-direction design intent, but the monitoring-first subset below is now implemented by the optional `com.etl.controlplane.ControlPlaneApiApplication` starter.
-- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
+- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/schedules/{scheduleId}/trigger-events`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
 - Trigger-event history now persists in the control-plane JDBC store when `controlplane.triggers.persistence.mode=jdbc` (control-plane profile default), with memory mode still available as a fallback.
 - Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default), while `/runs/{jobExecutionId}/detail` remains log-projected.
-- Schedule persistence foundation now exists internally in the control-plane JDBC store when `controlplane.schedules.persistence.mode=jdbc` (control-plane profile default); public schedule endpoints in this document are still planned.
-- Schedule trigger-event history endpoint remains planned; list/detail/create/update/state-change schedule endpoints are now implemented.
+- Schedule persistence foundation now exists internally in the control-plane JDBC store when `controlplane.schedules.persistence.mode=jdbc` (control-plane profile default).
+- Schedule trigger-event history now resolves from the selected job key associated with the schedule record.
 
 ## Scope
 
@@ -91,16 +91,10 @@ POST   /api/v1/schedules/{scheduleId}:enable
 POST   /api/v1/schedules/{scheduleId}:disable
 POST   /api/v1/schedules/{scheduleId}:pause
 POST   /api/v1/schedules/{scheduleId}:resume
+GET    /api/v1/schedules/{scheduleId}/trigger-events
 
 GET    /api/v1/system/health
 GET    /api/v1/system/info
-```
-
-Planned later:
-
-```text
-
-GET    /api/v1/schedules/{scheduleId}/trigger-events
 ```
 
 ## Jobs endpoints
@@ -377,7 +371,7 @@ Request body (suggested first slice):
 
 ```json
 {
-  "jobKey": "customer-load",
+  "selectedJobKey": "customer-load",
   "expression": "0 0 * * *",
   "timezone": "UTC",
   "enabled": true,
@@ -411,9 +405,9 @@ Return shape can stay minimal in MVP:
 
 Returns paged trigger history for schedule drill-down.
 
-Query (suggested first slice):
+Current query support:
 
-- `page`, `size`
+- `limit` (optional)
 
 Response body shape:
 
@@ -422,22 +416,22 @@ Response body shape:
   "items": [
     {
       "triggerEventId": "te-20260525-001",
-      "origin": "SCHEDULE",
-      "scheduleId": "sch-001",
       "jobKey": "customer-load",
-      "decisionStatus": "LAUNCHED",
-      "triggeredAt": "2026-05-25T10:41:00Z",
-      "launchedRunId": "10421",
-      "explanation": null
+      "decisionStatus": "ACCEPTED",
+      "reason": "manual_operator_request",
+      "requestedBy": "operator@example",
+      "requestedAt": "2026-05-27T10:15:30Z",
+      "launchedRunId": null,
+      "message": "Trigger request accepted as placeholder for reason='manual_operator_request' requestedBy='operator@example'."
     }
   ],
   "page": 0,
-  "size": 25,
+  "size": 20,
   "totalItems": 1
 }
 ```
 
-Use `TriggerEventPage` as the response envelope.
+Current behavior: trigger history is projected via the schedule's `selectedJobKey` against the shared trigger-event registry.
 
 ## System endpoints
 

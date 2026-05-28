@@ -2,6 +2,8 @@ package com.etl.controlplane.api;
 
 import com.etl.controlplane.schedules.ScheduleService;
 import com.etl.controlplane.schedules.ScheduleView;
+import com.etl.controlplane.triggers.TriggerEventRegistry;
+import com.etl.controlplane.triggers.TriggerEventView;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -11,6 +13,7 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -33,6 +36,9 @@ class ScheduleControllerTest {
 
 	@MockitoBean
 	private ScheduleService scheduleService;
+
+	@MockitoBean
+	private TriggerEventRegistry triggerEventRegistry;
 
 	@Test
 	void listsSchedulesWithDefaultLimit() throws Exception {
@@ -93,6 +99,41 @@ class ScheduleControllerTest {
 				.andExpect(jsonPath("$.paused").value(true));
 	}
 
+	@Test
+	void returnsScheduleTriggerEvents() throws Exception {
+		when(scheduleService.findByScheduleId(eq("sch-1"))).thenReturn(Optional.of(schedule("sch-1", "daily-customers")));
+		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(20))).thenReturn(List.of(
+				new TriggerEventView("te-1", "customer-load", "ACCEPTED", "schedule_tick", "scheduler", Instant.parse("2026-05-28T10:00:00Z"), null, "accepted")
+		));
+
+		mockMvc.perform(get("/api/v1/schedules/sch-1/trigger-events"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items[0].triggerEventId").value("te-1"))
+				.andExpect(jsonPath("$.size").value(20));
+
+		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(20));
+	}
+
+	@Test
+	void returnsNotFoundForScheduleTriggerEventsWhenScheduleMissing() throws Exception {
+		when(scheduleService.findByScheduleId(eq("missing"))).thenReturn(Optional.empty());
+
+		mockMvc.perform(get("/api/v1/schedules/missing/trigger-events"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void clampsScheduleTriggerEventsLimit() throws Exception {
+		when(scheduleService.findByScheduleId(eq("sch-1"))).thenReturn(Optional.of(schedule("sch-1", "daily-customers")));
+		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(200))).thenReturn(List.of());
+
+		mockMvc.perform(get("/api/v1/schedules/sch-1/trigger-events").param("limit", "999"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.size").value(200));
+
+		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(200));
+	}
+
 	private ScheduleView schedule(String id, String key) {
 		return new ScheduleView(
 				id,
@@ -109,5 +150,6 @@ class ScheduleControllerTest {
 		);
 	}
 }
+
 
 

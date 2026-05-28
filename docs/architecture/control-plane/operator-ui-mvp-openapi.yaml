@@ -305,6 +305,31 @@ paths:
         '404':
           description: Schedule not found
 
+  /schedules/{scheduleId}/trigger-events:
+    get:
+      tags: [Schedules]
+      operationId: listScheduleTriggerEvents
+      summary: List recent trigger events for one schedule (resolved via selected job key)
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 20
+      responses:
+        '200':
+          description: Trigger event history entries
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TriggerEventListResponse'
+        '404':
+          description: Schedule not found
+
   /system/health:
     get:
       tags: [System]

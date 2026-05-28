@@ -2,6 +2,7 @@ package com.etl.controlplane.api;
 
 import com.etl.controlplane.schedules.ScheduleService;
 import com.etl.controlplane.schedules.ScheduleView;
+import com.etl.controlplane.triggers.TriggerEventRegistry;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,11 +20,16 @@ public class ScheduleController {
 
 	private static final int DEFAULT_LIMIT = 25;
 	private static final int MAX_LIMIT = 200;
+	private static final int DEFAULT_TRIGGER_EVENT_LIMIT = 20;
+	private static final int MAX_TRIGGER_EVENT_LIMIT = 200;
 
 	private final ScheduleService scheduleService;
+	private final TriggerEventRegistry triggerEventRegistry;
 
-	public ScheduleController(ScheduleService scheduleService) {
+	public ScheduleController(ScheduleService scheduleService,
+	                         TriggerEventRegistry triggerEventRegistry) {
 		this.scheduleService = scheduleService;
+		this.triggerEventRegistry = triggerEventRegistry;
 	}
 
 	@GetMapping
@@ -37,6 +43,20 @@ public class ScheduleController {
 	public ResponseEntity<ScheduleViewResponse> getSchedule(@PathVariable String scheduleId) {
 		return scheduleService.findByScheduleId(scheduleId)
 				.map(schedule -> ResponseEntity.ok(toResponse(schedule)))
+				.orElseGet(() -> ResponseEntity.notFound().build());
+	}
+
+	@GetMapping("/{scheduleId}/trigger-events")
+	public ResponseEntity<TriggerEventListResponse> scheduleTriggerEvents(@PathVariable String scheduleId,
+	                                                                     @RequestParam(name = "limit", required = false) Integer limit) {
+		int effectiveLimit = limit == null
+				? DEFAULT_TRIGGER_EVENT_LIMIT
+				: Math.max(1, Math.min(limit, MAX_TRIGGER_EVENT_LIMIT));
+		return scheduleService.findByScheduleId(scheduleId)
+				.map(schedule -> {
+					var events = triggerEventRegistry.listByJobKey(schedule.selectedJobKey(), effectiveLimit);
+					return ResponseEntity.ok(new TriggerEventListResponse(events, 0, effectiveLimit, events.size()));
+				})
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
 
@@ -133,4 +153,5 @@ public class ScheduleController {
 		);
 	}
 }
+
 
