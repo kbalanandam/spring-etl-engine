@@ -126,6 +126,7 @@ This boundary is formalized as an accepted decision in [`ADR-0008`](../../adr/00
 - Persisted operational history is an optional control-plane capability. It should enrich scheduling, watcher evidence, and operator workflows without becoming a hard prerequisite for core ETL execution.
 - The first control-plane implementation should stay Java-first and close to the existing stack. Lightweight relational persistence such as SQLite is acceptable for early local or single-node control-plane work, with stronger relational deployment targets added later.
 - Transformation capability remains a first-class roadmap track alongside control-plane maturity. Scheduler or UI work must not displace shared transformation growth.
+- OneFlow capability packaging should remain plug-and-play under one unified UI: teams may run selected capability bundles today, and each capability may later be extracted into an independent service only when objective extraction triggers are met.
 
 ## Tradeoffs
 
@@ -161,6 +162,7 @@ It does change how future work should be shaped:
 - future launch APIs, CLIs, or services should resolve to the same selected-job contract already used by direct execution
 - external orchestration support should remain documented and tested as a supported path, not a compatibility afterthought
 - transformation roadmap work should continue in parallel rather than being deferred behind control-plane delivery
+- capability boundaries should stay explicit so in-process modules can be extracted later without changing product identity or UI integration
 
 ## Testing / Validation Expectations
 

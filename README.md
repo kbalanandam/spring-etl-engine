@@ -113,6 +113,32 @@ The near-term product focus is to make these recurring concerns consistent acros
 - richer fault tolerance, reconciliation, restartability, scheduling, and transport capabilities
 - deeper relational hardening and enterprise verification/reporting maturity
 
+## Optional control-plane API starter (monitoring-first)
+
+An optional monitoring-first control-plane API starter is now available as a separate launcher:
+
+- `com.etl.controlplane.ControlPlaneApiApplication`
+
+It intentionally runs as a separate process from the ETL worker so the selected-job runtime contract stays unchanged.
+
+Example local run:
+
+```powershell
+mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dspring-boot.run.mainClass=com.etl.controlplane.ControlPlaneApiApplication" "-Dspring-boot.run.profiles=controlplane" spring-boot:run
+```
+
+First monitoring endpoints:
+
+- `GET /api/v1/jobs` - lists preserved job bundles with readiness projection metadata
+- `GET /api/v1/jobs/{jobKey}` - returns an aggregated job-detail payload with `job`, `recentRuns`, and `recentTriggerEvents`
+- `POST /api/v1/jobs/{jobKey}:trigger-now` - records an accepted placeholder trigger decision and returns a `triggerEventId`
+- `GET /api/v1/jobs/{jobKey}/trigger-events` - lists recent trigger events for one job bundle
+- `GET /api/v1/runs` - lists recent `RUN_SUMMARY` log projections
+- `GET /api/v1/runs/{jobExecutionId}` - returns one projected run summary by job execution id
+- `GET /api/v1/runs/{jobExecutionId}/detail` - returns a richer run drill-down with step outcomes, artifacts, failure summary, and evidence links
+- `GET /api/v1/system/health` - returns minimal control-plane health status
+- `GET /api/v1/system/info` - returns service name, Java version, and active profile
+
 ## Start here
 
 Use this table as the recommended reading order by goal:

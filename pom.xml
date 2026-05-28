@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>com.etl</groupId>
 	<artifactId>spring-etl-engine</artifactId>
-	<version>1.7.8-SNAPSHOT</version>
+	<version>1.7.8-rc1</version>
 	<name>Spring ETL Engine</name>
 	<description>Focused config-driven runtime for repeatable file-based and integration-oriented flows.</description>
 	<url>https://github.com/kbalanandam/spring-etl-engine</url>
@@ -36,11 +36,17 @@
 		<maven.compiler.target>${java.version}</maven.compiler.target>
 		<!-- Keeps the transitive log4j-to-slf4j/log4j-api bridge off older vulnerable coordinates. -->
 		<log4j2.version>2.25.4</log4j2.version>
+		<!-- Overrides the Spring-managed Tomcat embed line to a CVE-remediated release. -->
+		<tomcat.version>10.1.55</tomcat.version>
 	</properties>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 
 		<!--	<dependency>

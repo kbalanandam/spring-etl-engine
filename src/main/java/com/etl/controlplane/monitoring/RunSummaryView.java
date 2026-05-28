@@ -1,0 +1,21 @@
+package com.etl.controlplane.monitoring;
+
+import java.time.LocalDateTime;
+
+/**
+ * Lightweight read-model projection for one RUN_SUMMARY evidence line.
+ */
+public record RunSummaryView(
+		String scenario,
+		Long jobExecutionId,
+		String status,
+		LocalDateTime startTime,
+		LocalDateTime endTime,
+		Long durationSeconds,
+		Long sourceCount,
+		Long writtenCount,
+		Long rejectedCount,
+		String logPath
+) {
+}
+

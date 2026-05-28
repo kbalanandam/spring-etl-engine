@@ -9,7 +9,17 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 ## Status
 
 - Classification: **Future direction**
-- This note defines a first API shape for MVP planning, not a shipped production API.
+- This note still carries future-direction design intent, but the monitoring-first subset below is now implemented by the optional `com.etl.controlplane.ControlPlaneApiApplication` starter.
+- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/schedules/{scheduleId}/trigger-events`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
+- Trigger-event history now persists in the control-plane JDBC store when `controlplane.triggers.persistence.mode=jdbc` (control-plane profile default), with memory mode still available as a fallback.
+- Trigger-event persistence mode switches are startup-guarded: when the prior marker mode differs from the current configured mode (`jdbc` <-> `memory`), startup fails fast unless `controlplane.triggers.persistence.allow-mode-switch=true` is set intentionally.
+- Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default), while `/runs/{jobExecutionId}/detail` remains log-projected.
+- Schedule persistence foundation now exists internally in the control-plane JDBC store when `controlplane.schedules.persistence.mode=jdbc` (control-plane profile default).
+- Schedule trigger-event history now resolves by `scheduleId` in the trigger registry.
+- Optional scheduler tick evaluation can now record schedule-origin trigger events when `controlplane.scheduler.enabled=true`; default remains disabled for explicit opt-in.
+- Scheduler dedup now persists the last accepted due instant per schedule so duplicate ticks are suppressed across control-plane restarts.
+- Watermark advancement is claimed atomically per schedule due instant, reducing duplicate schedule ticks when multiple control-plane pollers overlap.
+- Scheduler missed-run behavior is now policy-driven with `controlplane.scheduler.missed-run-policy` (`SKIP` default, optional `CATCH_UP_ONCE` or `CATCH_UP_ALL`) plus `controlplane.scheduler.max-catch-up-iterations` safety bounds.
 
 ## Scope
 
@@ -72,9 +82,11 @@ Suggested resource groups:
 GET    /api/v1/jobs
 GET    /api/v1/jobs/{jobKey}
 POST   /api/v1/jobs/{jobKey}:trigger-now
+GET    /api/v1/jobs/{jobKey}/trigger-events
 
 GET    /api/v1/runs
-GET    /api/v1/runs/{runId}
+GET    /api/v1/runs/{jobExecutionId}
+GET    /api/v1/runs/{jobExecutionId}/detail
 
 GET    /api/v1/schedules
 GET    /api/v1/schedules/{scheduleId}
@@ -96,12 +108,9 @@ GET    /api/v1/system/info
 
 Returns job bundle summaries for the Jobs list screen.
 
-Query (suggested first slice):
+Current query support:
 
-- `q` (optional search text)
-- `readinessStatus` (optional)
-- `hasSchedule` (optional boolean)
-- `page`, `size` (optional)
+- no filters yet
 
 Response body:
 
@@ -113,24 +122,58 @@ Response body:
       "displayName": "Customer Load",
       "jobConfigPath": "src/main/resources/config-jobs/customer-load/job-config.yaml",
       "readinessStatus": "READY",
-      "validationMessages": [],
-      "scheduleCount": 2,
-      "lastRunSummary": {
-        "runId": "10420",
-        "status": "SUCCESS",
-        "finishedAt": "2026-05-25T10:12:00Z"
-      }
+      "validationMessages": []
     }
   ],
   "page": 0,
-  "size": 25,
+  "size": 1,
   "totalItems": 1
 }
 ```
 
 ### `GET /api/v1/jobs/{jobKey}`
 
-Returns one bundle detail with readiness and linked schedule summary.
+Returns an aggregated job detail payload for the first Jobs drill-down screen.
+
+Response body:
+
+```json
+{
+  "job": {
+    "jobKey": "customer-load",
+    "displayName": "Customer Load",
+    "jobConfigPath": "src/main/resources/config-jobs/customer-load/job-config.yaml",
+    "readinessStatus": "READY",
+    "validationMessages": []
+  },
+  "recentRuns": [
+    {
+      "scenario": "Customer Load",
+      "jobExecutionId": 101,
+      "status": "COMPLETED",
+      "startTime": "2026-05-27T10:00:00",
+      "endTime": "2026-05-27T10:00:10",
+      "durationSeconds": 10,
+      "sourceCount": 10,
+      "writtenCount": 10,
+      "rejectedCount": 0,
+      "logPath": "logs/2026-05-27/customer-load.log"
+    }
+  ],
+  "recentTriggerEvents": [
+    {
+      "triggerEventId": "te-123",
+      "jobKey": "customer-load",
+      "decisionStatus": "ACCEPTED",
+      "reason": "manual_operator_request",
+      "requestedBy": "operator@example",
+      "requestedAt": "2026-05-27T10:15:30Z",
+      "launchedRunId": null,
+      "message": "accepted"
+    }
+  ]
+}
+```
 
 ### `POST /api/v1/jobs/{jobKey}:trigger-now`
 
@@ -149,9 +192,47 @@ Response body:
 
 ```json
 {
-  "triggerEventId": "te-20260525-001",
-  "decisionStatus": "LAUNCHED",
-  "launchedRunId": "10421"
+  "jobKey": "customer-load",
+  "decisionStatus": "ACCEPTED",
+  "message": "Trigger request accepted as placeholder for reason='manual_operator_request' requestedBy='operator@example'.",
+  "triggerEventId": "te-20260525-001"
+}
+```
+
+Current behavior:
+
+- returns `202 ACCEPTED` for known jobs
+- records a trigger event in the configured control-plane registry (`jdbc` by default for control-plane profile, `memory` fallback)
+- follows trigger persistence mode-switch guardrails so fallback changes are explicit, not silent (`controlplane.triggers.persistence.allow-mode-switch=true` only for intentional resets)
+- does not launch the worker yet; launch orchestration remains a later slice
+
+### `GET /api/v1/jobs/{jobKey}/trigger-events`
+
+Returns recent trigger history for one registered job bundle.
+
+Suggested first-slice query:
+
+- `limit` (optional)
+
+Response body shape:
+
+```json
+{
+  "items": [
+    {
+      "triggerEventId": "te-20260525-001",
+      "jobKey": "customer-load",
+      "decisionStatus": "ACCEPTED",
+      "reason": "manual_operator_request",
+      "requestedBy": "operator@example",
+      "requestedAt": "2026-05-27T10:15:30Z",
+      "launchedRunId": null,
+      "message": "Trigger request accepted as placeholder for reason='manual_operator_request' requestedBy='operator@example'."
+    }
+  ],
+  "page": 0,
+  "size": 20,
+  "totalItems": 1
 }
 ```
 
@@ -161,14 +242,9 @@ Response body:
 
 Returns run summaries for the Runs screen.
 
-Query (suggested first slice):
+Current query support:
 
-- `jobKey`
-- `status`
-- `triggerOrigin`
-- `startedFrom`
-- `startedTo`
-- `page`, `size`
+- `limit` (optional)
 
 Response body shape:
 
@@ -176,16 +252,14 @@ Response body shape:
 {
   "items": [
     {
-      "runId": "10421",
-      "jobKey": "customer-load",
-      "jobDisplayName": "Customer Load",
-      "status": "RUNNING",
-      "triggerOrigin": "SCHEDULE",
-      "startedAt": "2026-05-25T10:41:00Z",
-      "finishedAt": null,
-      "durationMs": null,
+      "scenario": "Customer Load",
+      "jobExecutionId": 10421,
+      "status": "COMPLETED",
+      "startTime": "2026-05-25T10:41:00",
+      "endTime": "2026-05-25T10:42:00",
+      "durationSeconds": 60,
       "sourceCount": 250,
-      "writtenCount": null,
+      "writtenCount": 250,
       "rejectedCount": 0
     }
   ],
@@ -195,17 +269,107 @@ Response body shape:
 }
 ```
 
-### `GET /api/v1/runs/{runId}`
+### `GET /api/v1/runs/{jobExecutionId}`
 
-Returns one run detail for the Run detail screen.
+Returns one projected `RUN_SUMMARY` view by job execution id.
 
-Response should include:
+### `GET /api/v1/runs/{jobExecutionId}/detail`
 
-- `run` (`RunRecordView`)
-- `steps` (`StepRecordView[]`)
-- `artifacts` (`ArtifactRecordView[]`)
-- `failureSummary` (nullable)
-- `evidenceLinks[]`
+Returns a richer run drill-down assembled from structured scenario-log evidence for the same job execution id.
+
+Current detail shape:
+
+```json
+{
+  "run": {
+    "scenario": "Customer Load",
+    "jobExecutionId": 101,
+    "status": "FAILED",
+    "startTime": "2026-05-27T10:00:00",
+    "endTime": "2026-05-27T10:00:10",
+    "durationSeconds": 10,
+    "sourceCount": 10,
+    "writtenCount": 8,
+    "rejectedCount": 2,
+    "logPath": "logs/2026-05-27/customer-load.log"
+  },
+  "steps": [
+    {
+      "stepName": "normalize-orders",
+      "sequence": 1,
+      "status": "COMPLETED",
+      "stepExecutionId": 201,
+      "readCount": 10,
+      "writeCount": 8,
+      "filterCount": 0,
+      "skipCount": 0,
+      "rollbackCount": 0,
+      "rejectedCount": 2,
+      "startedAt": "2026-05-27T10:00:01",
+      "finishedAt": "2026-05-27T10:00:05",
+      "subFlow": "normalize-orders-subflow",
+      "stepSummary": "Normalize orders step"
+    }
+  ],
+  "artifacts": [
+    {
+      "artifactId": "reject-201",
+      "role": "reject-output",
+      "label": "Rejected records for normalize-orders",
+      "pathOrUri": "output/rejects/orders.csv",
+      "createdAt": "2026-05-27T10:00:05",
+      "recordCount": 2,
+      "stepName": "normalize-orders"
+    }
+  ],
+  "failureSummary": {
+    "category": "target_write",
+    "exceptionType": "IllegalStateException",
+    "rootCause": "constraint failed",
+    "message": "constraint failed"
+  },
+  "evidenceLinks": [
+    {
+      "label": "Scenario log",
+      "href": "logs/2026-05-27/customer-load.log",
+      "type": "log-file"
+    },
+    {
+      "label": "Run summary",
+      "href": "logs/2026-05-27/customer-load.log#L6",
+      "type": "run-summary"
+    },
+    {
+      "label": "Step events (4)",
+      "href": "logs/2026-05-27/customer-load.log#L2",
+      "type": "step-event"
+    },
+    {
+      "label": "Job failure context",
+      "href": "logs/2026-05-27/customer-load.log#L7",
+      "type": "job-failure"
+    }
+  ]
+}
+```
+
+Current evidence sources for this route:
+
+- `RUN_SUMMARY` for run-level counts and timestamps
+- `STEP_EVENT event=step_started|step_finished` for ordered step outcomes and artifact paths
+- `JOB_FAILURE event=job_failure` for failure categorization
+
+Evidence-link anchor contract for this route:
+
+- base log links use `logs/<yyyy-MM-dd>/<scenario>.log`
+- line anchors append `#L<lineNumber>` to that path
+- example: `logs/2026-05-27/customer-load.log#L6`
+
+Missing/rolled log behavior:
+
+- if the projected `run.logPath` no longer exists (for example roll/archive cleanup), the endpoint still returns `200` with summary/detail fields that are available
+- `evidenceLinks` includes the normal `type=log-file` entry and an additive `type=log-file-missing` marker
+- line-anchored links (`#L...`) are emitted only when the log file is currently readable
 
 ## Schedules endpoints
 
@@ -225,7 +389,7 @@ Request body (suggested first slice):
 
 ```json
 {
-  "jobKey": "customer-load",
+  "selectedJobKey": "customer-load",
   "expression": "0 0 * * *",
   "timezone": "UTC",
   "enabled": true,
@@ -259,9 +423,9 @@ Return shape can stay minimal in MVP:
 
 Returns paged trigger history for schedule drill-down.
 
-Query (suggested first slice):
+Current query support:
 
-- `page`, `size`
+- `limit` (optional)
 
 Response body shape:
 
@@ -270,22 +434,24 @@ Response body shape:
   "items": [
     {
       "triggerEventId": "te-20260525-001",
-      "origin": "SCHEDULE",
-      "scheduleId": "sch-001",
       "jobKey": "customer-load",
-      "decisionStatus": "LAUNCHED",
-      "triggeredAt": "2026-05-25T10:41:00Z",
-      "launchedRunId": "10421",
-      "explanation": null
+      "decisionStatus": "ACCEPTED",
+      "reason": "manual_operator_request",
+      "requestedBy": "operator@example",
+      "requestedAt": "2026-05-27T10:15:30Z",
+      "launchedRunId": null,
+      "message": "Trigger request accepted as placeholder for reason='manual_operator_request' requestedBy='operator@example'."
     }
   ],
   "page": 0,
-  "size": 25,
+  "size": 20,
   "totalItems": 1
 }
 ```
 
-Use `TriggerEventPage` as the response envelope.
+Current behavior: trigger history is retrieved by `scheduleId` from the shared trigger-event registry, so multiple schedules targeting the same job stay isolated in drill-down views.
+
+When scheduler tick mode is enabled, the same history can include records with `reason=schedule_tick` and `requestedBy=scheduler`.
 
 ## System endpoints
 
@@ -297,12 +463,8 @@ Suggested response:
 
 ```json
 {
-  "status": "HEALTHY",
-  "operatorApi": "HEALTHY",
-  "scheduler": "HEALTHY",
-  "workerReachability": "REACHABLE",
-  "historyStore": "HEALTHY",
-  "checkedAt": "2026-05-25T11:05:00Z"
+  "status": "UP",
+  "timestamp": "2026-05-25T11:05:00Z"
 }
 ```
 
@@ -310,17 +472,33 @@ Suggested response:
 
 Returns environment and version metadata for display.
 
+Suggested response:
+
+```json
+{
+  "service": "spring-etl-engine-control-plane",
+  "javaVersion": "21",
+  "profile": "controlplane"
+}
+```
+
 ## View-model contract summary
 
 The MVP API should align with these response models:
 
 - `JobBundleSummaryView`
-- `RunRecordView`
+- `JobBundleDetailResponse`
+- `RunSummaryView`
+- `TriggerEventView`
+- `SystemHealthResponse`
+- `SystemInfoResponse`
+
+Planned later view models still include:
+
 - `RunDetailView`
 - `StepRecordView`
 - `ArtifactRecordView`
 - `ScheduleView`
-- `TriggerEventView`
 
 These names and fields are described in [`../operator-ui/angular-ui-mvp-structure.md`](../operator-ui/angular-ui-mvp-structure.md).
 
@@ -357,14 +535,21 @@ Treat these as non-negotiable for the MVP API surface:
 
 ## MVP delivery order
 
-Implement backend API slices in this order:
+Implemented so far:
 
 1. read-only Jobs and Runs endpoints
-2. Run detail endpoint
+2. Run summary lookup by job execution id
 3. System health/info endpoints
-4. Schedule list/detail/create/update/state-change endpoints
-5. Trigger history endpoint
-6. Trigger-now endpoint if not already covered
+4. Trigger-now placeholder endpoint plus trigger-event history
+5. aggregated job detail payload for the first Jobs drill-down view
+6. schedule list/detail/create/update/state-change endpoints
+
+Recommended next backend slices:
+
+1. richer run-detail projection beyond `RUN_SUMMARY`
+2. schedule trigger-event history endpoint plus scheduler execution loop
+3. file-watcher trigger ingestion and watcher-schedule linkage
+4. worker-launch orchestration behind trigger-now
 
 That order supports the monitoring-first UI rollout with minimal churn.
 

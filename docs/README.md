@@ -31,7 +31,7 @@ Use these short definitions as the shared vocabulary for the rest of the docs:
 - **factory** - a runtime component that creates the correct reader, writer, or processor implementation from the selected config type
 - **resolver** - a runtime component that selects the correct metadata or implementation for the current step, such as model classes or relational vendor behavior
 - **database dialect** - the relational abstraction that keeps vendor-specific SQL behavior behind one `relational` format instead of creating vendor-per-format modeling
-- **control plane** - the future optional scheduler/watcher/UI layer that triggers and observes OneFlow jobs, persists operational history, and resolves back to the same selected `job-config.yaml` contract rather than replacing the ETL core runtime boundary; external schedulers/orchestrators should remain equally valid launchers of that same contract
+- **control plane** - the optional operational layer that can host plug-and-play OneFlow capabilities (for example scheduler, monitoring history, and future modules such as Hypercare) while still resolving back to the same selected `job-config.yaml` runtime contract; external schedulers/orchestrators should remain equally valid launchers of that same contract
 
 ## How to navigate these docs
 
@@ -145,6 +145,7 @@ For every significant enhancement, add or update:
 - [`adr/0009-formalize-sqlite-first-local-control-plane-persistence.md`](adr/0009-formalize-sqlite-first-local-control-plane-persistence.md)
 - [`adr/0010-keep-native-parsers-behind-java-reader-boundary.md`](adr/0010-keep-native-parsers-behind-java-reader-boundary.md)
 - [`adr/0011-enforce-single-default-processor-contract.md`](adr/0011-enforce-single-default-processor-contract.md)
+- [`adr/0012-adopt-capability-first-hypercare-evolution.md`](adr/0012-adopt-capability-first-hypercare-evolution.md) - capability-first OneFlow evolution with optional later service extraction
 - [`adr/TEMPLATE.md`](adr/TEMPLATE.md) - template for future ADRs
 
 ### Configuration references

@@ -169,6 +169,7 @@ Treat the following as non-negotiable unless a later ADR changes direction:
 - scheduling behavior must remain a control-plane concern, not browser-only behavior
 - monitoring should project from existing runtime evidence first and retained history second
 - UI work must not outrun schedule, overlap, and restart semantics already documented elsewhere
+- the UI should remain capability-aware and plug-and-play, so ETL, Scheduler, Hypercare, and future capabilities can be enabled in combinations without forking the product surface
 
 ## Relationship to current backlog direction
 
