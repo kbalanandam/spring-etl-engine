@@ -146,6 +146,7 @@ For every significant enhancement, add or update:
 - [`adr/0010-keep-native-parsers-behind-java-reader-boundary.md`](adr/0010-keep-native-parsers-behind-java-reader-boundary.md)
 - [`adr/0011-enforce-single-default-processor-contract.md`](adr/0011-enforce-single-default-processor-contract.md)
 - [`adr/0012-adopt-capability-first-hypercare-evolution.md`](adr/0012-adopt-capability-first-hypercare-evolution.md) - capability-first OneFlow evolution with optional later service extraction
+- [`adr/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md`](adr/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md) - formal naming split between technical identity and product-facing brand copy
 - [`adr/TEMPLATE.md`](adr/TEMPLATE.md) - template for future ADRs
 
 ### Configuration references
