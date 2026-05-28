@@ -60,7 +60,7 @@ function Invoke-MavenScenario {
 
         # Capture the full Maven/Spring Boot console transcript so later checks can
         # validate specific proof points from logs, not just process exit codes.
-        & mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=$jvmArgs" spring-boot:run 2>&1 | Out-File -FilePath $CaptureFile -Encoding utf8 -Append
+                    & mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.mainClass=com.etl.ETLEngineApplication" "-Dspring-boot.run.main-class=com.etl.ETLEngineApplication" "-Dspring-boot.run.jvmArguments=$jvmArgs" spring-boot:run 2>&1 | Out-File -FilePath $CaptureFile -Encoding utf8 -Append
         $exitCode = $LASTEXITCODE
     }
     finally {
