@@ -74,6 +74,28 @@ class ScheduleTriggerTickServiceTest {
 	}
 
 	@Test
+	void suppressesDuplicateWhenWatermarkAlreadyClaimed() {
+		InMemoryScheduleRegistry registry = new InMemoryScheduleRegistry();
+		ScheduleService scheduleService = new ScheduleService(registry);
+		RecordingTriggerRegistry triggerRegistry = new RecordingTriggerRegistry();
+		ScheduleView schedule = scheduleService.createSchedule("every-minute", "customer-load", "* * * * *", "UTC", true, "minute tick");
+		scheduleService.markLastAcceptedDueAt(schedule.scheduleId(), Instant.parse("2026-05-28T10:00:00Z"));
+
+		Clock fixedClock = Clock.fixed(Instant.parse("2026-05-28T10:00:20Z"), ZoneOffset.UTC);
+		ScheduleTriggerTickService tickService = new ScheduleTriggerTickService(
+				scheduleService,
+				triggerRegistry,
+				30000,
+				"schedule_tick",
+				"scheduler",
+				fixedClock
+		);
+
+		tickService.pollAndRecordDueSchedules(ZonedDateTime.ofInstant(fixedClock.instant(), ZoneOffset.UTC));
+		assertEquals(0, triggerRegistry.recorded.size());
+	}
+
+	@Test
 	void skipsPausedOrDisabledSchedules() {
 		ScheduleService scheduleService = new ScheduleService(new InMemoryScheduleRegistry());
 		RecordingTriggerRegistry triggerRegistry = new RecordingTriggerRegistry();

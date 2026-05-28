@@ -2,10 +2,12 @@ package com.etl.controlplane.schedules;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class InMemoryScheduleRegistryTest {
@@ -28,6 +30,21 @@ class InMemoryScheduleRegistryTest {
 
 		assertTrue(registry.findByScheduleId("sch-1").isPresent());
 		assertTrue(registry.findByScheduleKey("daily-a").isPresent());
+	}
+
+	@Test
+	void advancesDueWatermarkMonotonically() {
+		InMemoryScheduleRegistry registry = new InMemoryScheduleRegistry();
+		registry.upsert(schedule("sch-1", "daily-a", LocalDateTime.parse("2026-05-28T08:00:00")));
+
+		boolean first = registry.tryAdvanceLastAcceptedDueAt("sch-1", Instant.parse("2026-05-28T10:00:00Z"));
+		boolean older = registry.tryAdvanceLastAcceptedDueAt("sch-1", Instant.parse("2026-05-28T09:59:59Z"));
+		boolean newer = registry.tryAdvanceLastAcceptedDueAt("sch-1", Instant.parse("2026-05-28T10:01:00Z"));
+
+		assertTrue(first);
+		assertFalse(older);
+		assertTrue(newer);
+		assertEquals(Instant.parse("2026-05-28T10:01:00Z"), registry.findByScheduleId("sch-1").orElseThrow().lastAcceptedDueAt());
 	}
 
 	private ScheduleView schedule(String id, String key, LocalDateTime updatedAt) {

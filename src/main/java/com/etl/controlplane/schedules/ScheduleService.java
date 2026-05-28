@@ -74,21 +74,10 @@ public class ScheduleService {
 		if (dueAt == null) {
 			return Optional.empty();
 		}
-		return findByScheduleId(scheduleId)
-				.map(existing -> registry.upsert(new ScheduleView(
-						existing.scheduleId(),
-						existing.scheduleKey(),
-						existing.selectedJobKey(),
-						existing.expression(),
-						existing.timezone(),
-						existing.enabled(),
-						existing.paused(),
-						existing.description(),
-						existing.createdAt(),
-						LocalDateTime.now(),
-						existing.watcherKey(),
-						dueAt
-				)));
+		if (!registry.tryAdvanceLastAcceptedDueAt(scheduleId == null ? "" : scheduleId.trim(), dueAt)) {
+			return Optional.empty();
+		}
+		return findByScheduleId(scheduleId);
 	}
 
 	public Optional<ScheduleView> findByScheduleId(String scheduleId) {

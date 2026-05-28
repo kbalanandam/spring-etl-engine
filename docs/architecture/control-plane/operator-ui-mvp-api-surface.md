@@ -17,6 +17,7 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 - Schedule trigger-event history now resolves by `scheduleId` in the trigger registry.
 - Optional scheduler tick evaluation can now record schedule-origin trigger events when `controlplane.scheduler.enabled=true`; default remains disabled for explicit opt-in.
 - Scheduler dedup now persists the last accepted due instant per schedule so duplicate ticks are suppressed across control-plane restarts.
+- Watermark advancement is claimed atomically per schedule due instant, reducing duplicate schedule ticks when multiple control-plane pollers overlap.
 
 ## Scope
 

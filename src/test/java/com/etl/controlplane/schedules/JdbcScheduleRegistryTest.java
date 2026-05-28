@@ -52,6 +52,21 @@ class JdbcScheduleRegistryTest {
 		assertEquals("sch-2", schedules.get(0).scheduleId());
 	}
 
+	@Test
+	void advancesDueWatermarkMonotonically() {
+		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(new JdbcTemplate(inMemoryDataSource()));
+		registry.upsert(schedule("sch-1", "daily-a", LocalDateTime.parse("2026-05-28T09:00:00")));
+
+		boolean first = registry.tryAdvanceLastAcceptedDueAt("sch-1", Instant.parse("2026-05-28T10:00:00Z"));
+		boolean older = registry.tryAdvanceLastAcceptedDueAt("sch-1", Instant.parse("2026-05-28T09:59:59Z"));
+		boolean newer = registry.tryAdvanceLastAcceptedDueAt("sch-1", Instant.parse("2026-05-28T10:01:00Z"));
+
+		assertTrue(first);
+		assertFalse(older);
+		assertTrue(newer);
+		assertEquals(Instant.parse("2026-05-28T10:01:00Z"), registry.findByScheduleId("sch-1").orElseThrow().lastAcceptedDueAt());
+	}
+
 	private ScheduleView schedule(String id, String key, LocalDateTime updatedAt) {
 		return new ScheduleView(
 				id,

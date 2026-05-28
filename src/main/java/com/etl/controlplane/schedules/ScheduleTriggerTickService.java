@@ -106,8 +106,11 @@ public class ScheduleTriggerTickService {
 		String message = "Schedule trigger accepted for scheduleId='" + schedule.scheduleId()
 				+ "' scheduleKey='" + schedule.scheduleKey()
 				+ "' dueAt='" + dueAt + "'.";
+		if (scheduleService.markLastAcceptedDueAt(schedule.scheduleId(), dueInstant).isEmpty()) {
+			log.debug("SCHEDULE_TICK event=schedule_duplicate_suppressed scheduleId={} dueAt={}", schedule.scheduleId(), dueAt);
+			return;
+		}
 		triggerEventRegistry.recordAcceptedForSchedule(schedule.scheduleId(), schedule.selectedJobKey(), reason, requestedBy, message);
-		scheduleService.markLastAcceptedDueAt(schedule.scheduleId(), dueInstant);
 		log.info("SCHEDULE_TICK event=schedule_trigger_recorded scheduleId={} selectedJobKey={} dueAt={}",
 				schedule.scheduleId(), schedule.selectedJobKey(), dueAt);
 	}

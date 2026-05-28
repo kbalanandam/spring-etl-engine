@@ -1,5 +1,6 @@
 package com.etl.controlplane.schedules;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,5 +16,7 @@ public interface ScheduleRegistry {
 	Optional<ScheduleView> findByScheduleKey(String scheduleKey);
 
 	List<ScheduleView> list(int limit);
+
+	boolean tryAdvanceLastAcceptedDueAt(String scheduleId, Instant dueAt);
 }
 

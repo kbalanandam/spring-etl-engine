@@ -104,6 +104,30 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 		return schedules.size() <= limit ? schedules : schedules.subList(0, limit);
 	}
 
+	@Override
+	public boolean tryAdvanceLastAcceptedDueAt(String scheduleId, Instant dueAt) {
+		if (dueAt == null) {
+			return false;
+		}
+		String normalizedScheduleId = normalize(scheduleId);
+		if (normalizedScheduleId.isBlank()) {
+			return false;
+		}
+		Timestamp dueTimestamp = Timestamp.from(dueAt);
+		int updated = jdbcTemplate.update("""
+				update controlplane_schedule
+				set last_accepted_due_at = ?, updated_at = ?
+				where schedule_id = ?
+				  and (last_accepted_due_at is null or last_accepted_due_at < ?)
+				""",
+				dueTimestamp,
+				Timestamp.valueOf(LocalDateTime.now()),
+				normalizedScheduleId,
+				dueTimestamp
+		);
+		return updated > 0;
+	}
+
 	private ScheduleView mapRow(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
 		return new ScheduleView(
 				rs.getString("schedule_id"),
