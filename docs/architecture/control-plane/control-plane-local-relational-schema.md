@@ -9,7 +9,7 @@ It exists to translate the conceptual retained operational data model into a pra
 ## Status
 
 - Classification: **Future direction**
-- The Mermaid diagrams in this document describe the preferred future direction; a first trigger-event persistence slice is now shipped behind the optional control-plane API when JDBC mode is enabled.
+- The Mermaid diagrams in this document describe the preferred future direction; trigger-event persistence, run-summary persistence, and an internal schedule-table foundation are now shipped behind the optional control-plane API when JDBC mode is enabled.
 
 ## Scope
 
