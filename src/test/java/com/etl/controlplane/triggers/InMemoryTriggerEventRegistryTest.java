@@ -36,6 +36,20 @@ class InMemoryTriggerEventRegistryTest {
 		assertEquals("reason-c", events.get(0).reason());
 		assertEquals("reason-b", events.get(1).reason());
 	}
+
+	@Test
+	void recordsAndListsEventsByScheduleId() {
+		InMemoryTriggerEventRegistry registry = new InMemoryTriggerEventRegistry(10);
+		registry.recordAcceptedForSchedule("sch-1", "customer-load", "schedule_tick", "scheduler", "first");
+		registry.recordAcceptedForSchedule("sch-2", "customer-load", "schedule_tick", "scheduler", "other");
+		registry.recordAcceptedForSchedule("sch-1", "customer-load", "schedule_tick", "scheduler", "second");
+
+		List<TriggerEventView> events = registry.listByScheduleId("sch-1", 10);
+
+		assertEquals(2, events.size());
+		assertEquals("second", events.get(0).message());
+		assertEquals("first", events.get(1).message());
+	}
 }
 
 

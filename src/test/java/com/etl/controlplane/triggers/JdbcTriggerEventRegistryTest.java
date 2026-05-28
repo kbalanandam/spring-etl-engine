@@ -50,6 +50,21 @@ class JdbcTriggerEventRegistryTest {
 		assertEquals(1, events.size());
 	}
 
+	@Test
+	void recordsAndListsByScheduleId() throws Exception {
+		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(new JdbcTemplate(inMemoryDataSource()), 10);
+		registry.recordAcceptedForSchedule("sch-1", "customer-load", "schedule_tick", "scheduler", "first");
+		Thread.sleep(5L);
+		registry.recordAcceptedForSchedule("sch-2", "customer-load", "schedule_tick", "scheduler", "other");
+		Thread.sleep(5L);
+		registry.recordAcceptedForSchedule("sch-1", "customer-load", "schedule_tick", "scheduler", "second");
+
+		List<TriggerEventView> events = registry.listByScheduleId("sch-1", 10);
+		assertEquals(2, events.size());
+		assertEquals("second", events.get(0).message());
+		assertEquals("first", events.get(1).message());
+	}
+
 	private DriverManagerDataSource inMemoryDataSource() {
 		DriverManagerDataSource dataSource = new DriverManagerDataSource();
 		dataSource.setDriverClassName("org.h2.Driver");
@@ -59,5 +74,6 @@ class JdbcTriggerEventRegistryTest {
 		return dataSource;
 	}
 }
+
 
 

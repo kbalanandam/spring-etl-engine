@@ -109,7 +109,7 @@ public class ScheduleTriggerTickService {
 		String message = "Schedule trigger accepted for scheduleId='" + schedule.scheduleId()
 				+ "' scheduleKey='" + schedule.scheduleKey()
 				+ "' dueAt='" + dueAt + "'.";
-		triggerEventRegistry.recordAccepted(schedule.selectedJobKey(), reason, requestedBy, message);
+		triggerEventRegistry.recordAcceptedForSchedule(schedule.scheduleId(), schedule.selectedJobKey(), reason, requestedBy, message);
 		lastAcceptedDueByScheduleId.put(schedule.scheduleId(), dueInstant);
 		log.info("SCHEDULE_TICK event=schedule_trigger_recorded scheduleId={} selectedJobKey={} dueAt={}",
 				schedule.scheduleId(), schedule.selectedJobKey(), dueAt);
@@ -139,4 +139,5 @@ public class ScheduleTriggerTickService {
 		return normalized.isBlank() ? "UTC" : normalized;
 	}
 }
+
 

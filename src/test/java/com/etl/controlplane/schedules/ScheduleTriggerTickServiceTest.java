@@ -37,6 +37,7 @@ class ScheduleTriggerTickServiceTest {
 		assertEquals(1, triggerRegistry.recorded.size());
 		assertEquals(schedule.selectedJobKey(), triggerRegistry.recorded.get(0).jobKey());
 		assertEquals("schedule_tick", triggerRegistry.recorded.get(0).reason());
+		assertEquals(1, triggerRegistry.listByScheduleId(schedule.scheduleId(), 10).size());
 	}
 
 	@Test
@@ -83,9 +84,15 @@ class ScheduleTriggerTickServiceTest {
 
 	private static final class RecordingTriggerRegistry implements TriggerEventRegistry {
 		private final List<TriggerEventView> recorded = new ArrayList<>();
+		private final java.util.Map<String, List<TriggerEventView>> bySchedule = new java.util.HashMap<>();
 
 		@Override
 		public TriggerEventView recordAccepted(String jobKey, String reason, String requestedBy, String message) {
+			return recordAcceptedForSchedule("", jobKey, reason, requestedBy, message);
+		}
+
+		@Override
+		public TriggerEventView recordAcceptedForSchedule(String scheduleId, String jobKey, String reason, String requestedBy, String message) {
 			TriggerEventView event = new TriggerEventView(
 					"te-" + (recorded.size() + 1),
 					jobKey,
@@ -97,6 +104,10 @@ class ScheduleTriggerTickServiceTest {
 					message
 			);
 			recorded.add(event);
+			String normalizedScheduleId = scheduleId == null ? "" : scheduleId.trim();
+			if (!normalizedScheduleId.isBlank()) {
+				bySchedule.computeIfAbsent(normalizedScheduleId, ignored -> new ArrayList<>()).add(0, event);
+			}
 			return event;
 		}
 
@@ -104,7 +115,14 @@ class ScheduleTriggerTickServiceTest {
 		public List<TriggerEventView> listByJobKey(String jobKey, int limit) {
 			return recorded.stream().filter(event -> event.jobKey().equals(jobKey)).limit(limit).toList();
 		}
+
+		@Override
+		public List<TriggerEventView> listByScheduleId(String scheduleId, int limit) {
+			return bySchedule.getOrDefault(scheduleId, List.of()).stream().limit(limit).toList();
+		}
 	}
 }
+
+
 
 

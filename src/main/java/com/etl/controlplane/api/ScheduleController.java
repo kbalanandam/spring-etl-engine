@@ -54,7 +54,7 @@ public class ScheduleController {
 				: Math.max(1, Math.min(limit, MAX_TRIGGER_EVENT_LIMIT));
 		return scheduleService.findByScheduleId(scheduleId)
 				.map(schedule -> {
-					var events = triggerEventRegistry.listByJobKey(schedule.selectedJobKey(), effectiveLimit);
+					var events = triggerEventRegistry.listByScheduleId(schedule.scheduleId(), effectiveLimit);
 					return ResponseEntity.ok(new TriggerEventListResponse(events, 0, effectiveLimit, events.size()));
 				})
 				.orElseGet(() -> ResponseEntity.notFound().build());
@@ -153,5 +153,6 @@ public class ScheduleController {
 		);
 	}
 }
+
 
 

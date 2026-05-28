@@ -22,6 +22,7 @@ public class InMemoryTriggerEventRegistry implements TriggerEventRegistry {
 
 	private final int retentionPerJob;
 	private final Map<String, Deque<TriggerEventView>> eventsByJobKey = new ConcurrentHashMap<>();
+	private final Map<String, Deque<TriggerEventView>> eventsByScheduleId = new ConcurrentHashMap<>();
 
 	public InMemoryTriggerEventRegistry(@Value("${controlplane.triggers.retention-per-job:100}") int retentionPerJob) {
 		this.retentionPerJob = Math.max(1, retentionPerJob);
@@ -29,7 +30,17 @@ public class InMemoryTriggerEventRegistry implements TriggerEventRegistry {
 
 	@Override
 	public TriggerEventView recordAccepted(String jobKey, String reason, String requestedBy, String message) {
+		return recordAcceptedInternal(null, jobKey, reason, requestedBy, message);
+	}
+
+	@Override
+	public TriggerEventView recordAcceptedForSchedule(String scheduleId, String jobKey, String reason, String requestedBy, String message) {
+		return recordAcceptedInternal(scheduleId, jobKey, reason, requestedBy, message);
+	}
+
+	private TriggerEventView recordAcceptedInternal(String scheduleId, String jobKey, String reason, String requestedBy, String message) {
 		String normalizedJobKey = normalize(jobKey);
+		String normalizedScheduleId = normalize(scheduleId);
 		TriggerEventView event = new TriggerEventView(
 				"te-" + UUID.randomUUID(),
 				normalizedJobKey,
@@ -47,12 +58,29 @@ public class InMemoryTriggerEventRegistry implements TriggerEventRegistry {
 				queue.removeLast();
 			}
 		}
+		if (!normalizedScheduleId.isBlank()) {
+			Deque<TriggerEventView> scheduleQueue = eventsByScheduleId.computeIfAbsent(normalizedScheduleId, ignored -> new ArrayDeque<>());
+			synchronized (scheduleQueue) {
+				scheduleQueue.addFirst(event);
+				while (scheduleQueue.size() > retentionPerJob) {
+					scheduleQueue.removeLast();
+				}
+			}
+		}
 		return event;
 	}
 
 	@Override
 	public List<TriggerEventView> listByJobKey(String jobKey, int limit) {
-		Deque<TriggerEventView> queue = eventsByJobKey.get(normalize(jobKey));
+		return listFromQueue(eventsByJobKey.get(normalize(jobKey)), limit);
+	}
+
+	@Override
+	public List<TriggerEventView> listByScheduleId(String scheduleId, int limit) {
+		return listFromQueue(eventsByScheduleId.get(normalize(scheduleId)), limit);
+	}
+
+	private List<TriggerEventView> listFromQueue(Deque<TriggerEventView> queue, int limit) {
 		if (queue == null || limit <= 0) {
 			return List.of();
 		}

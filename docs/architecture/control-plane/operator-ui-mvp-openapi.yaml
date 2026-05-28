@@ -309,7 +309,7 @@ paths:
     get:
       tags: [Schedules]
       operationId: listScheduleTriggerEvents
-      summary: List recent trigger events for one schedule (resolved via selected job key)
+      summary: List recent trigger events for one schedule id
       parameters:
         - $ref: '#/components/parameters/scheduleId'
         - in: query

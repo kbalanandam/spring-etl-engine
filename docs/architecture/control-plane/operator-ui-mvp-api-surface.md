@@ -432,7 +432,7 @@ Response body shape:
 }
 ```
 
-Current behavior: trigger history is projected via the schedule's `selectedJobKey` against the shared trigger-event registry.
+Current behavior: trigger history is retrieved by `scheduleId` from the shared trigger-event registry, so multiple schedules targeting the same job stay isolated in drill-down views.
 
 When scheduler tick mode is enabled, the same history can include records with `reason=schedule_tick` and `requestedBy=scheduler`.
 

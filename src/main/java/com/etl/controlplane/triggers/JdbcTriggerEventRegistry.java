@@ -29,7 +29,22 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 
 	@Override
 	public TriggerEventView recordAccepted(String jobKey, String reason, String requestedBy, String message) {
+		return recordAcceptedInternal(null, "MANUAL", jobKey, reason, requestedBy, message);
+	}
+
+	@Override
+	public TriggerEventView recordAcceptedForSchedule(String scheduleId, String jobKey, String reason, String requestedBy, String message) {
+		return recordAcceptedInternal(scheduleId, "SCHEDULE", jobKey, reason, requestedBy, message);
+	}
+
+	private TriggerEventView recordAcceptedInternal(String scheduleId,
+	                                              String triggerOrigin,
+	                                              String jobKey,
+	                                              String reason,
+	                                              String requestedBy,
+	                                              String message) {
 		String normalizedJobKey = normalize(jobKey);
+		String normalizedScheduleId = normalize(scheduleId);
 		String normalizedReason = normalize(reason);
 		String normalizedRequestedBy = normalize(requestedBy);
 		Instant requestedAt = Instant.now();
@@ -59,8 +74,8 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				Timestamp.from(requestedAt),
 				null,
 				message,
-				"MANUAL",
-				null,
+				triggerOrigin,
+				normalizedScheduleId.isBlank() ? null : normalizedScheduleId,
 				null,
 				null
 		);
@@ -89,19 +104,40 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				where job_key = ?
 				order by requested_at desc, trigger_event_id desc
 				""",
-				(rs, rowNum) -> new TriggerEventView(
-						rs.getString("trigger_event_id"),
-						rs.getString("job_key"),
-						rs.getString("decision_status"),
-						rs.getString("reason"),
-						rs.getString("requested_by"),
-						rs.getTimestamp("requested_at").toInstant(),
-						rs.getString("launched_run_id"),
-						rs.getString("message")
-				),
+				(rs, rowNum) -> toView(rs),
 				normalize(jobKey)
 		);
 		return events.size() <= limit ? events : events.subList(0, limit);
+	}
+
+	@Override
+	public List<TriggerEventView> listByScheduleId(String scheduleId, int limit) {
+		if (limit <= 0) {
+			return List.of();
+		}
+		List<TriggerEventView> events = jdbcTemplate.query("""
+				select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message
+				from controlplane_trigger_event
+				where schedule_id = ?
+				order by requested_at desc, trigger_event_id desc
+				""",
+				(rs, rowNum) -> toView(rs),
+				normalize(scheduleId)
+		);
+		return events.size() <= limit ? events : events.subList(0, limit);
+	}
+
+	private TriggerEventView toView(java.sql.ResultSet rs) throws java.sql.SQLException {
+		return new TriggerEventView(
+				rs.getString("trigger_event_id"),
+				rs.getString("job_key"),
+				rs.getString("decision_status"),
+				rs.getString("reason"),
+				rs.getString("requested_by"),
+				rs.getTimestamp("requested_at").toInstant(),
+				rs.getString("launched_run_id"),
+				rs.getString("message")
+		);
 	}
 
 	private void pruneOverflow(String jobKey) {
@@ -144,10 +180,15 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				create index if not exists idx_trigger_event_origin
 				on controlplane_trigger_event (trigger_origin, requested_at)
 				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_trigger_event_schedule_time
+				on controlplane_trigger_event (schedule_id, requested_at)
+				""");
 	}
 
 	private String normalize(String value) {
 		return value == null ? "" : value.trim();
 	}
 }
+
 
