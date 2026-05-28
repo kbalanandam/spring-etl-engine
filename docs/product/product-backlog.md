@@ -21,6 +21,10 @@ It covers both the independently runnable ETL core and the optional control-plan
 
 Anything beyond the ETL core should be treated as additive and optional. If a team prefers to integrate `spring-etl-engine` with an external enterprise scheduler, orchestrator, or control framework, that should remain a supported product direction rather than an exception.
 
+OneFlow is positioned as one unified UI and product surface over a capability-first, plug-and-play architecture: ETL remains the always-runnable core, while Scheduler, Hypercare, and future modules are optional capability bundles on the same runtime contract. Any later extraction of a capability into a separate service should happen only when objective triggers (for example scale, isolation, reliability, or ownership boundaries) make that split necessary.
+
+In the current phase, OneFlow is intentionally project-level in operational scope. Organization-level operation and multi-tenant administration are planned future-direction capabilities and are intentionally deferred until later roadmap phases.
+
 It is intentionally different from the architecture roadmap:
 
 - [`ETL product evolution roadmap`](../architecture/foundations/etl-product-evolution-roadmap.md) explains **direction and phases**
