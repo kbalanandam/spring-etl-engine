@@ -2,6 +2,7 @@ package com.etl.controlplane;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.Map;
 
@@ -13,6 +14,7 @@ import java.util.Map;
  * Run this as a separate process from the worker for plug-and-play deployment.</p>
  */
 @SpringBootApplication(scanBasePackages = "com.etl.controlplane")
+@EnableScheduling
 public class ControlPlaneApiApplication {
 
 	public static void main(String[] args) {

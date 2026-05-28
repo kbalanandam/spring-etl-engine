@@ -15,6 +15,7 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 - Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default), while `/runs/{jobExecutionId}/detail` remains log-projected.
 - Schedule persistence foundation now exists internally in the control-plane JDBC store when `controlplane.schedules.persistence.mode=jdbc` (control-plane profile default).
 - Schedule trigger-event history now resolves from the selected job key associated with the schedule record.
+- Optional scheduler tick evaluation can now record schedule-origin trigger events when `controlplane.scheduler.enabled=true`; default remains disabled for explicit opt-in.
 
 ## Scope
 
@@ -432,6 +433,8 @@ Response body shape:
 ```
 
 Current behavior: trigger history is projected via the schedule's `selectedJobKey` against the shared trigger-event registry.
+
+When scheduler tick mode is enabled, the same history can include records with `reason=schedule_tick` and `requestedBy=scheduler`.
 
 ## System endpoints
 
