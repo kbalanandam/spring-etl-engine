@@ -1,6 +1,7 @@
 package com.etl.controlplane.triggers;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -16,6 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Bounded in-memory trigger-event registry for early UI/control-plane work.
  */
 @Component
+@ConditionalOnProperty(name = "controlplane.triggers.persistence.mode", havingValue = "memory", matchIfMissing = true)
 public class InMemoryTriggerEventRegistry implements TriggerEventRegistry {
 
 	private final int retentionPerJob;

@@ -11,6 +11,8 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 - Classification: **Future direction**
 - This note still carries future-direction design intent, but the monitoring-first subset below is now implemented by the optional `com.etl.controlplane.ControlPlaneApiApplication` starter.
 - Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
+- Trigger-event history now persists in the control-plane JDBC store when `controlplane.triggers.persistence.mode=jdbc` (control-plane profile default), with memory mode still available as a fallback.
+- Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default), while `/runs/{jobExecutionId}/detail` remains log-projected.
 - Schedule endpoints in this document remain planned, not implemented.
 
 ## Scope
@@ -199,7 +201,7 @@ Response body:
 Current behavior:
 
 - returns `202 ACCEPTED` for known jobs
-- records an in-memory trigger event for UI integration and drill-down support
+- records a trigger event in the configured control-plane registry (`jdbc` by default for control-plane profile, `memory` fallback)
 - does not launch the worker yet; launch orchestration remains a later slice
 
 ### `GET /api/v1/jobs/{jobKey}/trigger-events`
