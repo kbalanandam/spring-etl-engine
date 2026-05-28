@@ -36,6 +36,8 @@
 		<maven.compiler.target>${java.version}</maven.compiler.target>
 		<!-- Keeps the transitive log4j-to-slf4j/log4j-api bridge off older vulnerable coordinates. -->
 		<log4j2.version>2.25.4</log4j2.version>
+		<!-- Overrides the Spring-managed Tomcat embed line to a CVE-remediated release. -->
+		<tomcat.version>10.1.55</tomcat.version>
 	</properties>
 	<dependencies>
 		<dependency>

@@ -6,6 +6,9 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Changed
+- Pinned embedded Tomcat to `10.1.55` through the managed `tomcat.version` property to remediate `tomcat-embed-core@10.1.54` CVEs flagged by dependency-check in the control-plane web path.
+
 ## [1.7.8-rc1] - 2026-05-28
 
 ### Added
