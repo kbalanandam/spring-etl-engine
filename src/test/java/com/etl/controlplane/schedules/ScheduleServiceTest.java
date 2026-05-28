@@ -3,6 +3,7 @@ package com.etl.controlplane.schedules;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,11 +28,30 @@ class ScheduleServiceTest {
 		assertTrue(paused.paused());
 
 		ScheduleView resumed = service.resume(created.scheduleId()).orElseThrow();
-		assertEquals(false, resumed.paused());
+		assertFalse(resumed.paused());
 		assertTrue(resumed.enabled());
 
 		ScheduleView disabled = service.disable(created.scheduleId()).orElseThrow();
-		assertEquals(false, disabled.enabled());
+		assertFalse(disabled.enabled());
+	}
+
+	@Test
+	void updatesScheduleMetadata() {
+		ScheduleService service = new ScheduleService(new InMemoryScheduleRegistry());
+		ScheduleView created = service.createSchedule("daily-customers", "customer-load", "0 0 * * *", "UTC", true, "daily run");
+
+		ScheduleView updated = service.updateSchedule(
+				created.scheduleId(),
+				"customer-load",
+				"0 15 * * *",
+				"UTC",
+				true,
+				"updated"
+		).orElseThrow();
+
+		assertEquals("0 15 * * *", updated.expression());
+		assertEquals("updated", updated.description());
 	}
 }
+
 

@@ -10,11 +10,11 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 
 - Classification: **Future direction**
 - This note still carries future-direction design intent, but the monitoring-first subset below is now implemented by the optional `com.etl.controlplane.ControlPlaneApiApplication` starter.
-- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
+- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
 - Trigger-event history now persists in the control-plane JDBC store when `controlplane.triggers.persistence.mode=jdbc` (control-plane profile default), with memory mode still available as a fallback.
 - Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default), while `/runs/{jobExecutionId}/detail` remains log-projected.
 - Schedule persistence foundation now exists internally in the control-plane JDBC store when `controlplane.schedules.persistence.mode=jdbc` (control-plane profile default); public schedule endpoints in this document are still planned.
-- Schedule endpoints in this document remain planned, not implemented.
+- Schedule trigger-event history endpoint remains planned; list/detail/create/update/state-change schedule endpoints are now implemented.
 
 ## Scope
 
@@ -83,14 +83,6 @@ GET    /api/v1/runs
 GET    /api/v1/runs/{jobExecutionId}
 GET    /api/v1/runs/{jobExecutionId}/detail
 
-GET    /api/v1/system/health
-GET    /api/v1/system/info
-```
-
-Planned later:
-
-```text
-
 GET    /api/v1/schedules
 GET    /api/v1/schedules/{scheduleId}
 POST   /api/v1/schedules
@@ -99,6 +91,15 @@ POST   /api/v1/schedules/{scheduleId}:enable
 POST   /api/v1/schedules/{scheduleId}:disable
 POST   /api/v1/schedules/{scheduleId}:pause
 POST   /api/v1/schedules/{scheduleId}:resume
+
+GET    /api/v1/system/health
+GET    /api/v1/system/info
+```
+
+Planned later:
+
+```text
+
 GET    /api/v1/schedules/{scheduleId}/trigger-events
 ```
 
@@ -527,12 +528,13 @@ Implemented so far:
 3. System health/info endpoints
 4. Trigger-now placeholder endpoint plus trigger-event history
 5. aggregated job detail payload for the first Jobs drill-down view
+6. schedule list/detail/create/update/state-change endpoints
 
 Recommended next backend slices:
 
 1. richer run-detail projection beyond `RUN_SUMMARY`
-2. persisted trigger-event history and run history storage
-3. schedule list/detail/create/update/state-change endpoints
+2. schedule trigger-event history endpoint plus scheduler execution loop
+3. file-watcher trigger ingestion and watcher-schedule linkage
 4. worker-launch orchestration behind trigger-now
 
 That order supports the monitoring-first UI rollout with minimal churn.

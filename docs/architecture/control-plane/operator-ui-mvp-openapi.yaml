@@ -12,6 +12,7 @@ servers:
 tags:
   - name: Jobs
   - name: Runs
+  - name: Schedules
   - name: System
 
 paths:
@@ -153,6 +154,157 @@ paths:
         '404':
           description: Run detail not found
 
+  /schedules:
+    get:
+      tags: [Schedules]
+      operationId: listSchedules
+      summary: List persisted schedules
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 25
+      responses:
+        '200':
+          description: Schedule list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleListResponse'
+    post:
+      tags: [Schedules]
+      operationId: createSchedule
+      summary: Create one persisted schedule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateScheduleRequest'
+      responses:
+        '201':
+          description: Created schedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleViewResponse'
+        '400':
+          description: Invalid request
+        '409':
+          description: Duplicate schedule key
+
+  /schedules/{scheduleId}:
+    get:
+      tags: [Schedules]
+      operationId: getScheduleById
+      summary: Get one schedule by id
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      responses:
+        '200':
+          description: Schedule detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleViewResponse'
+        '404':
+          description: Schedule not found
+    put:
+      tags: [Schedules]
+      operationId: updateSchedule
+      summary: Update one schedule
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateScheduleRequest'
+      responses:
+        '200':
+          description: Updated schedule
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleViewResponse'
+        '400':
+          description: Invalid request
+        '404':
+          description: Schedule not found
+
+  /schedules/{scheduleId}:enable:
+    post:
+      tags: [Schedules]
+      operationId: enableSchedule
+      summary: Enable one schedule
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      responses:
+        '200':
+          description: Schedule state updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleStateChangeResponse'
+        '404':
+          description: Schedule not found
+
+  /schedules/{scheduleId}:disable:
+    post:
+      tags: [Schedules]
+      operationId: disableSchedule
+      summary: Disable one schedule
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      responses:
+        '200':
+          description: Schedule state updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleStateChangeResponse'
+        '404':
+          description: Schedule not found
+
+  /schedules/{scheduleId}:pause:
+    post:
+      tags: [Schedules]
+      operationId: pauseSchedule
+      summary: Pause one schedule
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      responses:
+        '200':
+          description: Schedule state updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleStateChangeResponse'
+        '404':
+          description: Schedule not found
+
+  /schedules/{scheduleId}:resume:
+    post:
+      tags: [Schedules]
+      operationId: resumeSchedule
+      summary: Resume one schedule
+      parameters:
+        - $ref: '#/components/parameters/scheduleId'
+      responses:
+        '200':
+          description: Schedule state updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScheduleStateChangeResponse'
+        '404':
+          description: Schedule not found
+
   /system/health:
     get:
       tags: [System]
@@ -194,6 +346,12 @@ components:
       schema:
         type: integer
         format: int64
+    scheduleId:
+      in: path
+      name: scheduleId
+      required: true
+      schema:
+        type: string
 
   schemas:
     ReadinessStatus:
@@ -508,6 +666,96 @@ components:
           type: integer
           format: int64
       required: [items, page, size, totalItems]
+
+    ScheduleViewResponse:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+        scheduleKey:
+          type: string
+        selectedJobKey:
+          type: string
+        expression:
+          type: string
+        timezone:
+          type: string
+        enabled:
+          type: boolean
+        paused:
+          type: boolean
+        description:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+      required: [scheduleId, scheduleKey, selectedJobKey, expression, timezone, enabled, paused, description, updatedAt]
+
+    ScheduleListResponse:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScheduleViewResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalItems:
+          type: integer
+          format: int64
+      required: [items, page, size, totalItems]
+
+    CreateScheduleRequest:
+      type: object
+      properties:
+        scheduleKey:
+          type: string
+        selectedJobKey:
+          type: string
+        expression:
+          type: string
+        timezone:
+          type: string
+        enabled:
+          oneOf:
+            - type: boolean
+            - type: 'null'
+        description:
+          type: string
+      required: [scheduleKey, selectedJobKey, expression, timezone]
+
+    UpdateScheduleRequest:
+      type: object
+      properties:
+        selectedJobKey:
+          type: string
+        expression:
+          type: string
+        timezone:
+          type: string
+        enabled:
+          oneOf:
+            - type: boolean
+            - type: 'null'
+        description:
+          type: string
+      required: [selectedJobKey, expression, timezone]
+
+    ScheduleStateChangeResponse:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+        enabled:
+          type: boolean
+        paused:
+          type: boolean
+        updatedAt:
+          type: string
+          format: date-time
+      required: [scheduleId, enabled, paused, updatedAt]
 
     SystemHealthResponse:
       type: object

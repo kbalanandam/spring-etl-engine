@@ -46,6 +46,28 @@ public class ScheduleService {
 		return registry.upsert(schedule);
 	}
 
+	public Optional<ScheduleView> updateSchedule(String scheduleId,
+	                                            String selectedJobKey,
+	                                            String expression,
+	                                            String timezone,
+	                                            boolean enabled,
+	                                            String description) {
+		return findByScheduleId(scheduleId)
+				.map(existing -> registry.upsert(new ScheduleView(
+						existing.scheduleId(),
+						existing.scheduleKey(),
+						normalizeKey(selectedJobKey),
+						normalizeRequired(expression, "expression"),
+						normalizeRequired(timezone, "timezone"),
+						enabled,
+						existing.paused() && enabled,
+						normalizeOptional(description),
+						existing.createdAt(),
+						LocalDateTime.now(),
+						existing.watcherKey()
+				)));
+	}
+
 	public Optional<ScheduleView> findByScheduleId(String scheduleId) {
 		return registry.findByScheduleId(scheduleId == null ? "" : scheduleId.trim());
 	}
@@ -108,4 +130,5 @@ public class ScheduleService {
 		return value == null ? "" : value.trim();
 	}
 }
+
 
