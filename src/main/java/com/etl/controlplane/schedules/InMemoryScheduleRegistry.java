@@ -23,8 +23,9 @@ public class InMemoryScheduleRegistry implements ScheduleRegistry {
 
 	@Override
 	public ScheduleView upsert(ScheduleView schedule) {
-		schedulesById.put(schedule.scheduleId(), schedule);
-		scheduleIdByKey.put(normalize(schedule.scheduleKey()), schedule.scheduleId());
+		String normalizedScheduleId = normalize(schedule.scheduleId());
+		schedulesById.put(normalizedScheduleId, schedule);
+		scheduleIdByKey.put(normalize(schedule.scheduleKey()), normalizedScheduleId);
 		return schedule;
 	}
 
@@ -39,7 +40,7 @@ public class InMemoryScheduleRegistry implements ScheduleRegistry {
 		if (scheduleId == null) {
 			return Optional.empty();
 		}
-		return Optional.ofNullable(schedulesById.get(scheduleId));
+		return Optional.ofNullable(schedulesById.get(normalize(scheduleId)));
 	}
 
 	@Override

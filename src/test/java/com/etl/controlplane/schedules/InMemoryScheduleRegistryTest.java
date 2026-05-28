@@ -26,20 +26,21 @@ class InMemoryScheduleRegistryTest {
 	@Test
 	void findsByIdAndKey() {
 		InMemoryScheduleRegistry registry = new InMemoryScheduleRegistry();
-		registry.upsert(schedule("sch-1", "Daily-A", LocalDateTime.parse("2026-05-28T08:00:00")));
+		registry.upsert(schedule(" Sch-1 ", "Daily-A", LocalDateTime.parse("2026-05-28T08:00:00")));
 
 		assertTrue(registry.findByScheduleId("sch-1").isPresent());
+		assertTrue(registry.findByScheduleId(" SCH-1 ").isPresent());
 		assertTrue(registry.findByScheduleKey("daily-a").isPresent());
 	}
 
 	@Test
 	void advancesDueWatermarkMonotonically() {
 		InMemoryScheduleRegistry registry = new InMemoryScheduleRegistry();
-		registry.upsert(schedule("sch-1", "daily-a", LocalDateTime.parse("2026-05-28T08:00:00")));
+		registry.upsert(schedule(" Sch-1 ", "daily-a", LocalDateTime.parse("2026-05-28T08:00:00")));
 
-		boolean first = registry.tryAdvanceLastAcceptedDueAt("sch-1", Instant.parse("2026-05-28T10:00:00Z"));
+		boolean first = registry.tryAdvanceLastAcceptedDueAt(" SCH-1 ", Instant.parse("2026-05-28T10:00:00Z"));
 		boolean older = registry.tryAdvanceLastAcceptedDueAt("sch-1", Instant.parse("2026-05-28T09:59:59Z"));
-		boolean newer = registry.tryAdvanceLastAcceptedDueAt("sch-1", Instant.parse("2026-05-28T10:01:00Z"));
+		boolean newer = registry.tryAdvanceLastAcceptedDueAt("ScH-1", Instant.parse("2026-05-28T10:01:00Z"));
 
 		assertTrue(first);
 		assertFalse(older);
