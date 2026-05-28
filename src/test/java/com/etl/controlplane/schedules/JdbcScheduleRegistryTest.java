@@ -5,10 +5,12 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JdbcScheduleRegistryTest {
@@ -29,13 +31,14 @@ class JdbcScheduleRegistryTest {
 		registry.upsert(schedule("sch-1", "daily-a", LocalDateTime.parse("2026-05-28T09:00:00")));
 		registry.upsert(new ScheduleView(
 				"sch-1", "daily-a", "customer-load", "0 15 * * *", "UTC", false, true,
-				"updated", LocalDateTime.parse("2026-05-28T08:00:00"), LocalDateTime.parse("2026-05-28T10:00:00"), "watcher-a"
+				"updated", LocalDateTime.parse("2026-05-28T08:00:00"), LocalDateTime.parse("2026-05-28T10:00:00"), "watcher-a", Instant.parse("2026-05-28T10:00:00Z")
 		));
 
 		ScheduleView updated = registry.findByScheduleId("sch-1").orElseThrow();
 		assertEquals("0 15 * * *", updated.expression());
 		assertEquals("watcher-a", updated.watcherKey());
-		assertEquals(false, updated.enabled());
+		assertFalse(updated.enabled());
+		assertEquals(Instant.parse("2026-05-28T10:00:00Z"), updated.lastAcceptedDueAt());
 	}
 
 	@Test
@@ -61,6 +64,7 @@ class JdbcScheduleRegistryTest {
 				"desc",
 				updatedAt.minusHours(1),
 				updatedAt,
+				null,
 				null
 		);
 	}

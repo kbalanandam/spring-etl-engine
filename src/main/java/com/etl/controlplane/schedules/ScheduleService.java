@@ -41,6 +41,7 @@ public class ScheduleService {
 				normalizeOptional(description),
 				now,
 				now,
+				null,
 				null
 		);
 		return registry.upsert(schedule);
@@ -64,7 +65,29 @@ public class ScheduleService {
 						normalizeOptional(description),
 						existing.createdAt(),
 						LocalDateTime.now(),
-						existing.watcherKey()
+						existing.watcherKey(),
+						existing.lastAcceptedDueAt()
+				)));
+	}
+
+	public Optional<ScheduleView> markLastAcceptedDueAt(String scheduleId, java.time.Instant dueAt) {
+		if (dueAt == null) {
+			return Optional.empty();
+		}
+		return findByScheduleId(scheduleId)
+				.map(existing -> registry.upsert(new ScheduleView(
+						existing.scheduleId(),
+						existing.scheduleKey(),
+						existing.selectedJobKey(),
+						existing.expression(),
+						existing.timezone(),
+						existing.enabled(),
+						existing.paused(),
+						existing.description(),
+						existing.createdAt(),
+						LocalDateTime.now(),
+						existing.watcherKey(),
+						dueAt
 				)));
 	}
 
@@ -109,7 +132,8 @@ public class ScheduleService {
 						existing.description(),
 						existing.createdAt(),
 						LocalDateTime.now(),
-						existing.watcherKey()
+						existing.watcherKey(),
+						existing.lastAcceptedDueAt()
 				)));
 	}
 

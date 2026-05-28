@@ -14,8 +14,9 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 - Trigger-event history now persists in the control-plane JDBC store when `controlplane.triggers.persistence.mode=jdbc` (control-plane profile default), with memory mode still available as a fallback.
 - Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default), while `/runs/{jobExecutionId}/detail` remains log-projected.
 - Schedule persistence foundation now exists internally in the control-plane JDBC store when `controlplane.schedules.persistence.mode=jdbc` (control-plane profile default).
-- Schedule trigger-event history now resolves from the selected job key associated with the schedule record.
+- Schedule trigger-event history now resolves by `scheduleId` in the trigger registry.
 - Optional scheduler tick evaluation can now record schedule-origin trigger events when `controlplane.scheduler.enabled=true`; default remains disabled for explicit opt-in.
+- Scheduler dedup now persists the last accepted due instant per schedule so duplicate ticks are suppressed across control-plane restarts.
 
 ## Scope
 

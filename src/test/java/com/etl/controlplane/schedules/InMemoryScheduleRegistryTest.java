@@ -42,6 +42,7 @@ class InMemoryScheduleRegistryTest {
 				"desc",
 				updatedAt.minusHours(1),
 				updatedAt,
+				null,
 				null
 		);
 	}

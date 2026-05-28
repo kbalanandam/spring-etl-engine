@@ -1,6 +1,7 @@
 package com.etl.controlplane.schedules;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 
 /**
  * Internal control-plane schedule projection used by persistence and services.
@@ -16,7 +17,8 @@ public record ScheduleView(
 		String description,
 		LocalDateTime createdAt,
 		LocalDateTime updatedAt,
-		String watcherKey
+		String watcherKey,
+		Instant lastAcceptedDueAt
 ) {
 }
 

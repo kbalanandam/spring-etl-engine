@@ -41,6 +41,39 @@ class ScheduleTriggerTickServiceTest {
 	}
 
 	@Test
+	void preservesDedupAcrossSchedulerServiceRecreation() {
+		InMemoryScheduleRegistry registry = new InMemoryScheduleRegistry();
+		ScheduleService scheduleService = new ScheduleService(registry);
+		RecordingTriggerRegistry triggerRegistry = new RecordingTriggerRegistry();
+		ScheduleView schedule = scheduleService.createSchedule("every-minute", "customer-load", "* * * * *", "UTC", true, "minute tick");
+
+		Clock fixedClock = Clock.fixed(Instant.parse("2026-05-28T10:00:20Z"), ZoneOffset.UTC);
+		ScheduleTriggerTickService first = new ScheduleTriggerTickService(
+				scheduleService,
+				triggerRegistry,
+				30000,
+				"schedule_tick",
+				"scheduler",
+				fixedClock
+		);
+		first.pollAndRecordDueSchedules(ZonedDateTime.ofInstant(fixedClock.instant(), ZoneOffset.UTC));
+
+		ScheduleTriggerTickService second = new ScheduleTriggerTickService(
+				scheduleService,
+				triggerRegistry,
+				30000,
+				"schedule_tick",
+				"scheduler",
+				fixedClock
+		);
+		second.pollAndRecordDueSchedules(ZonedDateTime.ofInstant(fixedClock.instant(), ZoneOffset.UTC));
+
+		assertEquals(1, triggerRegistry.recorded.size());
+		ScheduleView persisted = scheduleService.findByScheduleId(schedule.scheduleId()).orElseThrow();
+		assertEquals(Instant.parse("2026-05-28T10:00:00Z"), persisted.lastAcceptedDueAt());
+	}
+
+	@Test
 	void skipsPausedOrDisabledSchedules() {
 		ScheduleService scheduleService = new ScheduleService(new InMemoryScheduleRegistry());
 		RecordingTriggerRegistry triggerRegistry = new RecordingTriggerRegistry();

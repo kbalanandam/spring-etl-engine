@@ -5,6 +5,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -28,7 +29,7 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 		int updated = jdbcTemplate.update("""
 				update controlplane_schedule
 				set schedule_key = ?, selected_job_key = ?, expression = ?, timezone = ?,
-				    is_enabled = ?, is_paused = ?, description = ?, updated_at = ?, watcher_key = ?
+				    is_enabled = ?, is_paused = ?, description = ?, updated_at = ?, watcher_key = ?, last_accepted_due_at = ?
 				where schedule_id = ?
 				""",
 				schedule.scheduleKey(),
@@ -40,14 +41,15 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 				schedule.description(),
 				toTimestamp(schedule.updatedAt()),
 				schedule.watcherKey(),
+				toTimestamp(schedule.lastAcceptedDueAt()),
 				schedule.scheduleId()
 		);
 		if (updated == 0) {
 			jdbcTemplate.update("""
 					insert into controlplane_schedule (
 						schedule_id, schedule_key, selected_job_key, expression, timezone,
-						is_enabled, is_paused, description, created_at, updated_at, watcher_key
-					) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+						is_enabled, is_paused, description, created_at, updated_at, watcher_key, last_accepted_due_at
+					) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""",
 					schedule.scheduleId(),
 					schedule.scheduleKey(),
@@ -59,7 +61,8 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 					schedule.description(),
 					toTimestamp(schedule.createdAt()),
 					toTimestamp(schedule.updatedAt()),
-					schedule.watcherKey()
+					schedule.watcherKey(),
+					toTimestamp(schedule.lastAcceptedDueAt())
 			);
 		}
 		return schedule;
@@ -69,7 +72,7 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 	public Optional<ScheduleView> findByScheduleId(String scheduleId) {
 		List<ScheduleView> schedules = jdbcTemplate.query("""
 				select schedule_id, schedule_key, selected_job_key, expression, timezone,
-				       is_enabled, is_paused, description, created_at, updated_at, watcher_key
+				       is_enabled, is_paused, description, created_at, updated_at, watcher_key, last_accepted_due_at
 				from controlplane_schedule
 				where schedule_id = ?
 				""", this::mapRow, normalize(scheduleId));
@@ -80,7 +83,7 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 	public Optional<ScheduleView> findByScheduleKey(String scheduleKey) {
 		List<ScheduleView> schedules = jdbcTemplate.query("""
 				select schedule_id, schedule_key, selected_job_key, expression, timezone,
-				       is_enabled, is_paused, description, created_at, updated_at, watcher_key
+				       is_enabled, is_paused, description, created_at, updated_at, watcher_key, last_accepted_due_at
 				from controlplane_schedule
 				where schedule_key = ?
 				""", this::mapRow, normalize(scheduleKey));
@@ -94,7 +97,7 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 		}
 		List<ScheduleView> schedules = jdbcTemplate.query("""
 				select schedule_id, schedule_key, selected_job_key, expression, timezone,
-				       is_enabled, is_paused, description, created_at, updated_at, watcher_key
+				       is_enabled, is_paused, description, created_at, updated_at, watcher_key, last_accepted_due_at
 				from controlplane_schedule
 				order by updated_at desc, schedule_id desc
 				""", this::mapRow);
@@ -113,7 +116,8 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 				rs.getString("description"),
 				toLocalDateTime(rs.getTimestamp("created_at")),
 				toLocalDateTime(rs.getTimestamp("updated_at")),
-				rs.getString("watcher_key")
+				rs.getString("watcher_key"),
+				toInstant(rs.getTimestamp("last_accepted_due_at"))
 		);
 	}
 
@@ -130,9 +134,11 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 					description varchar(2000),
 					created_at timestamp not null,
 					updated_at timestamp not null,
-					watcher_key varchar(200)
+					watcher_key varchar(200),
+					last_accepted_due_at timestamp
 				)
 				""");
+		jdbcTemplate.execute("alter table controlplane_schedule add column if not exists last_accepted_due_at timestamp");
 		jdbcTemplate.execute("""
 				create index if not exists idx_schedule_selected_job
 				on controlplane_schedule (selected_job_key, updated_at)
@@ -149,6 +155,14 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 
 	private static LocalDateTime toLocalDateTime(Timestamp value) {
 		return value == null ? null : value.toLocalDateTime();
+	}
+
+	private static Timestamp toTimestamp(Instant value) {
+		return value == null ? null : Timestamp.from(value);
+	}
+
+	private static java.time.Instant toInstant(Timestamp value) {
+		return value == null ? null : value.toInstant();
 	}
 
 	private String normalize(String value) {

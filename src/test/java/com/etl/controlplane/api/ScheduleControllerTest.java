@@ -90,7 +90,7 @@ class ScheduleControllerTest {
 	void performsStateChange() throws Exception {
 		when(scheduleService.pause(eq("sch-1"))).thenReturn(Optional.of(new ScheduleView(
 				"sch-1", "daily-customers", "customer-load", "0 0 * * *", "UTC", true, true, "daily",
-				LocalDateTime.parse("2026-05-28T08:00:00"), LocalDateTime.parse("2026-05-28T09:00:00"), null
+				LocalDateTime.parse("2026-05-28T08:00:00"), LocalDateTime.parse("2026-05-28T09:00:00"), null, null
 		)));
 
 		mockMvc.perform(post("/api/v1/schedules/sch-1:pause"))
@@ -146,6 +146,7 @@ class ScheduleControllerTest {
 				"daily",
 				LocalDateTime.parse("2026-05-28T08:00:00"),
 				LocalDateTime.parse("2026-05-28T09:00:00"),
+				null,
 				null
 		);
 	}

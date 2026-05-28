@@ -14,8 +14,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Optional schedule tick evaluator that records schedule-origin trigger events.
@@ -32,7 +30,6 @@ public class ScheduleTriggerTickService {
 	private final long lookbackSeconds;
 	private final String reason;
 	private final String requestedBy;
-	private final Map<String, Instant> lastAcceptedDueByScheduleId = new ConcurrentHashMap<>();
 
 	public ScheduleTriggerTickService(
 			ScheduleService scheduleService,
@@ -92,7 +89,7 @@ public class ScheduleTriggerTickService {
 		}
 
 		ZonedDateTime now = nowUtc.withZoneSameInstant(zoneId);
-		Instant lastAccepted = lastAcceptedDueByScheduleId.get(schedule.scheduleId());
+		Instant lastAccepted = schedule.lastAcceptedDueAt();
 		ZonedDateTime windowStart = lastAccepted == null
 				? now.minusSeconds(lookbackSeconds)
 				: ZonedDateTime.ofInstant(lastAccepted, zoneId).minusSeconds(1);
@@ -110,7 +107,7 @@ public class ScheduleTriggerTickService {
 				+ "' scheduleKey='" + schedule.scheduleKey()
 				+ "' dueAt='" + dueAt + "'.";
 		triggerEventRegistry.recordAcceptedForSchedule(schedule.scheduleId(), schedule.selectedJobKey(), reason, requestedBy, message);
-		lastAcceptedDueByScheduleId.put(schedule.scheduleId(), dueInstant);
+		scheduleService.markLastAcceptedDueAt(schedule.scheduleId(), dueInstant);
 		log.info("SCHEDULE_TICK event=schedule_trigger_recorded scheduleId={} selectedJobKey={} dueAt={}",
 				schedule.scheduleId(), schedule.selectedJobKey(), dueAt);
 	}
