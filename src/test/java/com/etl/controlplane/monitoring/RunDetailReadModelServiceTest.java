@@ -47,6 +47,28 @@ class RunDetailReadModelServiceTest {
 		assertEquals("target_write", detail.orElseThrow().failureSummary().category());
 		assertEquals("constraint failed", detail.orElseThrow().failureSummary().message());
 		assertEquals(logPath.toString(), detail.orElseThrow().evidenceLinks().get(0).href());
+		assertEquals("run-summary", detail.orElseThrow().evidenceLinks().get(1).type());
+		assertEquals("step-event", detail.orElseThrow().evidenceLinks().get(2).type());
+		assertEquals("job-failure", detail.orElseThrow().evidenceLinks().get(3).type());
+	}
+
+	@Test
+	void omitsFailureEvidenceLinkWhenRunHasNoJobFailureEvent() throws IOException {
+		createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T10:00:01.000+00:00 INFO [main] [scenario:Customer Load] [run:20260527-100000-000] [job:202] [step:normalize-orders] logger - STEP_EVENT event=step_started mainFlow=orders-flow subFlow=normalize-orders-subflow recoveryPolicy=rerun-from-start stepName=normalize-orders stepExecutionId=301 stepSubFlowOrder=0 dependsOnSubFlows=none consumesHandoffAliases=none producesHandoffAliases=OrdersValidated upstreamSteps=none linkTypes=none linkControlSummary=none stepSummary=Normalize orders step",
+				"2026-05-27T10:00:05.000+00:00 INFO [main] [scenario:Customer Load] [run:20260527-100000-000] [job:202] [step:normalize-orders] logger - STEP_EVENT event=step_finished mainFlow=orders-flow subFlow=normalize-orders-subflow recoveryPolicy=rerun-from-start stepName=normalize-orders stepExecutionId=301 status=COMPLETED readCount=10 writeCount=10 filterCount=0 skipCount=0 rollbackCount=0 rejectedCount=0 rejectOutputPath= archivedSourcePath= stepSubFlowOrder=0 dependsOnSubFlows=none consumesHandoffAliases=none producesHandoffAliases=OrdersValidated upstreamSteps=none linkTypes=none linkControlSummary=none stepSummary=Normalize orders step",
+				"2026-05-27T10:00:10.100+00:00 INFO [main] [scenario:Customer Load] [run:20260527-100000-000] [job:202] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=Customer Load mainFlow=orders-flow subFlow=default-subflow recoveryPolicy=rerun-from-start jobName=etlJob jobExecutionId=202 status=COMPLETED startTime=2026-05-27T10:00:00 endTime=2026-05-27T10:00:10 durationSeconds=10 sourceCount=10 writtenCount=10 rejectedCount=0 handoffReadCount=10 handoffWriteCount=10 executedStepCount=1 rollupMode=operator-oriented failureCount=0"
+		);
+
+		RunSummaryReadModelService summaryService = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser());
+		RunDetailReadModelService detailService = new RunDetailReadModelService(summaryService, new StructuredLogEventParser());
+
+		Optional<RunDetailView> detail = detailService.findRunDetailByJobExecutionId(202L);
+		assertTrue(detail.isPresent());
+		assertEquals(3, detail.orElseThrow().evidenceLinks().size());
+		assertEquals("run-summary", detail.orElseThrow().evidenceLinks().get(1).type());
+		assertEquals("step-event", detail.orElseThrow().evidenceLinks().get(2).type());
 	}
 
 	@Test

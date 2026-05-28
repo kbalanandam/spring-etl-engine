@@ -53,11 +53,14 @@ public class RunDetailReadModelService {
 
 		Map<String, StepAccumulator> stepsByKey = new LinkedHashMap<>();
 		List<ArtifactRecordView> artifacts = new ArrayList<>();
+		EvidenceAccumulator evidence = new EvidenceAccumulator(runSummary.logPath());
 		FailureSummaryView failureSummary = null;
 		int[] nextSequence = {1};
 
 		try (Stream<String> lines = Files.lines(logPath)) {
+			int lineNumber = 0;
 			for (String line : lines.toList()) {
+				lineNumber++;
 				Optional<StructuredLogEvent> maybeEvent = parser.parse(line, logPath);
 				if (maybeEvent.isEmpty()) {
 					continue;
@@ -66,6 +69,7 @@ public class RunDetailReadModelService {
 				if (event.jobExecutionId() == null || event.jobExecutionId() != jobExecutionId) {
 					continue;
 				}
+				evidence.capture(event, lineNumber);
 				if ("STEP_EVENT".equals(event.recordType())) {
 					StepAccumulator accumulator = stepAccumulator(stepsByKey, event, nextSequence[0]);
 					if (accumulator.sequence == nextSequence[0]) {
@@ -91,7 +95,7 @@ public class RunDetailReadModelService {
 				stepsByKey.values().stream().map(StepAccumulator::toView).toList(),
 				deduplicateArtifacts(artifacts),
 				failureSummary,
-				defaultEvidenceLinks(runSummary.logPath())
+				evidence.toLinks()
 		);
 	}
 
@@ -170,6 +174,13 @@ public class RunDetailReadModelService {
 		return List.of(new EvidenceLinkView("Scenario log", logPath, "log-file"));
 	}
 
+	private String lineAnchor(String logPath, Integer lineNumber) {
+		if (lineNumber == null || lineNumber <= 0) {
+			return logPath;
+		}
+		return logPath + "#L" + lineNumber;
+	}
+
 	private String stepKey(StructuredLogEvent event) {
 		Long stepExecutionId = toLong(event.fields().get("stepExecutionId"));
 		if (stepExecutionId != null) {
@@ -245,6 +256,50 @@ public class RunDetailReadModelService {
 					subFlow,
 					stepSummary
 			);
+		}
+	}
+
+	private final class EvidenceAccumulator {
+		private final String logPath;
+		private Integer runSummaryLine;
+		private Integer firstStepEventLine;
+		private Integer jobFailureLine;
+		private int stepEventCount;
+
+		private EvidenceAccumulator(String logPath) {
+			this.logPath = logPath;
+		}
+
+		private void capture(StructuredLogEvent event, int lineNumber) {
+			if ("RUN_SUMMARY".equals(event.recordType()) && "run_summary".equalsIgnoreCase(event.event()) && runSummaryLine == null) {
+				runSummaryLine = lineNumber;
+				return;
+			}
+			if ("STEP_EVENT".equals(event.recordType())) {
+				stepEventCount++;
+				if (firstStepEventLine == null) {
+					firstStepEventLine = lineNumber;
+				}
+				return;
+			}
+			if ("JOB_FAILURE".equals(event.recordType()) && "job_failure".equalsIgnoreCase(event.event()) && jobFailureLine == null) {
+				jobFailureLine = lineNumber;
+			}
+		}
+
+		private List<EvidenceLinkView> toLinks() {
+			List<EvidenceLinkView> links = new ArrayList<>();
+			links.add(new EvidenceLinkView("Scenario log", logPath, "log-file"));
+			if (runSummaryLine != null) {
+				links.add(new EvidenceLinkView("Run summary", lineAnchor(logPath, runSummaryLine), "run-summary"));
+			}
+			if (firstStepEventLine != null) {
+				links.add(new EvidenceLinkView("Step events (" + stepEventCount + ")", lineAnchor(logPath, firstStepEventLine), "step-event"));
+			}
+			if (jobFailureLine != null) {
+				links.add(new EvidenceLinkView("Job failure context", lineAnchor(logPath, jobFailureLine), "job-failure"));
+			}
+			return List.copyOf(links);
 		}
 	}
 }

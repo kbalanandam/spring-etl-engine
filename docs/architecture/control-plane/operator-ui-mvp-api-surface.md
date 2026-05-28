@@ -329,6 +329,21 @@ Current detail shape:
       "label": "Scenario log",
       "href": "logs/2026-05-27/customer-load.log",
       "type": "log-file"
+    },
+    {
+      "label": "Run summary",
+      "href": "logs/2026-05-27/customer-load.log#L6",
+      "type": "run-summary"
+    },
+    {
+      "label": "Step events (4)",
+      "href": "logs/2026-05-27/customer-load.log#L2",
+      "type": "step-event"
+    },
+    {
+      "label": "Job failure context",
+      "href": "logs/2026-05-27/customer-load.log#L7",
+      "type": "job-failure"
     }
   ]
 }
