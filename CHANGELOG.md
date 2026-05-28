@@ -6,8 +6,16 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.7.8-rc1] - 2026-05-28
+
+### Added
+- Added control-plane API integration coverage that boots `ControlPlaneApiApplication` end-to-end, asserts ETL worker launcher beans stay out of the control-plane runtime, and verifies Jobs/Runs/Schedules endpoint flows under configured JDBC persistence.
+- Added trigger persistence startup guardrails through `TriggerEventPersistenceModeGuard`, including marker-based detection for `controlplane.triggers.persistence.mode` switches (`jdbc` <-> `memory`) and explicit override support via `controlplane.triggers.persistence.allow-mode-switch=true`.
+- Added scheduler dedup race coverage proving near-simultaneous pollers only claim one due instant per schedule.
+
 ### Changed
-- Bumped project version to `1.7.8-SNAPSHOT` to start the next patch development cycle.
+- Run-detail evidence links now document and emit explicit line anchors in `logs/<yyyy-MM-dd>/<scenario>.log#L<lineNumber>` format, and gracefully surface `log-file-missing` evidence when referenced log files are unavailable.
+- Control-plane fallback docs now describe safe trigger-event persistence mode transitions and the fail-fast/explicit-override startup behavior.
 
 ## [1.7.8] - 2026-05-27
 

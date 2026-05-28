@@ -8,6 +8,10 @@ import java.time.LocalDateTime;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -65,6 +69,49 @@ class JdbcScheduleRegistryTest {
 		assertFalse(older);
 		assertTrue(newer);
 		assertEquals(Instant.parse("2026-05-28T10:01:00Z"), registry.findByScheduleId("sch-1").orElseThrow().lastAcceptedDueAt());
+	}
+
+	@Test
+	void sameDueInstantCanOnlyBeClaimedOnceAcrossConcurrentCallers() throws Exception {
+		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(new JdbcTemplate(inMemoryDataSource()));
+		registry.upsert(schedule("sch-1", "daily-a", LocalDateTime.parse("2026-05-28T09:00:00")));
+		Instant dueAt = Instant.parse("2026-05-28T10:00:00Z");
+
+		CountDownLatch ready = new CountDownLatch(2);
+		CountDownLatch start = new CountDownLatch(1);
+		java.util.concurrent.atomic.AtomicBoolean firstResult = new java.util.concurrent.atomic.AtomicBoolean(false);
+		java.util.concurrent.atomic.AtomicBoolean secondResult = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+		try {
+			executor.submit(() -> {
+				ready.countDown();
+				awaitLatch(start);
+				firstResult.set(registry.tryAdvanceLastAcceptedDueAt("sch-1", dueAt));
+			});
+			executor.submit(() -> {
+				ready.countDown();
+				awaitLatch(start);
+				secondResult.set(registry.tryAdvanceLastAcceptedDueAt("sch-1", dueAt));
+			});
+			ready.await(2, TimeUnit.SECONDS);
+			start.countDown();
+			executor.shutdown();
+			executor.awaitTermination(5, TimeUnit.SECONDS);
+		} finally {
+			executor.shutdownNow();
+		}
+
+		assertEquals(1, (firstResult.get() ? 1 : 0) + (secondResult.get() ? 1 : 0));
+		assertEquals(dueAt, registry.findByScheduleId("sch-1").orElseThrow().lastAcceptedDueAt());
+	}
+
+	private static void awaitLatch(CountDownLatch latch) {
+		try {
+			latch.await(2, TimeUnit.SECONDS);
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+		}
 	}
 
 	private ScheduleView schedule(String id, String key, LocalDateTime updatedAt) {

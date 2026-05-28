@@ -8,6 +8,7 @@ import java.util.Map;
  */
 record StructuredLogEvent(
 		LocalDateTime loggedAt,
+		Integer lineNumber,
 		String scenario,
 		String runCorrelationId,
 		Long jobExecutionId,

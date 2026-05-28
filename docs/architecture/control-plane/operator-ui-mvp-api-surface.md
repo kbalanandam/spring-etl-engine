@@ -12,6 +12,7 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 - This note still carries future-direction design intent, but the monitoring-first subset below is now implemented by the optional `com.etl.controlplane.ControlPlaneApiApplication` starter.
 - Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/schedules/{scheduleId}/trigger-events`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
 - Trigger-event history now persists in the control-plane JDBC store when `controlplane.triggers.persistence.mode=jdbc` (control-plane profile default), with memory mode still available as a fallback.
+- Trigger-event persistence mode switches are startup-guarded: when the prior marker mode differs from the current configured mode (`jdbc` <-> `memory`), startup fails fast unless `controlplane.triggers.persistence.allow-mode-switch=true` is set intentionally.
 - Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default), while `/runs/{jobExecutionId}/detail` remains log-projected.
 - Schedule persistence foundation now exists internally in the control-plane JDBC store when `controlplane.schedules.persistence.mode=jdbc` (control-plane profile default).
 - Schedule trigger-event history now resolves by `scheduleId` in the trigger registry.
@@ -202,6 +203,7 @@ Current behavior:
 
 - returns `202 ACCEPTED` for known jobs
 - records a trigger event in the configured control-plane registry (`jdbc` by default for control-plane profile, `memory` fallback)
+- follows trigger persistence mode-switch guardrails so fallback changes are explicit, not silent (`controlplane.triggers.persistence.allow-mode-switch=true` only for intentional resets)
 - does not launch the worker yet; launch orchestration remains a later slice
 
 ### `GET /api/v1/jobs/{jobKey}/trigger-events`
@@ -356,6 +358,18 @@ Current evidence sources for this route:
 - `RUN_SUMMARY` for run-level counts and timestamps
 - `STEP_EVENT event=step_started|step_finished` for ordered step outcomes and artifact paths
 - `JOB_FAILURE event=job_failure` for failure categorization
+
+Evidence-link anchor contract for this route:
+
+- base log links use `logs/<yyyy-MM-dd>/<scenario>.log`
+- line anchors append `#L<lineNumber>` to that path
+- example: `logs/2026-05-27/customer-load.log#L6`
+
+Missing/rolled log behavior:
+
+- if the projected `run.logPath` no longer exists (for example roll/archive cleanup), the endpoint still returns `200` with summary/detail fields that are available
+- `evidenceLinks` includes the normal `type=log-file` entry and an additive `type=log-file-missing` marker
+- line-anchored links (`#L...`) are emitted only when the log file is currently readable
 
 ## Schedules endpoints
 

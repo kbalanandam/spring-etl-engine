@@ -47,7 +47,7 @@ public class RunDetailReadModelService {
 					List.of(),
 					List.of(),
 					null,
-					defaultEvidenceLinks(runSummary.logPath())
+					defaultEvidenceLinks(runSummary.logPath(), false)
 			);
 		}
 
@@ -57,11 +57,16 @@ public class RunDetailReadModelService {
 		boolean sawRunSummary = false;
 		boolean sawStepEvent = false;
 		boolean sawJobFailure = false;
+		Integer runSummaryLine = null;
+		Integer firstStepEventLine = null;
+		Integer jobFailureLine = null;
 		int[] nextSequence = {1};
 
 		try (Stream<String> lines = Files.lines(logPath)) {
-			for (String line : lines.toList()) {
-				Optional<StructuredLogEvent> maybeEvent = parser.parse(line, logPath);
+			List<String> allLines = lines.toList();
+			for (int i = 0; i < allLines.size(); i++) {
+				String line = allLines.get(i);
+				Optional<StructuredLogEvent> maybeEvent = parser.parse(line, logPath, i + 1);
 				if (maybeEvent.isEmpty()) {
 					continue;
 				}
@@ -71,6 +76,9 @@ public class RunDetailReadModelService {
 				}
 				if ("STEP_EVENT".equals(event.recordType())) {
 					sawStepEvent = true;
+					if (firstStepEventLine == null) {
+						firstStepEventLine = event.lineNumber();
+					}
 					StepAccumulator accumulator = stepAccumulator(stepsByKey, event, nextSequence[0]);
 					if (accumulator.sequence == nextSequence[0]) {
 						nextSequence[0]++;
@@ -79,8 +87,14 @@ public class RunDetailReadModelService {
 					artifacts.addAll(extractArtifacts(accumulator, event));
 				} else if ("RUN_SUMMARY".equals(event.recordType())) {
 					sawRunSummary = true;
+					if (runSummaryLine == null) {
+						runSummaryLine = event.lineNumber();
+					}
 				} else if (failureSummary == null && "JOB_FAILURE".equals(event.recordType()) && "job_failure".equalsIgnoreCase(event.event())) {
 					sawJobFailure = true;
+					if (jobFailureLine == null) {
+						jobFailureLine = event.lineNumber();
+					}
 					failureSummary = new FailureSummaryView(
 							field(event.fields(), "failureCategory"),
 							field(event.fields(), "exceptionType"),
@@ -98,7 +112,7 @@ public class RunDetailReadModelService {
 				stepsByKey.values().stream().map(StepAccumulator::toView).toList(),
 				deduplicateArtifacts(artifacts),
 				failureSummary,
-				buildEvidenceLinks(runSummary.logPath(), sawRunSummary, sawStepEvent, sawJobFailure)
+				buildEvidenceLinks(runSummary.logPath(), sawRunSummary, sawStepEvent, sawJobFailure, runSummaryLine, firstStepEventLine, jobFailureLine)
 		);
 	}
 
@@ -173,26 +187,41 @@ public class RunDetailReadModelService {
 		return List.copyOf(unique.values());
 	}
 
-	private List<EvidenceLinkView> defaultEvidenceLinks(String logPath) {
-		return List.of(new EvidenceLinkView("Scenario log", logPath, "log-file"));
+	private List<EvidenceLinkView> defaultEvidenceLinks(String logPath, boolean exists) {
+		List<EvidenceLinkView> links = new ArrayList<>();
+		links.add(new EvidenceLinkView("Scenario log", logPath, "log-file"));
+		if (!exists) {
+			links.add(new EvidenceLinkView("Scenario log unavailable", logPath, "log-file-missing"));
+		}
+		return List.copyOf(links);
 	}
 
 	private List<EvidenceLinkView> buildEvidenceLinks(String logPath,
 	                                                boolean sawRunSummary,
 	                                                boolean sawStepEvent,
-	                                                boolean sawJobFailure) {
+	                                                boolean sawJobFailure,
+	                                                Integer runSummaryLine,
+	                                                Integer stepEventLine,
+	                                                Integer jobFailureLine) {
 		List<EvidenceLinkView> links = new ArrayList<>();
 		links.add(new EvidenceLinkView("Scenario log", logPath, "log-file"));
 		if (sawRunSummary) {
-			links.add(new EvidenceLinkView("Run summary", logPath, "run-summary"));
+			links.add(new EvidenceLinkView("Run summary", withLineAnchor(logPath, runSummaryLine), "run-summary"));
 		}
 		if (sawStepEvent) {
-			links.add(new EvidenceLinkView("Step events", logPath, "step-event"));
+			links.add(new EvidenceLinkView("Step events", withLineAnchor(logPath, stepEventLine), "step-event"));
 		}
 		if (sawJobFailure) {
-			links.add(new EvidenceLinkView("Job failure", logPath, "job-failure"));
+			links.add(new EvidenceLinkView("Job failure", withLineAnchor(logPath, jobFailureLine), "job-failure"));
 		}
 		return List.copyOf(links);
+	}
+
+	private String withLineAnchor(String logPath, Integer lineNumber) {
+		if (lineNumber == null || lineNumber <= 0) {
+			return logPath;
+		}
+		return logPath + "#L" + lineNumber;
 	}
 
 	private String stepKey(StructuredLogEvent event) {

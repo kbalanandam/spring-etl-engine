@@ -253,6 +253,15 @@ The likely later direction is:
 - The first schema should model retained history explicitly through relational tables rather than hiding most meaning inside opaque blobs.
 - Artifact and checkpoint storage should be reference-oriented rather than large-payload-oriented in the first slice.
 - The schema direction must remain optional from the ETL worker point of view; direct `etl.config.job` execution cannot depend on this database.
+- Trigger-event persistence fallback must be explicit: switching `controlplane.triggers.persistence.mode` between `jdbc` and `memory` across restarts is treated as a continuity break unless intentionally acknowledged.
+
+### Trigger-event fallback safety
+
+- `jdbc` mode is durable and intended to preserve trigger history across restarts
+- `memory` mode is ephemeral and intended for fallback/dev behavior
+- mode switches are startup-guarded using a persisted marker path (`controlplane.triggers.persistence.mode-marker-path`)
+- if previous mode and current mode differ, startup fails fast unless `controlplane.triggers.persistence.allow-mode-switch=true` is set intentionally
+- this avoids silent trigger-history loss or duplicate operator interpretation during accidental mode flips
 
 ## Tradeoffs
 

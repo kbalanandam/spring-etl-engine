@@ -10,6 +10,10 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -213,6 +217,52 @@ class ScheduleTriggerTickServiceTest {
 
 		tickService.pollAndRecordDueSchedules(ZonedDateTime.ofInstant(fixedClock.instant(), ZoneOffset.UTC));
 		assertEquals(0, triggerRegistry.recorded.size());
+	}
+
+	@Test
+	void nearSimultaneousPollersStillRecordExactlyOneTriggerForSameDueInstant() throws Exception {
+		InMemoryScheduleRegistry registry = new InMemoryScheduleRegistry();
+		ScheduleService scheduleService = new ScheduleService(registry);
+		RecordingTriggerRegistry triggerRegistry = new RecordingTriggerRegistry();
+		ScheduleView schedule = scheduleService.createSchedule("every-minute", "customer-load", "* * * * *", "UTC", true, "minute tick");
+
+		Clock fixedClock = Clock.fixed(Instant.parse("2026-05-28T10:00:20Z"), ZoneOffset.UTC);
+		ScheduleTriggerTickService first = new ScheduleTriggerTickService(scheduleService, triggerRegistry, 30000, "schedule_tick", "scheduler", fixedClock);
+		ScheduleTriggerTickService second = new ScheduleTriggerTickService(scheduleService, triggerRegistry, 30000, "schedule_tick", "scheduler", fixedClock);
+
+		CountDownLatch ready = new CountDownLatch(2);
+		CountDownLatch start = new CountDownLatch(1);
+		ExecutorService executor = Executors.newFixedThreadPool(2);
+		try {
+			executor.submit(() -> runConcurrentTick(first, fixedClock, ready, start));
+			executor.submit(() -> runConcurrentTick(second, fixedClock, ready, start));
+			ready.await(2, TimeUnit.SECONDS);
+			start.countDown();
+			executor.shutdown();
+			executor.awaitTermination(5, TimeUnit.SECONDS);
+		} finally {
+			executor.shutdownNow();
+		}
+
+		assertEquals(1, triggerRegistry.recorded.size());
+		assertEquals(1, triggerRegistry.listByScheduleId(schedule.scheduleId(), 10).size());
+	}
+
+	private static void runConcurrentTick(ScheduleTriggerTickService service,
+	                                     Clock fixedClock,
+	                                     CountDownLatch ready,
+	                                     CountDownLatch start) {
+		ready.countDown();
+		awaitLatch(start);
+		service.pollAndRecordDueSchedules(ZonedDateTime.ofInstant(fixedClock.instant(), ZoneOffset.UTC));
+	}
+
+	private static void awaitLatch(CountDownLatch latch) {
+		try {
+			latch.await(2, TimeUnit.SECONDS);
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+		}
 	}
 
 	private static final class RecordingTriggerRegistry implements TriggerEventRegistry {

@@ -20,6 +20,10 @@ final class StructuredLogEventParser {
 	private static final Pattern FIELD_PATTERN = Pattern.compile("(\\w+)=((?:(?!\\s+\\w+=).)+)");
 
 	Optional<StructuredLogEvent> parse(String line, Path logPath) {
+		return parse(line, logPath, null);
+	}
+
+	Optional<StructuredLogEvent> parse(String line, Path logPath, Integer lineNumber) {
 		if (line == null || line.isBlank()) {
 			return Optional.empty();
 		}
@@ -38,6 +42,7 @@ final class StructuredLogEventParser {
 		Map<String, String> fields = parseFields(messageMatcher.group(2));
 		return Optional.of(new StructuredLogEvent(
 				toPrefixTimestamp(prefixMatcher.group(1)),
+				lineNumber,
 				normalize(prefixMatcher.group(2)),
 				normalize(prefixMatcher.group(3)),
 				toLong(prefixMatcher.group(4)),

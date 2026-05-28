@@ -104,6 +104,13 @@ The first scheduler slice should focus on:
 - basic next-run visibility
 - trigger-origin recording and schedule-to-run traceability
 
+Current dedup guardrail for concurrent pollers:
+
+- schedule ticks claim a persisted `lastAcceptedDueAt` watermark atomically per schedule
+- when multiple control-plane instances evaluate the same due instant within milliseconds, only one claimant should advance that watermark
+- the losing claimant must suppress duplicate trigger recording for that same due instant
+- this preserves exactly-once trigger-event semantics for each `(scheduleId, dueInstant)` pair
+
 ### Later scheduler governance
 
 After the core contract is frozen, grow into:

@@ -47,8 +47,11 @@ class RunDetailReadModelServiceTest {
 		assertEquals("target_write", detail.orElseThrow().failureSummary().category());
 		assertEquals("constraint failed", detail.orElseThrow().failureSummary().message());
 		assertEquals(logPath.toString(), detail.orElseThrow().evidenceLinks().get(0).href());
+		assertEquals(logPath + "#L6", detail.orElseThrow().evidenceLinks().get(1).href());
 		assertEquals("run-summary", detail.orElseThrow().evidenceLinks().get(1).type());
+		assertEquals(logPath + "#L2", detail.orElseThrow().evidenceLinks().get(2).href());
 		assertEquals("step-event", detail.orElseThrow().evidenceLinks().get(2).type());
+		assertEquals(logPath + "#L7", detail.orElseThrow().evidenceLinks().get(3).href());
 		assertEquals("job-failure", detail.orElseThrow().evidenceLinks().get(3).type());
 	}
 
@@ -77,6 +80,31 @@ class RunDetailReadModelServiceTest {
 		RunDetailReadModelService detailService = new RunDetailReadModelService(summaryService, new StructuredLogEventParser());
 
 		assertEquals(Optional.empty(), detailService.findRunDetailByJobExecutionId(999L));
+	}
+
+	@Test
+	void marksEvidenceAsUnavailableWhenLogFileWasRolledOrDeleted() {
+		InMemoryRunSummaryRegistry registry = new InMemoryRunSummaryRegistry();
+		registry.upsert(new RunSummaryView(
+				"Customer Load",
+				303L,
+				"FAILED",
+				null,
+				null,
+				null,
+				null,
+				null,
+				null,
+				tempDir.resolve("2026-05-27/missing.log").toString()
+		));
+		RunSummaryReadModelService summaryService = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser(), registry);
+		RunDetailReadModelService detailService = new RunDetailReadModelService(summaryService, new StructuredLogEventParser());
+
+		Optional<RunDetailView> detail = detailService.findRunDetailByJobExecutionId(303L);
+		assertTrue(detail.isPresent());
+		assertEquals(2, detail.orElseThrow().evidenceLinks().size());
+		assertEquals("log-file", detail.orElseThrow().evidenceLinks().get(0).type());
+		assertEquals("log-file-missing", detail.orElseThrow().evidenceLinks().get(1).type());
 	}
 
 	private Path createLog(Path path, String... lines) throws IOException {
