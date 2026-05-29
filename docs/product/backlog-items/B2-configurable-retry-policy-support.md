@@ -141,5 +141,14 @@ The current first runtime slice now proves a narrow retry boundary:
 - keep configuration/startup and deterministic data-quality failures fail-fast by default
 - wire retry only through Spring Batch fault-tolerant chunk execution, overriding tasklet planning when needed
 - keep ordered duplicate winner selection incompatible with retry in this slice because that duplicate path intentionally requires tasklet buffering
-- emit operator-visible `retry_attempt` and `retry_summary` evidence before broadening scope further
+- keep operator-visible `retry_attempt` and `retry_summary` evidence on the active retry-callback path, with deterministic test coverage
+
+Current preserved runtime proof bundle:
+
+- `src/main/resources/config-jobs/customer-load-retry-policy-runtime-failure/` (malformed CSV first row)
+- expected startup/runtime evidence: `STEP_READY event=retry_policy_enabled` plus runtime failure categorization on the read path
+
+Follow-up scope:
+
+- add a preserved runtime scenario that deterministically traverses retry callbacks (likely process/write transient-failure path) so scenario logs prove `retry_attempt` and terminal `retry_summary` evidence end-to-end
 

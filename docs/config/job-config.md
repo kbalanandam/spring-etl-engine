@@ -125,7 +125,13 @@ For this first runtime slice:
 - when the default planner selects tasklet mode, runtime overrides to chunk mode so retry behavior stays explicit and bounded at the supported chunk boundary
 - first-slice guardrail: one step cannot enable both `skipPolicy` and `retryPolicy`
 - step planning also fails fast when retry policy is combined with ordered duplicate winner selection (`duplicate + orderBy`) because that path intentionally forces tasklet buffering
-- operators now get `STEP_EVENT event=retry_attempt` for each failed attempt and `STEP_EVENT event=retry_summary` with terminal outcome (`succeeded_after_retry` or `failed_after_retries`)
+- when failures flow through the retry callback path, operators get `STEP_EVENT event=retry_attempt` for each failed attempt and `STEP_EVENT event=retry_summary` with terminal outcome (`succeeded_after_retry` or `failed_after_retries`)
+
+Preserved B2 proof bundle:
+
+- `src/main/resources/config-jobs/customer-load-retry-policy-runtime-failure/`
+- demonstrates deterministic runtime failure-boundary behavior on a malformed CSV row while keeping retry policy explicitly configured
+- expected evidence includes `STEP_READY event=retry_policy_enabled` (startup planning) and runtime failure categorization in scenario logs
 
 ### Skip-policy category cheat-sheet
 

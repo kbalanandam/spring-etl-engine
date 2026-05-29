@@ -128,9 +128,13 @@ The B2 retry-policy slice remains intentionally narrow and file-ingestion focuse
 - category vocabulary: same ETL categories as B1 skip policy (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`)
 - runtime boundary: retry is wired only through Spring Batch fault-tolerant chunk execution
 - planning behavior: when the default planner would choose tasklet mode, retry policy overrides that plan to chunk mode so bounded retry stays on the supported Batch fault-tolerance path
-- operator evidence: each failed attempt emits `STEP_EVENT event=retry_attempt`, and terminal retry outcome emits `STEP_EVENT event=retry_summary`
+- operator evidence: when a failure flows through the retry callback path, each failed attempt emits `STEP_EVENT event=retry_attempt`, and terminal retry outcome emits `STEP_EVENT event=retry_summary`
 - first-slice guardrail: one step cannot enable both `skipPolicy` and `retryPolicy`
 - first-slice guardrail: ordered duplicate winner selection (`duplicate` + `orderBy`) still forces tasklet buffering, so it cannot be combined with retry policy in this slice
+
+The preserved B2 retry-policy runtime evidence bundle is:
+
+- `src/main/resources/config-jobs/customer-load-retry-policy-runtime-failure/` for deterministic malformed-row planning/runtime failure-boundary evidence while retry policy is explicitly enabled
 
 The next follow-on slice should:
 

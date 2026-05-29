@@ -180,6 +180,7 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 | `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/` | nested XML -> CSV -> nested XML | Preferred entry path for the preserved explicit multi-step roundtrip bundle |
 | `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/` | nested XML -> CSV -> nested XML | Preferred entry path for the preserved multi-step roundtrip bundle with XML archive-on-success |
 | `src/main/resources/config-jobs/customer-load/` | CSV -> XML | Preferred entry path for the single-step customer-load example |
+| `src/main/resources/config-jobs/customer-load-retry-policy-runtime-failure/` | CSV -> CSV + runtime failure boundary | Preferred entry path for preserved B2 retry-policy planning/runtime boundary evidence (`retry_policy_enabled` + categorized read-path failure on malformed input) |
 | `src/main/resources/config-jobs/customer-load-reject-quarantine/` | CSV -> XML + reject quarantine | Preferred entry path for preserved reject-quarantine proof (`rejectHandling.quarantinePath`) with duplicate rejection |
 | `src/main/resources/config-jobs/customer-load-zipped/` | ZIP-backed CSV -> XML | Preferred entry path for the first preserved unzip-before-read proof on the shared file-source contract, using the minimal `filePath: ...zip` convention and keeping the original ZIP as the reject/archive identity |
 | `src/main/resources/config-jobs/department-load/` | CSV -> XML | Preferred entry path for the single-step department-load example |
@@ -190,6 +191,7 @@ Those scenarios together demonstrate:
 - additive reject quarantine publication through `rejectHandling.quarantinePath`
 - CSV source mapping into nested XML target structure through `modelDefinitionPath`
 - existing CSV source
+- first B2 retry-policy planning/runtime boundary evidence on explicit job steps (`retry_policy_enabled` plus categorized malformed-row read-path failure)
 - ZIP-backed file-source preparation inferred from `filePath: ...zip` before normal CSV/XML validation and reading, with default extracted staging under a runtime-owned JVM temp work root instead of beside the input artifact
 - optional zip-on-archive packaging for plain file-backed CSV/XML sources through `archive.packageAsZip`, reusing the same shared ZIP utility boundary as unzip-before-read
 - optional zip-on-reject packaging through `processor-config.yaml -> rejectHandling.packageAsZip`
