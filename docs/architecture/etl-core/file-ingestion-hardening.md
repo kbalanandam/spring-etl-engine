@@ -64,6 +64,12 @@ Today, the shipped config contract now supports a first file-ingestion hardening
 - for parallel job executions, each job should publish to a distinct target output path; staged cleanup remains per-target-path scoped and therefore does not clean another session's staged files when that session writes a different target file in the same directory
 - accepted vs rejected record artifact semantics for the preserved CSV proof scenario
 - step execution context evidence for reject counts, reject output path, optional quarantined reject path (`quarantinedRejectPath`), and archived source path
+- first B1 skip-policy baseline on explicit `job-config.yaml -> steps[]`: opt-in, bounded (`skipLimit`), CSV-focused, and category-first through ETL error categories with optional exception-class compatibility fallback
+
+The preserved category-first skip-policy reference bundles are:
+
+- `src/main/resources/config-jobs/customer-load-skip-policy-category/` for the baseline config shape
+- `src/main/resources/config-jobs/customer-load-skip-policy-category-unclassified/` for non-zero skip-count evidence with one intentionally malformed CSV row
 
 The preserved unzip-before-read proof is `src/main/resources/config-jobs/customer-load-zipped/`, which keeps the familiar flat `CSV -> XML` flow while proving that the runtime can infer ZIP preparation directly from `filePath: input/Customers.zip`, extract one readable CSV file before normal validation, counting, and reading begin, and still reserve the optional `unzip` block for advanced overrides such as multi-entry selection.
 
@@ -99,6 +105,37 @@ For observability, that same path now emits explicit resolver-selection evidence
 
 ## Design goals for the follow-on slice
 
+## B1 first-slice guardrail snapshot
+
+The first configurable skip-policy slice is intentionally narrow:
+
+- config placement: `job-config.yaml -> steps[].skipPolicy`
+- default behavior: fail fast when skip policy is omitted
+- current supported execution boundary: CSV steps with fault-tolerant chunk execution
+- preferred config shape: `skippableCategories[]` using ETL category values (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`)
+- compatibility shape: optional `skippableExceptions[]` for advanced class-level matching
+- planner behavior: when a selected CSV step would run in tasklet mode, runtime overrides to chunk mode so skip semantics stay explicit
+- guardrail behavior: combining skip policy with ordered duplicate winner selection (`duplicate` + `orderBy`) fails fast in this slice
+- operator intent: preserve evidence-first handling while avoiding broad exception swallowing
+
+## B2 first runtime slice snapshot
+
+The B2 retry-policy slice remains intentionally narrow and file-ingestion focused:
+
+- config placement: `job-config.yaml -> steps[].retryPolicy`
+- default behavior: unchanged when retry policy is omitted
+- startup validation: `maxAttempts >= 2`, `backoffMs >= 0`, and at least one retry matcher (`retryableCategories[]` or `retryableExceptions[]`)
+- category vocabulary: same ETL categories as B1 skip policy (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`)
+- runtime boundary: retry is wired only through Spring Batch fault-tolerant chunk execution
+- planning behavior: when the default planner would choose tasklet mode, retry policy overrides that plan to chunk mode so bounded retry stays on the supported Batch fault-tolerance path
+- operator evidence: when a failure flows through the retry callback path, each failed attempt emits `STEP_EVENT event=retry_attempt`, and terminal retry outcome emits `STEP_EVENT event=retry_summary`
+- first-slice guardrail: one step cannot enable both `skipPolicy` and `retryPolicy`
+- first-slice guardrail: ordered duplicate winner selection (`duplicate` + `orderBy`) still forces tasklet buffering, so it cannot be combined with retry policy in this slice
+
+The preserved B2 retry-policy runtime evidence bundle is:
+
+- `src/main/resources/config-jobs/customer-load-retry-policy-runtime-failure/` for deterministic malformed-row planning/runtime failure-boundary evidence while retry policy is explicitly enabled
+
 The next follow-on slice should:
 
 - stay file-ingestion focused
@@ -106,6 +143,7 @@ The next follow-on slice should:
 - preserve explicit config-driven behavior
 - avoid introducing a broad rule engine too early
 - avoid changing every config type at once
+- keep first-failure cause plus terminal retry outcome visible in step evidence as the retry surface broadens
 
 It should prove one preserved realistic file scenario that shows:
 

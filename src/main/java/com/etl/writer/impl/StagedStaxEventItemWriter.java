@@ -1,6 +1,6 @@
 package com.etl.writer.impl;
 
-import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.TargetWriteException;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
@@ -71,7 +71,7 @@ public class StagedStaxEventItemWriter<T> extends StaxEventItemWriter<T> impleme
   @Override
   public void write(@NonNull Chunk<? extends T> chunk) {
     if (failed) {
-      throw new RuntimeEtlException("Staged XML writer for '" + stagedFileLifecycle.finalPath() + "' is already in a failed state.");
+      throw new TargetWriteException("Staged XML writer for '" + stagedFileLifecycle.finalPath() + "' is already in a failed state.");
     }
     try {
       // Delegate record-by-record XML streaming to the parent writer while this wrapper preserves
@@ -124,11 +124,11 @@ public class StagedStaxEventItemWriter<T> extends StaxEventItemWriter<T> impleme
         return stagedFileLifecycle.completeStep(stepExecution.getExitStatus());
     }
 
-  private RuntimeEtlException runtimeFailure(String message, Throwable cause) {
-    return new RuntimeEtlException(message, cause);
+  private TargetWriteException runtimeFailure(String message, Throwable cause) {
+    return new TargetWriteException(message, cause);
   }
 
-  private RuntimeEtlException writeFailure(Throwable cause) {
+  private TargetWriteException writeFailure(Throwable cause) {
     failed = true;
     String message = "Failed to write staged XML output for '" + stagedFileLifecycle.finalPath() + "'.";
     return runtimeFailure(message, cause);

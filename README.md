@@ -139,6 +139,33 @@ First monitoring endpoints:
 - `GET /api/v1/system/health` - returns minimal control-plane health status
 - `GET /api/v1/system/info` - returns service name, Java version, and active profile
 
+## Run Modes
+
+### Explicit job-config mode (preferred)
+
+For local development, run one selected bundle directly through Maven:
+
+```powershell
+mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.config.job=src/main/resources/config-jobs/customer-load/job-config.yaml" spring-boot:run
+```
+
+### Packaged jar mode (selected-job contract)
+
+Use this path when validating deployment-style execution against one preserved or private bundle.
+
+```powershell
+mvn --no-transfer-progress -DskipTests "-Dstart-class=com.etl.ETLEngineApplication" package
+$jar = Get-ChildItem -Path .\target -Filter "spring-etl-engine-*.jar" | Where-Object { $_.Name -notlike "*sources*" -and $_.Name -notlike "*javadoc*" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+java "-Detl.config.job=src/main/resources/config-jobs/customer-load/job-config.yaml" -jar $jar
+```
+
+Notes:
+
+- Keep `etl.config.job` explicit. Strict startup without it is intentional unless `-Detl.config.allow-demo-fallback=true` is set.
+- Relative paths inside `job-config.yaml` resolve from the job bundle folder.
+- For private deployable bundles, point `etl.config.job` to `private-jobs/<collection>/<job-bundle>/config/job-config.yaml`.
+- For XML scenarios that require generated job-scoped classes (for example `xml-nested-to-csv-to-nested-xml`), run with `-Pxml-generation` first.
+
 ## Start here
 
 Use this table as the recommended reading order by goal:
@@ -198,6 +225,7 @@ Start here:
 - [`docs/architecture/operator-ui/operator-ui-architecture-direction.md`](docs/architecture/operator-ui/operator-ui-architecture-direction.md)
 - [`docs/architecture/etl-core/transformation-capability-roadmap.md`](docs/architecture/etl-core/transformation-capability-roadmap.md)
 - [`docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
+- [`docs/adr/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md`](docs/adr/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md)
 - [`docs/README.md#adrs`](docs/README.md#adrs)
 
 ## Repository Structure

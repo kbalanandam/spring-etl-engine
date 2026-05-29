@@ -4,6 +4,7 @@ import com.etl.exception.EtlErrorCategory;
 import com.etl.exception.EtlException;
 import com.etl.exception.EtlExceptionDetails;
 import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.SourceReadException;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemReader;
@@ -37,7 +38,7 @@ class RuntimeCategorizingItemStreamReaderTest {
     }
 
     @Test
-    void wrapsUncategorizedReadFailuresAsRuntime() {
+      void wrapsUncategorizedReadFailuresAsSourceRead() {
         RuntimeCategorizingItemStreamReader<String> reader = new RuntimeCategorizingItemStreamReader<>(
                 () -> {
                     throw new IllegalStateException("boom");
@@ -45,10 +46,10 @@ class RuntimeCategorizingItemStreamReaderTest {
                 "Customers"
         );
 
-        RuntimeEtlException failure = assertThrows(RuntimeEtlException.class, reader::read);
+            SourceReadException failure = assertThrows(SourceReadException.class, reader::read);
 
         assertEquals("Failed while reading source 'Customers'.", failure.getMessage());
-        assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+            assertEquals(EtlErrorCategory.SOURCE_READ, EtlExceptionDetails.categoryOf(failure));
         assertEquals(IllegalStateException.class, failure.getCause().getClass());
     }
 
@@ -67,7 +68,7 @@ class RuntimeCategorizingItemStreamReaderTest {
     }
 
     @Test
-    void wrapsUncategorizedOpenFailuresAsRuntime() {
+      void wrapsUncategorizedOpenFailuresAsSourceRead() {
         ItemStreamException expected = new ItemStreamException("plain open");
         RuntimeCategorizingItemStreamReader<String> reader = new RuntimeCategorizingItemStreamReader<>(
                 new ThrowingItemStreamReader(expected, null, null),
@@ -77,8 +78,8 @@ class RuntimeCategorizingItemStreamReaderTest {
         ItemStreamException failure = assertThrows(ItemStreamException.class, () -> reader.open(new ExecutionContext()));
 
         assertEquals("Failed to open reader for source 'Customers'.", failure.getMessage());
-        assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
-        assertEquals(RuntimeEtlException.class, failure.getCause().getClass());
+            assertEquals(EtlErrorCategory.SOURCE_READ, EtlExceptionDetails.categoryOf(failure));
+            assertEquals(SourceReadException.class, failure.getCause().getClass());
     }
 
     @Test
@@ -96,7 +97,7 @@ class RuntimeCategorizingItemStreamReaderTest {
     }
 
     @Test
-    void wrapsUncategorizedUpdateFailuresAsRuntime() {
+      void wrapsUncategorizedUpdateFailuresAsSourceRead() {
         ItemStreamException expected = new ItemStreamException("plain update");
         RuntimeCategorizingItemStreamReader<String> reader = new RuntimeCategorizingItemStreamReader<>(
                 new ThrowingItemStreamReader(null, expected, null),
@@ -106,8 +107,8 @@ class RuntimeCategorizingItemStreamReaderTest {
         ItemStreamException failure = assertThrows(ItemStreamException.class, () -> reader.update(new ExecutionContext()));
 
         assertEquals("Failed to update reader for source 'Customers'.", failure.getMessage());
-        assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
-        assertEquals(RuntimeEtlException.class, failure.getCause().getClass());
+            assertEquals(EtlErrorCategory.SOURCE_READ, EtlExceptionDetails.categoryOf(failure));
+            assertEquals(SourceReadException.class, failure.getCause().getClass());
     }
 
     @Test
@@ -125,7 +126,7 @@ class RuntimeCategorizingItemStreamReaderTest {
     }
 
     @Test
-    void wrapsUncategorizedCloseFailuresAsRuntime() {
+      void wrapsUncategorizedCloseFailuresAsSourceRead() {
         ItemStreamException expected = new ItemStreamException("plain close");
         RuntimeCategorizingItemStreamReader<String> reader = new RuntimeCategorizingItemStreamReader<>(
                 new ThrowingItemStreamReader(null, null, expected),
@@ -135,8 +136,8 @@ class RuntimeCategorizingItemStreamReaderTest {
         ItemStreamException failure = assertThrows(ItemStreamException.class, reader::close);
 
         assertEquals("Failed to close reader for source 'Customers'.", failure.getMessage());
-        assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
-        assertEquals(RuntimeEtlException.class, failure.getCause().getClass());
+            assertEquals(EtlErrorCategory.SOURCE_READ, EtlExceptionDetails.categoryOf(failure));
+            assertEquals(SourceReadException.class, failure.getCause().getClass());
     }
 
     @Test

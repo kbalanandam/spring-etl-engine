@@ -1,7 +1,7 @@
 package com.etl.config;
 
-import com.etl.config.exception.ConfigException;
-import com.etl.config.exception.ProcessorExtensionBindingConfigException;
+import com.etl.exception.config.ConfigException;
+import com.etl.exception.config.ProcessorExtensionBindingConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
@@ -23,6 +23,7 @@ import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.config.target.XmlTargetConfig;
+import com.etl.exception.EtlErrorCategory;
 import com.etl.runtime.job.JobConfigPaths;
 import com.etl.runtime.job.JobRunMode;
 import com.etl.runtime.job.JobRuntimeDescriptor;
@@ -47,10 +48,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static java.nio.file.Files.readString;
 
@@ -155,7 +153,17 @@ public class ConfigLoader {
 	@Bean
 	public RunConfigurationMetadata runConfigurationMetadata(JobRuntimeDescriptor jobRuntimeDescriptor) {
 		try {
-			return RunConfigurationMetadata.fromJobRuntimeDescriptor(jobRuntimeDescriptor);
+			ResolvedRuntimeConfig runtimeConfig = resolveRuntimeConfig();
+			RunConfigurationMetadata descriptorMetadata = RunConfigurationMetadata.fromJobRuntimeDescriptor(jobRuntimeDescriptor);
+			return new RunConfigurationMetadata(
+					descriptorMetadata.scenarioName(),
+					descriptorMetadata.jobConfigPath(),
+					descriptorMetadata.demoFallbackMode(),
+					descriptorMetadata.mainFlowName(),
+					descriptorMetadata.subFlowName(),
+					descriptorMetadata.recoveryPolicy(),
+					runtimeConfig.steps()
+			);
 		} catch (Exception e) {
 			if (e instanceof ConfigException configException) {
 				throw configException;
@@ -177,7 +185,16 @@ public class ConfigLoader {
 					processorConfig,
 					new JobRuntimeDescriptorAssembler()
 			);
-			return RunConfigurationMetadata.fromJobRuntimeDescriptor(descriptor);
+			RunConfigurationMetadata descriptorMetadata = RunConfigurationMetadata.fromJobRuntimeDescriptor(descriptor);
+			return new RunConfigurationMetadata(
+					descriptorMetadata.scenarioName(),
+					descriptorMetadata.jobConfigPath(),
+					descriptorMetadata.demoFallbackMode(),
+					descriptorMetadata.mainFlowName(),
+					descriptorMetadata.subFlowName(),
+					descriptorMetadata.recoveryPolicy(),
+					runtimeConfig.steps()
+			);
 		} catch (Exception e) {
 			if (e instanceof ConfigException configException) {
 				throw configException;
@@ -509,6 +526,7 @@ public class ConfigLoader {
 		Set<String> stepNames = new HashSet<>();
 		Set<String> sourceNames = sourceNames(sourceWrapper);
 		Set<String> targetNames = targetNames(targetWrapper);
+		java.util.Map<String, SourceConfig> sourcesByName = mapSourcesByName(sourceWrapper);
 		List<JobConfig.JobStepConfig> resolvedSteps = new ArrayList<>();
 
 		for (int i = 0; i < configuredSteps.size(); i++) {
@@ -531,11 +549,18 @@ public class ConfigLoader {
 				throw new ConfigException("JobConfig step '" + stepName + "' references unknown target '" + targetName + "'.");
 			}
 			ensureProcessorMappingExists(processorConfig, stepName, sourceName, targetName);
+			JobConfig.SkipPolicyConfig normalizedSkipPolicy = normalizeAndValidateSkipPolicy(configuredStep.getSkipPolicy(), stepName, sourcesByName.get(sourceName));
+			JobConfig.RetryPolicyConfig normalizedRetryPolicy = normalizeAndValidateRetryPolicy(configuredStep.getRetryPolicy(), stepName);
+			if (normalizedSkipPolicy != null && normalizedRetryPolicy != null) {
+				throw new ConfigException("JobConfig step '" + stepName + "' configures both skipPolicy and retryPolicy. This B2 first slice does not support combining those modes.");
+			}
 
 			JobConfig.JobStepConfig resolvedStep = new JobConfig.JobStepConfig();
 			resolvedStep.setName(stepName);
 			resolvedStep.setSource(sourceName);
 			resolvedStep.setTarget(targetName);
+			resolvedStep.setSkipPolicy(normalizedSkipPolicy);
+			resolvedStep.setRetryPolicy(normalizedRetryPolicy);
 			resolvedSteps.add(resolvedStep);
 		}
 
@@ -776,6 +801,159 @@ public class ConfigLoader {
 			throw new ConfigException("Missing required property '" + propertyName + "'.");
 		}
 		return value.trim();
+	}
+
+	private static java.util.Map<String, SourceConfig> mapSourcesByName(SourceWrapper sourceWrapper) {
+		java.util.Map<String, SourceConfig> sourcesByName = new java.util.LinkedHashMap<>();
+		if (sourceWrapper == null || sourceWrapper.getSources() == null) {
+			return sourcesByName;
+		}
+		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
+			if (sourceConfig != null && sourceConfig.getSourceName() != null && !sourceConfig.getSourceName().isBlank()) {
+				sourcesByName.put(sourceConfig.getSourceName().trim(), sourceConfig);
+			}
+		}
+		return sourcesByName;
+	}
+
+	private static JobConfig.SkipPolicyConfig normalizeAndValidateSkipPolicy(JobConfig.SkipPolicyConfig skipPolicy,
+	                                                                        String stepName,
+	                                                                        SourceConfig sourceConfig) {
+		if (skipPolicy == null || !skipPolicy.isEnabled()) {
+			return null;
+		}
+
+		if (!(sourceConfig instanceof CsvSourceConfig)) {
+			throw new ConfigException("JobConfig step '" + stepName + "' enables skipPolicy, but skipPolicy is currently supported only for CSV sources.");
+		}
+
+		Integer skipLimit = skipPolicy.getSkipLimit();
+		if (skipLimit == null || skipLimit <= 0) {
+			throw new ConfigException("JobConfig step '" + stepName + "' skipPolicy.skipLimit must be a positive integer when skipPolicy.enabled=true.");
+		}
+
+		List<String> normalizedCategories = normalizeAndValidateSkipCategories(skipPolicy.getSkippableCategories(), stepName);
+		List<String> configuredExceptions = skipPolicy.getSkippableExceptions();
+		if (normalizedCategories.isEmpty() && (configuredExceptions == null || configuredExceptions.isEmpty())) {
+			throw new ConfigException("JobConfig step '" + stepName + "' skipPolicy must define at least one of skipPolicy.skippableCategories or skipPolicy.skippableExceptions when skipPolicy.enabled=true.");
+		}
+
+		List<String> normalizedExceptions = new ArrayList<>();
+		if (configuredExceptions != null) {
+			for (String configuredException : configuredExceptions) {
+				String className = requireNonBlank(configuredException, "JobConfig step '" + stepName + "' skipPolicy.skippableExceptions[]");
+				Class<?> exceptionClass;
+				try {
+					exceptionClass = Class.forName(className);
+				} catch (ClassNotFoundException e) {
+					throw new ConfigException("JobConfig step '" + stepName + "' skipPolicy.skippableExceptions contains unknown class '" + className + "'.", e);
+				}
+				if (!Throwable.class.isAssignableFrom(exceptionClass)) {
+					throw new ConfigException("JobConfig step '" + stepName + "' skipPolicy.skippableExceptions class '" + className + "' must extend Throwable.");
+				}
+				normalizedExceptions.add(exceptionClass.getName());
+			}
+		}
+
+		JobConfig.SkipPolicyConfig normalized = new JobConfig.SkipPolicyConfig();
+		normalized.setEnabled(true);
+		normalized.setSkipLimit(skipLimit);
+		normalized.setSkippableCategories(normalizedCategories.isEmpty() ? List.of() : List.copyOf(normalizedCategories));
+		normalized.setSkippableExceptions(List.copyOf(normalizedExceptions));
+		return normalized;
+	}
+
+	private static List<String> normalizeAndValidateSkipCategories(List<String> configuredCategories, String stepName) {
+		if (configuredCategories == null || configuredCategories.isEmpty()) {
+			return List.of();
+		}
+
+		List<String> normalizedCategories = new ArrayList<>();
+		for (String configuredCategory : configuredCategories) {
+			String categoryToken = requireNonBlank(configuredCategory, "JobConfig step '" + stepName + "' skipPolicy.skippableCategories[]");
+			EtlErrorCategory category = resolveEtlErrorCategory(categoryToken, stepName, "skipPolicy.skippableCategories");
+			normalizedCategories.add(category.logValue());
+		}
+		return normalizedCategories;
+	}
+
+	private static EtlErrorCategory resolveEtlErrorCategory(String categoryToken, String stepName, String propertyPath) {
+		Optional<EtlErrorCategory> resolvedCategory = EtlErrorCategory.fromToken(categoryToken);
+		if (resolvedCategory.isPresent()) {
+			return resolvedCategory.get();
+		}
+		throw new ConfigException("JobConfig step '" + stepName + "' " + propertyPath + " contains unknown ETL category '"
+				+ categoryToken + "'. Supported categories are: " + supportedSkipCategories());
+	}
+
+	private static String supportedSkipCategories() {
+		List<String> values = new ArrayList<>();
+		for (EtlErrorCategory category : EtlErrorCategory.values()) {
+			values.add(category.logValue());
+		}
+		return String.join(", ", values);
+	}
+
+	private static JobConfig.RetryPolicyConfig normalizeAndValidateRetryPolicy(JobConfig.RetryPolicyConfig retryPolicy,
+	                                                                          String stepName) {
+		if (retryPolicy == null || !retryPolicy.isEnabled()) {
+			return null;
+		}
+
+		Integer maxAttempts = retryPolicy.getMaxAttempts();
+		if (maxAttempts == null || maxAttempts < 2) {
+			throw new ConfigException("JobConfig step '" + stepName + "' retryPolicy.maxAttempts must be an integer >= 2 when retryPolicy.enabled=true.");
+		}
+
+		Long backoffMs = retryPolicy.getBackoffMs();
+		if (backoffMs == null || backoffMs < 0) {
+			throw new ConfigException("JobConfig step '" + stepName + "' retryPolicy.backoffMs must be a non-negative integer when retryPolicy.enabled=true.");
+		}
+
+		List<String> normalizedCategories = normalizeAndValidateRetryCategories(retryPolicy.getRetryableCategories(), stepName);
+		List<String> configuredExceptions = retryPolicy.getRetryableExceptions();
+		if (normalizedCategories.isEmpty() && (configuredExceptions == null || configuredExceptions.isEmpty())) {
+			throw new ConfigException("JobConfig step '" + stepName + "' retryPolicy must define at least one of retryPolicy.retryableCategories or retryPolicy.retryableExceptions when retryPolicy.enabled=true.");
+		}
+
+		List<String> normalizedExceptions = new ArrayList<>();
+		if (configuredExceptions != null) {
+			for (String configuredException : configuredExceptions) {
+				String className = requireNonBlank(configuredException, "JobConfig step '" + stepName + "' retryPolicy.retryableExceptions[]");
+				Class<?> exceptionClass;
+				try {
+					exceptionClass = Class.forName(className);
+				} catch (ClassNotFoundException e) {
+					throw new ConfigException("JobConfig step '" + stepName + "' retryPolicy.retryableExceptions contains unknown class '" + className + "'.", e);
+				}
+				if (!Throwable.class.isAssignableFrom(exceptionClass)) {
+					throw new ConfigException("JobConfig step '" + stepName + "' retryPolicy.retryableExceptions class '" + className + "' must extend Throwable.");
+				}
+				normalizedExceptions.add(exceptionClass.getName());
+			}
+		}
+
+		JobConfig.RetryPolicyConfig normalized = new JobConfig.RetryPolicyConfig();
+		normalized.setEnabled(true);
+		normalized.setMaxAttempts(maxAttempts);
+		normalized.setBackoffMs(backoffMs);
+		normalized.setRetryableCategories(normalizedCategories.isEmpty() ? List.of() : List.copyOf(normalizedCategories));
+		normalized.setRetryableExceptions(List.copyOf(normalizedExceptions));
+		return normalized;
+	}
+
+	private static List<String> normalizeAndValidateRetryCategories(List<String> configuredCategories, String stepName) {
+		if (configuredCategories == null || configuredCategories.isEmpty()) {
+			return List.of();
+		}
+
+		List<String> normalizedCategories = new ArrayList<>();
+		for (String configuredCategory : configuredCategories) {
+			String categoryToken = requireNonBlank(configuredCategory, "JobConfig step '" + stepName + "' retryPolicy.retryableCategories[]");
+			EtlErrorCategory category = resolveEtlErrorCategory(categoryToken, stepName, "retryPolicy.retryableCategories");
+			normalizedCategories.add(category.logValue());
+		}
+		return normalizedCategories;
 	}
 
 

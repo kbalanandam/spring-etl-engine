@@ -77,6 +77,8 @@ public class JobConfig {
 		private String name;
 		private String source;
 		private String target;
+		private SkipPolicyConfig skipPolicy;
+		private RetryPolicyConfig retryPolicy;
 
 		public String getName() {
 			return name;
@@ -100,6 +102,111 @@ public class JobConfig {
 
 		public void setTarget(String target) {
 			this.target = target;
+		}
+
+		public SkipPolicyConfig getSkipPolicy() {
+			return skipPolicy;
+		}
+
+		public void setSkipPolicy(SkipPolicyConfig skipPolicy) {
+			this.skipPolicy = skipPolicy;
+		}
+
+		public RetryPolicyConfig getRetryPolicy() {
+			return retryPolicy;
+		}
+
+		public void setRetryPolicy(RetryPolicyConfig retryPolicy) {
+			this.retryPolicy = retryPolicy;
+		}
+	}
+
+	public static class SkipPolicyConfig {
+
+		private boolean enabled;
+		private Integer skipLimit;
+		private List<String> skippableCategories;
+		private List<String> skippableExceptions;
+
+		public boolean isEnabled() {
+			return enabled;
+		}
+
+		public void setEnabled(boolean enabled) {
+			this.enabled = enabled;
+		}
+
+		public Integer getSkipLimit() {
+			return skipLimit;
+		}
+
+		public void setSkipLimit(Integer skipLimit) {
+			this.skipLimit = skipLimit;
+		}
+
+		public List<String> getSkippableCategories() {
+			return skippableCategories;
+		}
+
+		public void setSkippableCategories(List<String> skippableCategories) {
+			this.skippableCategories = skippableCategories;
+		}
+
+		public List<String> getSkippableExceptions() {
+			return skippableExceptions;
+		}
+
+		public void setSkippableExceptions(List<String> skippableExceptions) {
+			this.skippableExceptions = skippableExceptions;
+		}
+	}
+
+	public static class RetryPolicyConfig {
+
+		private boolean enabled;
+		private Integer maxAttempts;
+		private Long backoffMs;
+		private List<String> retryableCategories;
+		private List<String> retryableExceptions;
+
+		public boolean isEnabled() {
+			return enabled;
+		}
+
+		public void setEnabled(boolean enabled) {
+			this.enabled = enabled;
+		}
+
+		public Integer getMaxAttempts() {
+			return maxAttempts;
+		}
+
+		public void setMaxAttempts(Integer maxAttempts) {
+			this.maxAttempts = maxAttempts;
+		}
+
+		public Long getBackoffMs() {
+			return backoffMs;
+		}
+
+		public void setBackoffMs(Long backoffMs) {
+			this.backoffMs = backoffMs;
+		}
+
+		public List<String> getRetryableCategories() {
+			return retryableCategories;
+		}
+
+		public void setRetryableCategories(List<String> retryableCategories) {
+			this.retryableCategories = retryableCategories;
+		}
+
+		public List<String> getRetryableExceptions() {
+			return retryableExceptions;
+		}
+
+		public void setRetryableExceptions(List<String> retryableExceptions) {
+			this.retryableExceptions = retryableExceptions;
 		}
 	}
 }

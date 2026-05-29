@@ -3,7 +3,7 @@ package com.etl.job.listener;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.etl.config.exception.ConfigException;
+import com.etl.exception.config.ConfigException;
 import com.etl.config.ColumnConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;

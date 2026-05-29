@@ -50,9 +50,9 @@ That means the nested scenario does **not** use a different XML target layout; i
 Generate the job-scoped XML target classes first, then run the selected scenario:
 
 ```powershell
-mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-jobs/csv-to-nested-xml/job-config.yaml" -DskipTests package
- java "-Detl.config.job=src/main/resources/config-jobs/csv-to-nested-xml/job-config.yaml" -jar target/spring-etl-engine-1.6.1.jar
+mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-jobs/csv-to-nested-xml/job-config.yaml" -DskipTests "-Dstart-class=com.etl.ETLEngineApplication" package
+$jar = Get-ChildItem -Path .\target -Filter "spring-etl-engine-*.jar" | Where-Object { $_.Name -notlike "*sources*" -and $_.Name -notlike "*javadoc*" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+java "-Detl.config.job=src/main/resources/config-jobs/csv-to-nested-xml/job-config.yaml" -jar $jar
 ```
 
 The checked-in bundle root is now `config-jobs`. The runtime still accepts legacy `config-scenarios/...` paths temporarily for backward compatibility, but that alias path is now deprecated.
-

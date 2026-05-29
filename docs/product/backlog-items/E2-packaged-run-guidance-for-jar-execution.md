@@ -8,7 +8,7 @@ Document and preserve the supported packaged-run workflow so teams can execute s
 
 - Epic: **[Epic E](../epics/epic-e-portability-and-packaged-run-guidance.md)**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **Done**
 - Milestone: **M1**
 - Dependency: **E1**
 
@@ -48,9 +48,9 @@ Expand docs and preserved examples so packaged selected-job execution is explain
 
 ## Acceptance criteria
 
-- [ ] packaged-run guidance is documented in the active docs set
-- [ ] preserved example commands cover jar execution clearly
-- [ ] XML-generation prerequisite guidance remains explicit for scenarios that require it
+- [x] packaged-run guidance is documented in the active docs set
+- [x] preserved example commands cover jar execution clearly
+- [x] XML-generation prerequisite guidance remains explicit for scenarios that require it
 
 ## Related docs
 
@@ -64,5 +64,10 @@ This is the next portability/documentation step after the shipped cross-platform
 
 ## Status notes
 
-Ready for a documentation-first slice that keeps the existing runtime contract unchanged.
+Completed as a documentation-first slice while keeping the selected-job runtime contract unchanged.
 
+Packaged-run guidance is now standardized in:
+
+- repository root `README.md` (`Run Modes`)
+- `docs/config/README.md` (`Packaged jar execution`)
+- preserved XML-focused scenario READMEs with version-agnostic jar commands

@@ -1,14 +1,15 @@
 package com.etl.processor.exception;
 
-import com.etl.exception.EtlException;
-import com.etl.exception.EtlErrorCategory;
-
-public class ProcessorException extends EtlException {
+/**
+ * @deprecated Use {@link com.etl.exception.processor.ProcessorException}.
+ */
+@Deprecated(forRemoval = false, since = "1.7.9")
+public class ProcessorException extends com.etl.exception.processor.ProcessorException {
     public ProcessorException(String message) {
-		super(EtlErrorCategory.FACTORY, message);
+        super(message);
     }
 
     public ProcessorException(String message, Throwable cause) {
-		super(EtlErrorCategory.FACTORY, message, cause);
+        super(message, cause);
     }
 }

@@ -1,0 +1,13 @@
+targets:
+  - format: csv
+    targetName: CustomersCsv
+    filePath: output/customers-retry-output.csv
+    delimiter: ","
+    includeHeader: true
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+      - name: email
+        type: String

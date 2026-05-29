@@ -1,13 +1,15 @@
 package com.etl.config.exception;
 
-import com.etl.exception.EtlException;
-import com.etl.exception.EtlErrorCategory;
-
-public class ConfigException extends EtlException {
+/**
+ * @deprecated Use {@link com.etl.exception.config.ConfigException}.
+ */
+@Deprecated(forRemoval = false, since = "1.7.9")
+public class ConfigException extends com.etl.exception.config.ConfigException {
     public ConfigException(String message) {
-		super(EtlErrorCategory.CONFIG, message);
+        super(message);
     }
+
     public ConfigException(String message, Throwable cause) {
-		super(EtlErrorCategory.CONFIG, message, cause);
+        super(message, cause);
     }
 }

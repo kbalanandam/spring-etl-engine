@@ -1,6 +1,6 @@
 package com.etl.writer.impl;
 
-import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.TargetWriteException;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
@@ -72,7 +72,7 @@ public class StagedFlatFileItemWriter<T> extends FlatFileItemWriter<T> implement
     @Override
     public void write(@NonNull Chunk<? extends T> chunk) throws Exception {
         if (failed) {
-            throw new RuntimeEtlException("Staged CSV writer for '" + stagedFileLifecycle.finalPath() + "' is already in a failed state.");
+            throw new TargetWriteException("Staged CSV writer for '" + stagedFileLifecycle.finalPath() + "' is already in a failed state.");
         }
         try {
             // Delegate line aggregation and CSV serialization to the parent writer while this
@@ -126,8 +126,8 @@ public class StagedFlatFileItemWriter<T> extends FlatFileItemWriter<T> implement
         return stagedFileLifecycle.completeStep(stepExecution.getExitStatus());
     }
 
-  private RuntimeEtlException runtimeFailure(String message, Throwable cause) {
-    return new RuntimeEtlException(message, cause);
+  private TargetWriteException runtimeFailure(String message, Throwable cause) {
+    return new TargetWriteException(message, cause);
   }
 
   private void cleanupFailedStreamState() {

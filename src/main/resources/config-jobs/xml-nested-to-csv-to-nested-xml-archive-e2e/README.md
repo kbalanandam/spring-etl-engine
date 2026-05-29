@@ -51,12 +51,11 @@ The nested XML difference is that `modelDefinitionPath` supplies the structural 
 Generate the job-scoped XML classes first, then run the scenario:
 
 ```powershell
-Set-Location 'C:\spring-etl-engine'
-mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml" -DskipTests package
- java "-Detl.config.job=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml" -jar target/spring-etl-engine-1.6.1.jar
+mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml" -DskipTests "-Dstart-class=com.etl.ETLEngineApplication" package
+$jar = Get-ChildItem -Path .\target -Filter "spring-etl-engine-*.jar" | Where-Object { $_.Name -notlike "*sources*" -and $_.Name -notlike "*javadoc*" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+java "-Detl.config.job=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml" -jar $jar
 ```
 
 ## Rerun note
 
 Because archive-on-success now packages and removes `input/nested-sample.xml`, restore or recopy the input file before rerunning this scenario if you want to exercise the same archive behavior again.
-

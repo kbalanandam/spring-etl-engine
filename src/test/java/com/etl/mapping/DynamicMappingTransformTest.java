@@ -1,6 +1,8 @@
 package com.etl.mapping;
 
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.exception.EtlErrorCategory;
+import com.etl.exception.EtlExceptionDetails;
 import com.etl.processor.ProcessorExtensionDefaults;
 import com.etl.processor.transform.TransformEvaluator;
 import org.junit.jupiter.api.Test;
@@ -11,6 +13,8 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DynamicMappingTransformTest {
 
@@ -122,6 +126,29 @@ class DynamicMappingTransformTest {
 
 		assertNotNull(output);
 		assertEquals("MID", output.customerTier);
+	}
+
+	@Test
+	void categorizesRuntimeExpressionFailuresAsTransformation() {
+		ProcessorConfig.FieldMapping fullName = new ProcessorConfig.FieldMapping();
+		fullName.setTo("fullName");
+		ProcessorConfig.FieldTransform expression = new ProcessorConfig.FieldTransform();
+		expression.setType("expression");
+		expression.setExpression("#input.fullName.value");
+		fullName.setTransforms(List.of(expression));
+
+		ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
+		mapping.setSource("Customers");
+		mapping.setTarget("CustomersOut");
+		mapping.setFields(List.of(fullName));
+
+		DynamicMapping<NameInputRecord, NameTargetRecord> processor = new DynamicMapping<>(mapping, NameTargetRecord.class, builtInTransformEvaluator());
+
+		Exception failure = assertThrows(Exception.class,
+				() -> processor.process(new NameInputRecord("Ada", "Lovelace")));
+
+		assertEquals(EtlErrorCategory.TRANSFORMATION, EtlExceptionDetails.categoryOf(failure));
+		assertTrue(EtlExceptionDetails.rootCauseMessage(failure).contains("fullName"));
 	}
 
 	private ProcessorConfig.FieldTransform valueMap(Map<String, Object> mappings, Object defaultValue, boolean caseSensitive) {

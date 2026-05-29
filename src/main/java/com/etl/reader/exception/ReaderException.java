@@ -1,16 +1,17 @@
 package com.etl.reader.exception;
 
-import com.etl.exception.EtlException;
-import com.etl.exception.EtlErrorCategory;
-
-public class ReaderException extends EtlException {
+/**
+ * @deprecated Use {@link com.etl.exception.reader.ReaderException}.
+ */
+@Deprecated(forRemoval = false, since = "1.7.9")
+public class ReaderException extends com.etl.exception.reader.ReaderException {
 
     public ReaderException(String message) {
-        super(EtlErrorCategory.FACTORY, message);
+        super(message);
     }
 
     public ReaderException(String message, Throwable cause) {
-        super(EtlErrorCategory.FACTORY, message, cause);
+        super(message, cause);
     }
 }
 

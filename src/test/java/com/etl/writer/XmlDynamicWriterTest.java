@@ -289,7 +289,7 @@ class XmlDynamicWriterTest {
     }
 
   @Test
-  void cleansStagingAndCategorizesChunkXmlWriteFailure(@TempDir Path tempDir) throws Exception {
+  void cleansStagingAndCategorizesChunkXmlWriteFailureAsTargetWrite(@TempDir Path tempDir) throws Exception {
     Path outputFile = tempDir.resolve("customers_write_failed.xml");
     Path stagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");
     XmlTargetConfig config = getXmlTargetConfig(outputFile, "BrokenChunkXmlRecord");
@@ -304,7 +304,7 @@ class XmlDynamicWriterTest {
         Exception.class,
         () -> xmlWriter.write(new Chunk<>(List.of(new BrokenChunkXmlRecord("8"))))
     );
-    assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+    assertEquals(EtlErrorCategory.TARGET_WRITE, EtlExceptionDetails.categoryOf(failure));
 
     xmlWriter.close();
 

@@ -1,7 +1,7 @@
 package com.etl.writer.impl;
 
 import com.etl.common.util.ZipFileUtility;
-import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.TargetWriteException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.ExitStatus;
@@ -125,7 +125,7 @@ final class StagedFileLifecycle {
             }
             cleanupOrphanedArtifacts("prepare_for_write", false);
         } catch (IOException e) {
-            throw new RuntimeEtlException("Failed to prepare staged output path '" + stagingPath + "'.", e);
+            throw new TargetWriteException("Failed to prepare staged output path '" + stagingPath + "'.", e);
         }
     }
 
@@ -136,7 +136,7 @@ final class StagedFileLifecycle {
         try {
             cleanupOrphanedArtifacts("step_start", true);
         } catch (IOException e) {
-            throw new RuntimeEtlException("Failed to clean orphan staged output before step start for '" + stagingPath + "'.", e);
+            throw new TargetWriteException("Failed to clean orphan staged output before step start for '" + stagingPath + "'.", e);
         }
     }
 
@@ -207,7 +207,7 @@ final class StagedFileLifecycle {
                 Files.deleteIfExists(finalPath);
             }
         } catch (IOException e) {
-            throw new RuntimeEtlException("Failed to delete published output '" + publishedPath + "'.", e);
+            throw new TargetWriteException("Failed to delete published output '" + publishedPath + "'.", e);
         }
     }
 
@@ -233,7 +233,7 @@ final class StagedFileLifecycle {
             }
             promoteStagedFile(stagingPath, finalPath);
         } catch (IOException | RuntimeException e) {
-            throw new RuntimeEtlException("Failed to promote staged output '" + stagingPath + "' to final output '" + finalPath + "'.", e);
+            throw new TargetWriteException("Failed to promote staged output '" + stagingPath + "' to final output '" + finalPath + "'.", e);
         }
     }
 

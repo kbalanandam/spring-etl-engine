@@ -1,0 +1,11 @@
+type: default
+mappings:
+  - source: Customers
+    target: CustomersCsv
+    fields:
+      - from: id
+        to: id
+      - from: name
+        to: name
+      - from: email
+        to: email

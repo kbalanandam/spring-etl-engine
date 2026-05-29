@@ -3,6 +3,8 @@ package com.etl.mapping;
 import com.etl.common.util.ReflectionUtils;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.enums.ModelFormat;
+import com.etl.exception.EtlException;
+import com.etl.exception.TransformationException;
 import com.etl.processor.transform.TransformEvaluator;
 
 import java.util.LinkedHashMap;
@@ -41,8 +43,8 @@ public class MappedFieldValueResolver {
 		for (ProcessorConfig.FieldMapping fieldMapping : mapping.getFields()) {
 			String fromField = normalize(fieldMapping.getFrom());
 			String toField = normalize(fieldMapping.getTo());
-			Object value = fromField == null ? null : ReflectionUtils.getFieldValue(input, fromField);
-			value = transformEvaluator.apply(value, mapping, fieldMapping, input, resolvedValues, sourceFormat);
+			Object value = readSourceValue(input, mapping, fieldMapping, fromField);
+			value = applyTransforms(value, mapping, fieldMapping, input, resolvedValues);
 			if (fromField != null) {
 				resolvedValues.put(fromField, value);
 			}
@@ -59,7 +61,7 @@ public class MappedFieldValueResolver {
 	public <O> O createOutput(Class<O> targetClass,
 	                         ProcessorConfig.EntityMapping mapping,
 	                         Map<String, Object> resolvedValues) {
-		O output = ReflectionUtils.createInstance(targetClass);
+		O output = createTargetInstance(targetClass, mapping);
 		populateOutput(output, mapping, resolvedValues);
 		return output;
 	}
@@ -75,7 +77,64 @@ public class MappedFieldValueResolver {
 		}
 
 		for (ProcessorConfig.FieldMapping fieldMapping : mapping.getFields()) {
-			ReflectionUtils.setFieldValue(output, fieldMapping.getTo(), resolveFieldValue(fieldMapping, resolvedValues));
+			writeTargetValue(output, mapping, fieldMapping, resolvedValues);
+		}
+	}
+
+	private Object readSourceValue(Object input,
+	                             ProcessorConfig.EntityMapping mapping,
+	                             ProcessorConfig.FieldMapping fieldMapping,
+	                             String fromField) {
+		if (fromField == null) {
+			return null;
+		}
+		try {
+			return ReflectionUtils.getFieldValue(input, fromField);
+		} catch (EtlException e) {
+			throw e;
+		} catch (RuntimeException e) {
+			throw new TransformationException("Failed to read source field '" + fromField + "' for mapping '"
+					+ mappingName(mapping) + "' while preparing processor output field '" + displayField(fieldMapping) + "'.", e);
+		}
+	}
+
+	private Object applyTransforms(Object value,
+	                             ProcessorConfig.EntityMapping mapping,
+	                             ProcessorConfig.FieldMapping fieldMapping,
+	                             Object input,
+	                             Map<String, Object> resolvedValues) {
+		try {
+			return transformEvaluator.apply(value, mapping, fieldMapping, input, resolvedValues, sourceFormat);
+		} catch (EtlException e) {
+			throw e;
+		} catch (RuntimeException e) {
+			throw new TransformationException("Failed to apply processor transforms for mapping '" + mappingName(mapping)
+					+ "' field '" + displayField(fieldMapping) + "'.", e);
+		}
+	}
+
+	private <O> O createTargetInstance(Class<O> targetClass, ProcessorConfig.EntityMapping mapping) {
+		try {
+			return ReflectionUtils.createInstance(targetClass);
+		} catch (EtlException e) {
+			throw e;
+		} catch (RuntimeException e) {
+			throw new TransformationException("Failed to create target output for mapping '" + mappingName(mapping) + "'.", e);
+		}
+	}
+
+	private void writeTargetValue(Object output,
+	                           ProcessorConfig.EntityMapping mapping,
+	                           ProcessorConfig.FieldMapping fieldMapping,
+	                           Map<String, Object> resolvedValues) {
+		String targetField = fieldMapping == null ? null : fieldMapping.getTo();
+		try {
+			ReflectionUtils.setFieldValue(output, targetField, resolveFieldValue(fieldMapping, resolvedValues));
+		} catch (EtlException e) {
+			throw e;
+		} catch (RuntimeException e) {
+			throw new TransformationException("Failed to populate target field '" + displayField(fieldMapping)
+					+ "' for mapping '" + mappingName(mapping) + "'.", e);
 		}
 	}
 
@@ -90,6 +149,25 @@ public class MappedFieldValueResolver {
 
 	private String normalize(String value) {
 		return value == null || value.isBlank() ? null : value.trim();
+	}
+
+	private String mappingName(ProcessorConfig.EntityMapping mapping) {
+		if (mapping == null) {
+			return "unknown -> unknown";
+		}
+		return String.valueOf(mapping.getSource()) + " -> " + String.valueOf(mapping.getTarget());
+	}
+
+	private String displayField(ProcessorConfig.FieldMapping fieldMapping) {
+		if (fieldMapping == null) {
+			return "unknown";
+		}
+		String targetField = normalize(fieldMapping.getTo());
+		if (targetField != null) {
+			return targetField;
+		}
+		String sourceField = normalize(fieldMapping.getFrom());
+		return sourceField == null ? "unknown" : sourceField;
 	}
 }
 

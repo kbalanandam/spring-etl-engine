@@ -2,6 +2,8 @@ package com.etl.mapping;
 
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.enums.ModelFormat;
+import com.etl.exception.EtlException;
+import com.etl.exception.TransformationException;
 import com.etl.processor.ProcessorExtensionDefaults;
 import com.etl.processor.transform.TransformEvaluator;
 import org.springframework.batch.item.ItemProcessor;
@@ -45,6 +47,13 @@ public class DynamicMapping<I, O> implements ItemProcessor<I, O> {
 
     @Override
     public O process(@NonNull I input) throws Exception {
-        return mappedFieldValueResolver.createOutput(targetClass, mapping, mappedFieldValueResolver.resolve(input, mapping));
+        try {
+            return mappedFieldValueResolver.createOutput(targetClass, mapping, mappedFieldValueResolver.resolve(input, mapping));
+        } catch (EtlException e) {
+            throw e;
+        } catch (RuntimeException e) {
+            throw new TransformationException("Failed to process mapping '" + mapping.getSource() + " -> "
+                    + mapping.getTarget() + "'.", e);
+        }
     }
 }

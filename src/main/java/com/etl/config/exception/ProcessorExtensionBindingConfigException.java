@@ -1,9 +1,11 @@
 package com.etl.config.exception;
 
 /**
- * Raised when processor rule/transform declarations cannot be bound to the selected source format.
+ * @deprecated Use {@link com.etl.exception.config.ProcessorExtensionBindingConfigException}.
  */
-public class ProcessorExtensionBindingConfigException extends ConfigException {
+@Deprecated(forRemoval = false, since = "1.7.9")
+public class ProcessorExtensionBindingConfigException
+        extends com.etl.exception.config.ProcessorExtensionBindingConfigException {
 
     public ProcessorExtensionBindingConfigException(String message) {
         super(message);

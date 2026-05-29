@@ -30,6 +30,15 @@ Backed by:
 | `steps[].name` | yes | string | Step name used for plan/logging/runtime identity |
 | `steps[].source` | yes | string | Must match a configured `sourceName` from the selected source config |
 | `steps[].target` | yes | string | Must match a configured `targetName` from the selected target config |
+| `steps[].skipPolicy.enabled` | no | boolean | Optional step-level B1 slice flag. When `true`, enables bounded skip behavior for supported CSV steps; runtime may override tasklet planning to chunk mode for this slice |
+| `steps[].skipPolicy.skipLimit` | conditional | int | Required positive integer when `steps[].skipPolicy.enabled: true` |
+| `steps[].skipPolicy.skippableCategories[]` | conditional | list[string] | Preferred when skip policy is enabled; each value must be a supported ETL error category (`config`, `validation`, `transformation`, `source-read`, `target-write`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
+| `steps[].skipPolicy.skippableExceptions[]` | conditional | list[string] | Optional compatibility field; each value must be a loadable Java exception class name |
+| `steps[].retryPolicy.enabled` | no | boolean | Optional step-level B2 first runtime slice flag. When `true`, startup validates retry policy shape and runtime wires bounded fault-tolerant retry for supported step plans |
+| `steps[].retryPolicy.maxAttempts` | conditional | int | Required integer `>= 2` when `steps[].retryPolicy.enabled: true` |
+| `steps[].retryPolicy.backoffMs` | conditional | long | Required non-negative integer when `steps[].retryPolicy.enabled: true` |
+| `steps[].retryPolicy.retryableCategories[]` | conditional | list[string] | Preferred when retry policy is enabled; values use ETL error categories (`config`, `validation`, `transformation`, `source-read`, `target-write`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
+| `steps[].retryPolicy.retryableExceptions[]` | conditional | list[string] | Optional compatibility field; each value must be a loadable Java exception class name |
 
 ## Single-step example
 
@@ -60,6 +69,100 @@ steps:
 - `steps[].source` must match one `sourceName` from the selected source config.
 - `steps[].target` must match one `targetName` from the selected target config.
 - Reusing the same logical name as `steps[].source` and `steps[].target` in the same step is still allowed for the current single-step compatibility pattern (for example `Customers -> Customers`). Reusing a logical name across different ordered steps is only valid when an earlier step produces that handoff artifact and a later step consumes it.
+
+### Optional skip-policy example (B1 first slice)
+
+```yaml
+name: customer-load-skip-policy
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: customers-step
+    source: Customers
+    target: CustomersOut
+    skipPolicy:
+      enabled: true
+      skipLimit: 10
+      skippableCategories:
+        - runtime
+```
+
+For this first slice:
+
+- skip policy stays step-scoped under `job-config.yaml -> steps[]`
+- skip policy is opt-in; default behavior remains fail fast
+- supported scope is currently CSV steps with fault-tolerant chunk execution
+- when the default planner selects tasklet mode, runtime overrides to chunk mode so skip policy remains active and explicit
+- prefer `skippableCategories` for product-facing configs; keep `skippableExceptions` only for advanced compatibility cases
+- step planning fails fast when skip policy is combined with ordered duplicate winner selection (`duplicate + orderBy`) in this first slice
+
+### Optional retry-policy example (B2 first runtime slice)
+
+```yaml
+name: customer-load-retry-policy
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: customers-step
+    source: Customers
+    target: CustomersOut
+    retryPolicy:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 250
+      retryableCategories:
+        - runtime
+```
+
+For this first runtime slice:
+
+- retry policy stays step-scoped under `job-config.yaml -> steps[]`
+- retry policy is opt-in; default behavior remains unchanged
+- startup strictly validates retry policy shape (`maxAttempts`, `backoffMs`, categories/exceptions)
+- runtime executes retry through Spring Batch fault-tolerant chunk handling
+- when the default planner selects tasklet mode, runtime overrides to chunk mode so retry behavior stays explicit and bounded at the supported chunk boundary
+- first-slice guardrail: one step cannot enable both `skipPolicy` and `retryPolicy`
+- step planning also fails fast when retry policy is combined with ordered duplicate winner selection (`duplicate + orderBy`) because that path intentionally forces tasklet buffering
+- when failures flow through the retry callback path, operators get `STEP_EVENT event=retry_attempt` for each failed attempt and `STEP_EVENT event=retry_summary` with terminal outcome (`succeeded_after_retry` or `failed_after_retries`)
+
+Preserved B2 proof bundle:
+
+- `src/main/resources/config-jobs/customer-load-retry-policy-runtime-failure/`
+- demonstrates deterministic runtime failure-boundary behavior on a malformed CSV row while keeping retry policy explicitly configured
+- expected evidence includes `STEP_READY event=retry_policy_enabled` (startup planning) and runtime failure categorization in scenario logs
+
+### Skip-policy category cheat-sheet
+
+Use `steps[].skipPolicy.skippableCategories[]` with these ETL category values:
+
+| Category | When to use |
+|---|---|
+| `config` | Failures caused by configuration contract problems (normally not a good skip candidate) |
+| `validation` | Processor-rule validation failures where the job intentionally wants bounded tolerance for invalid records |
+| `transformation` | Processor mapping or transform execution failures while building target records |
+| `source-read` | Reader and reader-stream failures while pulling records from the configured source |
+| `target-write` | Writer and staged-publication failures while producing the configured target artifact |
+| `runtime` | Other runtime execution failures that do not land on a more specific ETL category |
+| `factory` | Failures while creating dynamic reader/processor/writer components |
+| `listener` | Failures raised from lifecycle listeners/hooks |
+| `relational` | Relational connector/runtime failures tied to database access paths |
+| `unclassified` | Failures not mapped to a specific ETL category yet |
+
+In most cases, start with `runtime` only, then broaden deliberately when evidence shows another category should be tolerated.
+
+Good default starter baseline:
+
+```yaml
+skipPolicy:
+  enabled: true
+  skipLimit: 3
+  skippableCategories:
+    - runtime
+```
+
+Use this as the first production-style draft, then widen categories or increase `skipLimit` only with explicit run evidence.
 
 ## Multi-step example
 
@@ -181,6 +284,16 @@ Planned preserved examples for this enhancement:
 - Selected logical names must still remain stable enough to avoid generated-class collisions after normalization. Different names such as `Customer Feed` and `Customer-Feed` can now fail fast if they would generate the same class in the same selected job side.
 - The selected processor config must contain a matching mapping for each source/target pair used by the selected steps.
 - A multi-step scenario can reuse one processor config file with multiple mappings; runtime picks the mapping by `source` and `target` names, not by list position.
+- When `steps[].skipPolicy.enabled=true`, `skipLimit` must be positive and at least one of `skippableCategories[]` or `skippableExceptions[]` must be provided.
+- `skippableCategories[]` accepts ETL category values (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) and is the preferred first-choice contract for readability.
+- `skippableExceptions[]` remains available as a compatibility escape hatch for advanced cases that need precise framework exception matching.
+- The first B1 runtime slice applies skip policy to CSV steps through fault-tolerant chunk execution. When a step would otherwise run as tasklet, runtime overrides to chunk mode.
+- The first B1 runtime slice fails fast when skip policy is combined with ordered duplicate winner selection (`duplicate` rule with `orderBy`) so conflicting buffering/runtime modes do not produce ambiguous behavior.
+- When `steps[].retryPolicy.enabled=true`, `maxAttempts` must be `>=2`, `backoffMs` must be non-negative, and at least one of `retryableCategories[]` or `retryableExceptions[]` must be provided.
+- `retryableCategories[]` uses the same ETL category vocabulary as skip policy (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`).
+- In the B2 first runtime slice, explicit startup still fails fast when one step configures both `skipPolicy` and `retryPolicy`.
+- In the B2 first runtime slice, retry-capable steps use chunk-oriented fault tolerance; tasklet plans are overridden to chunk mode when retry policy is enabled.
+- In the same slice, runtime also fails fast when retry policy is combined with ordered duplicate winner selection because that duplicate path intentionally requires tasklet buffering.
 - If the selected processor config is malformed, explicit startup now fails before generated-model class validation so processor issues are not masked by unrelated missing generated classes.
 - Use `etl.config.job` as the normal production-style entry point whether the selected `job-config.yaml` lives under `src/main/resources/config-jobs/` or a developer-local git-ignored private bundle under `private-jobs/`. Direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides are intended for demo/fallback cases only.
 - Archive-on-success remains part of the selected file-backed source config (for example CSV or XML), not `job-config.yaml`.
@@ -200,6 +313,8 @@ The broader file-ingestion hardening direction beyond the first preserved CSV pr
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml`
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load/job-config.yaml`
+- `src/main/resources/config-jobs/customer-load-skip-policy-category/job-config.yaml`
+- `src/main/resources/config-jobs/customer-load-skip-policy-category-unclassified/job-config.yaml`
 - `src/main/resources/config-jobs/department-load/job-config.yaml`
 - `src/main/resources/config-jobs/cust-dept-load/job-config.yaml`
 

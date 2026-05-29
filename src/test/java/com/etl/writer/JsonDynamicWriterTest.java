@@ -248,19 +248,19 @@ class JsonDynamicWriterTest {
   }
 
     @Test
-    void categorizesWriteBeforeOpenFailureAsRuntime(@TempDir Path tempDir) throws Exception {
+    void categorizesWriteBeforeOpenFailureAsTargetWrite(@TempDir Path tempDir) throws Exception {
         Path outputFile = tempDir.resolve("events-not-opened.json");
         StagedJsonArrayItemWriter<Object> writer = new StagedJsonArrayItemWriter<>(outputFile.toString(), objectMapper);
 
         Exception failure = assertThrows(Exception.class,
                 () -> writer.write(new Chunk<>(List.of(new EventJsonRow("EVT-100", "2026-05-10T08:00:00", "created", "billing")))));
 
-        assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+        assertEquals(EtlErrorCategory.TARGET_WRITE, EtlExceptionDetails.categoryOf(failure));
         assertEquals("JSON writer must be opened before write().", EtlExceptionDetails.rootCauseMessage(failure));
     }
 
     @Test
-    void categorizesJsonSerializationFailureAsRuntime(@TempDir Path tempDir) throws Exception {
+    void categorizesJsonSerializationFailureAsTargetWrite(@TempDir Path tempDir) throws Exception {
         Path outputFile = tempDir.resolve("events-serialization-failed.json");
         Path stagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");
         StagedJsonArrayItemWriter<Object> writer = new StagedJsonArrayItemWriter<>(outputFile.toString(), objectMapper);
@@ -269,7 +269,7 @@ class JsonDynamicWriterTest {
             Exception failure = assertThrows(Exception.class,
                     () -> writer.write(new Chunk<>(List.of(new SelfReferencingJsonRow()))));
 
-            assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+            assertEquals(EtlErrorCategory.TARGET_WRITE, EtlExceptionDetails.categoryOf(failure));
             assertTrue(EtlExceptionDetails.rootCauseMessage(failure).contains("Direct self-reference leading to cycle"));
         } finally {
             writer.close();

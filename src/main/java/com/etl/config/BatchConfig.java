@@ -8,8 +8,22 @@ import java.util.Map;
 import com.etl.common.util.DynamicBatchUtils;
 import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.ResolvedModelMetadata;
+import com.etl.exception.config.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
+import com.etl.exception.EtlExceptionDetails;
+import com.etl.exception.EtlErrorCategory;
+import com.etl.exception.FactoryException;
+import com.etl.exception.ListenerException;
+import com.etl.exception.RelationalException;
+import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.SourceReadException;
+import com.etl.exception.TargetWriteException;
+import com.etl.exception.TransformationException;
+import com.etl.exception.ValidationException;
+import com.etl.exception.processor.ProcessorException;
+import com.etl.exception.reader.ReaderException;
+import com.etl.exception.writer.WriterException;
 import com.etl.runtime.DuplicateDiscard;
 import com.etl.runtime.DuplicateResolution;
 import com.etl.runtime.DuplicateResolver;
@@ -34,12 +48,21 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.builder.SimpleJobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.core.step.builder.FaultTolerantStepBuilder;
+import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.*;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.retry.RetryCallback;
+import org.springframework.retry.RetryContext;
+import org.springframework.retry.RetryListener;
+import org.springframework.retry.backoff.FixedBackOffPolicy;
+import org.springframework.retry.policy.ExceptionClassifierRetryPolicy;
+import org.springframework.retry.policy.NeverRetryPolicy;
+import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import com.etl.config.processor.ProcessorConfig;
@@ -74,6 +97,10 @@ public class BatchConfig {
     private static final Logger logger = LoggerFactory.getLogger(BatchConfig.class);
     private static final String ORDERED_DUPLICATE_RESOLVER_MODE_KEY = "orderedDuplicateResolverMode";
     private static final String ORDERED_DUPLICATE_RESOLVER_REASON_KEY = "orderedDuplicateResolverReason";
+    private static final String RETRY_FAILURE_COUNT_KEY = "configuredRetryFailureCount";
+    private static final String RETRY_FIRST_FAILURE_CATEGORY_KEY = "configuredRetryFirstFailureCategory";
+    private static final String RETRY_FIRST_EXCEPTION_TYPE_KEY = "configuredRetryFirstExceptionType";
+    private static final String RETRY_FIRST_ROOT_CAUSE_KEY = "configuredRetryFirstRootCause";
 
     private final SourceWrapper sourceWrapper;
     private final TargetWrapper targetWrapper;
@@ -244,6 +271,8 @@ public class BatchConfig {
               int stepOrder = jobStep == null ? i : jobStep.stepOrder();
               String sourceName = jobStep == null ? configuredStep.getSource() : jobStep.sourceName();
               String targetName = jobStep == null ? configuredStep.getTarget() : jobStep.targetName();
+                JobConfig.SkipPolicyConfig configuredSkipPolicy = configuredStep == null ? null : configuredStep.getSkipPolicy();
+                JobConfig.RetryPolicyConfig configuredRetryPolicy = configuredStep == null ? null : configuredStep.getRetryPolicy();
                 JobSubFlowDescriptor stepSubFlow = jobStep == null ? null : JobHierarchyLoggingSupport.subFlowForStep(jobRuntimeDescriptor, stepName);
                 List<JobStepLinkDescriptor> inboundLinks = jobStep == null ? List.of() : JobHierarchyLoggingSupport.inboundLinks(jobRuntimeDescriptor, stepName);
                 logger.info("STEP_PLAN event=step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} stepOrder={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={} stepSummary={}",
@@ -279,6 +308,26 @@ public class BatchConfig {
                 recordCount = chunkThreshold + 1;
             }
             useChunk = recordCount > chunkThreshold;
+            if (configuredSkipPolicy != null && configuredSkipPolicy.isEnabled() && !useChunk) {
+                logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} originalMode=tasklet overriddenMode=chunk reason=skip-policy-requires-fault-tolerant-chunk",
+                        runConfigurationMetadata.mainFlowName(),
+                        stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                        runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                        stepName,
+                        s.getSourceName(),
+                        t.getTargetName());
+                useChunk = true;
+            }
+            if (configuredRetryPolicy != null && configuredRetryPolicy.isEnabled() && !useChunk) {
+                logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} originalMode=tasklet overriddenMode=chunk reason=retry-policy-requires-fault-tolerant-chunk",
+                        runConfigurationMetadata.mainFlowName(),
+                        stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                        runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                        stepName,
+                        s.getSourceName(),
+                        t.getTargetName());
+                useChunk = true;
+            }
             DuplicateRule duplicateRule = DuplicateRule.resolveConfiguration(mapping).orElse(null);
             DuplicateRule.StorageMode duplicateStorageMode = duplicateRule == null
                     ? DuplicateRule.StorageMode.AUTO
@@ -301,6 +350,12 @@ public class BatchConfig {
                 };
             }
             if (duplicateRule != null && useChunk) {
+                if (configuredSkipPolicy != null && configuredSkipPolicy.isEnabled()) {
+                    throw new IllegalStateException("Step '" + stepName + "' configures both ordered duplicate winner selection and skipPolicy. This first slice does not support combining those modes.");
+                }
+                if (configuredRetryPolicy != null && configuredRetryPolicy.isEnabled()) {
+                    throw new IllegalStateException("Step '" + stepName + "' configures both ordered duplicate winner selection and retryPolicy. This first slice does not support combining those modes.");
+                }
                                   logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy duplicateIdentityMode={} duplicateIdentityModeReason={} originalMode=chunk overriddenMode=tasklet reason=ordered-duplicate-winner-selection-requires-final-buffering",
               runConfigurationMetadata.mainFlowName(), stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
                           runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
@@ -357,7 +412,42 @@ public class BatchConfig {
                 if (writerStepExecutionListener != null) {
                     chunkStepBuilder.listener(writerStepExecutionListener);
                 }
-                step = chunkStepBuilder.build();
+                if (configuredSkipPolicy != null && configuredSkipPolicy.isEnabled()) {
+                    FaultTolerantStepBuilder<Object, Object> faultTolerantBuilder = chunkStepBuilder
+                            .faultTolerant()
+                            .skipPolicy(configuredSkipPolicy(configuredSkipPolicy, stepName));
+                    step = faultTolerantBuilder.build();
+                    logger.info("STEP_READY event=skip_policy_enabled mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} skipLimit={} skippableCategories={} skippableExceptions={}",
+                            runConfigurationMetadata.mainFlowName(),
+                            stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                            runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                            stepName,
+                            s.getSourceName(),
+                            t.getTargetName(),
+                            configuredSkipPolicy.getSkipLimit(),
+                            configuredSkipPolicy.getSkippableCategories(),
+                            configuredSkipPolicy.getSkippableExceptions());
+                } else if (configuredRetryPolicy != null && configuredRetryPolicy.isEnabled()) {
+                    FaultTolerantStepBuilder<Object, Object> faultTolerantBuilder = chunkStepBuilder
+                            .faultTolerant()
+                            .retryPolicy(configuredRetryPolicy(configuredRetryPolicy, stepName))
+                            .backOffPolicy(configuredRetryBackOffPolicy(configuredRetryPolicy))
+                            .listener(configuredRetryListener(configuredRetryPolicy, stepName, s, t, stepSubFlow));
+                    step = faultTolerantBuilder.build();
+                    logger.info("STEP_READY event=retry_policy_enabled mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} maxAttempts={} backoffMs={} retryableCategories={} retryableExceptions={}",
+                            runConfigurationMetadata.mainFlowName(),
+                            stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                            runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                            stepName,
+                            s.getSourceName(),
+                            t.getTargetName(),
+                            configuredRetryPolicy.getMaxAttempts(),
+                            configuredRetryPolicy.getBackoffMs(),
+                            configuredRetryPolicy.getRetryableCategories(),
+                            configuredRetryPolicy.getRetryableExceptions());
+                } else {
+                    step = chunkStepBuilder.build();
+                }
                   logger.info("STEP_READY event=step_ready mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} mode=chunk recordCount={} threshold={}",
                           runConfigurationMetadata.mainFlowName(),
 							stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
@@ -583,6 +673,316 @@ public class BatchConfig {
         }
         return targetConfig;
     }
+
+  private SkipPolicy configuredSkipPolicy(JobConfig.SkipPolicyConfig skipPolicy, String stepName) {
+    return new ConfiguredSkipPolicy(
+        skipPolicy.getSkipLimit(),
+        resolveSkippableCategories(skipPolicy),
+        resolveSkippableExceptionClasses(skipPolicy, stepName)
+    );
+  }
+
+  private List<String> resolveSkippableCategories(JobConfig.SkipPolicyConfig skipPolicy) {
+    List<String> configuredCategories = skipPolicy.getSkippableCategories();
+    if (configuredCategories == null || configuredCategories.isEmpty()) {
+      return List.of();
+    }
+    List<String> normalized = new ArrayList<>();
+    for (String configuredCategory : configuredCategories) {
+      if (configuredCategory != null && !configuredCategory.isBlank()) {
+        normalized.add(configuredCategory.trim().toLowerCase(java.util.Locale.ROOT));
+      }
+    }
+    return List.copyOf(normalized);
+  }
+
+  private org.springframework.retry.RetryPolicy configuredRetryPolicy(JobConfig.RetryPolicyConfig retryPolicy,
+                                                                      String stepName) {
+    List<String> retryableCategories = resolveRetryableCategories(retryPolicy);
+    List<Class<? extends Throwable>> retryableExceptions = resolveRetryableExceptionClasses(retryPolicy, stepName);
+    SimpleRetryPolicy matchingRetryPolicy = new SimpleRetryPolicy(retryPolicy.getMaxAttempts());
+    NeverRetryPolicy neverRetryPolicy = new NeverRetryPolicy();
+    ExceptionClassifierRetryPolicy retryClassifier = new ExceptionClassifierRetryPolicy();
+    retryClassifier.setExceptionClassifier(throwable -> throwable == null
+        || matchesConfiguredRetryCategory(throwable, retryableCategories)
+        || matchesConfiguredRetryException(throwable, retryableExceptions)
+        ? matchingRetryPolicy
+        : neverRetryPolicy);
+    return retryClassifier;
+  }
+
+  private FixedBackOffPolicy configuredRetryBackOffPolicy(JobConfig.RetryPolicyConfig retryPolicy) {
+    FixedBackOffPolicy backOffPolicy = new FixedBackOffPolicy();
+    backOffPolicy.setBackOffPeriod(retryPolicy.getBackoffMs());
+    return backOffPolicy;
+  }
+
+  private RetryListener configuredRetryListener(JobConfig.RetryPolicyConfig retryPolicy,
+                                                String stepName,
+                                                SourceConfig sourceConfig,
+                                                TargetConfig targetConfig,
+                                                JobSubFlowDescriptor stepSubFlow) {
+    return new RetryListener() {
+      @Override
+      public <T, E extends Throwable> boolean open(RetryContext context, RetryCallback<T, E> callback) {
+        context.setAttribute(RETRY_FAILURE_COUNT_KEY, 0);
+        return true;
+      }
+
+      @Override
+      public <T, E extends Throwable> void onError(RetryContext context, RetryCallback<T, E> callback, Throwable throwable) {
+        int failureCount = retryFailureCount(context) + 1;
+        context.setAttribute(RETRY_FAILURE_COUNT_KEY, failureCount);
+        if (context.getAttribute(RETRY_FIRST_FAILURE_CATEGORY_KEY) == null) {
+          context.setAttribute(RETRY_FIRST_FAILURE_CATEGORY_KEY, EtlExceptionDetails.categoryValueOf(throwable));
+          context.setAttribute(RETRY_FIRST_EXCEPTION_TYPE_KEY, EtlExceptionDetails.exceptionType(throwable));
+          context.setAttribute(RETRY_FIRST_ROOT_CAUSE_KEY, EtlExceptionDetails.rootCauseMessage(throwable));
+        }
+        logger.warn("STEP_EVENT event=retry_attempt mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} attemptNumber={} maxAttempts={} backoffMs={} failureCategory={} exceptionType={} rootCause={} action={}",
+            runConfigurationMetadata.mainFlowName(),
+            stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+            runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+            stepName,
+            sourceConfig.getSourceName(),
+            targetConfig.getTargetName(),
+            failureCount,
+            retryPolicy.getMaxAttempts(),
+            retryPolicy.getBackoffMs(),
+            EtlExceptionDetails.categoryValueOf(throwable),
+            EtlExceptionDetails.exceptionType(throwable),
+            EtlExceptionDetails.rootCauseMessage(throwable),
+            failureCount < retryPolicy.getMaxAttempts() ? "retry_scheduled" : "retry_exhausted");
+      }
+
+      @Override
+      public <T, E extends Throwable> void close(RetryContext context, RetryCallback<T, E> callback, Throwable throwable) {
+        int failureCount = retryFailureCount(context);
+        if (failureCount <= 0) {
+          return;
+        }
+        int totalAttempts = throwable == null ? failureCount + 1 : failureCount;
+        String firstFailureCategory = stringAttribute(context, RETRY_FIRST_FAILURE_CATEGORY_KEY, "unknown");
+        String firstExceptionType = stringAttribute(context, RETRY_FIRST_EXCEPTION_TYPE_KEY, "unknown");
+        String firstRootCause = stringAttribute(context, RETRY_FIRST_ROOT_CAUSE_KEY, "none");
+        if (throwable == null) {
+          logger.info("STEP_EVENT event=retry_summary mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} outcome=succeeded_after_retry totalAttempts={} maxAttempts={} backoffMs={} firstFailureCategory={} firstExceptionType={} firstRootCause={}",
+              runConfigurationMetadata.mainFlowName(),
+              stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+              runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+              stepName,
+              sourceConfig.getSourceName(),
+              targetConfig.getTargetName(),
+              totalAttempts,
+              retryPolicy.getMaxAttempts(),
+              retryPolicy.getBackoffMs(),
+              firstFailureCategory,
+              firstExceptionType,
+              firstRootCause);
+          return;
+        }
+        logger.error("STEP_EVENT event=retry_summary mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} outcome=failed_after_retries totalAttempts={} maxAttempts={} backoffMs={} firstFailureCategory={} firstExceptionType={} firstRootCause={} terminalFailureCategory={} terminalExceptionType={} terminalRootCause={}",
+            runConfigurationMetadata.mainFlowName(),
+            stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+            runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+            stepName,
+            sourceConfig.getSourceName(),
+            targetConfig.getTargetName(),
+            totalAttempts,
+            retryPolicy.getMaxAttempts(),
+            retryPolicy.getBackoffMs(),
+            firstFailureCategory,
+            firstExceptionType,
+            firstRootCause,
+            EtlExceptionDetails.categoryValueOf(throwable),
+            EtlExceptionDetails.exceptionType(throwable),
+            EtlExceptionDetails.rootCauseMessage(throwable),
+            throwable);
+      }
+    };
+  }
+
+  private List<String> resolveRetryableCategories(JobConfig.RetryPolicyConfig retryPolicy) {
+    List<String> configuredCategories = retryPolicy.getRetryableCategories();
+    if (configuredCategories == null || configuredCategories.isEmpty()) {
+      return List.of();
+    }
+    List<String> normalized = new ArrayList<>();
+    for (String configuredCategory : configuredCategories) {
+      if (configuredCategory != null && !configuredCategory.isBlank()) {
+        normalized.add(configuredCategory.trim().toLowerCase(java.util.Locale.ROOT));
+      }
+    }
+    return List.copyOf(normalized);
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<Class<? extends Throwable>> resolveRetryableExceptionClasses(JobConfig.RetryPolicyConfig retryPolicy,
+                                                                            String stepName) {
+    List<String> configuredExceptions = retryPolicy.getRetryableExceptions();
+    List<Class<? extends Throwable>> exceptionClasses = new ArrayList<>(exceptionClassesForCategories(retryPolicy.getRetryableCategories()));
+    if (configuredExceptions == null || configuredExceptions.isEmpty()) {
+      return List.copyOf(exceptionClasses);
+    }
+    for (String className : configuredExceptions) {
+      try {
+        Class<?> candidate = Class.forName(className);
+        if (!Throwable.class.isAssignableFrom(candidate)) {
+          throw new IllegalStateException("Step '" + stepName + "' retryPolicy exception class '" + className + "' must extend Throwable.");
+        }
+        exceptionClasses.add((Class<? extends Throwable>) candidate);
+      } catch (ClassNotFoundException e) {
+        throw new IllegalStateException("Step '" + stepName + "' retryPolicy exception class '" + className + "' was not found.", e);
+      }
+    }
+    return List.copyOf(exceptionClasses);
+  }
+
+  private List<Class<? extends Throwable>> exceptionClassesForCategories(List<String> configuredCategories) {
+    if (configuredCategories == null || configuredCategories.isEmpty()) {
+      return List.of();
+    }
+    List<Class<? extends Throwable>> exceptionClasses = new ArrayList<>();
+    for (String configuredCategory : configuredCategories) {
+      if (configuredCategory == null || configuredCategory.isBlank()) {
+        continue;
+      }
+      java.util.Optional<EtlErrorCategory> resolvedCategory = EtlErrorCategory.fromToken(configuredCategory);
+      if (resolvedCategory.isEmpty()) {
+        continue;
+      }
+      switch (resolvedCategory.get()) {
+        case CONFIG -> exceptionClasses.add(ConfigException.class);
+        case VALIDATION -> {
+          exceptionClasses.add(ValidationException.class);
+          exceptionClasses.add(ProcessorException.class);
+        }
+        case TRANSFORMATION -> {
+          exceptionClasses.add(TransformationException.class);
+          exceptionClasses.add(ProcessorException.class);
+        }
+        case SOURCE_READ -> {
+          exceptionClasses.add(SourceReadException.class);
+          exceptionClasses.add(ReaderException.class);
+        }
+        case TARGET_WRITE -> {
+          exceptionClasses.add(TargetWriteException.class);
+          exceptionClasses.add(WriterException.class);
+        }
+        case RUNTIME -> exceptionClasses.add(RuntimeEtlException.class);
+        case FACTORY -> exceptionClasses.add(FactoryException.class);
+        case LISTENER -> exceptionClasses.add(ListenerException.class);
+        case RELATIONAL -> exceptionClasses.add(RelationalException.class);
+        case UNCLASSIFIED -> {
+          // Explicit 'unclassified' category does not map to a concrete exception class.
+        }
+      }
+    }
+    return List.copyOf(exceptionClasses);
+  }
+
+  private boolean matchesConfiguredRetryCategory(Throwable throwable, List<String> retryableCategories) {
+    if (retryableCategories.isEmpty()) {
+      return false;
+    }
+    String category = EtlExceptionDetails.categoryValueOf(throwable).toLowerCase(java.util.Locale.ROOT);
+    return retryableCategories.contains(category);
+  }
+
+  private boolean matchesConfiguredRetryException(Throwable throwable,
+                                                 List<Class<? extends Throwable>> retryableExceptions) {
+    if (retryableExceptions.isEmpty()) {
+      return false;
+    }
+    for (Throwable current = throwable; current != null; current = current.getCause()) {
+      for (Class<? extends Throwable> retryableException : retryableExceptions) {
+        if (retryableException.isAssignableFrom(current.getClass())) {
+          return true;
+        }
+      }
+      if (current.getCause() == current) {
+        break;
+      }
+    }
+    return false;
+  }
+
+  private int retryFailureCount(RetryContext context) {
+    Object value = context.getAttribute(RETRY_FAILURE_COUNT_KEY);
+    return value instanceof Number number ? number.intValue() : 0;
+  }
+
+  private String stringAttribute(RetryContext context, String attributeName, String defaultValue) {
+    Object value = context.getAttribute(attributeName);
+    return value == null ? defaultValue : String.valueOf(value);
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<Class<? extends Throwable>> resolveSkippableExceptionClasses(JobConfig.SkipPolicyConfig skipPolicy,
+                                                                            String stepName) {
+    List<String> configuredExceptions = skipPolicy.getSkippableExceptions();
+    if (configuredExceptions == null || configuredExceptions.isEmpty()) {
+      return List.of();
+    }
+    List<Class<? extends Throwable>> exceptionClasses = new ArrayList<>();
+    for (String className : configuredExceptions) {
+      try {
+        Class<?> candidate = Class.forName(className);
+        if (!Throwable.class.isAssignableFrom(candidate)) {
+          throw new IllegalStateException("Step '" + stepName + "' skipPolicy exception class '" + className + "' must extend Throwable.");
+        }
+        exceptionClasses.add((Class<? extends Throwable>) candidate);
+      } catch (ClassNotFoundException e) {
+        throw new IllegalStateException("Step '" + stepName + "' skipPolicy exception class '" + className + "' was not found.", e);
+      }
+    }
+    return List.copyOf(exceptionClasses);
+  }
+
+  private static final class ConfiguredSkipPolicy implements SkipPolicy {
+
+    private final int skipLimit;
+    private final List<String> skippableCategories;
+    private final List<Class<? extends Throwable>> skippableExceptions;
+
+    private ConfiguredSkipPolicy(int skipLimit,
+                                 List<String> skippableCategories,
+                                 List<Class<? extends Throwable>> skippableExceptions) {
+      this.skipLimit = skipLimit;
+      this.skippableCategories = skippableCategories == null ? List.of() : skippableCategories;
+      this.skippableExceptions = skippableExceptions == null ? List.of() : skippableExceptions;
+    }
+
+    @Override
+    public boolean shouldSkip(Throwable throwable, long skipCount) {
+      if (throwable == null || skipCount >= skipLimit) {
+        return false;
+      }
+      if (matchesConfiguredCategory(throwable)) {
+        return true;
+      }
+      return matchesConfiguredException(throwable);
+    }
+
+    private boolean matchesConfiguredCategory(Throwable throwable) {
+      if (skippableCategories.isEmpty()) {
+        return false;
+      }
+      String category = EtlExceptionDetails.categoryValueOf(throwable).toLowerCase(java.util.Locale.ROOT);
+      return skippableCategories.contains(category);
+    }
+
+    private boolean matchesConfiguredException(Throwable throwable) {
+      if (skippableExceptions.isEmpty()) {
+        return false;
+      }
+      for (Class<? extends Throwable> skippableException : skippableExceptions) {
+        if (skippableException.isAssignableFrom(throwable.getClass())) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
 
       private ProcessorConfig.EntityMapping requireProcessorMapping(JobConfig.JobStepConfig configuredStep) {
         ProcessorConfig.EntityMapping mapping = processorConfig.getMappings() == null ? null : processorConfig.getMappings().stream()

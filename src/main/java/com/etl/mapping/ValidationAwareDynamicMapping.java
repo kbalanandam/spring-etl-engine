@@ -2,6 +2,8 @@ package com.etl.mapping;
 
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.enums.ModelFormat;
+import com.etl.exception.EtlException;
+import com.etl.exception.ValidationException;
 import com.etl.processor.ProcessorExtensionDefaults;
 import com.etl.processor.transform.TransformEvaluator;
 import com.etl.processor.validation.ValidationIssue;
@@ -94,7 +96,7 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 		String inputType = input.getClass().getName();
 		Map<String, Object> resolvedValues = mappedFieldValueResolver.resolve(input, mapping);
 		Object validationInput = hasTransforms() ? resolvedValues : input;
-		List<ValidationIssue> issues = validationRuleEvaluator.evaluate(validationInput, mapping, sourceFormat);
+		List<ValidationIssue> issues = evaluateRules(validationInput);
 		if (!issues.isEmpty()) {
 			String issueSummary = summarizeIssues(issues);
 			if (shouldFailStep(issues) || !rejectHandlingEnabled) {
@@ -106,7 +108,7 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 						mapping.getTarget(),
 						issueSummary,
 						inputType);
-				throw new IllegalStateException(message);
+				throw new ValidationException(message);
 			}
 
 			logger.warn("PROCESS_VALIDATION event=record_rejected mode=rejectRecord stepName={} source={} target={} issues={} inputType={}",
@@ -117,7 +119,7 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 					inputType);
 			boolean recorded = fileIngestionRuntimeSupport.recordRejected(input, issues);
 			if (!recorded) {
-				throw new IllegalStateException("Processor validation rejected a record for mapping '"
+				throw new ValidationException("Processor validation rejected a record for mapping '"
 						+ mapping.getSource() + " -> " + mapping.getTarget()
 						+ "' but reject handling was not initialized for step '" + currentStepName() + "'. Issues: " + issueSummary);
 			}
@@ -125,6 +127,17 @@ public class ValidationAwareDynamicMapping<I, O> implements ItemProcessor<I, O> 
 		}
 
 		return mappedFieldValueResolver.createOutput(targetClass, mapping, resolvedValues);
+	}
+
+	private List<ValidationIssue> evaluateRules(Object validationInput) {
+		try {
+			return validationRuleEvaluator.evaluate(validationInput, mapping, sourceFormat);
+		} catch (EtlException e) {
+			throw e;
+		} catch (RuntimeException e) {
+			throw new ValidationException("Failed to evaluate processor validation rules for mapping '"
+					+ mapping.getSource() + " -> " + mapping.getTarget() + "' in step '" + currentStepName() + "'.", e);
+		}
 	}
 
 	private boolean hasTransforms() {

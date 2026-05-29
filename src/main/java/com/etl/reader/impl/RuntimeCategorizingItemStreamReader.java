@@ -3,7 +3,7 @@ package com.etl.reader.impl;
 import com.etl.exception.EtlErrorCategory;
 import com.etl.exception.EtlException;
 import com.etl.exception.EtlExceptionDetails;
-import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.SourceReadException;
 import org.springframework.batch.item.ExecutionContext;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemStream;
@@ -65,7 +65,7 @@ public class RuntimeCategorizingItemStreamReader<T> implements ItemStreamReader<
         } catch (EtlException e) {
             throw e;
         } catch (Exception e) {
-            throw new RuntimeEtlException("Failed while reading source '" + sourceName + "'.", e);
+            throw new SourceReadException("Failed while reading source '" + sourceName + "'.", e);
         }
     }
 
@@ -129,7 +129,7 @@ public class RuntimeCategorizingItemStreamReader<T> implements ItemStreamReader<
             return failure;
         }
         String message = "Failed to " + phase + " reader for source '" + sourceName + "'.";
-        return new ItemStreamException(message, new RuntimeEtlException(message, failure));
+        return new ItemStreamException(message, new SourceReadException(message, failure));
     }
 }
 

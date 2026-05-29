@@ -1,6 +1,6 @@
 package com.etl.writer.impl;
 
-import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.TargetWriteException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -67,7 +67,7 @@ class StagedFileLifecycleTest {
                 },
                 waits::add);
 
-        RuntimeEtlException failure = assertThrows(RuntimeEtlException.class, lifecycle::cleanupOrphanedArtifactsAtStepStart);
+        TargetWriteException failure = assertThrows(TargetWriteException.class, lifecycle::cleanupOrphanedArtifactsAtStepStart);
 
         assertEquals(4, deleteAttempts.get());
         assertEquals(List.of(100L, 250L, 500L), waits);
@@ -94,7 +94,7 @@ class StagedFileLifecycleTest {
                 },
                 waits::add);
 
-        RuntimeEtlException failure = assertThrows(RuntimeEtlException.class, lifecycle::prepareForWrite);
+        TargetWriteException failure = assertThrows(TargetWriteException.class, lifecycle::prepareForWrite);
 
         assertEquals(1, deleteAttempts.get());
         assertEquals(List.of(), waits);

@@ -1,6 +1,6 @@
 package com.etl.source.xml.runtime;
 
-import com.etl.config.exception.ConfigException;
+import com.etl.exception.config.ConfigException;
 import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.source.XmlSourceConfig;
 import com.etl.source.xml.strategy.XmlFlatteningStrategyNames;

@@ -80,14 +80,14 @@ class RelationalDynamicReaderTest {
     }
 
   @Test
-  void categorizesRelationalOpenFailureAsRuntime() throws Exception {
+  void categorizesRelationalOpenFailureAsSourceRead() throws Exception {
     RelationalSourceConfig config = relationalSourceConfig("SELECT id, name, email FROM missing_customers ORDER BY id");
     ItemReader<Customers> reader = factory.createReader(config, Customers.class);
 
     Exception failure = assertThrows(Exception.class,
         () -> ((ItemStream) reader).open(new ExecutionContext()));
 
-    assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+    assertEquals(EtlErrorCategory.SOURCE_READ, EtlExceptionDetails.categoryOf(failure));
   }
 
     private static void setupCustomersTable() throws Exception {

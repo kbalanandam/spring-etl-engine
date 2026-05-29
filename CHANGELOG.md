@@ -7,7 +7,20 @@ and this project adheres to **Semantic Versioning**.
 ## [Unreleased]
 
 ### Changed
+- N/A
+
+## [1.7.9] - 2026-05-29
+
+### Changed
 - Pinned embedded Tomcat to `10.1.55` through the managed `tomcat.version` property to remediate `tomcat-embed-core@10.1.54` CVEs flagged by dependency-check in the control-plane web path.
+- Completed E2 packaged-run documentation across `README.md`, `docs/config/README.md`, and preserved XML scenario READMEs with version-agnostic jar selection, plus explicit `-Dstart-class=com.etl.ETLEngineApplication` guidance so `mvn ... package` remains deterministic with both ETL and control-plane launchers present.
+- Completed the B2 first runtime slice by closing retry-policy tracking/docs to `Done`, keeping retry step-scoped and evidence-first (`retry_attempt` / `retry_summary`), and preserving fail-fast boundaries between retry, skip, and deterministic data/config failures.
+- Started centralized exception package migration for config failures by introducing canonical classes under `com.etl.exception.config` and retaining deprecated `com.etl.config.exception.*` wrappers for compatibility.
+- Continued centralized exception package migration for reader failures by introducing canonical classes under `com.etl.exception.reader` and retaining deprecated `com.etl.reader.exception.*` wrappers for compatibility.
+- Continued centralized exception package migration for writer failures by introducing canonical classes under `com.etl.exception.writer` and retaining deprecated `com.etl.writer.exception.*` wrappers for compatibility.
+- Continued centralized exception package migration for processor failures by introducing canonical classes under `com.etl.exception.processor` and retaining deprecated `com.etl.processor.exception.*` wrappers for compatibility.
+- Started `D1` first slice by stabilizing runtime error-taxonomy token normalization (`config`, `validation`, `transformation`, `source-read`, `target-write`, `runtime`) with compatibility aliases, and by promoting uncategorized reader failures to `source-read` evidence.
+- Completed the follow-on `D1` reader-boundary alignment by documenting and testing the distinction between factory-time reader selection failures (`ReaderException` -> `factory`) and runtime read/open failures (`SourceReadException` -> `source-read`), including skip/retry alias normalization coverage for `read` and `source_read`.
 
 ## [1.7.8-rc1] - 2026-05-28
 
