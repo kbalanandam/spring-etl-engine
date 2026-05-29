@@ -118,16 +118,19 @@ The first configurable skip-policy slice is intentionally narrow:
 - guardrail behavior: combining skip policy with ordered duplicate winner selection (`duplicate` + `orderBy`) fails fast in this slice
 - operator intent: preserve evidence-first handling while avoiding broad exception swallowing
 
-## B2 kickoff guardrail snapshot
+## B2 first runtime slice snapshot
 
-The B2 retry-policy kickoff is intentionally contract-first:
+The B2 retry-policy slice remains intentionally narrow and file-ingestion focused:
 
 - config placement: `job-config.yaml -> steps[].retryPolicy`
 - default behavior: unchanged when retry policy is omitted
 - startup validation: `maxAttempts >= 2`, `backoffMs >= 0`, and at least one retry matcher (`retryableCategories[]` or `retryableExceptions[]`)
 - category vocabulary: same ETL categories as B1 skip policy (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`)
+- runtime boundary: retry is wired only through Spring Batch fault-tolerant chunk execution
+- planning behavior: when the default planner would choose tasklet mode, retry policy overrides that plan to chunk mode so bounded retry stays on the supported Batch fault-tolerance path
+- operator evidence: each failed attempt emits `STEP_EVENT event=retry_attempt`, and terminal retry outcome emits `STEP_EVENT event=retry_summary`
 - first-slice guardrail: one step cannot enable both `skipPolicy` and `retryPolicy`
-- scope boundary: this kickoff slice validates contract shape and guardrails before broader runtime retry wiring
+- first-slice guardrail: ordered duplicate winner selection (`duplicate` + `orderBy`) still forces tasklet buffering, so it cannot be combined with retry policy in this slice
 
 The next follow-on slice should:
 
@@ -136,6 +139,7 @@ The next follow-on slice should:
 - preserve explicit config-driven behavior
 - avoid introducing a broad rule engine too early
 - avoid changing every config type at once
+- keep first-failure cause plus terminal retry outcome visible in step evidence as the retry surface broadens
 
 It should prove one preserved realistic file scenario that shows:
 

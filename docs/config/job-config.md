@@ -34,7 +34,7 @@ Backed by:
 | `steps[].skipPolicy.skipLimit` | conditional | int | Required positive integer when `steps[].skipPolicy.enabled: true` |
 | `steps[].skipPolicy.skippableCategories[]` | conditional | list[string] | Preferred when skip policy is enabled; each value must be a supported ETL error category (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
 | `steps[].skipPolicy.skippableExceptions[]` | conditional | list[string] | Optional compatibility field; each value must be a loadable Java exception class name |
-| `steps[].retryPolicy.enabled` | no | boolean | Optional step-level B2 kickoff flag. When `true`, startup validates retry policy shape and guardrails for this first slice |
+| `steps[].retryPolicy.enabled` | no | boolean | Optional step-level B2 first runtime slice flag. When `true`, startup validates retry policy shape and runtime wires bounded fault-tolerant retry for supported step plans |
 | `steps[].retryPolicy.maxAttempts` | conditional | int | Required integer `>= 2` when `steps[].retryPolicy.enabled: true` |
 | `steps[].retryPolicy.backoffMs` | conditional | long | Required non-negative integer when `steps[].retryPolicy.enabled: true` |
 | `steps[].retryPolicy.retryableCategories[]` | conditional | list[string] | Preferred when retry policy is enabled; values use ETL error categories (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
@@ -97,7 +97,7 @@ For this first slice:
 - prefer `skippableCategories` for product-facing configs; keep `skippableExceptions` only for advanced compatibility cases
 - step planning fails fast when skip policy is combined with ordered duplicate winner selection (`duplicate + orderBy`) in this first slice
 
-### Optional retry-policy example (B2 kickoff validation slice)
+### Optional retry-policy example (B2 first runtime slice)
 
 ```yaml
 name: customer-load-retry-policy
@@ -116,13 +116,16 @@ steps:
         - runtime
 ```
 
-For this kickoff slice:
+For this first runtime slice:
 
 - retry policy stays step-scoped under `job-config.yaml -> steps[]`
 - retry policy is opt-in; default behavior remains unchanged
 - startup strictly validates retry policy shape (`maxAttempts`, `backoffMs`, categories/exceptions)
+- runtime executes retry through Spring Batch fault-tolerant chunk handling
+- when the default planner selects tasklet mode, runtime overrides to chunk mode so retry behavior stays explicit and bounded at the supported chunk boundary
 - first-slice guardrail: one step cannot enable both `skipPolicy` and `retryPolicy`
-- runtime retry execution wiring is not yet expanded in this kickoff slice; this stage is contract-first and validation-first
+- step planning also fails fast when retry policy is combined with ordered duplicate winner selection (`duplicate + orderBy`) because that path intentionally forces tasklet buffering
+- operators now get `STEP_EVENT event=retry_attempt` for each failed attempt and `STEP_EVENT event=retry_summary` with terminal outcome (`succeeded_after_retry` or `failed_after_retries`)
 
 ### Skip-policy category cheat-sheet
 
@@ -278,7 +281,9 @@ Planned preserved examples for this enhancement:
 - The first B1 runtime slice fails fast when skip policy is combined with ordered duplicate winner selection (`duplicate` rule with `orderBy`) so conflicting buffering/runtime modes do not produce ambiguous behavior.
 - When `steps[].retryPolicy.enabled=true`, `maxAttempts` must be `>=2`, `backoffMs` must be non-negative, and at least one of `retryableCategories[]` or `retryableExceptions[]` must be provided.
 - `retryableCategories[]` uses the same ETL category vocabulary as skip policy (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`).
-- In the B2 kickoff slice, explicit startup fails fast when one step configures both `skipPolicy` and `retryPolicy`.
+- In the B2 first runtime slice, explicit startup still fails fast when one step configures both `skipPolicy` and `retryPolicy`.
+- In the B2 first runtime slice, retry-capable steps use chunk-oriented fault tolerance; tasklet plans are overridden to chunk mode when retry policy is enabled.
+- In the same slice, runtime also fails fast when retry policy is combined with ordered duplicate winner selection because that duplicate path intentionally requires tasklet buffering.
 - If the selected processor config is malformed, explicit startup now fails before generated-model class validation so processor issues are not masked by unrelated missing generated classes.
 - Use `etl.config.job` as the normal production-style entry point whether the selected `job-config.yaml` lives under `src/main/resources/config-jobs/` or a developer-local git-ignored private bundle under `private-jobs/`. Direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides are intended for demo/fallback cases only.
 - Archive-on-success remains part of the selected file-backed source config (for example CSV or XML), not `job-config.yaml`.

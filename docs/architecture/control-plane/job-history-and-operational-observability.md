@@ -124,6 +124,12 @@ Each step should preserve at least:
 - retry and failure summary
 - top exception category for the step
 
+The current selected-job runtime now includes a narrow B2 retry evidence baseline for configured retry steps:
+
+- `STEP_EVENT event=retry_attempt` for each failed attempt that remains inside the configured retry budget
+- `STEP_EVENT event=retry_summary` with terminal outcome (`succeeded_after_retry` or `failed_after_retries`)
+- first-failure diagnostic fields preserved alongside the terminal outcome so operators can distinguish transient recovery from exhausted retry budget
+
 ### 3. Structured operational events
 In addition to text logs, the runtime already emits an initial structured event vocabulary and should grow it further over time. The current baseline includes events such as:
 
@@ -133,6 +139,8 @@ In addition to text logs, the runtime already emits an initial structured event 
 - run finished
 - step started
 - step completed
+- retry attempt
+- retry summary
 
 Future observability growth may extend that vocabulary with events such as:
 

@@ -134,10 +134,12 @@ Keep first implementation intentionally narrow:
 
 ## Status notes
 
-B2 kickoff started with a contract-first boundary:
+The current first runtime slice now proves a narrow retry boundary:
 
 - keep retry step-scoped and opt-in on explicit selected-job runs
 - treat retry as transient-failure handling, not as a substitute for reject/skip semantics
 - keep configuration/startup and deterministic data-quality failures fail-fast by default
-- require operator-visible retry attempt and terminal outcome evidence before broadening scope
+- wire retry only through Spring Batch fault-tolerant chunk execution, overriding tasklet planning when needed
+- keep ordered duplicate winner selection incompatible with retry in this slice because that duplicate path intentionally requires tasklet buffering
+- emit operator-visible `retry_attempt` and `retry_summary` evidence before broadening scope further
 
