@@ -1,4 +1,4 @@
-# Epic V - Verification evidence and reporting
+﻿# Epic V - Verification evidence and reporting
 
 ## Summary
 
@@ -24,10 +24,11 @@ This epic is **not** the place for runtime observability emission itself; it con
 
 ## Related docs
 
-- [`../../adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md`](../../adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
+- [`../../adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md`](../../adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
 - [`../../architecture/control-plane/job-history-and-operational-observability.md`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Maintenance note
 
 Use [`../product-backlog.md`](../product-backlog.md) for the current board values. Use this page for the shared Epic V reporting and evidence direction.
+
 

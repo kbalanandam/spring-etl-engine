@@ -1,4 +1,4 @@
-# A4 - Standardize generated-model naming and package derivation
+﻿# A4 - Standardize generated-model naming and package derivation
 
 ## Summary
 
@@ -88,7 +88,7 @@ Expected impact when this item ships:
 
 - [`Product backlog`](../product-backlog.md)
 - [`Generated model naming standard`](../../architecture/etl-core/generated-model-naming-standard.md)
-- [`Adaptive step selection and generated-model contract`](../../adr/0003-adaptive-step-selection-and-generated-model-contract.md)
+- [`Adaptive step selection and generated-model contract`](../../adr/etl-core/0003-adaptive-step-selection-and-generated-model-contract.md)
 - [`Job config reference`](../../config/job-config.md)
 
 ## Implementation notes
@@ -124,6 +124,7 @@ Treat `packageName` removal as a phased compatibility change, not a one-shot cle
 - Runtime YAML no longer supports authored `packageName`; selected-job and direct-config paths both reject it before deserialization while still applying internal compatibility defaults only where preserved fallback behavior intentionally remains.
 - Same-step logical-name reuse such as `Customers -> Customers` remains compatibility-supported on the active path; the shipped collision and handoff guardrails focus on deterministic generated identity without breaking preserved single-step bundles.
 - Remaining internal bridge retirement is now tracked separately under [`A6`](A6-retire-internal-generated-model-package-bridge.md) so the delivered selected-job contract can be treated as complete.
+
 
 
 

@@ -1,4 +1,4 @@
-# S1 - Schedule model and trigger contract
+﻿# S1 - Schedule model and trigger contract
 
 ## Summary
 
@@ -93,7 +93,7 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`ADR-0008: formalize control-plane and ETL worker boundary`](../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
+- [`ADR-0008: formalize control-plane and ETL worker boundary`](../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md)
 - [`Control plane and worker boundary`](../../architecture/control-plane/control-plane-worker-boundary.md)
 - [`Scheduler architecture direction`](../../architecture/control-plane/scheduler-architecture-direction.md)
 - [`S4 - Control-plane operational data model`](S4-control-plane-operational-data-model.md)
@@ -111,4 +111,5 @@ For early local control-plane work, lightweight relational persistence such as S
 ## Status notes
 
 Deferred for now, but important enough to document because scheduler work can easily drift into a second orchestration path if the contract is not defined early.
+
 

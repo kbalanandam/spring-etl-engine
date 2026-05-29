@@ -1,4 +1,4 @@
-# V4 - Define verification-report retention, provenance, and release gating rules
+﻿# V4 - Define verification-report retention, provenance, and release gating rules
 
 ## Summary
 
@@ -55,7 +55,7 @@ Keep V4 definition-oriented first: decide what must be retained and trusted befo
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`ADR 0005`](../../adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
+- [`ADR 0005`](../../adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
 - [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
@@ -65,4 +65,5 @@ Do not treat convenience reporting as audit-grade release evidence until V4 defi
 ## Status notes
 
 Deferred for the later enterprise verification maturity pass.
+
 

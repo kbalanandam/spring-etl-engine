@@ -1,6 +1,15 @@
 # ADR category: ETL core
 
-Future landing zone for ETL runtime contract and execution-model ADRs.
+ETL runtime contract and execution-model ADRs.
 
-No ADR files are moved here yet.
+Current ADRs:
+
+- `0002-config-driven-etl-pipeline.md`
+- `0003-adaptive-step-selection-and-generated-model-contract.md`
+- `0004-use-explicit-job-config-for-business-scenario-selection.md`
+- `0006-separate-source-validation-and-processor-rule-spis.md`
+- `0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`
+- `0010-keep-native-parsers-behind-java-reader-boundary.md`
+- `0011-enforce-single-default-processor-contract.md`
+
 

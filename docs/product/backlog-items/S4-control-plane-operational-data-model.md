@@ -1,4 +1,4 @@
-# S4 - Control-plane operational data model
+﻿# S4 - Control-plane operational data model
 
 ## Summary
 
@@ -96,7 +96,7 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`ADR-0008: formalize control-plane and ETL worker boundary`](../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
+- [`ADR-0008: formalize control-plane and ETL worker boundary`](../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md)
 - [`Control plane and worker boundary`](../../architecture/control-plane/control-plane-worker-boundary.md)
 - [`Control-plane operational data model`](../../architecture/control-plane/control-plane-operational-data-model.md)
 - [`Control-plane local relational schema`](../../architecture/control-plane/control-plane-local-relational-schema.md)
@@ -117,6 +117,7 @@ When this item is implemented, keep one rule explicit: persisted control-plane d
 ## Status notes
 
 Deferred today, but important enough to document before optional scheduler, watcher, and retained-history work grows in multiple directions without one shared operational data model.
+
 
 
 

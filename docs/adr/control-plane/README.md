@@ -1,6 +1,9 @@
 # ADR category: Control plane
 
-Future landing zone for scheduler/control-plane ADRs.
+Scheduler/control-plane ADRs.
 
-No ADR files are moved here yet.
+Current ADRs:
+
+- `0008-formalize-control-plane-and-etl-worker-boundary.md`
+- `0009-formalize-sqlite-first-local-control-plane-persistence.md`
 

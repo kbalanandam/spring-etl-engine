@@ -1,4 +1,4 @@
-# Control-Plane Local Relational Schema
+﻿# Control-Plane Local Relational Schema
 
 ## Purpose
 
@@ -46,7 +46,7 @@ That note intentionally stops before defining a relational shape.
 
 The next useful design step is a first local relational direction that helps contributors implement scheduler, watcher, and retained-history work on a personal laptop without introducing infrastructure first.
 
-That direction must still preserve the boundary frozen in [`ADR-0008`](../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md):
+That direction must still preserve the boundary frozen in [`ADR-0008`](../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md):
 
 - the ETL core remains independently runnable
 - control-plane persistence is optional
@@ -104,9 +104,9 @@ Architecture anchors this schema direction must remain compatible with:
 - [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md)
 - [`job-history-and-operational-observability.md`](job-history-and-operational-observability.md)
 - [`relational-db-support.md`](../etl-core/relational-db-support.md)
-- [`ADR-0008`](../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
+- [`ADR-0008`](../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md)
 
-This SQLite-first local persistence direction is formalized as an accepted decision in [`ADR-0009`](../../adr/0009-formalize-sqlite-first-local-control-plane-persistence.md).
+This SQLite-first local persistence direction is formalized as an accepted decision in [`ADR-0009`](../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md).
 
 ## First table direction
 
@@ -319,5 +319,6 @@ Follow-on work that should build from this schema direction includes:
 - retention and cleanup rules for retained control-plane history
 - vendor-tuned indexing and concurrency guidance for PostgreSQL or SQL Server deployments
 - deeper restartability and checkpoint semantics once execution-mode-specific rules are defined
+
 
 

@@ -1,4 +1,4 @@
-# T6 - Shared default-value and placeholder mapping
+﻿# T6 - Shared default-value and placeholder mapping
 
 ## Summary
 
@@ -138,7 +138,7 @@ Expected impact when this item ships:
 - [`Transformation capability roadmap`](../../architecture/etl-core/transformation-capability-roadmap.md)
 - [`T6 syntax comparison note`](../../architecture/etl-core/t6-shared-default-value-mapping-syntax-comparison.md)
 - [`Default processor reference`](../../config/processor/default-processor.md)
-- [`ADR-0007: separate processor transform SPI for cleaning and normalization`](../../adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
+- [`ADR-0007: separate processor transform SPI for cleaning and normalization`](../../adr/etl-core/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
 
 ## Implementation notes
 
@@ -160,3 +160,4 @@ If the eventual syntax uses a mapping-level `defaultValues:` block similar to th
 ## Status notes
 
 Added as a follow-on transformation-maturity item because the shipped `valueMap` and `expression` support already prove the processor transform seam, but shared audit/default authoring still lacks a first-class reusable product contract.
+

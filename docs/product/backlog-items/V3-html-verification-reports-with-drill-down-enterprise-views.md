@@ -1,4 +1,4 @@
-# V3 - HTML verification reports with drill-down enterprise views
+﻿# V3 - HTML verification reports with drill-down enterprise views
 
 ## Summary
 
@@ -77,7 +77,7 @@ Expected impact when this item ships:
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`ADR-0005: Use a shared verification evidence model for Markdown and HTML reports`](../../adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
+- [`ADR-0005: Use a shared verification evidence model for Markdown and HTML reports`](../../adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
 - [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
@@ -87,4 +87,5 @@ Do not bypass the shared evidence model for convenience. The key architectural v
 ## Status notes
 
 Deferred today, but important enough to document because it is the first item that turns the existing shared evidence model into a richer enterprise-facing presentation layer.
+
 

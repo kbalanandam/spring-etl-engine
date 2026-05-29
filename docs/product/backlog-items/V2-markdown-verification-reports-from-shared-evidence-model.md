@@ -1,4 +1,4 @@
-# V2 - Generate Markdown verification reports from the shared evidence model
+﻿# V2 - Generate Markdown verification reports from the shared evidence model
 
 ## Summary
 
@@ -55,7 +55,7 @@ Keep Markdown as the first report surface while preserving strict reuse of the e
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`ADR 0005`](../../adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
+- [`ADR 0005`](../../adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
 - [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
@@ -65,4 +65,5 @@ V2 is intentionally the first renderer, not a second evidence model.
 ## Status notes
 
 Shipped baseline: Markdown verification reports now render from the shared evidence contract.
+
 

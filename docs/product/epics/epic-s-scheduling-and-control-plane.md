@@ -1,4 +1,4 @@
-# Epic S - Scheduling and control plane
+﻿# Epic S - Scheduling and control plane
 
 ## Summary
 
@@ -29,10 +29,11 @@ This epic is **not** the place to redesign the ETL worker launch contract or mak
 - [`../../architecture/control-plane/control-plane-local-relational-schema.md`](../../architecture/control-plane/control-plane-local-relational-schema.md)
 - [`../../architecture/control-plane/scheduler-architecture-direction.md`](../../architecture/control-plane/scheduler-architecture-direction.md)
 - [`../../architecture/operator-ui/operator-ui-architecture-direction.md`](../../architecture/operator-ui/operator-ui-architecture-direction.md)
-- [`../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md`](../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
-- [`../../adr/0009-formalize-sqlite-first-local-control-plane-persistence.md`](../../adr/0009-formalize-sqlite-first-local-control-plane-persistence.md)
+- [`../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md`](../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md)
+- [`../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md`](../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md)
 
 ## Maintenance note
 
 Use [`../product-backlog.md`](../product-backlog.md) for live item-level board fields. Use this page for the shared Epic S product boundary and cross-item intent.
+
 

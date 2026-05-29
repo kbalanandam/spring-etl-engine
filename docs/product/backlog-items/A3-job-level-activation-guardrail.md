@@ -1,4 +1,4 @@
-# A3 - Job-level activation guardrail
+﻿# A3 - Job-level activation guardrail
 
 ## Summary
 
@@ -82,7 +82,7 @@ Expected impact when this item ships:
 - [`Product backlog`](../product-backlog.md)
 - [`Job activation and startup guardrails`](../../architecture/etl-core/job-level-activation-and-startup-guardrails.md)
 - [`Job config reference`](../../config/job-config.md)
-- [`Use explicit job-config for business-scenario selection`](../../adr/0004-use-explicit-job-config-for-business-scenario-selection.md)
+- [`Use explicit job-config for business-scenario selection`](../../adr/etl-core/0004-use-explicit-job-config-for-business-scenario-selection.md)
 
 ## Implementation notes
 
@@ -91,4 +91,5 @@ Keep the first slice job-level only. Do not push activation decisions down into 
 ## Status notes
 
 Shipped as a first job-level slice only. The implementation stays in `ConfigLoader`, defaults omitted `isActive` to active behavior, and deliberately avoids step-level activation or scheduler semantics.
+
 

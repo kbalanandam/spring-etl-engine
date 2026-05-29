@@ -1,4 +1,4 @@
-# V1 - Define enterprise verification evidence model and report categories
+﻿# V1 - Define enterprise verification evidence model and report categories
 
 ## Summary
 
@@ -55,7 +55,7 @@ Separate evidence collection from rendering so later Markdown, HTML, and other v
 ## Related docs
 
 - [`Product backlog`](../product-backlog.md)
-- [`ADR 0005`](../../adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
+- [`ADR 0005`](../../adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
 - [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
 
 ## Implementation notes
@@ -65,4 +65,5 @@ V1 is the foundation under V2, V3, and V4 rather than a user-facing reporting fo
 ## Status notes
 
 Shipped baseline: the shared evidence model now underpins the current reporting workflow.
+
 

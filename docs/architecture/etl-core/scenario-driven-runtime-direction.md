@@ -1,4 +1,4 @@
-# Scenario-Driven Runtime Direction
+﻿# Scenario-Driven Runtime Direction
 
 ## Purpose
 
@@ -549,7 +549,8 @@ Those capabilities should layer on top of the same scenario contract rather than
 - [`1.4-to-next architecture classification`](1-4-to-next-architecture-classification.md)
 - [`ETL product evolution roadmap`](../foundations/etl-product-evolution-roadmap.md)
 - [`Transformation capability roadmap`](transformation-capability-roadmap.md)
-- [`Use explicit job-config for business-scenario selection`](../../adr/0004-use-explicit-job-config-for-business-scenario-selection.md)
+- [`Use explicit job-config for business-scenario selection`](../../adr/etl-core/0004-use-explicit-job-config-for-business-scenario-selection.md)
+
 
 
 

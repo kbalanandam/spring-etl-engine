@@ -1,4 +1,4 @@
-# Control Plane and Worker Boundary
+﻿# Control Plane and Worker Boundary
 
 ## Purpose
 
@@ -114,7 +114,7 @@ Related architecture notes that constrain the boundary:
 - [`job-history-and-operational-observability.md`](job-history-and-operational-observability.md)
 - [`control-plane-operational-data-model.md`](control-plane-operational-data-model.md)
 
-This boundary is formalized as an accepted decision in [`ADR-0008`](../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md).
+This boundary is formalized as an accepted decision in [`ADR-0008`](../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md).
 
 ## Decisions
 
@@ -188,6 +188,7 @@ Follow-on work that should build from this boundary includes:
 - restartability and recovery workflows built on retained operational evidence
 - deployment guidance for native control plane versus external scheduler integration
 - continued transformation maturity through shared processor/source extension seams
+
 
 
 

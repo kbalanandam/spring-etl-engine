@@ -1,4 +1,4 @@
-# Generated model naming standard and package-free config direction
+﻿# Generated model naming standard and package-free config direction
 
 - Status: Shipped selected-job naming/package baseline; follow-on internal bridge cleanup tracked separately
 - Last updated: 2026-05-15
@@ -385,10 +385,11 @@ flowchart TD
 
 ## Related docs
 
-- [`ADR-0003: Adaptive step selection and generated-model contract`](../../adr/0003-adaptive-step-selection-and-generated-model-contract.md)
+- [`ADR-0003: Adaptive step selection and generated-model contract`](../../adr/etl-core/0003-adaptive-step-selection-and-generated-model-contract.md)
 - [`Job config reference`](../../config/job-config.md)
 - [`XML source reference`](../../config/source/xml-source.md)
 - [`XML target reference`](../../config/target/xml-target.md)
+
 
 
 

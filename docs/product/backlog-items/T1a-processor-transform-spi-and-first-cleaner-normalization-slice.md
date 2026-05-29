@@ -1,4 +1,4 @@
-# T1a - Define processor transform SPI and first cleaner/normalization slice
+﻿# T1a - Define processor transform SPI and first cleaner/normalization slice
 
 ## Summary
 
@@ -57,7 +57,7 @@ Run transforms between read and validation on the processor path, keeping cleanu
 - [`Product backlog`](../product-backlog.md)
 - [`Default processor config`](../../config/processor/default-processor.md)
 - [`Extension points`](../../architecture/etl-core/extension-points.md)
-- [`ADR 0007`](../../adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
+- [`ADR 0007`](../../adr/etl-core/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
 
 ## Implementation notes
 
@@ -66,4 +66,5 @@ This item intentionally separated cleanup from validation so future transform gr
 ## Status notes
 
 Shipped baseline: ordered `transforms[]` now run before validation on the active processor path.
+
 

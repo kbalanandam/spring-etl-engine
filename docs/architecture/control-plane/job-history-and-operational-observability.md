@@ -1,4 +1,4 @@
-# Job History and Operational Observability
+﻿# Job History and Operational Observability
 
 ## Purpose
 
@@ -55,7 +55,7 @@ This document does not lock in:
 - a final search product such as OpenSearch or PostgreSQL full-text
 - any vector database or AI provider choice
 
-The current preferred first local persistence direction for optional retained control-plane history is frozen separately in [`ADR-0009`](../../adr/0009-formalize-sqlite-first-local-control-plane-persistence.md), while broader observability storage choices remain open.
+The current preferred first local persistence direction for optional retained control-plane history is frozen separately in [`ADR-0009`](../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md), while broader observability storage choices remain open.
 
 ## Context
 
@@ -427,4 +427,5 @@ This note is expected to lead into later design notes for:
 - dashboard and operator search flows
 - AI-assisted log search and diagnostics
 - scenario and job-run logging sink configuration
+
 

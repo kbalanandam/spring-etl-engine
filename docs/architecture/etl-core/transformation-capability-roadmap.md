@@ -1,4 +1,4 @@
-# Transformation Capability Roadmap
+﻿# Transformation Capability Roadmap
 
 ## Purpose
 
@@ -385,10 +385,11 @@ The next meaningful transformation priorities are:
 - [`File ingestion hardening`](file-ingestion-hardening.md)
 - [`Runtime flow`](runtime-flow.md)
 - [`Transformation capability catalog`](transformation-capability-catalog.md)
-- [`ADR 0007 - Add separate processor transform SPI for cleaning and normalization`](../../adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
+- [`ADR 0007 - Add separate processor transform SPI for cleaning and normalization`](../../adr/etl-core/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
 - [`Default processor config`](../../config/processor/default-processor.md)
 - [`Reference-set validation and enrichment`](reference-set-validation-and-enrichment.md)
 - [`Product backlog`](../../product/product-backlog.md)
 - [`T6 - Shared default-value and placeholder mapping`](../../product/backlog-items/T6-shared-default-value-and-placeholder-mapping.md)
 - [`T6 shared default-value mapping syntax comparison`](t6-shared-default-value-mapping-syntax-comparison.md)
+
 
