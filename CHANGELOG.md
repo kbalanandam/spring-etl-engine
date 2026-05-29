@@ -7,6 +7,11 @@ and this project adheres to **Semantic Versioning**.
 ## [Unreleased]
 
 ### Changed
+- N/A
+
+## [1.7.9] - 2026-05-29
+
+### Changed
 - Pinned embedded Tomcat to `10.1.55` through the managed `tomcat.version` property to remediate `tomcat-embed-core@10.1.54` CVEs flagged by dependency-check in the control-plane web path.
 - Completed E2 packaged-run documentation across `README.md`, `docs/config/README.md`, and preserved XML scenario READMEs with version-agnostic jar selection, plus explicit `-Dstart-class=com.etl.ETLEngineApplication` guidance so `mvn ... package` remains deterministic with both ETL and control-plane launchers present.
 - Completed the B2 first runtime slice by closing retry-policy tracking/docs to `Done`, keeping retry step-scoped and evidence-first (`retry_attempt` / `retry_summary`), and preserving fail-fast boundaries between retry, skip, and deterministic data/config failures.
