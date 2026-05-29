@@ -8,14 +8,22 @@ import java.util.Map;
 import com.etl.common.util.DynamicBatchUtils;
 import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.ResolvedModelMetadata;
-import com.etl.config.exception.ConfigException;
+import com.etl.exception.config.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.exception.EtlExceptionDetails;
+import com.etl.exception.EtlErrorCategory;
 import com.etl.exception.FactoryException;
 import com.etl.exception.ListenerException;
 import com.etl.exception.RelationalException;
 import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.SourceReadException;
+import com.etl.exception.TargetWriteException;
+import com.etl.exception.TransformationException;
+import com.etl.exception.ValidationException;
+import com.etl.exception.processor.ProcessorException;
+import com.etl.exception.reader.ReaderException;
+import com.etl.exception.writer.WriterException;
 import com.etl.runtime.DuplicateDiscard;
 import com.etl.runtime.DuplicateResolution;
 import com.etl.runtime.DuplicateResolver;
@@ -838,17 +846,35 @@ public class BatchConfig {
       if (configuredCategory == null || configuredCategory.isBlank()) {
         continue;
       }
-      String normalizedCategory = configuredCategory.trim().toLowerCase(java.util.Locale.ROOT);
-      if ("config".equals(normalizedCategory)) {
-        exceptionClasses.add(ConfigException.class);
-      } else if ("runtime".equals(normalizedCategory)) {
-        exceptionClasses.add(RuntimeEtlException.class);
-      } else if ("factory".equals(normalizedCategory)) {
-        exceptionClasses.add(FactoryException.class);
-      } else if ("listener".equals(normalizedCategory)) {
-        exceptionClasses.add(ListenerException.class);
-      } else if ("relational".equals(normalizedCategory)) {
-        exceptionClasses.add(RelationalException.class);
+      java.util.Optional<EtlErrorCategory> resolvedCategory = EtlErrorCategory.fromToken(configuredCategory);
+      if (resolvedCategory.isEmpty()) {
+        continue;
+      }
+      switch (resolvedCategory.get()) {
+        case CONFIG -> exceptionClasses.add(ConfigException.class);
+        case VALIDATION -> {
+          exceptionClasses.add(ValidationException.class);
+          exceptionClasses.add(ProcessorException.class);
+        }
+        case TRANSFORMATION -> {
+          exceptionClasses.add(TransformationException.class);
+          exceptionClasses.add(ProcessorException.class);
+        }
+        case SOURCE_READ -> {
+          exceptionClasses.add(SourceReadException.class);
+          exceptionClasses.add(ReaderException.class);
+        }
+        case TARGET_WRITE -> {
+          exceptionClasses.add(TargetWriteException.class);
+          exceptionClasses.add(WriterException.class);
+        }
+        case RUNTIME -> exceptionClasses.add(RuntimeEtlException.class);
+        case FACTORY -> exceptionClasses.add(FactoryException.class);
+        case LISTENER -> exceptionClasses.add(ListenerException.class);
+        case RELATIONAL -> exceptionClasses.add(RelationalException.class);
+        case UNCLASSIFIED -> {
+          // Explicit 'unclassified' category does not map to a concrete exception class.
+        }
       }
     }
     return List.copyOf(exceptionClasses);

@@ -1,6 +1,6 @@
 package com.etl.writer.impl;
 
-import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.TargetWriteException;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.batch.core.ExitStatus;
@@ -74,7 +74,7 @@ public class StagedJsonArrayItemWriter<T> implements ItemStreamWriter<T>, StepEx
     public void write(@NonNull Chunk<? extends T> chunk) throws Exception {
         if (jsonGenerator == null) {
             failed = true;
-            throw new RuntimeEtlException("JSON writer must be opened before write().");
+            throw new TargetWriteException("JSON writer must be opened before write().");
         }
         try {
             // Each item becomes one element in the staged JSON array while the outer array remains
@@ -131,8 +131,8 @@ public class StagedJsonArrayItemWriter<T> implements ItemStreamWriter<T>, StepEx
         }
     }
 
-    private RuntimeEtlException runtimeFailure(String message, IOException cause) {
-        return new RuntimeEtlException(message, cause);
+    private TargetWriteException runtimeFailure(String message, IOException cause) {
+        return new TargetWriteException(message, cause);
     }
 
     private void cleanupFailedStreamState() {

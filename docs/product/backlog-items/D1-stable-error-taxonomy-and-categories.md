@@ -8,7 +8,7 @@ Define a stable operator-facing error taxonomy so failures can be grouped, searc
 
 - Epic: **[Epic D](../epics/epic-d-error-taxonomy-and-failure-categorization.md)**
 - Priority: **P1**
-- Status: **Deferred**
+- Status: **In Progress**
 - Milestone: **M2**
 - Dependency: **C1**
 
@@ -97,5 +97,7 @@ Keep the taxonomy intentionally small at first. It should stabilize cross-run me
 
 ## Status notes
 
-Deferred today, but important enough to deserve a detail page because it directly affects observability, job history, and operator usability across multiple future items.
+Implementation has started with a first D1 slice that stabilizes taxonomy tokens and introduces source-read categorization on the active runtime path. The current follow-on slice now also aligns staged writer failures to `target-write` and processor mapping/rule failures to `transformation` and `validation` on the active runtime path.
+
+The runtime now keeps an explicit boundary between reader selection failures and active source-read failures: `ReaderException` remains a `factory` category signal for reader registration/selection issues, while `SourceReadException` is the `source-read` category signal for runtime read/stream failures after a reader is selected.
 

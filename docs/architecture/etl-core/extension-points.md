@@ -87,7 +87,8 @@ Validation and field-level processing behavior now use both shipped and planned 
 - Processor transform dispatch supports type + source-format selection with global fallback through `TransformEvaluator`.
 - Processor rule dispatch supports type + source-format selection with global fallback.
 - Startup validation resolves mapping source format and validates transform/rule compatibility in `ConfigLoader`.
-- Format-binding startup failures raise `ProcessorExtensionBindingConfigException` (subclass of `ConfigException`).
+- Format-binding startup failures raise `com.etl.exception.config.ProcessorExtensionBindingConfigException` (subclass of `com.etl.exception.config.ConfigException`).
+- Legacy `com.etl.config.exception.*` config exception classes remain temporary deprecated wrappers for compatibility during package cutover.
 - Duplicate rule registers global and XML-scoped handlers (`DuplicateProcessorValidationRule` + `XmlDuplicateProcessorValidationRule`).
 - Non-Spring/manual paths merge built-in + classpath-discovered processor extensions through `ProcessorExtensionDefaults` (`ServiceLoader`).
 - Built-in source validators: `CsvSourceValidator`, `XmlSourceValidator`, `RelationalSourceValidator`.
@@ -325,7 +326,10 @@ Treat the following as non-negotiable unless a new ADR explicitly changes direct
 - the shipped `conditional` processor transform keeps full SpEL flexibility (`#input`, `#source`, `#value`, `#resolved`, method/type usage), and runtime now reuses parsed expressions to avoid repeated parse overhead for frequently evaluated cases
 - conditional transform runtime now emits processor-level observability events for case matches, default fallbacks, cache hit/miss at trace level, cache evictions, and evaluation failures (`PROCESSOR_TRANSFORM event=conditional_case_matched|conditional_default_applied|conditional_expression_cache_hit|conditional_expression_cache_miss|conditional_expression_cache_evict|conditional_evaluation_failed`)
 - conditional transform runtime evaluation failures now raise `ProcessorTransformEvaluationException` (extends `IllegalStateException`) so diagnostics can target transform-evaluation faults without changing existing runtime failure semantics
-- keep reader/writer factory registration and construction failures categorized as `factory`; the current bridge factories may still expose format-specific missing-dispatch exceptions such as `NoReaderFoundException` and `NoWriterFoundException`, while stream/read/write lifecycle failures should surface through the runtime failure category used by operator-facing diagnostics
+- keep reader/writer factory registration and construction failures categorized as `factory`; the current bridge factories may still expose format-specific missing-dispatch exceptions such as `com.etl.exception.reader.NoReaderFoundException` and `com.etl.exception.writer.NoWriterFoundException`, while stream/read/write lifecycle failures should surface through the runtime failure category used by operator-facing diagnostics
+- legacy `com.etl.reader.exception.*` classes remain temporary deprecated wrappers during the centralized exception package cutover
+- legacy `com.etl.writer.exception.*` classes remain temporary deprecated wrappers during the centralized exception package cutover
+- legacy `com.etl.processor.exception.*` classes remain temporary deprecated wrappers during the centralized exception package cutover
 - on the active reader path, CSV, XML, and relational readers currently share `RuntimeCategorizingItemStreamReader` so delegate `read` and optional `ItemStream` lifecycle failures are categorized consistently across source formats without duplicating that wrapper logic per reader
 - CSV field binding on the active reader path now fails during mapper initialization when a configured field does not match a writable property on the target class, instead of silently skipping that mismatch
 - reader-side adapters that implement Spring Batch contracts should preserve the framework nullability signature as part of the active runtime contract; for example, `FieldSetMapper.mapFieldSet` in `DynamicFieldSetMapper` should keep the package-level non-null return/parameter expectations exposed by Spring Batch

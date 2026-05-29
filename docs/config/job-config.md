@@ -32,12 +32,12 @@ Backed by:
 | `steps[].target` | yes | string | Must match a configured `targetName` from the selected target config |
 | `steps[].skipPolicy.enabled` | no | boolean | Optional step-level B1 slice flag. When `true`, enables bounded skip behavior for supported CSV steps; runtime may override tasklet planning to chunk mode for this slice |
 | `steps[].skipPolicy.skipLimit` | conditional | int | Required positive integer when `steps[].skipPolicy.enabled: true` |
-| `steps[].skipPolicy.skippableCategories[]` | conditional | list[string] | Preferred when skip policy is enabled; each value must be a supported ETL error category (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
+| `steps[].skipPolicy.skippableCategories[]` | conditional | list[string] | Preferred when skip policy is enabled; each value must be a supported ETL error category (`config`, `validation`, `transformation`, `source-read`, `target-write`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
 | `steps[].skipPolicy.skippableExceptions[]` | conditional | list[string] | Optional compatibility field; each value must be a loadable Java exception class name |
 | `steps[].retryPolicy.enabled` | no | boolean | Optional step-level B2 first runtime slice flag. When `true`, startup validates retry policy shape and runtime wires bounded fault-tolerant retry for supported step plans |
 | `steps[].retryPolicy.maxAttempts` | conditional | int | Required integer `>= 2` when `steps[].retryPolicy.enabled: true` |
 | `steps[].retryPolicy.backoffMs` | conditional | long | Required non-negative integer when `steps[].retryPolicy.enabled: true` |
-| `steps[].retryPolicy.retryableCategories[]` | conditional | list[string] | Preferred when retry policy is enabled; values use ETL error categories (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
+| `steps[].retryPolicy.retryableCategories[]` | conditional | list[string] | Preferred when retry policy is enabled; values use ETL error categories (`config`, `validation`, `transformation`, `source-read`, `target-write`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
 | `steps[].retryPolicy.retryableExceptions[]` | conditional | list[string] | Optional compatibility field; each value must be a loadable Java exception class name |
 
 ## Single-step example
@@ -140,7 +140,11 @@ Use `steps[].skipPolicy.skippableCategories[]` with these ETL category values:
 | Category | When to use |
 |---|---|
 | `config` | Failures caused by configuration contract problems (normally not a good skip candidate) |
-| `runtime` | Runtime execution failures during step processing (read/process/write path) where bounded skip may be acceptable |
+| `validation` | Processor-rule validation failures where the job intentionally wants bounded tolerance for invalid records |
+| `transformation` | Processor mapping or transform execution failures while building target records |
+| `source-read` | Reader and reader-stream failures while pulling records from the configured source |
+| `target-write` | Writer and staged-publication failures while producing the configured target artifact |
+| `runtime` | Other runtime execution failures that do not land on a more specific ETL category |
 | `factory` | Failures while creating dynamic reader/processor/writer components |
 | `listener` | Failures raised from lifecycle listeners/hooks |
 | `relational` | Relational connector/runtime failures tied to database access paths |

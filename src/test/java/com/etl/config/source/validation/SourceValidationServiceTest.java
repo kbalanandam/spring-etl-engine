@@ -1,7 +1,7 @@
 package com.etl.config.source.validation;
 
 import com.etl.config.ColumnConfig;
-import com.etl.config.exception.ConfigException;
+import com.etl.exception.config.ConfigException;
 import com.etl.config.source.CsvSourceConfig;
 import com.etl.config.source.FileArchiveConfig;
 import com.etl.config.source.FileUnzipConfig;

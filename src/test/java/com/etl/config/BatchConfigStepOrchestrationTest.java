@@ -3,7 +3,7 @@ package com.etl.config;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.etl.config.exception.ConfigException;
+import com.etl.exception.config.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
@@ -13,6 +13,11 @@ import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.config.target.XmlTargetConfig;
 import com.etl.exception.RuntimeEtlException;
+import com.etl.exception.SourceReadException;
+import com.etl.exception.TargetWriteException;
+import com.etl.exception.TransformationException;
+import com.etl.exception.ValidationException;
+import com.etl.exception.reader.ReaderException;
 import com.etl.job.listener.JobCompletionNotificationListener;
 import com.etl.job.listener.StepLoggingContextListener;
 import com.etl.processor.DynamicProcessorFactory;
@@ -581,6 +586,79 @@ class BatchConfigStepOrchestrationTest {
         retryPolicy.registerThrowable(context, new ConfigException("deterministic config failure"));
 
         assertFalse(retryPolicy.canRetry(context));
+    }
+
+    @Test
+    void exceptionClassesForCategoriesIncludesDedicatedProcessorAndWriterExceptions() throws Exception {
+        BatchConfig batchConfig = new BatchConfig(
+                new SourceWrapper(),
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig(mapping("Customers", "Customers")),
+                new TargetWrapper(),
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "customers-category-resolution",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "customers-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        List.of()
+                ),
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory()
+        );
+
+        List<Class<? extends Throwable>> exceptionClasses = ReflectionTestUtils.invokeMethod(
+                batchConfig,
+                "exceptionClassesForCategories",
+                List.of("validation", "transformation", "target-write"));
+
+        assertNotNull(exceptionClasses);
+        assertTrue(exceptionClasses.contains(ValidationException.class));
+        assertTrue(exceptionClasses.contains(TransformationException.class));
+        assertTrue(exceptionClasses.contains(TargetWriteException.class));
+    }
+
+    @Test
+    void exceptionClassesForCategoriesResolvesSourceReadAliasesToReaderExceptions() throws Exception {
+        BatchConfig batchConfig = new BatchConfig(
+                new SourceWrapper(),
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig(mapping("Customers", "Customers")),
+                new TargetWrapper(),
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "customers-source-read-category-resolution",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "customers-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        List.of()
+                ),
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory()
+        );
+
+        List<Class<? extends Throwable>> exceptionClasses = ReflectionTestUtils.invokeMethod(
+                batchConfig,
+                "exceptionClassesForCategories",
+                List.of("source-read", "read", "source_read"));
+
+        assertNotNull(exceptionClasses);
+        assertTrue(exceptionClasses.contains(SourceReadException.class));
+        assertTrue(exceptionClasses.contains(ReaderException.class));
     }
 
     @Test

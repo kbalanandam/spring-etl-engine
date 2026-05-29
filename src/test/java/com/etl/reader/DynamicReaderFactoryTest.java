@@ -19,7 +19,7 @@ import com.etl.enums.ModelFormat;
 import com.etl.exception.EtlErrorCategory;
 import com.etl.exception.EtlExceptionDetails;
 import com.etl.exception.FactoryException;
-import com.etl.reader.exception.NoReaderFoundException;
+import com.etl.exception.reader.NoReaderFoundException;
 import com.etl.model.source.Customers;
 import com.etl.model.target.Customer;
 import org.junit.jupiter.api.Test;
@@ -198,25 +198,25 @@ class DynamicReaderFactoryTest {
   }
 
   @Test
-  void categorizesCsvOpenFailureAsRuntime(@TempDir Path tempDir) throws Exception {
+  void categorizesCsvOpenFailureAsSourceRead(@TempDir Path tempDir) throws Exception {
     CsvSourceConfig config = getCsvSourceConfig(tempDir.resolve("missing-customers.csv"));
     ItemReader<Customers> reader = factory.createReader(config, Customers.class);
 
     Exception failure = assertThrows(Exception.class,
         () -> ((ItemStream) reader).open(new ExecutionContext()));
 
-    assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+    assertEquals(EtlErrorCategory.SOURCE_READ, EtlExceptionDetails.categoryOf(failure));
   }
 
   @Test
-  void categorizesXmlOpenFailureAsRuntime(@TempDir Path tempDir) throws Exception {
+  void categorizesXmlOpenFailureAsSourceRead(@TempDir Path tempDir) throws Exception {
     XmlSourceConfig config = getXmlSourceConfig(tempDir.resolve("missing-customers.xml"));
     ItemReader<Customer> reader = factory.createReader(config, Customer.class);
 
     Exception failure = assertThrows(Exception.class,
         () -> ((ItemStream) reader).open(new ExecutionContext()));
 
-    assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+    assertEquals(EtlErrorCategory.SOURCE_READ, EtlExceptionDetails.categoryOf(failure));
   }
 
   private static CsvSourceConfig getCsvSourceConfig(Path inputFile) {

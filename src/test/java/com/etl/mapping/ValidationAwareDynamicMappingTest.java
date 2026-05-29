@@ -3,6 +3,8 @@ package com.etl.mapping;
 import com.etl.config.ColumnConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
+import com.etl.exception.EtlErrorCategory;
+import com.etl.exception.EtlExceptionDetails;
 import com.etl.processor.ProcessorExtensionDefaults;
 import com.etl.processor.validation.DuplicateProcessorValidationRule;
 import com.etl.processor.validation.ValidationRuleEvaluator;
@@ -140,10 +142,11 @@ class ValidationAwareDynamicMappingTest {
         true
     );
 
-    IllegalStateException exception = assertThrows(
-        IllegalStateException.class,
+    Exception exception = assertThrows(
+        Exception.class,
         () -> processor.process(new EventRecord(" ", "missing id"))
     );
+    assertEquals(EtlErrorCategory.VALIDATION, EtlExceptionDetails.categoryOf(exception));
     assertTrue(exception.getMessage().contains("Processor validation failed"));
     assertTrue(exception.getMessage().contains("id[notNull]"));
     assertTrue(exception.getMessage().contains("Events -> EventsCsv"));

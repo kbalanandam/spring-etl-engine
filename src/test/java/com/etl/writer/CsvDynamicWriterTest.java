@@ -275,7 +275,7 @@ class CsvDynamicWriterTest {
     }
 
   @Test
-  void cleansStagingAndCategorizesCsvWriteFailure(@TempDir Path tempDir) throws Exception {
+  void cleansStagingAndCategorizesCsvWriteFailureAsTargetWrite(@TempDir Path tempDir) throws Exception {
     Path outputFile = tempDir.resolve("customers-write-failed.csv");
     Path stagingFile = outputFile.resolveSibling(outputFile.getFileName() + ".part");
     CsvTargetConfig config = csvTargetConfig(outputFile, true);
@@ -288,7 +288,7 @@ class CsvDynamicWriterTest {
         Exception.class,
         () -> csvWriter.write(new Chunk<>(List.of(new BrokenCustomerCsvRow("4004", "broken@example.com", "Mumbai", "IN"))))
     );
-    assertEquals(EtlErrorCategory.RUNTIME, EtlExceptionDetails.categoryOf(failure));
+    assertEquals(EtlErrorCategory.TARGET_WRITE, EtlExceptionDetails.categoryOf(failure));
 
     csvWriter.close();
 

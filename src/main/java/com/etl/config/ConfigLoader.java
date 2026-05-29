@@ -1,7 +1,7 @@
 package com.etl.config;
 
-import com.etl.config.exception.ConfigException;
-import com.etl.config.exception.ProcessorExtensionBindingConfigException;
+import com.etl.exception.config.ConfigException;
+import com.etl.exception.config.ProcessorExtensionBindingConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
@@ -48,10 +48,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 
 import static java.nio.file.Files.readString;
 
@@ -881,11 +878,9 @@ public class ConfigLoader {
 	}
 
 	private static EtlErrorCategory resolveEtlErrorCategory(String categoryToken, String stepName, String propertyPath) {
-		for (EtlErrorCategory category : EtlErrorCategory.values()) {
-			if (category.logValue().equalsIgnoreCase(categoryToken)
-					|| category.name().equalsIgnoreCase(categoryToken)) {
-				return category;
-			}
+		Optional<EtlErrorCategory> resolvedCategory = EtlErrorCategory.fromToken(categoryToken);
+		if (resolvedCategory.isPresent()) {
+			return resolvedCategory.get();
 		}
 		throw new ConfigException("JobConfig step '" + stepName + "' " + propertyPath + " contains unknown ETL category '"
 				+ categoryToken + "'. Supported categories are: " + supportedSkipCategories());

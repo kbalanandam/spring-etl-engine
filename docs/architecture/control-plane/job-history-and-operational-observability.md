@@ -27,6 +27,9 @@ The current codebase already implements a meaningful first observability slice:
 - run-level events for `run_requested`, `job_started`, `run_summary`, and `run_finished`
 - operator-oriented run-level `RUN_SUMMARY` totals for `sourceCount`, `writtenCount`, and `rejectedCount`, with intermediate `handoffReadCount` / `handoffWriteCount` kept separate in multi-step jobs
 - categorized failure evidence through `RUN_EVENT event=run_failed` and `JOB_FAILURE event=job_failure`, including `failureCategory`, `exceptionType`, and `rootCause`
+- active D1 runtime categorization on the main execution path: reader and reader-stream failures surface as `source-read`, processor mapping/transform failures as `transformation`, processor rule/reject failures as `validation`, and staged writer/publication failures as `target-write`
+- active D1 boundary for reader errors: `SourceReadException` is reserved for runtime read/stream failures (`source-read`) after reader selection, while `ReaderException` remains a reader-factory/selection signal under `factory`
+- stabilized D1 category token family for failure evidence and skip/retry policy matching (`config`, `validation`, `transformation`, `source-read`, `target-write`, `runtime`, plus compatibility tokens such as `factory`, `listener`, and `relational`)
 - step-finished evidence with `readCount`, `writeCount`, `filterCount`, `skipCount`, `rollbackCount`, `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath`
 - source-validation rejection evidence through `SOURCE_VALIDATION event=file_rejected` when configured file-level validation rejects an input artifact
 - local verification-report generation that keeps build/release validation logs distinct from runtime scenario logs

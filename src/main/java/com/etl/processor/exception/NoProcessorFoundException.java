@@ -1,9 +1,10 @@
 package com.etl.processor.exception;
 
 /**
- * Exception thrown when a dynamic field mapping or processor-level operation fails.
+ * @deprecated Use {@link com.etl.exception.processor.NoProcessorFoundException}.
  */
-public class NoProcessorFoundException extends ProcessorException {
+@Deprecated(forRemoval = false, since = "1.7.9")
+public class NoProcessorFoundException extends com.etl.exception.processor.NoProcessorFoundException {
 
     public NoProcessorFoundException(String message) {
         super(message);

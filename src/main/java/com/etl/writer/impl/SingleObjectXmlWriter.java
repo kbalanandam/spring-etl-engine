@@ -1,5 +1,6 @@
 package com.etl.writer.impl;
 
+import com.etl.exception.TargetWriteException;
 import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.core.StepExecutionListener;
@@ -10,6 +11,7 @@ import org.springframework.batch.item.ItemWriter;
 import org.springframework.lang.NonNull;
 import org.springframework.oxm.jaxb.Jaxb2Marshaller;
 import javax.xml.transform.stream.StreamResult;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
@@ -72,6 +74,12 @@ public class SingleObjectXmlWriter implements ItemWriter<Object>, ItemStream, St
                 StandardOpenOption.TRUNCATE_EXISTING,
                 StandardOpenOption.WRITE)) {
             marshaller.marshal(wrapper, new StreamResult(os));
+        } catch (Exception e) {
+            TargetWriteException failure = new TargetWriteException(
+                    "Failed to write staged XML output for '" + stagedFileLifecycle.finalPath() + "'.",
+                    e);
+            attachCleanupFailure(failure);
+            throw failure;
         }
         stagedFileLifecycle.promoteIfNoActiveStep();
     }
@@ -135,5 +143,15 @@ public class SingleObjectXmlWriter implements ItemWriter<Object>, ItemStream, St
         }
         stagedFileLifecycle.prepareForWrite();
         prepared = true;
+    }
+
+    private void attachCleanupFailure(TargetWriteException failure) {
+        try {
+            Files.deleteIfExists(stagedFileLifecycle.stagingPath());
+        } catch (IOException cleanupFailure) {
+            failure.addSuppressed(new TargetWriteException(
+                    "Failed to clean staged XML writer state for '" + stagedFileLifecycle.finalPath() + "'.",
+                    cleanupFailure));
+        }
     }
 }

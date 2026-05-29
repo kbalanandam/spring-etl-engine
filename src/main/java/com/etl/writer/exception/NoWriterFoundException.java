@@ -1,6 +1,10 @@
 package com.etl.writer.exception;
 
-public class NoWriterFoundException extends WriterException {
+/**
+ * @deprecated Use {@link com.etl.exception.writer.NoWriterFoundException}.
+ */
+@Deprecated(forRemoval = false, since = "1.7.9")
+public class NoWriterFoundException extends com.etl.exception.writer.NoWriterFoundException {
 
     public NoWriterFoundException(String message) {
         super(message);
