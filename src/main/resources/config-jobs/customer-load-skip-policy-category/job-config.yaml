@@ -12,4 +12,6 @@ steps:
       skipLimit: 10
       skippableCategories:
         - runtime
+    retryPolicy:
+      enabled: false
 

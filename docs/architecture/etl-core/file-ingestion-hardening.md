@@ -118,6 +118,17 @@ The first configurable skip-policy slice is intentionally narrow:
 - guardrail behavior: combining skip policy with ordered duplicate winner selection (`duplicate` + `orderBy`) fails fast in this slice
 - operator intent: preserve evidence-first handling while avoiding broad exception swallowing
 
+## B2 kickoff guardrail snapshot
+
+The B2 retry-policy kickoff is intentionally contract-first:
+
+- config placement: `job-config.yaml -> steps[].retryPolicy`
+- default behavior: unchanged when retry policy is omitted
+- startup validation: `maxAttempts >= 2`, `backoffMs >= 0`, and at least one retry matcher (`retryableCategories[]` or `retryableExceptions[]`)
+- category vocabulary: same ETL categories as B1 skip policy (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`)
+- first-slice guardrail: one step cannot enable both `skipPolicy` and `retryPolicy`
+- scope boundary: this kickoff slice validates contract shape and guardrails before broader runtime retry wiring
+
 The next follow-on slice should:
 
 - stay file-ingestion focused

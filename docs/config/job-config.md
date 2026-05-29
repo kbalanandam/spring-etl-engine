@@ -34,6 +34,11 @@ Backed by:
 | `steps[].skipPolicy.skipLimit` | conditional | int | Required positive integer when `steps[].skipPolicy.enabled: true` |
 | `steps[].skipPolicy.skippableCategories[]` | conditional | list[string] | Preferred when skip policy is enabled; each value must be a supported ETL error category (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
 | `steps[].skipPolicy.skippableExceptions[]` | conditional | list[string] | Optional compatibility field; each value must be a loadable Java exception class name |
+| `steps[].retryPolicy.enabled` | no | boolean | Optional step-level B2 kickoff flag. When `true`, startup validates retry policy shape and guardrails for this first slice |
+| `steps[].retryPolicy.maxAttempts` | conditional | int | Required integer `>= 2` when `steps[].retryPolicy.enabled: true` |
+| `steps[].retryPolicy.backoffMs` | conditional | long | Required non-negative integer when `steps[].retryPolicy.enabled: true` |
+| `steps[].retryPolicy.retryableCategories[]` | conditional | list[string] | Preferred when retry policy is enabled; values use ETL error categories (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
+| `steps[].retryPolicy.retryableExceptions[]` | conditional | list[string] | Optional compatibility field; each value must be a loadable Java exception class name |
 
 ## Single-step example
 
@@ -91,6 +96,33 @@ For this first slice:
 - when the default planner selects tasklet mode, runtime overrides to chunk mode so skip policy remains active and explicit
 - prefer `skippableCategories` for product-facing configs; keep `skippableExceptions` only for advanced compatibility cases
 - step planning fails fast when skip policy is combined with ordered duplicate winner selection (`duplicate + orderBy`) in this first slice
+
+### Optional retry-policy example (B2 kickoff validation slice)
+
+```yaml
+name: customer-load-retry-policy
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: customers-step
+    source: Customers
+    target: CustomersOut
+    retryPolicy:
+      enabled: true
+      maxAttempts: 3
+      backoffMs: 250
+      retryableCategories:
+        - runtime
+```
+
+For this kickoff slice:
+
+- retry policy stays step-scoped under `job-config.yaml -> steps[]`
+- retry policy is opt-in; default behavior remains unchanged
+- startup strictly validates retry policy shape (`maxAttempts`, `backoffMs`, categories/exceptions)
+- first-slice guardrail: one step cannot enable both `skipPolicy` and `retryPolicy`
+- runtime retry execution wiring is not yet expanded in this kickoff slice; this stage is contract-first and validation-first
 
 ### Skip-policy category cheat-sheet
 
@@ -244,6 +276,9 @@ Planned preserved examples for this enhancement:
 - `skippableExceptions[]` remains available as a compatibility escape hatch for advanced cases that need precise framework exception matching.
 - The first B1 runtime slice applies skip policy to CSV steps through fault-tolerant chunk execution. When a step would otherwise run as tasklet, runtime overrides to chunk mode.
 - The first B1 runtime slice fails fast when skip policy is combined with ordered duplicate winner selection (`duplicate` rule with `orderBy`) so conflicting buffering/runtime modes do not produce ambiguous behavior.
+- When `steps[].retryPolicy.enabled=true`, `maxAttempts` must be `>=2`, `backoffMs` must be non-negative, and at least one of `retryableCategories[]` or `retryableExceptions[]` must be provided.
+- `retryableCategories[]` uses the same ETL category vocabulary as skip policy (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`).
+- In the B2 kickoff slice, explicit startup fails fast when one step configures both `skipPolicy` and `retryPolicy`.
 - If the selected processor config is malformed, explicit startup now fails before generated-model class validation so processor issues are not masked by unrelated missing generated classes.
 - Use `etl.config.job` as the normal production-style entry point whether the selected `job-config.yaml` lives under `src/main/resources/config-jobs/` or a developer-local git-ignored private bundle under `private-jobs/`. Direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides are intended for demo/fallback cases only.
 - Archive-on-success remains part of the selected file-backed source config (for example CSV or XML), not `job-config.yaml`.

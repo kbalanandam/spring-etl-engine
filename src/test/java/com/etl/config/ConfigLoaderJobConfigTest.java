@@ -1679,6 +1679,205 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void resolvesStepRetryPolicyWithCategoryAndExceptionCompatibility() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+            sources:
+              - format: csv
+                sourceName: Customers
+                filePath: input/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(targetConfig, """
+            targets:
+              - format: csv
+                targetName: CustomersOut
+                filePath: output/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(processorConfig, """
+            type: default
+            mappings:
+              - source: Customers
+                target: CustomersOut
+                fields:
+                  - from: id
+                    to: id
+            """);
+    Files.writeString(jobConfig, """
+            name: csv-retry-policy
+            sourceConfigPath: source-config.yaml
+            targetConfigPath: target-config.yaml
+            processorConfigPath: processor-config.yaml
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+                retryPolicy:
+                  enabled: true
+                  maxAttempts: 3
+                  backoffMs: 250
+                  retryableCategories:
+                    - RUNTIME
+                  retryableExceptions:
+                    - org.springframework.batch.item.file.FlatFileParseException
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ensureSelectedJobFlatModels("csv-retry-policy", List.of("Customers"), List.of("CustomersOut"));
+
+    RunConfigurationMetadata metadata = loader.buildRunConfigurationMetadata();
+
+    assertNotNull(metadata.steps().get(0).getRetryPolicy());
+    assertTrue(metadata.steps().get(0).getRetryPolicy().isEnabled());
+    assertEquals(3, metadata.steps().get(0).getRetryPolicy().getMaxAttempts());
+    assertEquals(250L, metadata.steps().get(0).getRetryPolicy().getBackoffMs());
+    assertEquals(List.of("runtime"), metadata.steps().get(0).getRetryPolicy().getRetryableCategories());
+    assertEquals(List.of("org.springframework.batch.item.file.FlatFileParseException"),
+            metadata.steps().get(0).getRetryPolicy().getRetryableExceptions());
+  }
+
+  @Test
+  void failsFastWhenRetryPolicyReferencesUnknownEtlCategory() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+            sources:
+              - format: csv
+                sourceName: Customers
+                filePath: input/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(targetConfig, """
+            targets:
+              - format: csv
+                targetName: CustomersOut
+                filePath: output/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(processorConfig, """
+            type: default
+            mappings:
+              - source: Customers
+                target: CustomersOut
+                fields:
+                  - from: id
+                    to: id
+            """);
+    Files.writeString(jobConfig, """
+            name: csv-retry-policy-invalid-category
+            sourceConfigPath: source-config.yaml
+            targetConfigPath: target-config.yaml
+            processorConfigPath: processor-config.yaml
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+                retryPolicy:
+                  enabled: true
+                  maxAttempts: 3
+                  backoffMs: 10
+                  retryableCategories:
+                    - transient
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
+    assertTrue(messageChain(exception).contains("retryPolicy.retryableCategories contains unknown ETL category"));
+  }
+
+  @Test
+  void failsFastWhenStepConfiguresBothSkipPolicyAndRetryPolicy() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+            sources:
+              - format: csv
+                sourceName: Customers
+                filePath: input/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(targetConfig, """
+            targets:
+              - format: csv
+                targetName: CustomersOut
+                filePath: output/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(processorConfig, """
+            type: default
+            mappings:
+              - source: Customers
+                target: CustomersOut
+                fields:
+                  - from: id
+                    to: id
+            """);
+    Files.writeString(jobConfig, """
+            name: csv-skip-retry-conflict
+            sourceConfigPath: source-config.yaml
+            targetConfigPath: target-config.yaml
+            processorConfigPath: processor-config.yaml
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+                skipPolicy:
+                  enabled: true
+                  skipLimit: 1
+                  skippableCategories:
+                    - runtime
+                retryPolicy:
+                  enabled: true
+                  maxAttempts: 3
+                  backoffMs: 10
+                  retryableCategories:
+                    - runtime
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
+    assertTrue(messageChain(exception).contains("configures both skipPolicy and retryPolicy"));
+  }
+
+  @Test
   void failsFastWhenStepReferencesUnknownSource() throws IOException {
     Path sourceConfig = tempDir.resolve("source-config.yaml");
     Path targetConfig = tempDir.resolve("target-config.yaml");
