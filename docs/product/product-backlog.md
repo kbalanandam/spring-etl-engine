@@ -259,7 +259,7 @@ This table is the day-to-day execution view for the current product stage.
 | [P5](backlog-items/P5-native-parser-adoptability-and-sidecar-integration-readiness.md) | Define native parser adoptability and CSV-first sidecar integration readiness | Epic P | P2 | Deferred | M3 | P4, E1 | Preserve a future native-parser path only behind the Java reader seam, with CSV-first sidecar integration preferred over rushed JNI-first coupling |
 | [C1](backlog-items/C1-machine-readable-run-summary.md) | Emit machine-readable run summary with scenario, status, and duration | Epic C | P1 | Done | M1 | none | `RUN_EVENT` / `RUN_SUMMARY` and step lifecycle evidence are now emitted for selected runs |
 | [C2](backlog-items/C2-run-level-count-rollup-and-reconciliation.md) | Complete run-level source / written / rejected count rollup | Epic C | P1 | Done | M1 | C1 | `RUN_SUMMARY` now emits operator-oriented run-level `sourceCount` / `writtenCount` / `rejectedCount`, with intermediate handoff counts kept separate for multi-step jobs |
-| [D1](backlog-items/D1-stable-error-taxonomy-and-categories.md) | Add stable error taxonomy / error categories | Epic D | P1 | In Progress | M2 | C1 | First D1 slice started: stable token normalization plus source-read categorization alignment |
+| [D1](backlog-items/D1-stable-error-taxonomy-and-categories.md) | Add stable error taxonomy / error categories | Epic D | P1 | Done | M2 | C1 | D1 baseline complete: stable token family, runtime category alignment, and source-read vs factory reader boundary are documented and test-covered |
 | [E1](backlog-items/E1-cross-platform-defaults-and-path-handling.md) | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
 | [E2](backlog-items/E2-packaged-run-guidance-for-jar-execution.md) | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Done | M1 | E1 | Packaged selected-job run guidance is now documented in core docs and preserved scenario READMEs with version-agnostic jar commands |
 | [E3](backlog-items/E3-centralize-brand-naming-and-doc-refresh.md) | Centralize product-brand naming and doc refresh automation | Epic E | P2 | Deferred | M2 | none | Define one product-facing brand source of truth and a controlled refresh path for brand-facing docs/copy only, while keeping `spring-etl-engine` as the stable technical identity |
@@ -282,10 +282,8 @@ This table is the day-to-day execution view for the current product stage.
 
 Use this section as the near-term sequencing view behind the execution board:
 
-1. Move next to `D1` for remaining error-taxonomy hardening after the shipped run-level rollup baseline.
-   - use `B1` and `B2` as completed bounded fault-tolerance baselines (skip + retry) before broadening behavior.
-2. Keep `A7` near-term so custom-step pairing, context handoff, and failure finalization can be bounded before ad hoc customer hooks spread.
-3. Keep `T16` near-term with `A7` so customer-owned processor transforms and customer-owned job steps evolve as one bounded extension model, both aligned to `D1` failure taxonomy direction.
+1. Keep `A7` near-term so custom-step pairing, context handoff, and failure finalization can be bounded before ad hoc customer hooks spread.
+2. Keep `T16` near-term with `A7` so customer-owned processor transforms and customer-owned job steps evolve as one bounded extension model, now building on the shipped D1 taxonomy baseline.
 4. Keep duplicate-handling follow-on split explicitly: `T15` is closed and larger duplicate-state scale redesign remains deferred under `T7`.
 5. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
 6. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
@@ -512,7 +510,7 @@ Make operations support practical for production-like usage.
 
 ### Backlog
 - [ ] Add structured operational event output or summary logs
-- [ ] Add stable error taxonomy / error categories
+- [x] Add stable error taxonomy / error categories
 - [ ] Add job history retention design and first implementation slice
 - [ ] Add operator-friendly log search guidance and examples
 - [ ] Add health/readiness guidance for runtime operation
@@ -776,7 +774,7 @@ Exit signal:
 
 Use this as the condensed near-term priority order:
 
-1. `D1` / `A7` / `T16` - error-taxonomy hardening and bounded customer extensibility through job-level custom steps plus processor-level custom transforms, using shipped `B1`/`B2` fault-tolerance baselines
+1. `A7` / `T16` - bounded customer extensibility through job-level custom steps plus processor-level custom transforms, now anchored to the shipped D1 taxonomy baseline and shipped `B1`/`B2` fault-tolerance baselines
 2. duplicate follow-on - `T7` (larger duplicate-scale redesign)
 3. deferred `Epic T` advanced sequence - `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
 4. `Epic P` - first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness

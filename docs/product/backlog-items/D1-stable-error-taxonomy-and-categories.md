@@ -8,7 +8,7 @@ Define a stable operator-facing error taxonomy so failures can be grouped, searc
 
 - Epic: **[Epic D](../epics/epic-d-error-taxonomy-and-failure-categorization.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **C1**
 
@@ -79,11 +79,11 @@ Expected impact when this item ships:
 
 ## Acceptance criteria
 
-- [ ] a stable set of runtime error categories is defined and documented
-- [ ] runtime evidence emits those categories consistently where failures are surfaced
-- [ ] category wording is operator-readable and not only developer-oriented
-- [ ] documentation distinguishes category meanings and likely investigation direction
-- [ ] tests or focused verification prove representative category mapping behavior
+- [x] a stable set of runtime error categories is defined and documented
+- [x] runtime evidence emits those categories consistently where failures are surfaced
+- [x] category wording is operator-readable and not only developer-oriented
+- [x] documentation distinguishes category meanings and likely investigation direction
+- [x] tests or focused verification prove representative category mapping behavior
 
 ## Related docs
 
@@ -97,7 +97,12 @@ Keep the taxonomy intentionally small at first. It should stabilize cross-run me
 
 ## Status notes
 
-Implementation has started with a first D1 slice that stabilizes taxonomy tokens and introduces source-read categorization on the active runtime path. The current follow-on slice now also aligns staged writer failures to `target-write` and processor mapping/rule failures to `transformation` and `validation` on the active runtime path.
+Implementation is complete for the current D1 scope.
 
-The runtime now keeps an explicit boundary between reader selection failures and active source-read failures: `ReaderException` remains a `factory` category signal for reader registration/selection issues, while `SourceReadException` is the `source-read` category signal for runtime read/stream failures after a reader is selected.
+Shipped D1 baseline evidence includes:
+
+- stable category token family and alias normalization on the active runtime path
+- runtime/category alignment for reader/source-stream (`source-read`), processor rule/transform (`validation` / `transformation`), and staged writer/publication (`target-write`) failures
+- explicit boundary between reader selection failures and runtime read failures (`ReaderException` -> `factory`, `SourceReadException` -> `source-read`)
+- focused regression coverage proving representative category mapping and alias behavior (including `read` / `source_read` normalization)
 
