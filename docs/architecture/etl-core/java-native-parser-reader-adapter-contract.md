@@ -1,4 +1,4 @@
-# Java Native Parser Reader Adapter Contract
+﻿# Java Native Parser Reader Adapter Contract
 
 ## Purpose
 
@@ -257,7 +257,7 @@ A proposed Java adapter is aligned only if all of these stay true:
 - [`native-parser-adoptability.md`](native-parser-adoptability.md)
 - [`csv-native-parser-sidecar-protocol.md`](csv-native-parser-sidecar-protocol.md)
 - [`oneflow-file-parser-capabilities.md`](oneflow-file-parser-capabilities.md)
-- [`../product/backlog-items/P5-native-parser-adoptability-and-sidecar-integration-readiness.md`](../../product/backlog-items/P5-native-parser-adoptability-and-sidecar-integration-readiness.md)
+- [`../product/backlog-items/etl-core/P5-native-parser-adoptability-and-sidecar-integration-readiness.md`](../../product/backlog-items/etl-core/P5-native-parser-adoptability-and-sidecar-integration-readiness.md)
 
 ## Bottom line
 
@@ -266,4 +266,5 @@ If OneFlow ever adopts a native parser, the **Java adapter must remain the runti
 The adapter is where Spring Batch lifecycle, generated-model mapping, checkpoint persistence, and runtime error alignment stay stable.
 
 The native parser may parse source-native structure, but it must not replace the Java reader contract.
+
 

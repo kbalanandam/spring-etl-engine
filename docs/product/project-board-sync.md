@@ -1,4 +1,4 @@
-# Product Backlog → GitHub Project Sync
+﻿# Product Backlog â†’ GitHub Project Sync
 
 ## Purpose
 
@@ -10,7 +10,7 @@ The intent is to keep the Markdown execution board as the canonical execution-pl
 
 - **Canonical source** - [`product-backlog.md`](product-backlog.md) `## Current Execution Board`
 - **Projected live view** - GitHub Project **OneFlow Executive Dashboard**
-- **Sync direction** - Markdown table → GitHub Project
+- **Sync direction** - Markdown table â†’ GitHub Project
 
 When the sync is enabled, update the execution-board table first and avoid manually editing the mirrored Project fields unless you are doing emergency cleanup.
 
@@ -34,7 +34,7 @@ Current field mapping:
 
 The sync uses an internal marker comment in each draft item body so reruns update the same item instead of creating duplicates.
 
-When a backlog `ID` cell links to a detail page such as `backlog-items/A6-retire-internal-generated-model-package-bridge.md`, the sync now resolves that relative path against the backlog file and emits the final repository URL in the draft-item body. In GitHub Actions this is derived automatically from the workflow repository context; for local/manual sync runs you can also provide an explicit repository URL/ref.
+When a backlog `ID` cell links to a detail page such as `backlog-items/etl-core/A6-retire-internal-generated-model-package-bridge.md`, the sync now resolves that relative path against the backlog file and emits the final repository URL in the draft-item body. In GitHub Actions this is derived automatically from the workflow repository context; for local/manual sync runs you can also provide an explicit repository URL/ref.
 
 When the execution-board `Epic` value matches one of the maintained epic labels (for example `Epic A`, `Epic P`, `Epic T`, or `Epic S`), the sync also renders a separate `Epic page` entry plus the final repository URL that points to the matching page under `docs/product/epics/`.
 
@@ -59,9 +59,9 @@ The preferred setup is still a custom `Status` field whose option names exactly 
 
 To reduce operator friction during first-time setup, the sync also tolerates a small alias set for `Status` single-select fields:
 
-- `Ready` → `Todo`, `To do`, `To-do`
-- `In Progress` → `In progress`, `In-Progress`, `InProgress`
-- `Done` → `Completed`, `Complete`
+- `Ready` â†’ `Todo`, `To do`, `To-do`
+- `In Progress` â†’ `In progress`, `In-Progress`, `InProgress`
+- `Done` â†’ `Completed`, `Complete`
 
 That alias support is only a compatibility bridge. The most predictable setup remains using the exact backlog labels in the Project field options.
 
@@ -172,3 +172,4 @@ Remove `--dry-run` only after the Project fields and token are confirmed.
 4. Use the Project for filtering, board views, and stakeholder visibility
 
 That keeps the canonical execution board and the live Project projection aligned without maintaining the same state manually in two places.
+

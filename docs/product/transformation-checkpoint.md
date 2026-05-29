@@ -1,4 +1,4 @@
-# Transformation checkpoint
+﻿# Transformation checkpoint
 
 Checkpoint date: **2026-05-23**
 
@@ -23,7 +23,7 @@ The active shipped transformation path is still the processor-centered contract 
 
 ### 2. What is next
 
-`T4` hardening is complete, and [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) is now closed on the active runtime path.
+`T4` hardening is complete, and [`T15`](./backlog-items/etl-core/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) is now closed on the active runtime path.
 
 Current state: ordered-duplicate resolver evidence, optional `storageMode` override (`auto|memory|embeddedDb`) for `duplicate + orderBy`, additive reject-quarantine publication, additive XML duplicate identity support through `duplicateIdentityMode: flatMapped|xmlNative`, and the intentional non-compatible `S6` processor-contract cutover are shipped.
 
@@ -58,9 +58,9 @@ Board anchors:
 
 ### 5. Duplicate-handling reminder
 
-`T15` is closed. Resume duplicate follow-on work from [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) when scale redesign is reactivated.
+`T15` is closed. Resume duplicate follow-on work from [`T7`](./backlog-items/etl-core/T7-duplicate-tracking-scalability-redesign-deferment.md) when scale redesign is reactivated.
 
-Keep the larger duplicate-scale redesign separate under [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md).
+Keep the larger duplicate-scale redesign separate under [`T7`](./backlog-items/etl-core/T7-duplicate-tracking-scalability-redesign-deferment.md).
 
 Current duplicate baseline to remember:
 
@@ -85,9 +85,9 @@ If you need to resume quickly, read in this order:
 
 1. [`product-backlog.md`](./product-backlog.md) - canonical status and sequencing
 2. [`Epic T`](./epics/epic-t-transformation-capability.md) - shared transformation boundary
-3. [`T4`](./backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) - completed quarantine and duplicate hardening baseline
-4. [`T15`](./backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) - closed XML-native duplicate identity item (`S1`-`S6` complete)
-5. [`T7`](./backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) - deferred duplicate-scale boundary
+3. [`T4`](./backlog-items/etl-core/T4-transformation-quarantine-and-duplicate-hardening.md) - completed quarantine and duplicate hardening baseline
+4. [`T15`](./backlog-items/etl-core/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) - closed XML-native duplicate identity item (`S1`-`S6` complete)
+5. [`T7`](./backlog-items/etl-core/T7-duplicate-tracking-scalability-redesign-deferment.md) - deferred duplicate-scale boundary
 6. [`default-processor.md`](../config/processor/default-processor.md) - shipped contract today
 7. [`transformation-capability-roadmap.md`](../architecture/etl-core/transformation-capability-roadmap.md) - future direction
 8. [`A7 + T16 extensibility charter`](../architecture/etl-core/a7-t16-extensibility-charter.md) - bounded extension model for custom steps and custom transforms
@@ -95,4 +95,5 @@ If you need to resume quickly, read in this order:
 ## One-line reminder
 
 **Today we keep the shipped runtime processor-centered, treat `T4` and `T15` (including `S6`) as completed, keep larger duplicate-scale redesign under `T7`, keep `T16` as additive customer-transform seam planning on the same processor path, and treat `T8`-`T14` examples as future planning only.**
+
 

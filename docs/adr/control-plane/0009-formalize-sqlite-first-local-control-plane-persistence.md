@@ -8,9 +8,9 @@
 The product now has a documented future direction for optional control-plane retained history and persistence:
 
 - [`ADR-0008`](0008-formalize-control-plane-and-etl-worker-boundary.md) freezes the boundary that keeps the ETL worker independently runnable and the control plane optional.
-- [`control-plane-operational-data-model.md`](../architecture/control-plane/control-plane-operational-data-model.md) defines the conceptual retained entities for schedules, watchers, trigger events, runs, steps, artifacts, and recovery anchors.
-- [`control-plane-local-relational-schema.md`](../architecture/control-plane/control-plane-local-relational-schema.md) defines a first relational shape for that optional control-plane history.
-- [`job-history-and-operational-observability.md`](../architecture/control-plane/job-history-and-operational-observability.md) preserves the broader observability and retained-history direction that later operator search, drill-down, and recovery workflows depend on.
+- [`control-plane-operational-data-model.md`](../../architecture/control-plane/control-plane-operational-data-model.md) defines the conceptual retained entities for schedules, watchers, trigger events, runs, steps, artifacts, and recovery anchors.
+- [`control-plane-local-relational-schema.md`](../../architecture/control-plane/control-plane-local-relational-schema.md) defines a first relational shape for that optional control-plane history.
+- [`job-history-and-operational-observability.md`](../../architecture/control-plane/job-history-and-operational-observability.md) preserves the broader observability and retained-history direction that later operator search, drill-down, and recovery workflows depend on.
 
 At this stage, contributors need a practical persistence direction that supports local development and single-node control-plane experimentation without requiring immediate shared database infrastructure.
 
@@ -63,8 +63,8 @@ The product formally adopts this persistence direction:
 ## Related
 
 - [`ADR-0008: formalize control-plane and ETL worker boundary`](0008-formalize-control-plane-and-etl-worker-boundary.md)
-- [`Control-plane operational data model`](../architecture/control-plane/control-plane-operational-data-model.md)
-- [`Control-plane local relational schema`](../architecture/control-plane/control-plane-local-relational-schema.md)
-- [`Job history and operational observability`](../architecture/control-plane/job-history-and-operational-observability.md)
-- [`S4 - Control-plane operational data model`](../product/backlog-items/S4-control-plane-operational-data-model.md)
+- [`Control-plane operational data model`](../../architecture/control-plane/control-plane-operational-data-model.md)
+- [`Control-plane local relational schema`](../../architecture/control-plane/control-plane-local-relational-schema.md)
+- [`Job history and operational observability`](../../architecture/control-plane/job-history-and-operational-observability.md)
+- [`S4 - Control-plane operational data model`](../../product/backlog-items/scheduler/S4-control-plane-operational-data-model.md)
 

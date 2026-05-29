@@ -54,6 +54,6 @@ It freezes the architectural rule that any future native parser must remain an i
 
 See also:
 
-- [`../architecture/etl-core/native-parser-adoptability.md`](../architecture/etl-core/native-parser-adoptability.md)
-- [`../architecture/etl-core/java-native-parser-reader-adapter-contract.md`](../architecture/etl-core/java-native-parser-reader-adapter-contract.md)
-- [`../architecture/etl-core/oneflow-file-parser-capabilities.md`](../architecture/etl-core/oneflow-file-parser-capabilities.md)
+- [`../../architecture/etl-core/native-parser-adoptability.md`](../../architecture/etl-core/native-parser-adoptability.md)
+- [`../../architecture/etl-core/java-native-parser-reader-adapter-contract.md`](../../architecture/etl-core/java-native-parser-reader-adapter-contract.md)
+- [`../../architecture/etl-core/oneflow-file-parser-capabilities.md`](../../architecture/etl-core/oneflow-file-parser-capabilities.md)

@@ -13,8 +13,8 @@ The goal is to keep OneFlow scalable for customer-specific needs while preservin
 
 - Classification: **Future direction**
 - Backlog anchors:
-  - [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../../product/backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
-  - [`T16 - Define customer-owned processor transform extension seam`](../../product/backlog-items/T16-customer-owned-processor-transform-extension-seam.md)
+  - [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+  - [`T16 - Define customer-owned processor transform extension seam`](../../product/backlog-items/etl-core/T16-customer-owned-processor-transform-extension-seam.md)
 
 ## Extensibility split
 
@@ -74,4 +74,5 @@ Keep the first implementation slices narrow:
 - [`Customer-owned processor transform seam`](customer-owned-processor-transform-seam.md)
 - [`Extension points`](extension-points.md)
 - [`Epic D - Error taxonomy and failure categorization`](../../product/epics/epic-d-error-taxonomy-and-failure-categorization.md)
+
 

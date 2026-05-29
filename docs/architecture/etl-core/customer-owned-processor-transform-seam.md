@@ -1,4 +1,4 @@
-# Customer-owned processor transform seam
+﻿# Customer-owned processor transform seam
 
 ## Purpose
 
@@ -7,7 +7,7 @@ Define a future-direction architecture contract for customer-owned processor tra
 ## Status
 
 - Classification: **Future direction**
-- Backlog anchor: [`T16 - Customer-owned processor transform extension seam`](../../product/backlog-items/T16-customer-owned-processor-transform-extension-seam.md)
+- Backlog anchor: [`T16 - Customer-owned processor transform extension seam`](../../product/backlog-items/etl-core/T16-customer-owned-processor-transform-extension-seam.md)
 
 ## Runtime intent
 
@@ -148,6 +148,7 @@ Keep T16 first slice narrow:
 - [`Extension points`](extension-points.md)
 - [`Default processor config`](../../config/processor/default-processor.md)
 - [`Transformation capability roadmap`](transformation-capability-roadmap.md)
-- [`T16 backlog item`](../../product/backlog-items/T16-customer-owned-processor-transform-extension-seam.md)
+- [`T16 backlog item`](../../product/backlog-items/etl-core/T16-customer-owned-processor-transform-extension-seam.md)
 - [`Epic D - Error taxonomy and failure categorization`](../../product/epics/epic-d-error-taxonomy-and-failure-categorization.md)
+
 

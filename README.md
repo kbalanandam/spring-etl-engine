@@ -1,4 +1,4 @@
-﻿<img src="docs/assets/github-social-preview-tagline.svg" alt="OneFlow social preview" width="1100" />
+<img src="docs/assets/github-social-preview-tagline.svg" alt="OneFlow social preview" width="1100" />
 
 # Spring ETL Engine
 
@@ -11,7 +11,7 @@
 - `spring-etl-engine` remains the stable technical identity for the repository, codebase, package structure, and technical references.
 - `OneFlow` is the current brand-facing product name for user-facing messaging, visual assets, and GitHub presentation.
 - Future branding changes should update brand-facing copy first and avoid unnecessary renames of technical identifiers unless there is a strong operational reason.
-- Future broader product renames or brand-wording refresh work should follow [`docs/product/github-promotion.md`](docs/product/github-promotion.md) and the tracked backlog path in [`E3 - Centralize product-brand naming and doc refresh automation`](docs/product/backlog-items/E3-centralize-brand-naming-and-doc-refresh.md) rather than a blind repository-wide replace.
+- Future broader product renames or brand-wording refresh work should follow [`docs/product/github-promotion.md`](docs/product/github-promotion.md) and the tracked backlog path in [`E3 - Centralize product-brand naming and doc refresh automation`](docs/product/backlog-items/etl-core/E3-centralize-brand-naming-and-doc-refresh.md) rather than a blind repository-wide replace.
 
 ## Product vision
 

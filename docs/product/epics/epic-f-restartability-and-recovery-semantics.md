@@ -16,7 +16,7 @@ This epic is **not** the place for broader control-plane persistence design by i
 
 ## Related backlog items
 
-- [`F1 - Define restart semantics per execution mode`](../backlog-items/F1-restart-semantics-per-execution-mode.md)
+- [`F1 - Define restart semantics per execution mode`](../backlog-items/etl-core/F1-restart-semantics-per-execution-mode.md)
 
 ## Related docs
 

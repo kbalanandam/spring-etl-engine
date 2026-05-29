@@ -75,12 +75,12 @@ The product formally adopts this boundary:
 
 ## Related
 
-- [`Control plane and worker boundary`](../architecture/control-plane/control-plane-worker-boundary.md)
-- [`Control-plane local relational schema`](../architecture/control-plane/control-plane-local-relational-schema.md)
-- [`Scenario-driven runtime direction`](../architecture/etl-core/scenario-driven-runtime-direction.md)
-- [`Runtime flow`](../architecture/etl-core/runtime-flow.md)
-- [`ETL product evolution roadmap`](../architecture/foundations/etl-product-evolution-roadmap.md)
-- [`Transformation capability roadmap`](../architecture/etl-core/transformation-capability-roadmap.md)
-- [`S1 - Schedule model and trigger contract`](../product/backlog-items/S1-schedule-model-and-trigger-contract.md)
+- [`Control plane and worker boundary`](../../architecture/control-plane/control-plane-worker-boundary.md)
+- [`Control-plane local relational schema`](../../architecture/control-plane/control-plane-local-relational-schema.md)
+- [`Scenario-driven runtime direction`](../../architecture/etl-core/scenario-driven-runtime-direction.md)
+- [`Runtime flow`](../../architecture/etl-core/runtime-flow.md)
+- [`ETL product evolution roadmap`](../../architecture/foundations/etl-product-evolution-roadmap.md)
+- [`Transformation capability roadmap`](../../architecture/etl-core/transformation-capability-roadmap.md)
+- [`S1 - Schedule model and trigger contract`](../../product/backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md)
 
 

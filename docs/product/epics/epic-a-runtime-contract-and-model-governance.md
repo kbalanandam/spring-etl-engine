@@ -18,13 +18,13 @@ This epic is **not** the place for transformation richness, retry/skip semantics
 
 ## Related backlog items
 
-- [`A1 - Replace positional source-target pairing with explicit step pairing or step definitions`](../backlog-items/A1-explicit-step-pairing-and-step-definitions.md)
-- [`A2 - Validate scenario completeness before job start`](../backlog-items/A2-validate-scenario-completeness-before-job-start.md)
-- [`A3 - Add job-level activation guardrail so inactive selected jobs fail before wiring`](../backlog-items/A3-job-level-activation-guardrail.md)
-- [`A4 - Standardize generated-model naming and package derivation`](../backlog-items/A4-standardize-generated-model-naming-and-package-derivation.md)
-- [`A5 - Add relational source column alias contract and reader mapping`](../backlog-items/A5-relational-source-column-alias-contract.md)
-- [`A6 - Retire remaining internal generated-model package bridge`](../backlog-items/A6-retire-internal-generated-model-package-bridge.md)
-- [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+- [`A1 - Replace positional source-target pairing with explicit step pairing or step definitions`](../backlog-items/etl-core/A1-explicit-step-pairing-and-step-definitions.md)
+- [`A2 - Validate scenario completeness before job start`](../backlog-items/etl-core/A2-validate-scenario-completeness-before-job-start.md)
+- [`A3 - Add job-level activation guardrail so inactive selected jobs fail before wiring`](../backlog-items/etl-core/A3-job-level-activation-guardrail.md)
+- [`A4 - Standardize generated-model naming and package derivation`](../backlog-items/etl-core/A4-standardize-generated-model-naming-and-package-derivation.md)
+- [`A5 - Add relational source column alias contract and reader mapping`](../backlog-items/etl-core/A5-relational-source-column-alias-contract.md)
+- [`A6 - Retire remaining internal generated-model package bridge`](../backlog-items/etl-core/A6-retire-internal-generated-model-package-bridge.md)
+- [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
 
 ## Related docs
 
@@ -36,3 +36,4 @@ This epic is **not** the place for transformation richness, retry/skip semantics
 ## Maintenance note
 
 Use [`../product-backlog.md`](../product-backlog.md) for the live item status, priority, milestone, and dependency values. Use this page only for the shared product boundary across the Epic A backlog items.
+

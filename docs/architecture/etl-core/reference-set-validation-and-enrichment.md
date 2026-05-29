@@ -1,4 +1,4 @@
-# Reference-Set Validation and Enrichment
+﻿# Reference-Set Validation and Enrichment
 
 ## Purpose
 
@@ -189,10 +189,11 @@ Build on this design in stages:
 
 ## Related docs
 
-- [`T5 backlog item`](../../product/backlog-items/T5-reference-set-validation-and-enrichment-baseline.md)
+- [`T5 backlog item`](../../product/backlog-items/etl-core/T5-reference-set-validation-and-enrichment-baseline.md)
 - [`Validation extension architecture`](validation-extension-architecture.md)
 - [`Extension points`](extension-points.md)
 - [`Relational database support`](relational-db-support.md)
 - [`Transformation capability roadmap`](transformation-capability-roadmap.md)
+
 
 
