@@ -13,6 +13,7 @@ As features grow, the goal is to keep architectural intent in the repository ins
 - `architecture/` - feature and system-level design notes
 - `adr/` - Architecture Decision Records (why a decision was made)
 - `config/` - field-level config references and preserved scenario examples
+- `operations/` - operations-focused docs (logs and verification evidence navigation)
 - `product/` - product vision, backlog, milestones, and execution tracking
 
 ## Core terms
@@ -79,6 +80,14 @@ For every significant enhancement, add or update:
 2. at least one Mermaid diagram if the runtime/config flow changes
 3. one ADR if the change introduces a meaningful design decision or tradeoff
 
+## Category scaffolding (staged migration)
+
+- ADR categories: [`adr/README.md`](adr/README.md)
+- Config categories: [`config/README.md`](config/README.md)
+- Logs documentation categories: [`operations/logging/README.md`](operations/logging/README.md)
+
+These scaffolds are additive. Existing files stay in current paths for compatibility until a dedicated migration pass moves documents in focused batches.
+
 ## Current baseline docs
 
 ### Architecture
@@ -134,6 +143,7 @@ For every significant enhancement, add or update:
 - [`architecture/foundations/TEMPLATE.md`](architecture/foundations/TEMPLATE.md) - template for future design notes
 
 ### ADRs
+- [`adr/README.md`](adr/README.md) - ADR index and category scaffolding (`foundations`, `etl-core`, `control-plane`, `operator-ui`)
 - [`adr/0001-use-architecture-docs-and-adrs.md`](adr/0001-use-architecture-docs-and-adrs.md)
 - [`adr/0002-config-driven-etl-pipeline.md`](adr/0002-config-driven-etl-pipeline.md)
 - [`adr/0003-adaptive-step-selection-and-generated-model-contract.md`](adr/0003-adaptive-step-selection-and-generated-model-contract.md)
@@ -151,6 +161,8 @@ For every significant enhancement, add or update:
 
 ### Configuration references
 - [`config/README.md`](config/README.md) - config documentation strategy, support matrix, and scenario usage
+- [`config/core/README.md`](config/core/README.md) - future shared config-contract category landing zone
+- [`config/runtime/README.md`](config/runtime/README.md) - future runtime-selection config category landing zone
 - [`config/source/csv-source.md`](config/source/csv-source.md) - CSV source fields supported today
 - [`config/source/xml-source.md`](config/source/xml-source.md) - XML source fields supported today
 - [`config/source/relational-source.md`](config/source/relational-source.md) - relational source fields and current phase-1 limitations
@@ -158,6 +170,12 @@ For every significant enhancement, add or update:
 - [`config/target/xml-target.md`](config/target/xml-target.md) - XML target fields and current runtime behavior
 - [`config/target/relational-target.md`](config/target/relational-target.md) - relational target fields and current SQL Server phase-1 limitations
 - [`config/processor/default-processor.md`](config/processor/default-processor.md) - default processor mapping contract
+
+### Logs documentation
+- [`operations/README.md`](operations/README.md) - operations docs index
+- [`operations/logging/README.md`](operations/logging/README.md) - logs documentation index and category scaffolding
+- [`operations/logging/runtime/README.md`](operations/logging/runtime/README.md) - runtime log evidence documentation category
+- [`operations/logging/verification/README.md`](operations/logging/verification/README.md) - verification-evidence documentation category
 
 ### Product tracking
 - [`product/product-backlog.md`](product/product-backlog.md) - step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including optional scheduler/control-plane capabilities that grow around the independently runnable ETL core without becoming mandatory for teams that use external orchestration
