@@ -11,15 +11,6 @@ Automation helpers under `scripts/` for local verification, cleanup, project-boa
 - Prepare/run one explicit job config on Windows: `job-runner.ps1`
 - Prepare/run one explicit job config on Linux/macOS: `job-runner.sh`
 
-## Category scaffolding (staged migration)
-
-- [`execution/`](execution/README.md) - future run/launch helper category
-- [`verification/`](verification/README.md) - future verification/smoke helper category
-- [`maintenance/`](maintenance/README.md) - future cleanup/maintenance helper category
-- [`project-sync/`](project-sync/README.md) - future backlog/project-sync helper category
-
-These folders are additive scaffolding only. Existing scripts remain at the `scripts/` root for compatibility until a dedicated migration pass is scheduled.
-
 ## `generate-verification-report.ps1`
 
 Purpose:
