@@ -144,17 +144,6 @@ Forward-looking config proposals for not-yet-shipped behavior should stay in `do
 | Target | Relational | Supported (phase 1) | Insert-only target path with current field name == column name assumption |
 | Processor | Default | Supported | Field-to-field mapping plus first-slice CSV validation and rejected-record output |
 
-## Category scaffolding (staged migration)
-
-- [`core/README.md`](core/README.md) - future shared config-contract category landing zone
-- [`runtime/README.md`](runtime/README.md) - future runtime-selection config category landing zone
-- [`source/README.md`](source/README.md) - source config category index
-- [`processor/README.md`](processor/README.md) - processor config category index
-
-These categories are additive. Existing config-reference pages remain in their current paths until a dedicated migration PR moves files in focused batches.
-
-Note: target reference pages stay under `target/*.md` on the current path; no separate target category index file is added yet.
-
 ## Docs in this section
 
 ### Source
