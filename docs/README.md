@@ -84,7 +84,6 @@ For every significant enhancement, add or update:
 
 - ADR categories: [`adr/README.md`](adr/README.md)
 - Config categories: [`config/README.md`](config/README.md)
-- Logs documentation categories: [`operations/logging/README.md`](operations/logging/README.md)
 
 These scaffolds are additive. Existing files stay in current paths for compatibility until a dedicated migration pass moves documents in focused batches.
 
@@ -171,11 +170,8 @@ These scaffolds are additive. Existing files stay in current paths for compatibi
 - [`config/target/relational-target.md`](config/target/relational-target.md) - relational target fields and current SQL Server phase-1 limitations
 - [`config/processor/default-processor.md`](config/processor/default-processor.md) - default processor mapping contract
 
-### Logs documentation
-- [`operations/README.md`](operations/README.md) - operations docs index
-- [`operations/logging/README.md`](operations/logging/README.md) - logs documentation index and category scaffolding
-- [`operations/logging/runtime/README.md`](operations/logging/runtime/README.md) - runtime log evidence documentation category
-- [`operations/logging/verification/README.md`](operations/logging/verification/README.md) - verification-evidence documentation category
+### Operations docs
+- [`operations/README.md`](operations/README.md) - operations docs index (logging/evidence category scaffolding deferred)
 
 ### Product tracking
 - [`product/product-backlog.md`](product/product-backlog.md) - step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including optional scheduler/control-plane capabilities that grow around the independently runnable ETL core without becoming mandatory for teams that use external orchestration
