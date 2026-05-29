@@ -240,6 +240,24 @@ Recommended precedence:
 
 Treat `etl.config.job` and its selected `job-config.yaml` as the normal reader entry point for the config model. The direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides remain secondary and are mainly for controlled demo fallback or low-level local runs.
 
+### Packaged jar execution (selected job)
+
+Use this pattern when running a built artifact outside IDE or Maven `spring-boot:run` mode.
+
+```powershell
+mvn --no-transfer-progress -DskipTests "-Dstart-class=com.etl.ETLEngineApplication" package
+$jar = Get-ChildItem -Path .\target -Filter "spring-etl-engine-*.jar" | Where-Object { $_.Name -notlike "*sources*" -and $_.Name -notlike "*javadoc*" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+java "-Detl.config.job=src/main/resources/config-jobs/customer-load/job-config.yaml" -jar $jar
+```
+
+For XML scenarios that rely on generated job-scoped classes (for example `xml-nested-to-csv-to-nested-xml`), generate first and then run the jar:
+
+```powershell
+mvn --no-transfer-progress -Pxml-generation "-Detl.xml.generation.jobConfig=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml" -DskipTests "-Dstart-class=com.etl.ETLEngineApplication" package
+$jar = Get-ChildItem -Path .\target -Filter "spring-etl-engine-*.jar" | Where-Object { $_.Name -notlike "*sources*" -and $_.Name -notlike "*javadoc*" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1 -ExpandProperty FullName
+java "-Detl.config.job=src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml" -jar $jar
+```
+
 Recommended bundle locations:
 
 - `src/main/resources/config-jobs/...` for checked-in preserved reference jobs
@@ -287,4 +305,3 @@ Whenever a new source or target type is added, or the shared default processor f
 - keep the preserved YAML example and the matching field reference synchronized so the docs remain executable-reference friendly
 
 For the broader file-ingestion hardening direction beyond the current CSV slice, see [`File ingestion hardening`](../architecture/etl-core/file-ingestion-hardening.md). It now captures the shipped first slice plus the remaining deferred expansions.
-

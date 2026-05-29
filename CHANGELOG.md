@@ -8,6 +8,7 @@ and this project adheres to **Semantic Versioning**.
 
 ### Changed
 - Pinned embedded Tomcat to `10.1.55` through the managed `tomcat.version` property to remediate `tomcat-embed-core@10.1.54` CVEs flagged by dependency-check in the control-plane web path.
+- Completed E2 packaged-run documentation across `README.md`, `docs/config/README.md`, and preserved XML scenario READMEs with version-agnostic jar selection, plus explicit `-Dstart-class=com.etl.ETLEngineApplication` guidance so `mvn ... package` remains deterministic with both ETL and control-plane launchers present.
 
 ## [1.7.8-rc1] - 2026-05-28
 

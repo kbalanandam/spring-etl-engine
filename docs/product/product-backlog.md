@@ -247,7 +247,7 @@ This table is the day-to-day execution view for the current product stage.
 | [T15](backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) | Define XML-native duplicate identity for nested XML source scenarios | Epic T | P2 | Done | M3 | T4, P3 | Advanced follow-on for nested XML duplicate correctness is now complete (`S1`-`S6`), including the intentional non-compatible processor-contract cutover |
 | [T16](backlog-items/T16-customer-owned-processor-transform-extension-seam.md) | Define customer-owned processor transform extension seam | Epic T | P1 | In Progress | M2 | T3, D1 | Planning and contract-shaping started for additive custom transform extensibility on the active `type: default` processor seam; remains non-shipped |
 | [B1](backlog-items/B1-configurable-skip-policy-support.md) | Introduce configurable skip policy support | Epic B | P1 | Done | M1 | A1 | First runtime slice is complete: step-scoped skip policy with category-first matching, chunk override guardrails, deterministic skip-limit behavior, tests, and preserved scenario proof (`customer-load-skip-policy-category-unclassified`) |
-| [B2](backlog-items/B2-configurable-retry-policy-support.md) | Introduce configurable retry policy support where appropriate | Epic B | P1 | In Progress | M1 | B1 | First runtime slice is underway: step-scoped retry now stays narrow, chunk-fault-tolerant, evidence-first, and explicitly separated from reject/skip semantics |
+| [B2](backlog-items/B2-configurable-retry-policy-support.md) | Introduce configurable retry policy support where appropriate | Epic B | P1 | Done | M1 | B1 | First runtime slice is complete: step-scoped retry remains narrow, chunk-fault-tolerant, evidence-first, and explicitly separated from reject/skip semantics |
 | [B3](backlog-items/B3-archive-processed-source-files-after-success.md) | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
 | [B4](backlog-items/B4-strict-xml-source-validation-and-optional-xsd.md) | Add strict XML source validation mode with optional XSD checks | Epic B | P2 | Done | M2 | none | Shipped as an opt-in XML source-validation slice through `validation.schemaPath`, preserving lightweight structural XML checks as the default baseline while enabling fail-fast XSD validation and whole-file reject behavior |
 | [B5](backlog-items/B5-csv-reader-parsing-hardening.md) | Add CSV parsing hardening with configurable quote/escape behavior | Epic B | P2 | Done | M2 | none | Shipped as a narrow reader hardening slice through optional `parser.quoteCharacter`, preserving the current default CSV behavior while supporting alternate quoted-field contracts |
@@ -261,7 +261,7 @@ This table is the day-to-day execution view for the current product stage.
 | [C2](backlog-items/C2-run-level-count-rollup-and-reconciliation.md) | Complete run-level source / written / rejected count rollup | Epic C | P1 | Done | M1 | C1 | `RUN_SUMMARY` now emits operator-oriented run-level `sourceCount` / `writtenCount` / `rejectedCount`, with intermediate handoff counts kept separate for multi-step jobs |
 | [D1](backlog-items/D1-stable-error-taxonomy-and-categories.md) | Add stable error taxonomy / error categories | Epic D | P1 | Deferred | M2 | C1 | Best done after run-summary model exists |
 | [E1](backlog-items/E1-cross-platform-defaults-and-path-handling.md) | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
-| [E2](backlog-items/E2-packaged-run-guidance-for-jar-execution.md) | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Ready | M1 | E1 | Important next portability step |
+| [E2](backlog-items/E2-packaged-run-guidance-for-jar-execution.md) | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Done | M1 | E1 | Packaged selected-job run guidance is now documented in core docs and preserved scenario READMEs with version-agnostic jar commands |
 | [E3](backlog-items/E3-centralize-brand-naming-and-doc-refresh.md) | Centralize product-brand naming and doc refresh automation | Epic E | P2 | Deferred | M2 | none | Define one product-facing brand source of truth and a controlled refresh path for brand-facing docs/copy only, while keeping `spring-etl-engine` as the stable technical identity |
 | [F1](backlog-items/F1-restart-semantics-per-execution-mode.md) | Define restart semantics per execution mode | Epic F | P1 | Deferred | M2 | A1, C1 | Needs clearer orchestration and run evidence first |
 | [X1](backlog-items/X1-sftp-transport-contract-and-deployment-boundary.md) | Define SFTP transport contract and deployment boundary | Epic X | P1 | Ready | M2 | E1, C1, G1 | Define staged inbound scope, native-vs-MFT modes, and deployment boundaries before implementation |
@@ -282,19 +282,18 @@ This table is the day-to-day execution view for the current product stage.
 
 Use this section as the near-term sequencing view behind the execution board:
 
-1. Move next to `B2` / `D1` for retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
-   - use `B1` as the completed skip-policy baseline and `B2` as the next kickoff contract page for retry boundary guidance.
+1. Move next to `D1` for remaining error-taxonomy hardening after the shipped run-level rollup baseline.
+   - use `B1` and `B2` as completed bounded fault-tolerance baselines (skip + retry) before broadening behavior.
 2. Keep `A7` near-term so custom-step pairing, context handoff, and failure finalization can be bounded before ad hoc customer hooks spread.
 3. Keep `T16` near-term with `A7` so customer-owned processor transforms and customer-owned job steps evolve as one bounded extension model, both aligned to `D1` failure taxonomy direction.
-4. Keep `E2` as the next portability/documentation step.
-5. Keep duplicate-handling follow-on split explicitly: `T15` is closed and larger duplicate-state scale redesign remains deferred under `T7`.
-6. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
-7. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
-8. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
-9. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
-10. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
-11. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-12. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
+4. Keep duplicate-handling follow-on split explicitly: `T15` is closed and larger duplicate-state scale redesign remains deferred under `T7`.
+5. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
+6. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
+7. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
+8. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
+9. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
+10. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
+11. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -419,7 +418,7 @@ Handle bad data and transient failures in a controlled way.
 
 ### Backlog
 - [ ] Introduce configurable skip policy support
-- [ ] Introduce configurable retry policy support where appropriate
+- [x] Introduce configurable retry policy support where appropriate
 - [x] Add validation and rejected-record output strategy for file-based ingestion
 - [x] Add bad-record reporting through controlled rejected-record output, with broader quarantine workflows deferred
 - [x] Add processed-source-file archiving after successful runs
@@ -532,7 +531,7 @@ Make local, CI, and deployment usage more consistent across environments.
 
 ### Backlog
 - [x] Finalize cross-platform defaults and path handling rules
-- [ ] Add packaged-run guidance for jar execution with scenario configs
+- [x] Add packaged-run guidance for jar execution with scenario configs
 - [ ] Centralize product-brand naming and define a controlled doc refresh path for rebrandable product-facing copy while preserving `spring-etl-engine` as the technical identity
 - [ ] Separate repo-demo mode from external-runtime mode more cleanly
 - [ ] Document expected directory conventions for local and deployed runs
@@ -777,14 +776,13 @@ Exit signal:
 
 Use this as the condensed near-term priority order:
 
-1. `B1` / `B2` / `D1` / `A7` / `T16` - fault tolerance, error-taxonomy hardening, and bounded customer extensibility through job-level custom steps plus processor-level custom transforms
-2. `E2` - packaged-run guidance
-3. duplicate follow-on - `T7` (larger duplicate-scale redesign)
-4. deferred `Epic T` advanced sequence - `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
-5. `Epic P` - first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
-6. `X1` / `X2` - SFTP contract and first inbound slice
-7. `F1` / `S1` / `S2` - restartability and scheduler baseline
-8. `V3` / `V4` / `G1` - reporting, release gating, and secure config
+1. `D1` / `A7` / `T16` - error-taxonomy hardening and bounded customer extensibility through job-level custom steps plus processor-level custom transforms, using shipped `B1`/`B2` fault-tolerance baselines
+2. duplicate follow-on - `T7` (larger duplicate-scale redesign)
+3. deferred `Epic T` advanced sequence - `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
+4. `Epic P` - first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
+5. `X1` / `X2` - SFTP contract and first inbound slice
+6. `F1` / `S1` / `S2` - restartability and scheduler baseline
+7. `V3` / `V4` / `G1` - reporting, release gating, and secure config
 
 ---
 
