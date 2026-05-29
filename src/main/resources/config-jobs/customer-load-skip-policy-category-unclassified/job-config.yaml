@@ -1,0 +1,19 @@
+name: customer-load-skip-policy-category-unclassified
+isActive: true
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: customers-step
+    source: Customers
+    target: Customers
+    skipPolicy:
+      enabled: true
+      skipLimit: 1
+      skippableCategories:
+        - runtime
+      skippableExceptions:
+        - com.etl.exception.RuntimeEtlException
+        - org.springframework.batch.item.file.FlatFileParseException
+
+

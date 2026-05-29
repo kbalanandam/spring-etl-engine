@@ -64,6 +64,12 @@ Today, the shipped config contract now supports a first file-ingestion hardening
 - for parallel job executions, each job should publish to a distinct target output path; staged cleanup remains per-target-path scoped and therefore does not clean another session's staged files when that session writes a different target file in the same directory
 - accepted vs rejected record artifact semantics for the preserved CSV proof scenario
 - step execution context evidence for reject counts, reject output path, optional quarantined reject path (`quarantinedRejectPath`), and archived source path
+- first B1 skip-policy baseline on explicit `job-config.yaml -> steps[]`: opt-in, bounded (`skipLimit`), CSV-focused, and category-first through ETL error categories with optional exception-class compatibility fallback
+
+The preserved category-first skip-policy reference bundles are:
+
+- `src/main/resources/config-jobs/customer-load-skip-policy-category/` for the baseline config shape
+- `src/main/resources/config-jobs/customer-load-skip-policy-category-unclassified/` for non-zero skip-count evidence with one intentionally malformed CSV row
 
 The preserved unzip-before-read proof is `src/main/resources/config-jobs/customer-load-zipped/`, which keeps the familiar flat `CSV -> XML` flow while proving that the runtime can infer ZIP preparation directly from `filePath: input/Customers.zip`, extract one readable CSV file before normal validation, counting, and reading begin, and still reserve the optional `unzip` block for advanced overrides such as multi-entry selection.
 
@@ -98,6 +104,19 @@ For observability, that same path now emits explicit resolver-selection evidence
 - step execution context keys: `orderedDuplicateResolverMode`, `orderedDuplicateResolverReason`
 
 ## Design goals for the follow-on slice
+
+## B1 first-slice guardrail snapshot
+
+The first configurable skip-policy slice is intentionally narrow:
+
+- config placement: `job-config.yaml -> steps[].skipPolicy`
+- default behavior: fail fast when skip policy is omitted
+- current supported execution boundary: CSV steps with fault-tolerant chunk execution
+- preferred config shape: `skippableCategories[]` using ETL category values (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`)
+- compatibility shape: optional `skippableExceptions[]` for advanced class-level matching
+- planner behavior: when a selected CSV step would run in tasklet mode, runtime overrides to chunk mode so skip semantics stay explicit
+- guardrail behavior: combining skip policy with ordered duplicate winner selection (`duplicate` + `orderBy`) fails fast in this slice
+- operator intent: preserve evidence-first handling while avoiding broad exception swallowing
 
 The next follow-on slice should:
 

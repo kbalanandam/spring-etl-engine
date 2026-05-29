@@ -77,6 +77,7 @@ public class JobConfig {
 		private String name;
 		private String source;
 		private String target;
+		private SkipPolicyConfig skipPolicy;
 
 		public String getName() {
 			return name;
@@ -100,6 +101,54 @@ public class JobConfig {
 
 		public void setTarget(String target) {
 			this.target = target;
+		}
+
+		public SkipPolicyConfig getSkipPolicy() {
+			return skipPolicy;
+		}
+
+		public void setSkipPolicy(SkipPolicyConfig skipPolicy) {
+			this.skipPolicy = skipPolicy;
+		}
+	}
+
+	public static class SkipPolicyConfig {
+
+		private boolean enabled;
+		private Integer skipLimit;
+		private List<String> skippableCategories;
+		private List<String> skippableExceptions;
+
+		public boolean isEnabled() {
+			return enabled;
+		}
+
+		public void setEnabled(boolean enabled) {
+			this.enabled = enabled;
+		}
+
+		public Integer getSkipLimit() {
+			return skipLimit;
+		}
+
+		public void setSkipLimit(Integer skipLimit) {
+			this.skipLimit = skipLimit;
+		}
+
+		public List<String> getSkippableCategories() {
+			return skippableCategories;
+		}
+
+		public void setSkippableCategories(List<String> skippableCategories) {
+			this.skippableCategories = skippableCategories;
+		}
+
+		public List<String> getSkippableExceptions() {
+			return skippableExceptions;
+		}
+
+		public void setSkippableExceptions(List<String> skippableExceptions) {
+			this.skippableExceptions = skippableExceptions;
 		}
 	}
 }

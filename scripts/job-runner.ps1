@@ -113,6 +113,8 @@ if ($Action -eq "run" -or $Action -eq "both") {
         $runArgs += "-DskipTests"
     }
 
+    $runArgs += "-Dspring-boot.run.mainClass=com.etl.ETLEngineApplication"
+    $runArgs += "-Dspring-boot.run.main-class=com.etl.ETLEngineApplication"
     $runArgs += "-Dspring-boot.run.jvmArguments=-Detl.config.job=$jobConfigForMaven"
     $runArgs += "spring-boot:run"
 

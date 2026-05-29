@@ -10,6 +10,7 @@ import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
+import com.etl.exception.EtlExceptionDetails;
 import com.etl.runtime.DuplicateDiscard;
 import com.etl.runtime.DuplicateResolution;
 import com.etl.runtime.DuplicateResolver;
@@ -34,6 +35,8 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.builder.SimpleJobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
+import org.springframework.batch.core.step.builder.FaultTolerantStepBuilder;
+import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.*;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -244,6 +247,7 @@ public class BatchConfig {
               int stepOrder = jobStep == null ? i : jobStep.stepOrder();
               String sourceName = jobStep == null ? configuredStep.getSource() : jobStep.sourceName();
               String targetName = jobStep == null ? configuredStep.getTarget() : jobStep.targetName();
+                JobConfig.SkipPolicyConfig configuredSkipPolicy = configuredStep == null ? null : configuredStep.getSkipPolicy();
                 JobSubFlowDescriptor stepSubFlow = jobStep == null ? null : JobHierarchyLoggingSupport.subFlowForStep(jobRuntimeDescriptor, stepName);
                 List<JobStepLinkDescriptor> inboundLinks = jobStep == null ? List.of() : JobHierarchyLoggingSupport.inboundLinks(jobRuntimeDescriptor, stepName);
                 logger.info("STEP_PLAN event=step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} stepOrder={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={} stepSummary={}",
@@ -279,6 +283,16 @@ public class BatchConfig {
                 recordCount = chunkThreshold + 1;
             }
             useChunk = recordCount > chunkThreshold;
+            if (configuredSkipPolicy != null && configuredSkipPolicy.isEnabled() && !useChunk) {
+                logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} originalMode=tasklet overriddenMode=chunk reason=skip-policy-requires-fault-tolerant-chunk",
+                        runConfigurationMetadata.mainFlowName(),
+                        stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                        runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                        stepName,
+                        s.getSourceName(),
+                        t.getTargetName());
+                useChunk = true;
+            }
             DuplicateRule duplicateRule = DuplicateRule.resolveConfiguration(mapping).orElse(null);
             DuplicateRule.StorageMode duplicateStorageMode = duplicateRule == null
                     ? DuplicateRule.StorageMode.AUTO
@@ -301,6 +315,9 @@ public class BatchConfig {
                 };
             }
             if (duplicateRule != null && useChunk) {
+                if (configuredSkipPolicy != null && configuredSkipPolicy.isEnabled()) {
+                    throw new IllegalStateException("Step '" + stepName + "' configures both ordered duplicate winner selection and skipPolicy. This first slice does not support combining those modes.");
+                }
                                   logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy duplicateIdentityMode={} duplicateIdentityModeReason={} originalMode=chunk overriddenMode=tasklet reason=ordered-duplicate-winner-selection-requires-final-buffering",
               runConfigurationMetadata.mainFlowName(), stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
                           runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
@@ -357,7 +374,24 @@ public class BatchConfig {
                 if (writerStepExecutionListener != null) {
                     chunkStepBuilder.listener(writerStepExecutionListener);
                 }
-                step = chunkStepBuilder.build();
+                if (configuredSkipPolicy != null && configuredSkipPolicy.isEnabled()) {
+                    FaultTolerantStepBuilder<Object, Object> faultTolerantBuilder = chunkStepBuilder
+                            .faultTolerant()
+                            .skipPolicy(configuredSkipPolicy(configuredSkipPolicy, stepName));
+                    step = faultTolerantBuilder.build();
+                    logger.info("STEP_READY event=skip_policy_enabled mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} skipLimit={} skippableCategories={} skippableExceptions={}",
+                            runConfigurationMetadata.mainFlowName(),
+                            stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                            runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                            stepName,
+                            s.getSourceName(),
+                            t.getTargetName(),
+                            configuredSkipPolicy.getSkipLimit(),
+                            configuredSkipPolicy.getSkippableCategories(),
+                            configuredSkipPolicy.getSkippableExceptions());
+                } else {
+                    step = chunkStepBuilder.build();
+                }
                   logger.info("STEP_READY event=step_ready mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} mode=chunk recordCount={} threshold={}",
                           runConfigurationMetadata.mainFlowName(),
 							stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
@@ -583,6 +617,96 @@ public class BatchConfig {
         }
         return targetConfig;
     }
+
+  private SkipPolicy configuredSkipPolicy(JobConfig.SkipPolicyConfig skipPolicy, String stepName) {
+    return new ConfiguredSkipPolicy(
+        skipPolicy.getSkipLimit(),
+        resolveSkippableCategories(skipPolicy),
+        resolveSkippableExceptionClasses(skipPolicy, stepName)
+    );
+  }
+
+  private List<String> resolveSkippableCategories(JobConfig.SkipPolicyConfig skipPolicy) {
+    List<String> configuredCategories = skipPolicy.getSkippableCategories();
+    if (configuredCategories == null || configuredCategories.isEmpty()) {
+      return List.of();
+    }
+    List<String> normalized = new ArrayList<>();
+    for (String configuredCategory : configuredCategories) {
+      if (configuredCategory != null && !configuredCategory.isBlank()) {
+        normalized.add(configuredCategory.trim().toLowerCase(java.util.Locale.ROOT));
+      }
+    }
+    return List.copyOf(normalized);
+  }
+
+  @SuppressWarnings("unchecked")
+  private List<Class<? extends Throwable>> resolveSkippableExceptionClasses(JobConfig.SkipPolicyConfig skipPolicy,
+                                                                            String stepName) {
+    List<String> configuredExceptions = skipPolicy.getSkippableExceptions();
+    if (configuredExceptions == null || configuredExceptions.isEmpty()) {
+      return List.of();
+    }
+    List<Class<? extends Throwable>> exceptionClasses = new ArrayList<>();
+    for (String className : configuredExceptions) {
+      try {
+        Class<?> candidate = Class.forName(className);
+        if (!Throwable.class.isAssignableFrom(candidate)) {
+          throw new IllegalStateException("Step '" + stepName + "' skipPolicy exception class '" + className + "' must extend Throwable.");
+        }
+        exceptionClasses.add((Class<? extends Throwable>) candidate);
+      } catch (ClassNotFoundException e) {
+        throw new IllegalStateException("Step '" + stepName + "' skipPolicy exception class '" + className + "' was not found.", e);
+      }
+    }
+    return List.copyOf(exceptionClasses);
+  }
+
+  private static final class ConfiguredSkipPolicy implements SkipPolicy {
+
+    private final int skipLimit;
+    private final List<String> skippableCategories;
+    private final List<Class<? extends Throwable>> skippableExceptions;
+
+    private ConfiguredSkipPolicy(int skipLimit,
+                                 List<String> skippableCategories,
+                                 List<Class<? extends Throwable>> skippableExceptions) {
+      this.skipLimit = skipLimit;
+      this.skippableCategories = skippableCategories == null ? List.of() : skippableCategories;
+      this.skippableExceptions = skippableExceptions == null ? List.of() : skippableExceptions;
+    }
+
+    @Override
+    public boolean shouldSkip(Throwable throwable, long skipCount) {
+      if (throwable == null || skipCount >= skipLimit) {
+        return false;
+      }
+      if (matchesConfiguredCategory(throwable)) {
+        return true;
+      }
+      return matchesConfiguredException(throwable);
+    }
+
+    private boolean matchesConfiguredCategory(Throwable throwable) {
+      if (skippableCategories.isEmpty()) {
+        return false;
+      }
+      String category = EtlExceptionDetails.categoryValueOf(throwable).toLowerCase(java.util.Locale.ROOT);
+      return skippableCategories.contains(category);
+    }
+
+    private boolean matchesConfiguredException(Throwable throwable) {
+      if (skippableExceptions.isEmpty()) {
+        return false;
+      }
+      for (Class<? extends Throwable> skippableException : skippableExceptions) {
+        if (skippableException.isAssignableFrom(throwable.getClass())) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
 
       private ProcessorConfig.EntityMapping requireProcessorMapping(JobConfig.JobStepConfig configuredStep) {
         ProcessorConfig.EntityMapping mapping = processorConfig.getMappings() == null ? null : processorConfig.getMappings().stream()

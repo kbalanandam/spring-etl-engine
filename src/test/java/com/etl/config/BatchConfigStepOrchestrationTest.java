@@ -11,6 +11,7 @@ import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.config.target.XmlTargetConfig;
+import com.etl.exception.RuntimeEtlException;
 import com.etl.job.listener.JobCompletionNotificationListener;
 import com.etl.job.listener.StepLoggingContextListener;
 import com.etl.processor.DynamicProcessorFactory;
@@ -29,6 +30,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
@@ -40,6 +42,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -211,6 +215,147 @@ class BatchConfigStepOrchestrationTest {
     }
 
     @Test
+    void buildStepsOverridesTaskletToChunkWhenSkipPolicyIsEnabled() throws Exception {
+        SourceWrapper sourceWrapper = new SourceWrapper();
+        sourceWrapper.setSources(List.of(csvSource("Customers", tempCsv("customers-small.csv"))));
+
+        TargetWrapper targetWrapper = new TargetWrapper();
+        targetWrapper.setTargets(List.of(xmlTarget("Customers", "Customer")));
+
+        ProcessorConfig processorConfig = processorConfig(mapping("Customers", "Customers"));
+        ListAppender<ILoggingEvent> appender = attachAppender();
+
+        BatchConfig batchConfig = new BatchConfig(
+                sourceWrapper,
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig,
+                targetWrapper,
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "customers-skip-policy-tasklet",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "customers-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        List.of(stepWithSkipPolicy("customers-step", "Customers", "Customers", 3,
+                                List.of("runtime"),
+                                List.of()))
+                ),
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory()
+        );
+        ReflectionTestUtils.setField(batchConfig, "chunkThreshold", 10000);
+
+        List<Step> steps = batchConfig.buildSteps();
+
+        assertEquals(List.of("customers-step"), steps.stream().map(Step::getName).toList());
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=step_mode_override")
+                && event.getFormattedMessage().contains("originalMode=tasklet")
+                && event.getFormattedMessage().contains("overriddenMode=chunk")
+                && event.getFormattedMessage().contains("reason=skip-policy-requires-fault-tolerant-chunk")));
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=skip_policy_enabled")
+                && event.getFormattedMessage().contains("stepName=customers-step")
+                && event.getFormattedMessage().contains("skippableCategories=[runtime]")
+                && event.getFormattedMessage().contains("skipLimit=3")));
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=step_ready")
+                && event.getFormattedMessage().contains("mode=chunk")
+                && event.getFormattedMessage().contains("stepName=customers-step")));
+    }
+
+    @Test
+    void buildStepsFailsFastWhenSkipPolicyIsCombinedWithOrderedDuplicateWinnerSelection() throws Exception {
+        SourceWrapper sourceWrapper = new SourceWrapper();
+        sourceWrapper.setSources(List.of(csvSource("Customers", tempCsv("customers-small.csv"))));
+
+        TargetWrapper targetWrapper = new TargetWrapper();
+        targetWrapper.setTargets(List.of(xmlTarget("Customers", "Customer")));
+
+        ProcessorConfig processorConfig = processorConfig(mappingWithOrderedDuplicateRule("Customers", "Customers"));
+
+        BatchConfig batchConfig = new BatchConfig(
+                sourceWrapper,
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig,
+                targetWrapper,
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "customers-skip-policy-duplicate-conflict",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "customers-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        List.of(stepWithSkipPolicy("customers-step", "Customers", "Customers", 3,
+                                List.of("runtime"),
+                                List.of()))
+                ),
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory()
+        );
+        ReflectionTestUtils.setField(batchConfig, "chunkThreshold", 10000);
+
+        IllegalStateException exception = assertThrows(IllegalStateException.class, batchConfig::buildSteps);
+        assertTrue(exception.getMessage().contains("both ordered duplicate winner selection and skipPolicy"));
+    }
+
+    @Test
+    void configuredSkipPolicyStopsSkippingWhenSkipLimitIsReached() throws Exception {
+        SourceWrapper sourceWrapper = new SourceWrapper();
+        sourceWrapper.setSources(List.of(csvSource("Customers", tempCsv("customers-small.csv"))));
+
+        TargetWrapper targetWrapper = new TargetWrapper();
+        targetWrapper.setTargets(List.of(xmlTarget("Customers", "Customer")));
+
+        ProcessorConfig processorConfig = processorConfig(mapping("Customers", "Customers"));
+
+        BatchConfig batchConfig = new BatchConfig(
+                sourceWrapper,
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig,
+                targetWrapper,
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "customers-skip-policy-limit",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "customers-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        List.of(stepWithSkipPolicy("customers-step", "Customers", "Customers", 1,
+                                List.of("runtime"),
+                                List.of()))
+                ),
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory()
+        );
+
+        JobConfig.SkipPolicyConfig skipPolicyConfig = stepWithSkipPolicy("customers-step", "Customers", "Customers", 1,
+                List.of("runtime"),
+                List.of()).getSkipPolicy();
+        SkipPolicy skipPolicy = ReflectionTestUtils.invokeMethod(batchConfig, "configuredSkipPolicy", skipPolicyConfig, "customers-step");
+        assertNotNull(skipPolicy);
+
+        assertTrue(skipPolicy.shouldSkip(new RuntimeEtlException("first runtime failure"), 0));
+        assertFalse(skipPolicy.shouldSkip(new RuntimeEtlException("second runtime failure"), 1));
+    }
+
+    @Test
     void buildStepsHonorsConfiguredEmbeddedDbStorageModeForOrderedDuplicateSelection() throws Exception {
         SourceWrapper sourceWrapper = new SourceWrapper();
         sourceWrapper.setSources(List.of(csvSource("Customers", tempCsv("customers.csv"))));
@@ -288,10 +433,12 @@ class BatchConfigStepOrchestrationTest {
         return mapping;
     }
 
+    @SuppressWarnings("SameParameterValue")
     private ProcessorConfig.EntityMapping mappingWithOrderedDuplicateRule(String source, String target) {
         return mappingWithOrderedDuplicateRule(source, target, null);
     }
 
+    @SuppressWarnings("SameParameterValue")
     private ProcessorConfig.EntityMapping mappingWithOrderedDuplicateRule(String source, String target, String storageMode) {
         ProcessorConfig.EntityMapping mapping = new ProcessorConfig.EntityMapping();
         mapping.setSource(source);
@@ -315,6 +462,7 @@ class BatchConfigStepOrchestrationTest {
         return mapping;
     }
 
+    @SuppressWarnings("SameParameterValue")
     private ProcessorConfig.OrderByField orderBy(String field, String direction) {
         ProcessorConfig.OrderByField orderByField = new ProcessorConfig.OrderByField();
         orderByField.setField(field);
@@ -322,6 +470,7 @@ class BatchConfigStepOrchestrationTest {
         return orderByField;
     }
 
+    @SuppressWarnings("SameParameterValue")
     private ColumnConfig column(String name, String type) {
         ColumnConfig column = new ColumnConfig();
         column.setName(name);
@@ -337,6 +486,24 @@ class BatchConfigStepOrchestrationTest {
         return step;
     }
 
+    @SuppressWarnings("SameParameterValue")
+    private JobConfig.JobStepConfig stepWithSkipPolicy(String name,
+                                                       String source,
+                                                       String target,
+                                                       int skipLimit,
+                                                       List<String> skippableCategories,
+                                                       List<String> skippableExceptions) {
+        JobConfig.JobStepConfig step = step(name, source, target);
+        JobConfig.SkipPolicyConfig skipPolicy = new JobConfig.SkipPolicyConfig();
+        skipPolicy.setEnabled(true);
+        skipPolicy.setSkipLimit(skipLimit);
+        skipPolicy.setSkippableCategories(skippableCategories);
+        skipPolicy.setSkippableExceptions(skippableExceptions);
+        step.setSkipPolicy(skipPolicy);
+        return step;
+    }
+
+    @SuppressWarnings("unchecked")
     private DynamicReaderFactory mockReaderFactory() throws Exception {
         DynamicReaderFactory readerFactory = mock(DynamicReaderFactory.class);
         ItemReader<Object> reader = () -> null;
@@ -366,6 +533,7 @@ class BatchConfigStepOrchestrationTest {
     return appender;
   }
 
+  @SuppressWarnings("SameParameterValue")
   private JobRuntimeDescriptor jobRuntimeDescriptor(String scenarioName,
                                                           SourceWrapper sourceWrapper,
                                                           TargetWrapper targetWrapper,

@@ -14,7 +14,7 @@ This document remains the canonical product backlog, milestone view, and executi
 
 ## Purpose
 
-This document preserves the product goal for `spring-etl-engine` from the starting point to the current state, and from the current state toward an enterprise-grade ETL product.
+This document preserves the product goal for `spring-etl-engine` from the starting point to the current state, and from the current state toward an enterprise-ready integration foundation.
 
 It is the single product roadmap and execution backlog for the product at this stage. Capabilities such as scheduling/orchestration should be tracked here as dedicated epics, not maintained in separate standalone roadmaps unless they later become truly independent platform products.
 It covers both the independently runnable ETL core and the optional control-plane capabilities that may grow around it.
@@ -41,13 +41,13 @@ This file now serves two purposes at the same time:
 
 ## Product Goal
 
-Build a config-driven ETL product that can reliably:
+Build a focused, config-driven ETL runtime that can reliably:
 
 1. read data from supported sources
 2. transform it through explicit mappings and validation rules
 3. write it to supported targets
 4. be operated, diagnosed, and extended safely
-5. evolve into an enterprise-grade ETL and integration foundation
+5. evolve into an enterprise-ready ETL and integration foundation with optional control-plane capabilities
 
 The near-term product mission is to become the default internal runtime for repeatable file-based integration scenarios by reducing repetitive custom ETL code and standardizing scenario orchestration, validation, duplicate handling, reject/archive behavior, and common transport-oriented file flow concerns.
 
@@ -79,6 +79,7 @@ The product already has a meaningful engineering foundation:
 - fail-fast relational placeholder validation for selected scenario configs
 - repeatable verification reporting with categorized Markdown evidence output
 - a clear path to layer optional scheduler/control-plane capabilities around that runtime instead of making them prerequisites for normal ETL execution
+- optional monitoring-first control-plane API starter (separate process) with first jobs/runs/system endpoints while the selected-job ETL runtime contract stays unchanged
 
 ### Current maturity assessment
 
@@ -101,7 +102,7 @@ The product already has a meaningful engineering foundation:
 
 Today the product is best described as:
 
-> a serious ETL engine foundation that is beyond prototype stage, but not yet an enterprise-grade ETL product.
+> a serious ETL runtime foundation that is beyond prototype stage, but intentionally still focused rather than a full traditional ETL suite.
 
 That is a healthy stage.
 
@@ -245,8 +246,8 @@ This table is the day-to-day execution view for the current product stage.
 | [T14](backlog-items/T14-secure-data-shaping-transforms.md) | Define secure data-shaping transforms for sensitive fields | Epic T | P2 | Deferred | M3 | T8, G1 | #6 in deferred advanced transform sequence. Add governed masking/tokenization/hash transform patterns so sensitive-field handling is explicit, reusable, and auditable |
 | [T15](backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) | Define XML-native duplicate identity for nested XML source scenarios | Epic T | P2 | Done | M3 | T4, P3 | Advanced follow-on for nested XML duplicate correctness is now complete (`S1`-`S6`), including the intentional non-compatible processor-contract cutover |
 | [T16](backlog-items/T16-customer-owned-processor-transform-extension-seam.md) | Define customer-owned processor transform extension seam | Epic T | P1 | In Progress | M2 | T3, D1 | Planning and contract-shaping started for additive custom transform extensibility on the active `type: default` processor seam; remains non-shipped |
-| [B1](backlog-items/B1-configurable-skip-policy-support.md) | Introduce configurable skip policy support | Epic B | P1 | Deferred | M1 | A1 | Better after orchestration rules are explicit |
-| [B2](backlog-items/B2-configurable-retry-policy-support.md) | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Add after failure handling model is defined |
+| [B1](backlog-items/B1-configurable-skip-policy-support.md) | Introduce configurable skip policy support | Epic B | P1 | Done | M1 | A1 | First runtime slice is complete: step-scoped skip policy with category-first matching, chunk override guardrails, deterministic skip-limit behavior, tests, and preserved scenario proof (`customer-load-skip-policy-category-unclassified`) |
+| [B2](backlog-items/B2-configurable-retry-policy-support.md) | Introduce configurable retry policy support where appropriate | Epic B | P1 | Deferred | M1 | B1 | Education-ready detail page now includes transient-vs-deterministic examples, retry boundary matrix, and evidence expectations |
 | [B3](backlog-items/B3-archive-processed-source-files-after-success.md) | Archive processed source files after successful file-based runs | Epic B | P1 | Done | M1 | A1, T1 | First shipped slice now archives CSV source files only after successful processing |
 | [B4](backlog-items/B4-strict-xml-source-validation-and-optional-xsd.md) | Add strict XML source validation mode with optional XSD checks | Epic B | P2 | Done | M2 | none | Shipped as an opt-in XML source-validation slice through `validation.schemaPath`, preserving lightweight structural XML checks as the default baseline while enabling fail-fast XSD validation and whole-file reject behavior |
 | [B5](backlog-items/B5-csv-reader-parsing-hardening.md) | Add CSV parsing hardening with configurable quote/escape behavior | Epic B | P2 | Done | M2 | none | Shipped as a narrow reader hardening slice through optional `parser.quoteCharacter`, preserving the current default CSV behavior while supporting alternate quoted-field contracts |
@@ -281,7 +282,8 @@ This table is the day-to-day execution view for the current product stage.
 
 Use this section as the near-term sequencing view behind the execution board:
 
-1. Move next to `B1` / `B2` / `D1` for skip/retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
+1. Move next to `B2` / `D1` for retry behavior and the remaining error-taxonomy hardening after the shipped run-level rollup baseline.
+   - use `B1` as the completed skip-policy baseline and `B2` as the next kickoff contract page for retry boundary guidance.
 2. Keep `A7` near-term so custom-step pairing, context handoff, and failure finalization can be bounded before ad hoc customer hooks spread.
 3. Keep `T16` near-term with `A7` so customer-owned processor transforms and customer-owned job steps evolve as one bounded extension model, both aligned to `D1` failure taxonomy direction.
 4. Keep `E2` as the next portability/documentation step.
@@ -743,6 +745,10 @@ Focus:
 - stronger diagnostics
 - restart/rerun semantics
 - first optional scheduler/control-plane controls built on top of explicit run-state and audit foundations
+
+Current state:
+- a monitoring-first control-plane API starter is now available as an optional separate launcher for jobs/runs/system projections while preserving the independent selected-job ETL worker contract
+- schedule/trigger semantics and retained control-plane operational history remain deferred under `Epic S`
 
 Exit signal:
 - operations support can answer what failed, why, and what to do next

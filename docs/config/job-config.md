@@ -30,6 +30,10 @@ Backed by:
 | `steps[].name` | yes | string | Step name used for plan/logging/runtime identity |
 | `steps[].source` | yes | string | Must match a configured `sourceName` from the selected source config |
 | `steps[].target` | yes | string | Must match a configured `targetName` from the selected target config |
+| `steps[].skipPolicy.enabled` | no | boolean | Optional step-level B1 slice flag. When `true`, enables bounded skip behavior for supported CSV steps; runtime may override tasklet planning to chunk mode for this slice |
+| `steps[].skipPolicy.skipLimit` | conditional | int | Required positive integer when `steps[].skipPolicy.enabled: true` |
+| `steps[].skipPolicy.skippableCategories[]` | conditional | list[string] | Preferred when skip policy is enabled; each value must be a supported ETL error category (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
+| `steps[].skipPolicy.skippableExceptions[]` | conditional | list[string] | Optional compatibility field; each value must be a loadable Java exception class name |
 
 ## Single-step example
 
@@ -60,6 +64,60 @@ steps:
 - `steps[].source` must match one `sourceName` from the selected source config.
 - `steps[].target` must match one `targetName` from the selected target config.
 - Reusing the same logical name as `steps[].source` and `steps[].target` in the same step is still allowed for the current single-step compatibility pattern (for example `Customers -> Customers`). Reusing a logical name across different ordered steps is only valid when an earlier step produces that handoff artifact and a later step consumes it.
+
+### Optional skip-policy example (B1 first slice)
+
+```yaml
+name: customer-load-skip-policy
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+steps:
+  - name: customers-step
+    source: Customers
+    target: CustomersOut
+    skipPolicy:
+      enabled: true
+      skipLimit: 10
+      skippableCategories:
+        - runtime
+```
+
+For this first slice:
+
+- skip policy stays step-scoped under `job-config.yaml -> steps[]`
+- skip policy is opt-in; default behavior remains fail fast
+- supported scope is currently CSV steps with fault-tolerant chunk execution
+- when the default planner selects tasklet mode, runtime overrides to chunk mode so skip policy remains active and explicit
+- prefer `skippableCategories` for product-facing configs; keep `skippableExceptions` only for advanced compatibility cases
+- step planning fails fast when skip policy is combined with ordered duplicate winner selection (`duplicate + orderBy`) in this first slice
+
+### Skip-policy category cheat-sheet
+
+Use `steps[].skipPolicy.skippableCategories[]` with these ETL category values:
+
+| Category | When to use |
+|---|---|
+| `config` | Failures caused by configuration contract problems (normally not a good skip candidate) |
+| `runtime` | Runtime execution failures during step processing (read/process/write path) where bounded skip may be acceptable |
+| `factory` | Failures while creating dynamic reader/processor/writer components |
+| `listener` | Failures raised from lifecycle listeners/hooks |
+| `relational` | Relational connector/runtime failures tied to database access paths |
+| `unclassified` | Failures not mapped to a specific ETL category yet |
+
+In most cases, start with `runtime` only, then broaden deliberately when evidence shows another category should be tolerated.
+
+Good default starter baseline:
+
+```yaml
+skipPolicy:
+  enabled: true
+  skipLimit: 3
+  skippableCategories:
+    - runtime
+```
+
+Use this as the first production-style draft, then widen categories or increase `skipLimit` only with explicit run evidence.
 
 ## Multi-step example
 
@@ -181,6 +239,11 @@ Planned preserved examples for this enhancement:
 - Selected logical names must still remain stable enough to avoid generated-class collisions after normalization. Different names such as `Customer Feed` and `Customer-Feed` can now fail fast if they would generate the same class in the same selected job side.
 - The selected processor config must contain a matching mapping for each source/target pair used by the selected steps.
 - A multi-step scenario can reuse one processor config file with multiple mappings; runtime picks the mapping by `source` and `target` names, not by list position.
+- When `steps[].skipPolicy.enabled=true`, `skipLimit` must be positive and at least one of `skippableCategories[]` or `skippableExceptions[]` must be provided.
+- `skippableCategories[]` accepts ETL category values (`config`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) and is the preferred first-choice contract for readability.
+- `skippableExceptions[]` remains available as a compatibility escape hatch for advanced cases that need precise framework exception matching.
+- The first B1 runtime slice applies skip policy to CSV steps through fault-tolerant chunk execution. When a step would otherwise run as tasklet, runtime overrides to chunk mode.
+- The first B1 runtime slice fails fast when skip policy is combined with ordered duplicate winner selection (`duplicate` rule with `orderBy`) so conflicting buffering/runtime modes do not produce ambiguous behavior.
 - If the selected processor config is malformed, explicit startup now fails before generated-model class validation so processor issues are not masked by unrelated missing generated classes.
 - Use `etl.config.job` as the normal production-style entry point whether the selected `job-config.yaml` lives under `src/main/resources/config-jobs/` or a developer-local git-ignored private bundle under `private-jobs/`. Direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides are intended for demo/fallback cases only.
 - Archive-on-success remains part of the selected file-backed source config (for example CSV or XML), not `job-config.yaml`.
@@ -200,6 +263,8 @@ The broader file-ingestion hardening direction beyond the first preserved CSV pr
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml`
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load/job-config.yaml`
+- `src/main/resources/config-jobs/customer-load-skip-policy-category/job-config.yaml`
+- `src/main/resources/config-jobs/customer-load-skip-policy-category-unclassified/job-config.yaml`
 - `src/main/resources/config-jobs/department-load/job-config.yaml`
 - `src/main/resources/config-jobs/cust-dept-load/job-config.yaml`
 

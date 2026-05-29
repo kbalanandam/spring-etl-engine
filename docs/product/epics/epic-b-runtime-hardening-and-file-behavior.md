@@ -27,6 +27,8 @@ This epic is **not** the place for scheduling, transport acquisition, or product
 - [`B5 - Add CSV parsing hardening with configurable quote/escape behavior`](../backlog-items/B5-csv-reader-parsing-hardening.md)
 - [`B6 - Add a shared zip/unzip service boundary for file-based source preparation and archive packaging`](../backlog-items/B6-shared-zip-unzip-service-boundary-for-file-based-source-preparation-and-archive-packaging.md)
 
+For onboarding and implementation kickoff, use `B1` as the completed skip-policy baseline and `B2` as the education-first retry anchor; both pages include boundary guidance and trade-off snapshots that distinguish reject vs skip vs retry behavior.
+
 ## Related docs
 
 - [`../../architecture/etl-core/file-ingestion-hardening.md`](../../architecture/etl-core/file-ingestion-hardening.md)
