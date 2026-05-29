@@ -14,6 +14,11 @@ Use this page as the main browse index when you want to navigate backlog items b
 - [`../epics/README.md`](../epics/README.md) - epic-level grouping for shared intent, boundaries, and related architecture links
 - [`TEMPLATE.md`](TEMPLATE.md) - starting point for adding a new backlog item page
 
+## Category scaffolding
+
+- [`scheduler/`](scheduler/README.md) - future scheduler/control-plane backlog-item category
+- [`operator-ui/`](operator-ui/README.md) - future operator-UI backlog-item category
+
 ## Browse by epic
 
 ### Epic A - Runtime correctness and orchestration clarity
