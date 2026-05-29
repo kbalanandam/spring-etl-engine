@@ -11,4 +11,3 @@ targets:
         type: String
       - name: email
         type: String
-

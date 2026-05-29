@@ -9,4 +9,3 @@ mappings:
         to: name
       - from: email
         to: email
-

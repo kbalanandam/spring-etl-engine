@@ -37,4 +37,3 @@ mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.main-class=com.etl.ETL
 - `logs/<yyyy-MM-dd>/customer-load-retry-policy-runtime-failure.log` contains runtime read-failure evidence and terminal run summary
 
 
-

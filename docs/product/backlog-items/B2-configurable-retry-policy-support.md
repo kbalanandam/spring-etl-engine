@@ -8,7 +8,7 @@ Add retry behavior only where the runtime can distinguish transient failures fro
 
 - Epic: **[Epic B](../epics/epic-b-runtime-hardening-and-file-behavior.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M1**
 - Dependency: **B1**
 
@@ -51,7 +51,7 @@ Use one bounded contract for the selected-job runtime:
 3. fail fast when retry budget is exhausted
 4. emit retry attempt evidence and final status in operator-visible logs
 
-## Educational examples (pre-implementation)
+## Educational examples
 
 ### Example A - Transient target connectivity failure (retry candidate)
 
@@ -110,11 +110,11 @@ Teaching point:
 
 ## Acceptance criteria
 
-- [ ] one documented retry-policy contract exists for supported failure classes
-- [ ] retry behavior emits clear evidence and final outcome state
-- [ ] deterministic config/data failures are not silently retried as if they were transient
-- [ ] examples prove retry boundary against B1 skip semantics and processor reject semantics
-- [ ] exhausted-retry behavior is deterministic and test-covered
+- [x] one documented retry-policy contract exists for supported failure classes
+- [x] retry behavior emits clear evidence and final outcome state
+- [x] deterministic config/data failures are not silently retried as if they were transient
+- [x] examples prove retry boundary against B1 skip semantics and processor reject semantics
+- [x] exhausted-retry behavior is deterministic and test-covered
 
 ## Related docs
 
@@ -134,21 +134,11 @@ Keep first implementation intentionally narrow:
 
 ## Status notes
 
-The current first runtime slice now proves a narrow retry boundary:
+B2 first runtime slice is complete with a narrow boundary:
 
 - keep retry step-scoped and opt-in on explicit selected-job runs
 - treat retry as transient-failure handling, not as a substitute for reject/skip semantics
 - keep configuration/startup and deterministic data-quality failures fail-fast by default
-- wire retry only through Spring Batch fault-tolerant chunk execution, overriding tasklet planning when needed
-- keep ordered duplicate winner selection incompatible with retry in this slice because that duplicate path intentionally requires tasklet buffering
-- keep operator-visible `retry_attempt` and `retry_summary` evidence on the active retry-callback path, with deterministic test coverage
-
-Current preserved runtime proof bundle:
-
-- `src/main/resources/config-jobs/customer-load-retry-policy-runtime-failure/` (malformed CSV first row)
-- expected startup/runtime evidence: `STEP_READY event=retry_policy_enabled` plus runtime failure categorization on the read path
-
-Follow-up scope:
-
-- add a preserved runtime scenario that deterministically traverses retry callbacks (likely process/write transient-failure path) so scenario logs prove `retry_attempt` and terminal `retry_summary` evidence end-to-end
+- emit operator-visible `retry_attempt` and `retry_summary` evidence for retry callback paths
+- keep ordered duplicate winner selection (`duplicate + orderBy`) incompatible with retry in this slice to avoid conflicting tasklet/chunk buffering models
 

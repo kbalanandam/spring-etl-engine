@@ -51,7 +51,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.RetryCallback;
 import org.springframework.retry.RetryContext;
 import org.springframework.retry.RetryListener;
-import org.springframework.retry.RetryPolicy;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.retry.policy.ExceptionClassifierRetryPolicy;
 import org.springframework.retry.policy.NeverRetryPolicy;
@@ -689,8 +688,8 @@ public class BatchConfig {
     return List.copyOf(normalized);
   }
 
-  private RetryPolicy configuredRetryPolicy(JobConfig.RetryPolicyConfig retryPolicy,
-                                            String stepName) {
+  private org.springframework.retry.RetryPolicy configuredRetryPolicy(JobConfig.RetryPolicyConfig retryPolicy,
+                                                                      String stepName) {
     List<String> retryableCategories = resolveRetryableCategories(retryPolicy);
     List<Class<? extends Throwable>> retryableExceptions = resolveRetryableExceptionClasses(retryPolicy, stepName);
     SimpleRetryPolicy matchingRetryPolicy = new SimpleRetryPolicy(retryPolicy.getMaxAttempts());
