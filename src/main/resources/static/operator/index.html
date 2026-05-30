@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Operator UI - Monitoring First</title>
+  <link rel="stylesheet" href="/operator/styles.css">
+</head>
+<body>
+<header class="topbar">
+  <h1>Operator UI</h1>
+  <p class="subtitle">Monitoring-first read model (U1 slice)</p>
+</header>
+
+<nav class="tabs">
+  <a href="#/jobs" id="tab-jobs">Jobs</a>
+  <a href="#/runs" id="tab-runs">Runs</a>
+</nav>
+
+<main class="content">
+  <section id="view-jobs" class="panel" hidden>
+    <h2>Jobs</h2>
+    <p class="hint">Known bundles from <code>/api/v1/jobs</code>.</p>
+    <div id="jobs-state" class="state"></div>
+    <table id="jobs-table" hidden>
+      <thead>
+      <tr>
+        <th>Job key</th>
+        <th>Display name</th>
+        <th>Readiness</th>
+      </tr>
+      </thead>
+      <tbody id="jobs-body"></tbody>
+    </table>
+  </section>
+
+  <section id="view-runs" class="panel" hidden>
+    <h2>Runs</h2>
+    <p class="hint">Recent summaries from <code>/api/v1/runs?limit=25</code>.</p>
+    <div id="runs-state" class="state"></div>
+    <table id="runs-table" hidden>
+      <thead>
+      <tr>
+        <th>Scenario</th>
+        <th>Status</th>
+        <th>Start time</th>
+        <th>Duration (s)</th>
+        <th>Job execution</th>
+      </tr>
+      </thead>
+      <tbody id="runs-body"></tbody>
+    </table>
+  </section>
+</main>
+
+<footer class="footnote">
+  <p>Evidence guidance: see <a href="https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/architecture/control-plane/job-history-and-operational-observability.md" target="_blank" rel="noreferrer">job history and operational observability</a>.</p>
+</footer>
+
+<script src="/operator/app.js"></script>
+</body>
+</html>
+
