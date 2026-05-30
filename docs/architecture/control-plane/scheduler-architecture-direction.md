@@ -11,6 +11,16 @@ It exists to clarify that scheduling is a control-plane capability that launches
 - Classification: **Future direction**
 - The Mermaid diagrams in this document describe the preferred future direction, not a shipped runtime path today.
 
+## Contract freeze checkpoint (S1)
+
+Current S1 planning freezes the launch boundary for parallel scheduler and operator-UI work:
+
+- all launchers (native scheduler, external orchestrator, ad hoc operator trigger) target the same selected-job boundary
+- trigger evidence keeps explicit origin and trigger identity so runs remain diagnosable
+- retry/restart ownership remains on ETL runtime contracts and is not redefined by schedule configuration
+
+This checkpoint intentionally freezes boundary semantics only. It does not imply S2/S3/S4 feature completion.
+
 ## Scope
 
 This document covers:

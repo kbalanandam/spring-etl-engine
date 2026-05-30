@@ -58,10 +58,10 @@ Use this short list when you want the newest or most actively discussed architec
 - [`generated-model-naming-standard.md`](etl-core/generated-model-naming-standard.md) - selected-job naming/package standard and bridge-cleanup direction (**Current baseline + future evolution**)
 - [`job-history-and-operational-observability.md`](control-plane/job-history-and-operational-observability.md) - current observability baseline plus retained-history direction (**Current baseline + future evolution**)
 - [`security-test-strategy.md`](foundations/security-test-strategy.md) - phased security test strategy aligned to selected-job runtime and verification evidence (**Current baseline + future evolution**)
-- [`control-plane/scheduler-architecture-direction.md`](control-plane/scheduler-architecture-direction.md) - first scheduler-specific architecture direction under the optional control plane (**Future direction**)
+- [`control-plane/scheduler-architecture-direction.md`](control-plane/scheduler-architecture-direction.md) - scheduler direction under the optional control plane, including the current S1 contract-freeze checkpoint for launch/evidence boundary alignment (**Future direction**)
 - [`control-plane/operator-ui-mvp-api-surface.md`](control-plane/operator-ui-mvp-api-surface.md) - first control-plane REST API surface for the Angular MVP UI screens (**Future direction**)
 - [`control-plane/operator-ui-mvp-openapi.yaml`](control-plane/operator-ui-mvp-openapi.yaml) - machine-readable OpenAPI 3.1 draft for the operator UI MVP API surface (**Future direction**)
-- [`operator-ui/operator-ui-architecture-direction.md`](operator-ui/operator-ui-architecture-direction.md) - first operator UI architecture direction for admin, monitoring, scheduling, and job authoring (**Future direction**)
+- [`operator-ui/operator-ui-architecture-direction.md`](operator-ui/operator-ui-architecture-direction.md) - operator UI direction for admin/monitoring/scheduling/authoring, including S1 -> U3 freeze-checkpoint alignment for guarded ad hoc trigger-now behavior (**Future direction**)
 - [`operator-ui/angular-ui-mvp-structure.md`](operator-ui/angular-ui-mvp-structure.md) - practical Angular-based MVP structure for first-screen wireframes, routes, components, and API client boundaries (**Future direction**)
 - [`operator-ui/angular-ui-mvp-wireframes.md`](operator-ui/angular-ui-mvp-wireframes.md) - low-fidelity wireframes for the first five Angular MVP operator screens and their drill-down flows (**Future direction**)
 

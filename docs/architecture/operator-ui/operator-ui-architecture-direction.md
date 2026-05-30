@@ -182,6 +182,14 @@ This UI direction depends on the existing control-plane and restartability plann
 
 That dependency means now is the right time to design the UI boundary and first slices, but not to over-promise every final operator feature immediately.
 
+## Freeze checkpoint alignment (S1 -> U3)
+
+For current U3 planning, treat S1 as the launch-contract freeze checkpoint:
+
+- UI trigger-now remains ad hoc operator convenience and not scheduler governance
+- trigger-now uses the same selected-job launch boundary as scheduler and external orchestrator paths
+- trigger responses should preserve trigger identity/origin evidence so operators can trace run origin consistently
+
 ## Suggested first screen set
 
 A practical first screen set would be:
