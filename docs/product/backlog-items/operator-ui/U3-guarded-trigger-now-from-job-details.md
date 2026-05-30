@@ -8,7 +8,7 @@ Add a guarded "trigger now" action from job details so operators can request one
 
 - Epic: **[Epic U](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **U1, S1**
 
@@ -79,12 +79,12 @@ Integrate the existing trigger-now API in a guarded manner and keep messaging ex
 
 ## Acceptance criteria
 
-- [ ] job-detail view supports guarded trigger-now action
-- [ ] action feedback includes a traceable trigger-event identifier
-- [ ] UI messaging preserves selected-job contract boundaries
-- [ ] action failures are categorized and visible to operator
-- [ ] docs call out that scheduler capability remains optional
-- [ ] trigger-now request/response contract aligns with the `S1` trigger-origin boundary
+- [x] job-detail view supports guarded trigger-now action
+- [x] action feedback includes a traceable trigger-event identifier
+- [x] UI messaging preserves selected-job contract boundaries
+- [x] action failures are categorized and visible to operator
+- [x] docs call out that scheduler capability remains optional
+- [x] trigger-now request/response contract aligns with the `S1` trigger-origin boundary
 
 ## Related docs
 
@@ -99,11 +99,16 @@ Treat this as an optional launcher convenience, not as a replacement for existin
 
 ## Status notes
 
-Planned after U1 baseline visibility is in place.
+Completed after U1/U2 monitoring baseline delivery by shipping guarded UI-first trigger-now behavior.
+
+Delivered in this slice:
+
+- shipped guarded `Trigger now` action in job-detail UI with explicit ad hoc wording and selected-job boundary note
+- shipped POST request mapping to `/api/v1/jobs/{jobKey}:trigger-now` with confirmation and decision feedback including `triggerEventId`
+- shipped categorized failure feedback (`validation` / `config` / `runtime`) in the UI without introducing scheduler-management controls
 
 Handshake with `S1`:
 
-- proceed when S1 trigger contract freeze checkpoint is documented
 - consume the same selected-job launch boundary used by scheduler and external orchestrator launchers
 - preserve explicit operator wording that this remains ad hoc trigger convenience, not full scheduler governance
 

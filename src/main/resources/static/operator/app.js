@@ -144,10 +144,16 @@ async function loadJobs() {
 async function loadJobDetailPlaceholder(routeState) {
   const state = document.getElementById("job-detail-state");
   const summary = document.getElementById("job-detail-summary");
+  const triggerButton = document.getElementById("job-detail-trigger-now-btn");
+  const triggerFeedback = document.getElementById("job-detail-trigger-feedback");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
 
   state.className = "state";
   summary.hidden = true;
+  triggerFeedback.hidden = true;
+  triggerFeedback.className = "state";
+  triggerFeedback.textContent = "";
+  triggerButton.disabled = true;
 
   if (!jobKeyValue) {
     state.className = "state error";
@@ -171,12 +177,89 @@ async function loadJobDetailPlaceholder(routeState) {
     document.getElementById("job-detail-recent-run-count").textContent = String(Array.isArray(payload.recentRuns) ? payload.recentRuns.length : 0);
     document.getElementById("job-detail-trigger-count").textContent = String(Array.isArray(payload.triggerEvents) ? payload.triggerEvents.length : 0);
 
-    state.textContent = "U3 job detail route is wired. Trigger actions remain deferred to U3.";
+    triggerButton.disabled = false;
+    triggerButton.onclick = () => requestTriggerNow(jobKeyValue);
+
+    state.textContent = "Job detail loaded.";
     summary.hidden = false;
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load job detail placeholder: ${error.message}`;
   }
+}
+
+async function requestTriggerNow(jobKeyValue) {
+  const triggerButton = document.getElementById("job-detail-trigger-now-btn");
+  const triggerFeedback = document.getElementById("job-detail-trigger-feedback");
+  const triggerCount = document.getElementById("job-detail-trigger-count");
+
+  if (!jobKeyValue) {
+    triggerFeedback.className = "state error";
+    triggerFeedback.textContent = "Unable to trigger: missing job key.";
+    triggerFeedback.hidden = false;
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Trigger one ad hoc run now? This is operator convenience only and not schedule management."
+  );
+  if (!confirmed) {
+    return;
+  }
+
+  triggerButton.disabled = true;
+  triggerFeedback.className = "state";
+  triggerFeedback.textContent = "Submitting trigger request...";
+  triggerFeedback.hidden = false;
+
+  try {
+    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(jobKeyValue)}:trigger-now`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        reason: "manual_operator_request",
+        requestedBy: "operator-ui",
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (response.ok || response.status === 202) {
+      const eventId = valueOrDash(payload.triggerEventId);
+      triggerFeedback.className = "state";
+      triggerFeedback.textContent = `Trigger accepted. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`;
+      triggerFeedback.hidden = false;
+
+      const current = Number(triggerCount.textContent);
+      if (!Number.isNaN(current)) {
+        triggerCount.textContent = String(current + 1);
+      }
+      return;
+    }
+
+    const category = categorizeTriggerFailure(response.status);
+    triggerFeedback.className = "state error";
+    triggerFeedback.textContent = `Trigger failed [${category}] status=${response.status}: ${valueOrDash(payload.message)}`;
+    triggerFeedback.hidden = false;
+  } catch (error) {
+    triggerFeedback.className = "state error";
+    triggerFeedback.textContent = `Trigger failed [runtime]: ${error.message}`;
+    triggerFeedback.hidden = false;
+  } finally {
+    triggerButton.disabled = false;
+  }
+}
+
+function categorizeTriggerFailure(statusCode) {
+  if (statusCode === 404 || statusCode === 409) {
+    return "config";
+  }
+  if (statusCode >= 400 && statusCode < 500) {
+    return "validation";
+  }
+  return "runtime";
 }
 
 async function loadRuns() {
