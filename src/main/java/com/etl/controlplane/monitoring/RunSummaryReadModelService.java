@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -83,7 +84,7 @@ public class RunSummaryReadModelService {
 					.filter(java.util.Optional::isPresent)
 					.map(java.util.Optional::get)
 					.forEach(registry::upsert);
-		} catch (IOException ignored) {
+		} catch (IOException | UncheckedIOException ignored) {
 			// Read-model collection is best-effort for now; unavailable files are skipped.
 		}
 	}

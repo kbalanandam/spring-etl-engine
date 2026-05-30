@@ -94,6 +94,23 @@ class RunSummaryReadModelServiceTest {
 		assertEquals(2001L, runs.get(1).jobExecutionId());
 	}
 
+	@Test
+	void skipsUnreadableLogFilesAndStillReturnsValidRuns() throws IOException {
+		createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T11:02:03.001+00:00 INFO [main] [scenario:customer-load] [run:20260527-110203-001] [job:1001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=1001 status=COMPLETED startTime=2026-05-27T11:00:00 endTime=2026-05-27T11:02:03 durationSeconds=123 sourceCount=10 writtenCount=10 rejectedCount=0"
+		);
+		Path unreadableLog = tempDir.resolve("2026-05-27/bad-encoding.log");
+		Files.createDirectories(unreadableLog.getParent());
+		Files.write(unreadableLog, new byte[]{(byte) 0xC3, (byte) 0x28});
+
+		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser());
+		List<RunSummaryView> runs = service.latestRuns(10);
+
+		assertEquals(1, runs.size());
+		assertEquals(1001L, runs.get(0).jobExecutionId());
+	}
+
 	private Path createLog(Path path, String... lines) throws IOException {
 		Files.createDirectories(path.getParent());
 		Files.write(path, List.of(lines));
