@@ -21,6 +21,17 @@
   <section id="view-jobs" class="panel" hidden>
     <h2>Jobs</h2>
     <p class="hint">Known bundles from <code>/api/v1/jobs</code>.</p>
+    <div class="control-row">
+      <label for="jobs-filter-input">Filter</label>
+      <input id="jobs-filter-input" type="text" placeholder="job key or display name">
+      <label for="jobs-sort-select">Sort</label>
+      <select id="jobs-sort-select">
+        <option value="jobKey">Job key</option>
+        <option value="displayName">Display name</option>
+        <option value="readinessStatus">Readiness</option>
+      </select>
+      <button id="jobs-sort-dir-btn" type="button">Asc</button>
+    </div>
     <div id="jobs-state" class="state"></div>
     <table id="jobs-table" hidden>
       <thead>
@@ -51,6 +62,18 @@
   <section id="view-runs" class="panel" hidden>
     <h2>Runs</h2>
     <p class="hint">Recent summaries from <code>/api/v1/runs?limit=25</code>.</p>
+    <div class="control-row">
+      <label for="runs-filter-input">Filter</label>
+      <input id="runs-filter-input" type="text" placeholder="scenario or status">
+      <label for="runs-sort-select">Sort</label>
+      <select id="runs-sort-select">
+        <option value="startTime">Start time</option>
+        <option value="jobExecutionId">Job execution</option>
+        <option value="scenario">Scenario</option>
+        <option value="status">Status</option>
+      </select>
+      <button id="runs-sort-dir-btn" type="button">Desc</button>
+    </div>
     <div id="runs-state" class="state"></div>
     <table id="runs-table" hidden>
       <thead>
@@ -88,6 +111,7 @@
 <script src="/operator/app.js"></script>
 </body>
 </html>
+
 
 
 

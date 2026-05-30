@@ -56,6 +56,27 @@ body {
   color: #475569;
 }
 
+.control-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.control-row input,
+.control-row select,
+.control-row button {
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.control-row button {
+  cursor: pointer;
+}
+
 .state {
   margin: 10px 0;
   color: #334155;

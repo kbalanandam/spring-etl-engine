@@ -21,8 +21,24 @@ const routes = {
   },
 };
 
+const viewState = {
+  jobs: {
+    items: [],
+    filterText: "",
+    sortKey: "jobKey",
+    sortDirection: "asc",
+  },
+  runs: {
+    items: [],
+    filterText: "",
+    sortKey: "startTime",
+    sortDirection: "desc",
+  },
+};
+
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("DOMContentLoaded", () => {
+  initializeControls();
   if (!location.hash) {
     location.hash = "#/jobs";
     return;
@@ -78,32 +94,13 @@ async function loadJobs() {
       throw new Error(`Jobs API returned ${response.status}`);
     }
     const payload = await response.json();
-    const items = Array.isArray(payload.items) ? payload.items : [];
+    viewState.jobs.items = Array.isArray(payload.items) ? payload.items : [];
 
-    if (items.length === 0) {
+    if (viewState.jobs.items.length === 0) {
       state.textContent = "No job bundles found.";
       return;
     }
-
-    items.forEach((job) => {
-      const row = document.createElement("tr");
-      const jobKey = job.jobKey;
-      if (jobKey) {
-        row.className = "clickable-row";
-        row.title = "Open job detail placeholder";
-        row.addEventListener("click", () => {
-          location.hash = `#/jobs/${encodeURIComponent(jobKey)}`;
-        });
-      }
-      row.innerHTML = `
-        <td>${escapeHtml(job.jobKey || "-")}</td>
-        <td>${escapeHtml(job.displayName || "-")}</td>
-        <td>${escapeHtml(job.readinessStatus || "-")}</td>`;
-      body.appendChild(row);
-    });
-
-    state.textContent = `Loaded ${items.length} job bundle(s).`;
-    table.hidden = false;
+    renderJobsTable();
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load jobs: ${error.message}`;
@@ -164,38 +161,176 @@ async function loadRuns() {
       throw new Error(`Runs API returned ${response.status}`);
     }
     const payload = await response.json();
-    const items = Array.isArray(payload.items) ? payload.items : [];
+    viewState.runs.items = Array.isArray(payload.items) ? payload.items : [];
 
-    if (items.length === 0) {
+    if (viewState.runs.items.length === 0) {
       state.textContent = "No recent runs found.";
       return;
     }
-
-    items.forEach((run) => {
-      const row = document.createElement("tr");
-      const runId = run.jobExecutionId;
-      if (runId !== null && runId !== undefined) {
-        row.className = "clickable-row";
-        row.title = "Open run detail placeholder";
-        row.addEventListener("click", () => {
-          location.hash = `#/runs/${runId}`;
-        });
-      }
-      row.innerHTML = `
-        <td>${escapeHtml(run.scenario || "-")}</td>
-        <td>${escapeHtml(run.status || "-")}</td>
-        <td>${escapeHtml(run.startTime || "-")}</td>
-        <td>${escapeHtml(String(run.durationSeconds ?? "-"))}</td>
-        <td>${escapeHtml(String(run.jobExecutionId ?? "-"))}</td>`;
-      body.appendChild(row);
-    });
-
-    state.textContent = `Loaded ${items.length} run(s).`;
-    table.hidden = false;
+    renderRunsTable();
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load runs: ${error.message}`;
   }
+}
+
+function initializeControls() {
+  const jobsFilter = document.getElementById("jobs-filter-input");
+  const jobsSort = document.getElementById("jobs-sort-select");
+  const jobsDirection = document.getElementById("jobs-sort-dir-btn");
+
+  jobsFilter.addEventListener("input", (event) => {
+    viewState.jobs.filterText = event.target.value || "";
+    renderJobsTable();
+  });
+  jobsSort.addEventListener("change", (event) => {
+    viewState.jobs.sortKey = event.target.value;
+    renderJobsTable();
+  });
+  jobsDirection.addEventListener("click", () => {
+    viewState.jobs.sortDirection = toggleDirection(viewState.jobs.sortDirection);
+    jobsDirection.textContent = labelDirection(viewState.jobs.sortDirection);
+    renderJobsTable();
+  });
+
+  const runsFilter = document.getElementById("runs-filter-input");
+  const runsSort = document.getElementById("runs-sort-select");
+  const runsDirection = document.getElementById("runs-sort-dir-btn");
+
+  runsFilter.addEventListener("input", (event) => {
+    viewState.runs.filterText = event.target.value || "";
+    renderRunsTable();
+  });
+  runsSort.addEventListener("change", (event) => {
+    viewState.runs.sortKey = event.target.value;
+    renderRunsTable();
+  });
+  runsDirection.addEventListener("click", () => {
+    viewState.runs.sortDirection = toggleDirection(viewState.runs.sortDirection);
+    runsDirection.textContent = labelDirection(viewState.runs.sortDirection);
+    renderRunsTable();
+  });
+}
+
+function renderJobsTable() {
+  const state = document.getElementById("jobs-state");
+  const table = document.getElementById("jobs-table");
+  const body = document.getElementById("jobs-body");
+
+  const filtered = viewState.jobs.items.filter((job) => {
+    const haystack = `${job.jobKey || ""} ${job.displayName || ""} ${job.readinessStatus || ""}`.toLowerCase();
+    return haystack.includes(viewState.jobs.filterText.trim().toLowerCase());
+  });
+  const sorted = sortItems(filtered, viewState.jobs.sortKey, viewState.jobs.sortDirection);
+
+  body.innerHTML = "";
+  if (sorted.length === 0) {
+    state.textContent = "No job bundles match the current filter.";
+    table.hidden = true;
+    return;
+  }
+
+  sorted.forEach((job) => {
+    const row = document.createElement("tr");
+    const jobKey = job.jobKey;
+    if (jobKey) {
+      row.className = "clickable-row";
+      row.title = "Open job detail placeholder";
+      row.addEventListener("click", () => {
+        location.hash = `#/jobs/${encodeURIComponent(jobKey)}`;
+      });
+    }
+    row.innerHTML = `
+      <td>${escapeHtml(job.jobKey || "-")}</td>
+      <td>${escapeHtml(job.displayName || "-")}</td>
+      <td>${escapeHtml(job.readinessStatus || "-")}</td>`;
+    body.appendChild(row);
+  });
+
+  state.textContent = `Showing ${sorted.length} of ${viewState.jobs.items.length} job bundle(s).`;
+  table.hidden = false;
+}
+
+function renderRunsTable() {
+  const state = document.getElementById("runs-state");
+  const table = document.getElementById("runs-table");
+  const body = document.getElementById("runs-body");
+
+  const filtered = viewState.runs.items.filter((run) => {
+    const haystack = `${run.scenario || ""} ${run.status || ""} ${run.jobExecutionId || ""}`.toLowerCase();
+    return haystack.includes(viewState.runs.filterText.trim().toLowerCase());
+  });
+  const sorted = sortItems(filtered, viewState.runs.sortKey, viewState.runs.sortDirection);
+
+  body.innerHTML = "";
+  if (sorted.length === 0) {
+    state.textContent = "No runs match the current filter.";
+    table.hidden = true;
+    return;
+  }
+
+  sorted.forEach((run) => {
+    const row = document.createElement("tr");
+    const runId = run.jobExecutionId;
+    if (runId !== null && runId !== undefined) {
+      row.className = "clickable-row";
+      row.title = "Open run detail placeholder";
+      row.addEventListener("click", () => {
+        location.hash = `#/runs/${runId}`;
+      });
+    }
+    row.innerHTML = `
+      <td>${escapeHtml(run.scenario || "-")}</td>
+      <td>${escapeHtml(run.status || "-")}</td>
+      <td>${escapeHtml(run.startTime || "-")}</td>
+      <td>${escapeHtml(String(run.durationSeconds ?? "-"))}</td>
+      <td>${escapeHtml(String(run.jobExecutionId ?? "-"))}</td>`;
+    body.appendChild(row);
+  });
+
+  state.textContent = `Showing ${sorted.length} of ${viewState.runs.items.length} run(s).`;
+  table.hidden = false;
+}
+
+function sortItems(items, key, direction) {
+  const factor = direction === "desc" ? -1 : 1;
+  return [...items].sort((a, b) => factor * compareValues(a[key], b[key]));
+}
+
+function compareValues(left, right) {
+  if (left === right) {
+    return 0;
+  }
+  if (left === null || left === undefined) {
+    return -1;
+  }
+  if (right === null || right === undefined) {
+    return 1;
+  }
+
+  const leftNumber = Number(left);
+  const rightNumber = Number(right);
+  const leftIsNumber = !Number.isNaN(leftNumber) && String(left).trim() !== "";
+  const rightIsNumber = !Number.isNaN(rightNumber) && String(right).trim() !== "";
+  if (leftIsNumber && rightIsNumber) {
+    return leftNumber - rightNumber;
+  }
+
+  const leftTime = Date.parse(String(left));
+  const rightTime = Date.parse(String(right));
+  if (!Number.isNaN(leftTime) && !Number.isNaN(rightTime)) {
+    return leftTime - rightTime;
+  }
+
+  return String(left).localeCompare(String(right));
+}
+
+function toggleDirection(direction) {
+  return direction === "asc" ? "desc" : "asc";
+}
+
+function labelDirection(direction) {
+  return direction === "asc" ? "Asc" : "Desc";
 }
 
 async function loadRunDetailPlaceholder(routeState) {
