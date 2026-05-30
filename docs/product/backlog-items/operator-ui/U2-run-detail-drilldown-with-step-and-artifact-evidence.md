@@ -8,7 +8,7 @@ Add run-detail drill-down in the Operator UI so users can inspect one run's step
 
 - Epic: **[Epic U](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **U1, C2**
 
@@ -80,11 +80,11 @@ Build on the existing run-detail API response and focus on transparent, operator
 
 ## Acceptance criteria
 
-- [ ] run-detail page resolves by job execution id
-- [ ] step outcomes and counts are displayed consistently
-- [ ] failure summary is visible when present
-- [ ] artifact/evidence links are displayed when provided
-- [ ] missing optional fields are handled gracefully
+- [x] run-detail page resolves by job execution id
+- [x] step outcomes and counts are displayed consistently
+- [x] failure summary is visible when present
+- [x] artifact/evidence links are displayed when provided
+- [x] missing optional fields are handled gracefully
 
 ## Related docs
 
@@ -99,9 +99,9 @@ Keep this slice read-only and evidence-first. Any action buttons should remain d
 
 ## Status notes
 
-Started as the second monitoring-first UI slice after jobs/runs overview.
+Completed as the second monitoring-first UI slice after jobs/runs overview.
 
-Current progress:
+Shipped scope:
 
 - replaced U1 run-detail placeholder panel with read-only sections for run summary, step outcomes/counts, failure summary, artifacts, and evidence links
 - preserved graceful "not available" handling for optional fields when data is absent
