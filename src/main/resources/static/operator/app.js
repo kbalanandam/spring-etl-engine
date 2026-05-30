@@ -23,17 +23,24 @@ const routes = {
 
 const viewState = {
   jobs: {
+    loaded: false,
     items: [],
     filterText: "",
     sortKey: "jobKey",
     sortDirection: "asc",
   },
   runs: {
+    loaded: false,
     items: [],
     filterText: "",
     sortKey: "startTime",
     sortDirection: "desc",
   },
+};
+
+const SORT_KEYS = {
+  jobs: ["jobKey", "displayName", "readinessStatus"],
+  runs: ["startTime", "jobExecutionId", "scenario", "status"],
 };
 
 window.addEventListener("hashchange", renderRoute);
@@ -47,27 +54,48 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 function currentRouteState() {
-  const hash = location.hash.replace(/^#\/?/, "");
-  const normalized = hash.toLowerCase();
-  const runDetailMatch = hash.match(/^runs\/(\d+)$/i);
-  const jobDetailMatch = hash.match(/^jobs\/([^/]+)$/i);
+  const parsed = parseHashRoute();
+  const path = parsed.path;
+  const normalized = path.toLowerCase();
+  const runDetailMatch = path.match(/^runs\/(\d+)$/i);
+  const jobDetailMatch = path.match(/^jobs\/([^/]+)$/i);
 
   if (jobDetailMatch) {
-    return { key: "jobDetail", jobExecutionId: null, jobKey: decodeURIComponent(jobDetailMatch[1]) };
+    return { key: "jobDetail", jobExecutionId: null, jobKey: decodeURIComponent(jobDetailMatch[1]), query: parsed.query };
   }
 
   if (runDetailMatch) {
-    return { key: "runDetail", jobExecutionId: runDetailMatch[1], jobKey: null };
+    return { key: "runDetail", jobExecutionId: runDetailMatch[1], jobKey: null, query: parsed.query };
   }
   if (normalized === "runs") {
-    return { key: "runs", jobExecutionId: null, jobKey: null };
+    return {
+      key: "runs",
+      jobExecutionId: null,
+      jobKey: null,
+      query: parsed.query,
+      filterText: parsed.query.f || "",
+      sortKey: normalizeSortKey("runs", parsed.query.sort, "startTime"),
+      sortDirection: normalizeDirection(parsed.query.dir, "desc"),
+    };
   }
-  return { key: "jobs", jobExecutionId: null, jobKey: null };
+  return {
+    key: "jobs",
+    jobExecutionId: null,
+    jobKey: null,
+    query: parsed.query,
+    filterText: parsed.query.f || "",
+    sortKey: normalizeSortKey("jobs", parsed.query.sort, "jobKey"),
+    sortDirection: normalizeDirection(parsed.query.dir, "asc"),
+  };
 }
 
 function renderRoute() {
   const routeState = currentRouteState();
   const routeKey = routeState.key;
+
+  if (routeKey === "jobs" || routeKey === "runs") {
+    applyRouteStateToListView(routeState);
+  }
 
   Object.entries(routes).forEach(([key, route]) => {
     const active = key === routeKey;
@@ -83,6 +111,11 @@ async function loadJobs() {
   const table = document.getElementById("jobs-table");
   const body = document.getElementById("jobs-body");
 
+  if (viewState.jobs.loaded) {
+    renderJobsTable();
+    return;
+  }
+
   state.className = "state";
   state.textContent = "Loading jobs...";
   table.hidden = true;
@@ -95,6 +128,7 @@ async function loadJobs() {
     }
     const payload = await response.json();
     viewState.jobs.items = Array.isArray(payload.items) ? payload.items : [];
+    viewState.jobs.loaded = true;
 
     if (viewState.jobs.items.length === 0) {
       state.textContent = "No job bundles found.";
@@ -150,6 +184,11 @@ async function loadRuns() {
   const table = document.getElementById("runs-table");
   const body = document.getElementById("runs-body");
 
+  if (viewState.runs.loaded) {
+    renderRunsTable();
+    return;
+  }
+
   state.className = "state";
   state.textContent = "Loading runs...";
   table.hidden = true;
@@ -162,6 +201,7 @@ async function loadRuns() {
     }
     const payload = await response.json();
     viewState.runs.items = Array.isArray(payload.items) ? payload.items : [];
+    viewState.runs.loaded = true;
 
     if (viewState.runs.items.length === 0) {
       state.textContent = "No recent runs found.";
@@ -181,15 +221,18 @@ function initializeControls() {
 
   jobsFilter.addEventListener("input", (event) => {
     viewState.jobs.filterText = event.target.value || "";
+    syncListRouteHash("jobs");
     renderJobsTable();
   });
   jobsSort.addEventListener("change", (event) => {
     viewState.jobs.sortKey = event.target.value;
+    syncListRouteHash("jobs");
     renderJobsTable();
   });
   jobsDirection.addEventListener("click", () => {
     viewState.jobs.sortDirection = toggleDirection(viewState.jobs.sortDirection);
     jobsDirection.textContent = labelDirection(viewState.jobs.sortDirection);
+    syncListRouteHash("jobs");
     renderJobsTable();
   });
 
@@ -199,17 +242,89 @@ function initializeControls() {
 
   runsFilter.addEventListener("input", (event) => {
     viewState.runs.filterText = event.target.value || "";
+    syncListRouteHash("runs");
     renderRunsTable();
   });
   runsSort.addEventListener("change", (event) => {
     viewState.runs.sortKey = event.target.value;
+    syncListRouteHash("runs");
     renderRunsTable();
   });
   runsDirection.addEventListener("click", () => {
     viewState.runs.sortDirection = toggleDirection(viewState.runs.sortDirection);
     runsDirection.textContent = labelDirection(viewState.runs.sortDirection);
+    syncListRouteHash("runs");
     renderRunsTable();
   });
+}
+
+function applyRouteStateToListView(routeState) {
+  if (routeState.key === "jobs") {
+    viewState.jobs.filterText = routeState.filterText || "";
+    viewState.jobs.sortKey = routeState.sortKey || "jobKey";
+    viewState.jobs.sortDirection = routeState.sortDirection || "asc";
+
+    document.getElementById("jobs-filter-input").value = viewState.jobs.filterText;
+    document.getElementById("jobs-sort-select").value = viewState.jobs.sortKey;
+    document.getElementById("jobs-sort-dir-btn").textContent = labelDirection(viewState.jobs.sortDirection);
+    return;
+  }
+
+  viewState.runs.filterText = routeState.filterText || "";
+  viewState.runs.sortKey = routeState.sortKey || "startTime";
+  viewState.runs.sortDirection = routeState.sortDirection || "desc";
+
+  document.getElementById("runs-filter-input").value = viewState.runs.filterText;
+  document.getElementById("runs-sort-select").value = viewState.runs.sortKey;
+  document.getElementById("runs-sort-dir-btn").textContent = labelDirection(viewState.runs.sortDirection);
+}
+
+function syncListRouteHash(routeKey) {
+  const source = routeKey === "jobs" ? viewState.jobs : viewState.runs;
+  const params = new URLSearchParams();
+
+  if (source.filterText.trim() !== "") {
+    params.set("f", source.filterText.trim());
+  }
+  params.set("sort", source.sortKey);
+  params.set("dir", source.sortDirection);
+
+  const hash = `#/${routeKey}?${params.toString()}`;
+  if (location.hash !== hash) {
+    location.hash = hash;
+  }
+}
+
+function parseHashRoute() {
+  const raw = location.hash.replace(/^#\/?/, "");
+  const separatorIndex = raw.indexOf("?");
+
+  if (separatorIndex < 0) {
+    return { path: raw, query: {} };
+  }
+
+  const path = raw.substring(0, separatorIndex);
+  const queryString = raw.substring(separatorIndex + 1);
+  const query = {};
+  const params = new URLSearchParams(queryString);
+  params.forEach((value, key) => {
+    query[key] = value;
+  });
+  return { path, query };
+}
+
+function normalizeSortKey(routeKey, value, fallback) {
+  if (!value) {
+    return fallback;
+  }
+  return SORT_KEYS[routeKey].includes(value) ? value : fallback;
+}
+
+function normalizeDirection(value, fallback) {
+  if (value === "asc" || value === "desc") {
+    return value;
+  }
+  return fallback;
 }
 
 function renderJobsTable() {

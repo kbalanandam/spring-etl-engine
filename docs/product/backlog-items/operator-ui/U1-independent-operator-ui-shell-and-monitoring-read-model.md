@@ -99,5 +99,5 @@ Keep this slice focused on observability. Do not merge trigger/scheduler control
 
 ## Status notes
 
-Started with a first thin shell slice: `/operator` entry route, Jobs/Runs read-only list rendering from existing control-plane APIs, explicit empty/error states, run-row and jobs-row click-through placeholder routes (`#/runs/{jobExecutionId}`, `#/jobs/{jobKey}`), and lightweight client-side filter/sort controls for fast table triage.
+Started with a first thin shell slice: `/operator` entry route, Jobs/Runs read-only list rendering from existing control-plane APIs, explicit empty/error states, run-row and jobs-row click-through placeholder routes (`#/runs/{jobExecutionId}`, `#/jobs/{jobKey}`), lightweight client-side filter/sort controls for fast table triage, and hash-route state persistence for filter/sort context across refresh/back navigation.
 
