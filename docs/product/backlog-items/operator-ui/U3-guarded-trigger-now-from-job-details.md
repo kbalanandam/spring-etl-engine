@@ -8,7 +8,7 @@ Add a guarded "trigger now" action from job details so operators can request one
 
 - Epic: **[Epic U](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **In Progress**
 - Milestone: **M2**
 - Dependency: **U1, S1**
 
@@ -99,7 +99,7 @@ Treat this as an optional launcher convenience, not as a replacement for existin
 
 ## Status notes
 
-Planned after U1 baseline visibility is in place.
+Started after U1/U2 monitoring baseline delivery with a guarded UI-first trigger-now kickoff.
 
 Handshake with `S1`:
 
