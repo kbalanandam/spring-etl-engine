@@ -91,12 +91,14 @@
 
   <section id="view-run-detail" class="panel" hidden>
     <h2>Run Detail</h2>
-    <p class="hint">Read-only drill-down from <code>/api/v1/runs/{jobExecutionId}/detail</code>.</p>
+    <p class="hint">Read-only drill-down from <code>/api/v1/runs/{jobExecutionId}/detail</code> for step outcomes and evidence triage.</p>
     <div id="run-detail-state" class="state"></div>
     <div id="run-detail-summary" hidden>
       <p><strong>Job execution:</strong> <span id="run-detail-id"></span></p>
       <p><strong>Scenario:</strong> <span id="run-detail-scenario"></span></p>
       <p><strong>Status:</strong> <span id="run-detail-status"></span></p>
+      <p><strong>Start time:</strong> <span id="run-detail-start-time"></span></p>
+      <p><strong>End time:</strong> <span id="run-detail-end-time"></span></p>
       <p><strong>Duration (s):</strong> <span id="run-detail-duration"></span></p>
       <p><strong>Counts (source/written/rejected):</strong> <span id="run-detail-counts"></span></p>
     </div>

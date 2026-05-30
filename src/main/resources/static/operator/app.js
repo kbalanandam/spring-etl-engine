@@ -475,6 +475,8 @@ async function loadRunDetail(routeState) {
     document.getElementById("run-detail-id").textContent = String(run.jobExecutionId ?? runIdValue);
     document.getElementById("run-detail-scenario").textContent = run.scenario || "-";
     document.getElementById("run-detail-status").textContent = run.status || "-";
+    document.getElementById("run-detail-start-time").textContent = valueOrDash(run.startTime);
+    document.getElementById("run-detail-end-time").textContent = valueOrDash(run.endTime);
     document.getElementById("run-detail-duration").textContent = String(run.durationSeconds ?? "-");
     document.getElementById("run-detail-counts").textContent = `${valueOrDash(run.sourceCount)} / ${valueOrDash(run.writtenCount)} / ${valueOrDash(run.rejectedCount)}`;
 
@@ -551,7 +553,11 @@ function renderRunArtifacts(artifacts) {
 
   list.forEach((artifact) => {
     const item = document.createElement("li");
-    item.textContent = `${valueOrDash(artifact.role)} - ${valueOrDash(artifact.path)}`;
+    const parts = [valueOrDash(artifact.role), valueOrDash(artifact.path)];
+    if (artifact.recordCount !== null && artifact.recordCount !== undefined) {
+      parts.push(`records=${artifact.recordCount}`);
+    }
+    item.textContent = parts.join(" | ");
     listElement.appendChild(item);
   });
 
@@ -573,12 +579,17 @@ function renderRunEvidenceLinks(evidenceLinks) {
 
   list.forEach((link) => {
     const item = document.createElement("li");
-    const anchor = document.createElement("a");
-    anchor.href = link.href || "#";
-    anchor.textContent = `${valueOrDash(link.label)} (${valueOrDash(link.type)})`;
-    anchor.target = "_blank";
-    anchor.rel = "noreferrer";
-    item.appendChild(anchor);
+    const href = (link.href || "").trim();
+    if (href) {
+      const anchor = document.createElement("a");
+      anchor.href = href;
+      anchor.textContent = `${valueOrDash(link.label)} (${valueOrDash(link.type)})`;
+      anchor.target = "_blank";
+      anchor.rel = "noreferrer";
+      item.appendChild(anchor);
+    } else {
+      item.textContent = `${valueOrDash(link.label)} (${valueOrDash(link.type)}) - no link target`;
+    }
     listElement.appendChild(item);
   });
 

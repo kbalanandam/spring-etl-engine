@@ -137,6 +137,7 @@ th {
 
 .detail-list li {
   margin-bottom: 6px;
+  word-break: break-word;
 }
 
 .footnote {

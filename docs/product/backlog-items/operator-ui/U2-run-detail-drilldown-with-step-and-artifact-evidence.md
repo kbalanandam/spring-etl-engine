@@ -106,4 +106,5 @@ Current progress:
 - replaced U1 run-detail placeholder panel with read-only sections for run summary, step outcomes/counts, failure summary, artifacts, and evidence links
 - preserved graceful "not available" handling for optional fields when data is absent
 - kept route/API contract unchanged on `/api/v1/runs/{jobExecutionId}/detail`
+- added first-pass UX polish for section readability (timestamps, richer artifact/evidence text, safer missing-link handling)
 
