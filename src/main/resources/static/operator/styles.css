@@ -118,6 +118,28 @@ th {
   padding: 10px;
 }
 
+#view-run-detail h3 {
+  margin: 14px 0 8px;
+  font-size: 16px;
+}
+
+.detail-box {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
+.detail-list {
+  margin: 6px 0 10px 16px;
+  padding: 0;
+}
+
+.detail-list li {
+  margin-bottom: 6px;
+  word-break: break-word;
+}
+
 .footnote {
   padding: 0 20px 16px;
   color: #475569;

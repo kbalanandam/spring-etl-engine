@@ -127,6 +127,22 @@ Example local run:
 mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dspring-boot.run.mainClass=com.etl.controlplane.ControlPlaneApiApplication" "-Dspring-boot.run.profiles=controlplane" spring-boot:run
 ```
 
+If startup fails locally with trigger-persistence mode-switch guardrails, use the explicit override once for intentional local mode resets:
+
+```powershell
+mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dspring-boot.run.main-class=com.etl.controlplane.ControlPlaneApiApplication" "-Dspring-boot.run.profiles=controlplane" "-Dspring-boot.run.jvmArguments=-Dcontrolplane.triggers.persistence.allow-mode-switch=true" spring-boot:run
+```
+
+Operator UI endpoint for this profile:
+
+- `http://localhost:8081/operator#/jobs`
+
+Quick local diagnostics:
+
+- if you see `Unable to find a single main class`, use `spring-boot.run.main-class` exactly as shown above
+- if you see `BATCH_JOB_INSTANCE already exists`, start with the `controlplane` profile (not the default `dev` profile)
+- if you see `Trigger-event persistence mode switch detected`, add `-Dcontrolplane.triggers.persistence.allow-mode-switch=true` for the intentional local switch
+
 First monitoring endpoints:
 
 - `GET /api/v1/jobs` - lists preserved job bundles with readiness projection metadata
