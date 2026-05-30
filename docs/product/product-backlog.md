@@ -268,7 +268,7 @@ This table is the day-to-day execution view for the current product stage.
 | [X2](backlog-items/etl-core/X2-first-inbound-sftp-staged-pull-capability.md) | Add first inbound SFTP staged pull capability | Epic X | P1 | Deferred | M2 | X1, B2, C2 | First slice should stage remote files locally and emit transfer evidence |
 | [X3](backlog-items/etl-core/X3-remote-post-success-file-handling-and-failure-categorization.md) | Add remote post-success file handling and failure categorization for SFTP | Epic X | P1 | Deferred | M2 | X2, D1 | Add remote move/rename/archive semantics only after the first inbound pull slice is stable |
 | [X4](backlog-items/etl-core/X4-partner-facing-transport-security-and-isolated-worker-boundary.md) | Define partner-facing transport security rules and optional isolated worker deployment | Epic X | P1 | Deferred | M3 | X1, G1 | Preserve optional external MFT or isolated transport-worker deployment for stronger partner-facing isolation |
-| [S1](backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md) | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Deferred | M2 | A1, C1 | Define the optional control-plane contract without changing the independently runnable ETL core or blocking external scheduler/orchestrator integration |
+| [S1](backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md) | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Ready | M2 | A1, C1 | Define the optional control-plane contract without changing the independently runnable ETL core or blocking external scheduler/orchestrator integration |
 | [S2](backlog-items/scheduler/S2-time-based-schedule-definitions-with-pause-resume.md) | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Deferred | M2 | S1 | First practical scheduler slice after run-state and audit direction are clearer |
 | [S3](backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md) | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
 | [S4](backlog-items/scheduler/S4-control-plane-operational-data-model.md) | Define control-plane operational data model for schedules, watchers, trigger events, run and step history, artifact lineage, and restartability anchors | Epic S | P1 | Deferred | M3 | S1, C1, C2 | Persist optional scheduler/control-plane history coherently without making it a prerequisite for direct ETL-core execution |
@@ -295,7 +295,8 @@ Use this section as the near-term sequencing view behind the execution board:
 9. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
 10. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
 11. Start Operator UI in parallel as a monitoring-first independent slice (`U1` -> `U2` -> `U3`) so users get centralized job/run visibility without coupling UI to ETL-core launch behavior.
-12. Leave `V3` / `V4` and wider scheduler/restart work for the next operational maturity pass.
+12. Start `S1` in parallel with `U1` and keep `S2`/`S3`/`S4` deferred until the schedule/trigger contract boundary is frozen.
+13. Leave `V3` / `V4` and wider scheduler/restart work for the next operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 

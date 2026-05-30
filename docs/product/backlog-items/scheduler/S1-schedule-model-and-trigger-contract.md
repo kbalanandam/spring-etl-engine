@@ -10,7 +10,7 @@ That contract must also preserve first-class interoperability with external sche
 
 - Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
-- Status: **Deferred**
+- Status: **Ready**
 - Milestone: **M2**
 - Dependency: **A1, C1**
 
@@ -110,6 +110,6 @@ For early local control-plane work, lightweight relational persistence such as S
 
 ## Status notes
 
-Deferred for now, but important enough to document because scheduler work can easily drift into a second orchestration path if the contract is not defined early.
+Ready for parallel planning with monitoring-first Operator UI work because `S1` defines the trigger/launch boundary that `U3` depends on.
 
 

@@ -24,6 +24,16 @@ Operators currently depend on logs and script output to understand what jobs exi
 
 Provide one minimal centralized UI entry point that lists jobs and recent runs from existing control-plane read models without introducing runtime coupling.
 
+## Subject details
+
+Primary user subject in this slice is the operations user who asks:
+
+- what jobs are currently known to the platform
+- which runs happened recently and what their high-level status is
+- whether a run needs deeper investigation in the next step (`U2`)
+
+The page should prioritize quick situational awareness over deep drill-down.
+
 ## Scope
 
 - independent UI shell and route structure
@@ -31,6 +41,14 @@ Provide one minimal centralized UI entry point that lists jobs and recent runs f
 - recent runs list view
 - read-only status and timestamp visibility
 - basic API error handling and empty-state behavior
+
+## Example UI actions
+
+- open **Jobs** page and view all known job bundles with readiness/status hints
+- filter jobs by text search (job name/key)
+- open **Runs** page and view recent runs with status, start time, and duration summary
+- sort runs by newest first to identify current incidents quickly
+- select one run row to navigate into detailed diagnosis flow (`U2`)
 
 ## Out of scope
 

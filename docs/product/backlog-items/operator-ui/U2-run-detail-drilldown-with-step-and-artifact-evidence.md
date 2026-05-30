@@ -24,6 +24,16 @@ Users can see that a run succeeded or failed, but cannot quickly inspect why wit
 
 Provide one run-detail page that exposes step outcomes and evidence links from existing monitoring projections.
 
+## Subject details
+
+Primary user subject in this slice is run-level diagnosis:
+
+- why this run failed or succeeded
+- which step failed/blocked and with what counts
+- where the operator can find related evidence artifacts quickly
+
+The page should make failure triage faster than manual log correlation.
+
 ## Scope
 
 - run-detail page route and model
@@ -31,6 +41,14 @@ Provide one run-detail page that exposes step outcomes and evidence links from e
 - failure summary visibility
 - artifact/evidence link rendering (where available)
 - clear handling when optional evidence fields are absent
+
+## Example UI actions
+
+- open a run from the runs list and land on a **Run Detail** page
+- expand step list to inspect status per step (`COMPLETED`, `FAILED`, `BLOCKED`)
+- inspect step counts (source/written/rejected) without switching screens
+- view failure summary and category to identify likely root-cause area
+- click evidence/artifact links (when present) to inspect reject/output/log references
 
 ## Out of scope
 

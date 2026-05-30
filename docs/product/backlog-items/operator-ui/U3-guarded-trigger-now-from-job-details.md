@@ -24,12 +24,30 @@ Operators need a simple way to request a run from the same UI used for monitorin
 
 Introduce a constrained trigger-now action that records/returns a trigger decision and keeps the selected-job execution contract explicit.
 
+## Subject details
+
+Primary user subject in this slice is controlled ad hoc execution:
+
+- request one run intentionally from the UI
+- capture a traceable trigger decision/event id for auditability
+- avoid implying full scheduler governance is already shipped
+
+This action must remain clearly scoped as optional operator convenience.
+
 ## Scope
 
 - trigger-now button/action in job-detail view
 - confirmation and response feedback UX
 - request/response mapping to control-plane trigger endpoint
 - explicit guardrails in UI wording and docs
+
+## Example UI actions
+
+- open job detail page and click **Trigger now**
+- review confirmation dialog that explains this is an ad hoc trigger, not schedule management
+- submit trigger request and receive trigger-event identifier in success toast/panel
+- open trigger events for the job and confirm the new event is visible
+- handle failed trigger request with categorized error feedback (validation/config/runtime)
 
 ## Out of scope
 
