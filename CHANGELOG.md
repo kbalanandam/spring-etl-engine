@@ -11,6 +11,7 @@ and this project adheres to **Semantic Versioning**.
 - Added U1 deep-link placeholders for run/job drill-down routes (`#/runs/{jobExecutionId}`, `#/jobs/{jobKey}`), with server-side redirects for `/operator/runs/{jobExecutionId}` and `/operator/jobs/{jobKey}` to keep route contracts stable for U2/U3.
 - Added lightweight client-side Jobs/Runs filtering and sorting with hash-route query persistence so operator list context survives refresh/back navigation without changing backend API contracts.
 - Completed U3 guarded trigger-now delivery in Operator UI job details: confirmation-gated `POST /api/v1/jobs/{jobKey}:trigger-now`, traceable decision/`triggerEventId` success feedback, categorized failure feedback (`validation`/`config`/`runtime`), and explicit wording that this remains ad hoc convenience rather than scheduler-management scope.
+- Shifted the shipped `controlplane` profile to SQLite-first local JDBC persistence under `.controlplane/controlplane.db`, disabled unused Spring Batch auto-configuration for the control-plane process, and aligned the control-plane JDBC tests with the SQLite-first local persistence contract.
 
 ## [1.7.9] - 2026-05-29
 

@@ -4,6 +4,7 @@ import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -17,6 +18,7 @@ import java.util.Set;
  * Guardrail that prevents accidental trigger-history mode switches across restarts.
  */
 @Component
+@Profile("controlplane")
 public class TriggerEventPersistenceModeGuard {
 
 	private static final Logger log = LoggerFactory.getLogger(TriggerEventPersistenceModeGuard.class);

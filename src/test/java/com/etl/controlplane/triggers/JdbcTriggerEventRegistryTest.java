@@ -1,15 +1,19 @@
 package com.etl.controlplane.triggers;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
+import java.nio.file.Path;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class JdbcTriggerEventRegistryTest {
+
+	@TempDir
+	Path tempDir;
 
 	@Test
 	void recordsAndListsPersistedEventsInReverseChronologicalOrder() throws Exception {
@@ -67,10 +71,9 @@ class JdbcTriggerEventRegistryTest {
 
 	private DriverManagerDataSource inMemoryDataSource() {
 		DriverManagerDataSource dataSource = new DriverManagerDataSource();
-		dataSource.setDriverClassName("org.h2.Driver");
-		dataSource.setUrl("jdbc:h2:mem:cp-trigger-" + UUID.randomUUID() + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1");
-		dataSource.setUsername("sa");
-		dataSource.setPassword("");
+		dataSource.setDriverClassName("org.sqlite.JDBC");
+		Path databasePath = tempDir.resolve("cp-trigger.db");
+		dataSource.setUrl("jdbc:sqlite:" + databasePath.toAbsolutePath().toString().replace('\\', '/'));
 		return dataSource;
 	}
 }

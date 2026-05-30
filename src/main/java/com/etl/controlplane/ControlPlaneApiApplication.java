@@ -2,6 +2,7 @@ package com.etl.controlplane;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.batch.BatchAutoConfiguration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 import java.util.Map;
@@ -13,7 +14,7 @@ import java.util.Map;
  * startup beans (for example batch launch runner) remain out of this runtime.
  * Run this as a separate process from the worker for plug-and-play deployment.</p>
  */
-@SpringBootApplication(scanBasePackages = "com.etl.controlplane")
+@SpringBootApplication(scanBasePackages = "com.etl.controlplane", exclude = BatchAutoConfiguration.class)
 @EnableScheduling
 public class ControlPlaneApiApplication {
 
