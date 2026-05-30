@@ -34,6 +34,11 @@ Epic pages should also link back to the matching backlog item pages so the navig
 - [`Epic V - Verification evidence and reporting`](epic-v-verification-evidence-and-reporting.md)
 - [`Epic X - File transport and SFTP boundary`](epic-x-file-transport-and-sftp-boundary.md)
 
+## Category scaffolding
+
+- [`scheduler/`](scheduler/README.md) - future scheduler/control-plane epic category
+- [`operator-ui/`](operator-ui/README.md) - future operator-UI epic category
+
 ## Maintenance rule
 
 When you add or re-scope backlog items:

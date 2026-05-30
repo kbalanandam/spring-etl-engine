@@ -99,7 +99,7 @@ Validation and field-level processing behavior now use both shipped and planned 
 
 ## Planned custom-step pairing seam (future direction)
 
-This seam is planned under backlog item [`A7`](../../product/backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md).
+This seam is planned under backlog item [`A7`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md).
 
 Detailed design note:
 
@@ -139,7 +139,7 @@ These categories should align with Epic D taxonomy evolution so startup faults a
 
 ## Planned customer-owned processor transform seam (future direction)
 
-This seam is planned under backlog item [`T16`](../../product/backlog-items/T16-customer-owned-processor-transform-extension-seam.md).
+This seam is planned under backlog item [`T16`](../../product/backlog-items/etl-core/T16-customer-owned-processor-transform-extension-seam.md).
 
 Detailed design note:
 
@@ -344,3 +344,4 @@ Treat the following as non-negotiable unless a new ADR explicitly changes direct
 - field transforms / normalization cleaners such as value mapping and code standardization
 - multi-job flow configuration
 - dialect abstraction for platform-specific SQL behavior
+

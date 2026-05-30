@@ -162,8 +162,8 @@ Those APIs can support UI screens later without making the UI itself the archite
 - [`control-plane-operational-data-model.md`](control-plane-operational-data-model.md)
 - [`control-plane-local-relational-schema.md`](control-plane-local-relational-schema.md)
 - [`../operator-ui/operator-ui-architecture-direction.md`](../operator-ui/operator-ui-architecture-direction.md)
-- [`../../product/backlog-items/S1-schedule-model-and-trigger-contract.md`](../../product/backlog-items/S1-schedule-model-and-trigger-contract.md)
-- [`../../product/backlog-items/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md`](../../product/backlog-items/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md)
-- [`../../product/backlog-items/S4-control-plane-operational-data-model.md`](../../product/backlog-items/S4-control-plane-operational-data-model.md)
-- [`../../product/backlog-items/F1-restart-semantics-per-execution-mode.md`](../../product/backlog-items/F1-restart-semantics-per-execution-mode.md)
+- [`../../product/backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md`](../../product/backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md)
+- [`../../product/backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md`](../../product/backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md)
+- [`../../product/backlog-items/scheduler/S4-control-plane-operational-data-model.md`](../../product/backlog-items/scheduler/S4-control-plane-operational-data-model.md)
+- [`../../product/backlog-items/etl-core/F1-restart-semantics-per-execution-mode.md`](../../product/backlog-items/etl-core/F1-restart-semantics-per-execution-mode.md)
 

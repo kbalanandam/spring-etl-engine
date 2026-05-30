@@ -1,4 +1,4 @@
-# Control-Plane Operational Data Model
+﻿# Control-Plane Operational Data Model
 
 ## Purpose
 
@@ -42,9 +42,9 @@ Future control-plane work adds additional needs around that evidence:
 - artifact lineage that ties ingress, handoff, published output, reject output, and archived input together
 - recovery-oriented lineage such as prior attempts and checkpoint anchors
 
-Those needs should build on the same selected-job runtime boundary defined in [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md) and frozen in [`ADR-0008`](../../adr/0008-formalize-control-plane-and-etl-worker-boundary.md).
+Those needs should build on the same selected-job runtime boundary defined in [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md) and frozen in [`ADR-0008`](../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md).
 
-The first SQLite-first local persistence direction for that optional retained model is formalized separately in [`ADR-0009`](../../adr/0009-formalize-sqlite-first-local-control-plane-persistence.md).
+The first SQLite-first local persistence direction for that optional retained model is formalized separately in [`ADR-0009`](../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md).
 
 The retained model therefore belongs to the optional control plane, not to the mandatory ETL worker runtime.
 
@@ -314,6 +314,7 @@ Follow-on work that should build from this model includes:
 - operator API and UI drill-down views over retained runs, steps, and artifacts
 - run-attempt lineage and recovery workflows
 - stronger governance, retention, and audit rules for retained operational history
+
 
 
 

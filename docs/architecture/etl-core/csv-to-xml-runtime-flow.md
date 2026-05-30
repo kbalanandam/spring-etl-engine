@@ -1,4 +1,4 @@
-# CSV to XML Runtime Flow
+﻿# CSV to XML Runtime Flow
 
 ## Purpose
 
@@ -240,7 +240,7 @@ implementation from step volume:
 
 Terminology note: processor config uses `memory`, while runtime resolver evidence emits `inMemory`.
 
-See also: [`Default processor reference`](../../config/processor/default-processor.md), [`File ingestion hardening`](file-ingestion-hardening.md), and [`T4 - Transformation quarantine and duplicate hardening`](../../product/backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md).
+See also: [`Default processor reference`](../../config/processor/default-processor.md), [`File ingestion hardening`](file-ingestion-hardening.md), and [`T4 - Transformation quarantine and duplicate hardening`](../../product/backlog-items/etl-core/T4-transformation-quarantine-and-duplicate-hardening.md).
 
 ### 4. `target-config.yaml` (XML)
 Controls:
@@ -487,3 +487,4 @@ After running:
 - [`../../src/main/resources/config-jobs/customer-load/README.md`](../../../src/main/resources/config-jobs/customer-load/README.md)
 - [`../../src/main/resources/config-jobs/csv-to-nested-xml/README.md`](../../../src/main/resources/config-jobs/csv-to-nested-xml/README.md)
 - [`../../src/main/resources/config-jobs/csv-validation-reject-archive/README.md`](../../../src/main/resources/config-jobs/csv-validation-reject-archive/README.md)
+

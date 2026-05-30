@@ -1,4 +1,4 @@
-# Job-Level Activation and Startup Guardrails
+﻿# Job-Level Activation and Startup Guardrails
 
 ## Purpose
 
@@ -112,7 +112,7 @@ That placement is preferred because:
 - `src/main/java/com/etl/config/BatchConfig.java` - should remain untouched by ensuring inactive jobs never reach step assembly
 - `src/main/java/com/etl/config/exception/ConfigException.java` - likely base category for an inactive-job startup failure
 - `docs/config/job-config.md` - contract documentation that must stay aligned with the field and default behavior
-- `docs/adr/0004-use-explicit-job-config-for-business-scenario-selection.md` - architectural baseline this future guardrail should extend, not weaken
+- `docs/adr/etl-core/0004-use-explicit-job-config-for-business-scenario-selection.md` - architectural baseline this future guardrail should extend, not weaken
 
 ## Decisions
 
@@ -179,4 +179,5 @@ Possible later work that should build from this note rather than complicating th
 - collection-level or environment-level activation policy for private bundles
 - richer startup failure categorization in structured observability events
 - UI or operator-surface representation of disabled jobs once the product grows beyond explicit command-driven runs
+
 

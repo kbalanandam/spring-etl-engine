@@ -227,7 +227,7 @@ This is a future-direction enhancement, not a shipped runtime field set today.
 
 Tracked backlog item:
 
-- [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../product/backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+- [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
 
 Design intent:
 

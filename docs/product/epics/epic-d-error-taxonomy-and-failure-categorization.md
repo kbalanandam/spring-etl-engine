@@ -16,9 +16,9 @@ This epic is **not** the place for broader retry policy, scheduling policy, or t
 
 ## Related backlog items
 
-- [`D1 - Add stable error taxonomy / error categories`](../backlog-items/D1-stable-error-taxonomy-and-categories.md)
-- Cross-epic dependency: [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md) (shared failure category vocabulary)
-- Cross-epic dependency: [`T16 - Define customer-owned processor transform extension seam`](../backlog-items/T16-customer-owned-processor-transform-extension-seam.md) (shared transform failure category vocabulary)
+- [`D1 - Add stable error taxonomy / error categories`](../backlog-items/etl-core/D1-stable-error-taxonomy-and-categories.md)
+- Cross-epic dependency: [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md) (shared failure category vocabulary)
+- Cross-epic dependency: [`T16 - Define customer-owned processor transform extension seam`](../backlog-items/etl-core/T16-customer-owned-processor-transform-extension-seam.md) (shared transform failure category vocabulary)
 
 ## Related docs
 
@@ -29,3 +29,4 @@ This epic is **not** the place for broader retry policy, scheduling policy, or t
 ## Maintenance note
 
 Use [`../product-backlog.md`](../product-backlog.md) for the live status of `D1`. Use this page only for the broader intent and boundary of the Epic D capability track.
+

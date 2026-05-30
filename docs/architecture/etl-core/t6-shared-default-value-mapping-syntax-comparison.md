@@ -1,4 +1,4 @@
-# T6 Shared Default-Value Mapping Syntax Comparison
+﻿# T6 Shared Default-Value Mapping Syntax Comparison
 
 ## Purpose
 
@@ -157,9 +157,10 @@ Implementation should still resolve through the same processor-side flow, not th
 
 ## Related docs
 
-- [`T6 backlog item`](../../product/backlog-items/T6-shared-default-value-and-placeholder-mapping.md)
+- [`T6 backlog item`](../../product/backlog-items/etl-core/T6-shared-default-value-and-placeholder-mapping.md)
 - [`Transformation capability roadmap`](transformation-capability-roadmap.md)
 - [`Default processor reference`](../../config/processor/default-processor.md)
 - [`Product backlog`](../../product/product-backlog.md)
+
 
 

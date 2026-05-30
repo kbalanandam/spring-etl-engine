@@ -260,7 +260,7 @@ class SyncProjectBoardTests(unittest.TestCase):
     def test_resolve_detail_page_target_builds_absolute_repository_blob_url(self) -> None:
         item = sync_project_board.BacklogItem(
             backlog_id="A6",
-            id_link="backlog-items/A6-retire-internal-generated-model-package-bridge.md",
+            id_link="backlog-items/etl-core/A6-retire-internal-generated-model-package-bridge.md",
             item="Retire remaining internal generated-model package bridge",
             epic="Epic A",
             priority="P2",
@@ -277,17 +277,17 @@ class SyncProjectBoardTests(unittest.TestCase):
             repository_ref="master",
         )
 
-        self.assertEqual("docs/product/backlog-items/A6-retire-internal-generated-model-package-bridge.md", label)
+        self.assertEqual("docs/product/backlog-items/etl-core/A6-retire-internal-generated-model-package-bridge.md", label)
         self.assertEqual(
             "https://github.com/kbalanandam/spring-etl-engine/blob/master/"
-            "docs/product/backlog-items/A6-retire-internal-generated-model-package-bridge.md",
+            "docs/product/backlog-items/etl-core/A6-retire-internal-generated-model-package-bridge.md",
             target,
         )
 
     def test_resolve_epic_page_target_builds_absolute_repository_blob_url(self) -> None:
         item = sync_project_board.BacklogItem(
             backlog_id="F1",
-            id_link="backlog-items/F1-restart-semantics-per-execution-mode.md",
+            id_link="backlog-items/etl-core/F1-restart-semantics-per-execution-mode.md",
             item="Define restart semantics per execution mode",
             epic="Epic F",
             priority="P1",
@@ -313,7 +313,7 @@ class SyncProjectBoardTests(unittest.TestCase):
     def test_resolve_epic_page_target_supports_parser_epic(self) -> None:
         item = sync_project_board.BacklogItem(
             backlog_id="P1",
-            id_link="backlog-items/P1-freeze-parser-roadmap-around-csv-and-xml-maturity.md",
+            id_link="backlog-items/etl-core/P1-freeze-parser-roadmap-around-csv-and-xml-maturity.md",
             item="Freeze parser roadmap around CSV and XML source-native maturity",
             epic="Epic P",
             priority="P1",
@@ -360,7 +360,7 @@ class SyncProjectBoardTests(unittest.TestCase):
     def test_build_project_body_omits_internal_notes_in_public_mode(self) -> None:
         item = sync_project_board.BacklogItem(
             backlog_id="A4",
-            id_link="backlog-items/A4.md",
+            id_link="backlog-items/etl-core/A4-standardize-generated-model-naming-and-package-derivation.md",
             item="Standardize generated-model naming and package derivation",
             epic="Epic A",
             priority="P1",
@@ -393,11 +393,11 @@ class SyncProjectBoardTests(unittest.TestCase):
             private_body,
         )
         self.assertIn(
-            "- Detail page: docs/product/backlog-items/A4.md",
+            "- Detail page: docs/product/backlog-items/etl-core/A4-standardize-generated-model-naming-and-package-derivation.md",
             private_body,
         )
         self.assertIn(
-            "https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/backlog-items/A4.md",
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/backlog-items/etl-core/A4-standardize-generated-model-naming-and-package-derivation.md",
             private_body,
         )
 
@@ -445,4 +445,5 @@ class SyncProjectBoardTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
 

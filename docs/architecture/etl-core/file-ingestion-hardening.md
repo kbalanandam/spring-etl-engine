@@ -1,4 +1,4 @@
-# File Ingestion Hardening
+﻿# File Ingestion Hardening
 
 ## Purpose
 
@@ -91,7 +91,7 @@ For duplicate handling specifically, the shipped runtime currently uses:
 
 The product direction now keeps `storageMode: auto` as the default while also allowing explicit per-rule storage-mode override for ordered winner selection when needed.
 
-For configuration details and backlog rationale, see [`Default processor reference`](../../config/processor/default-processor.md) and [`T4 - Transformation quarantine and duplicate hardening`](../../product/backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md).
+For configuration details and backlog rationale, see [`Default processor reference`](../../config/processor/default-processor.md) and [`T4 - Transformation quarantine and duplicate hardening`](../../product/backlog-items/etl-core/T4-transformation-quarantine-and-duplicate-hardening.md).
 
 The main deferred exception to preserve is source-native duplicate identity that cannot be expressed cleanly through flat mapped fields. If a future XML scenario needs duplicate keys based on XPath, namespaces, nested collections, or other pre-flattening structure details, that should be treated as separate XML/source-level duplicate scope rather than stretching the current processor rule beyond its intended contract.
 
@@ -430,5 +430,6 @@ That scenario should prove:
 - rejected output
 - archived-original-file behavior
 - visible counts in runtime evidence
+
 
 

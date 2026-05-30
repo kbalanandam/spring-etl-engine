@@ -13,6 +13,7 @@ As features grow, the goal is to keep architectural intent in the repository ins
 - `architecture/` - feature and system-level design notes
 - `adr/` - Architecture Decision Records (why a decision was made)
 - `config/` - field-level config references and preserved scenario examples
+- `operations/` - operations-focused docs (logs and verification evidence navigation)
 - `product/` - product vision, backlog, milestones, and execution tracking
 
 ## Core terms
@@ -47,14 +48,14 @@ Start with the path that matches your goal:
 | understand how simple and complex flows normalize into one model | [`architecture/etl-core/flow-normalization-rules.md`](architecture/etl-core/flow-normalization-rules.md) | [`architecture/etl-core/hierarchical-flow-composition.md`](architecture/etl-core/hierarchical-flow-composition.md) and [`config/job-config.md`](config/job-config.md) |
 | assess the gap from shipped runtime to the reusable scenario model | [`architecture/etl-core/runtime-to-scenario-gap-assessment.md`](architecture/etl-core/runtime-to-scenario-gap-assessment.md) | [`architecture/etl-core/scenario-driven-runtime-direction.md`](architecture/etl-core/scenario-driven-runtime-direction.md) and [`architecture/etl-core/hierarchical-flow-composition.md`](architecture/etl-core/hierarchical-flow-composition.md) |
 | understand validation, transforms, or extension seams | [`architecture/etl-core/extension-points.md`](architecture/etl-core/extension-points.md) | [`config/processor/default-processor.md`](config/processor/default-processor.md) |
-| understand future scheduler/backend direction | [`architecture/control-plane/scheduler-architecture-direction.md`](architecture/control-plane/scheduler-architecture-direction.md) | [`architecture/control-plane/README.md`](architecture/control-plane/README.md) and [`product/backlog-items/S1-schedule-model-and-trigger-contract.md`](product/backlog-items/S1-schedule-model-and-trigger-contract.md) |
+| understand future scheduler/backend direction | [`architecture/control-plane/scheduler-architecture-direction.md`](architecture/control-plane/scheduler-architecture-direction.md) | [`architecture/control-plane/README.md`](architecture/control-plane/README.md) and [`product/backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md`](product/backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md) |
 | understand the first control-plane API contract for Angular MVP screens | [`architecture/control-plane/operator-ui-mvp-api-surface.md`](architecture/control-plane/operator-ui-mvp-api-surface.md) | [`architecture/operator-ui/angular-ui-mvp-structure.md`](architecture/operator-ui/angular-ui-mvp-structure.md) and [`architecture/operator-ui/angular-ui-mvp-wireframes.md`](architecture/operator-ui/angular-ui-mvp-wireframes.md) |
 | use a machine-readable OpenAPI draft for the control-plane MVP API | [`architecture/control-plane/operator-ui-mvp-openapi.yaml`](architecture/control-plane/operator-ui-mvp-openapi.yaml) | [`architecture/control-plane/operator-ui-mvp-api-surface.md`](architecture/control-plane/operator-ui-mvp-api-surface.md) and [`architecture/operator-ui/angular-ui-mvp-structure.md`](architecture/operator-ui/angular-ui-mvp-structure.md) |
 | understand future admin/monitor/job-authoring UI direction | [`architecture/operator-ui/operator-ui-architecture-direction.md`](architecture/operator-ui/operator-ui-architecture-direction.md) | [`architecture/operator-ui/README.md`](architecture/operator-ui/README.md) and [`architecture/control-plane/scheduler-architecture-direction.md`](architecture/control-plane/scheduler-architecture-direction.md) |
 | understand a practical Angular MVP structure for the operator UI | [`architecture/operator-ui/angular-ui-mvp-structure.md`](architecture/operator-ui/angular-ui-mvp-structure.md) | [`architecture/operator-ui/operator-ui-architecture-direction.md`](architecture/operator-ui/operator-ui-architecture-direction.md) and [`architecture/control-plane/control-plane-worker-boundary.md`](architecture/control-plane/control-plane-worker-boundary.md) |
 | understand the first wireframes for the Angular operator UI MVP | [`architecture/operator-ui/angular-ui-mvp-wireframes.md`](architecture/operator-ui/angular-ui-mvp-wireframes.md) | [`architecture/operator-ui/angular-ui-mvp-structure.md`](architecture/operator-ui/angular-ui-mvp-structure.md) and [`architecture/operator-ui/operator-ui-architecture-direction.md`](architecture/operator-ui/operator-ui-architecture-direction.md) |
 | understand parser capability boundaries for file sources | [`architecture/etl-core/oneflow-file-parser-capabilities.md`](architecture/etl-core/oneflow-file-parser-capabilities.md) | [`architecture/etl-core/file-ingestion-hardening.md`](architecture/etl-core/file-ingestion-hardening.md) and [`config/source/csv-source.md`](config/source/csv-source.md) |
-| understand how future C/C++ parsers can fit without breaking the ETL core boundary | [`architecture/etl-core/native-parser-adoptability.md`](architecture/etl-core/native-parser-adoptability.md) | [`architecture/etl-core/oneflow-file-parser-capabilities.md`](architecture/etl-core/oneflow-file-parser-capabilities.md) and [`adr/0010-keep-native-parsers-behind-java-reader-boundary.md`](adr/0010-keep-native-parsers-behind-java-reader-boundary.md) |
+| understand how future C/C++ parsers can fit without breaking the ETL core boundary | [`architecture/etl-core/native-parser-adoptability.md`](architecture/etl-core/native-parser-adoptability.md) | [`architecture/etl-core/oneflow-file-parser-capabilities.md`](architecture/etl-core/oneflow-file-parser-capabilities.md) and [`adr/etl-core/0010-keep-native-parsers-behind-java-reader-boundary.md`](adr/etl-core/0010-keep-native-parsers-behind-java-reader-boundary.md) |
 | understand the first concrete CSV-first sidecar protocol for future native parsing | [`architecture/etl-core/csv-native-parser-sidecar-protocol.md`](architecture/etl-core/csv-native-parser-sidecar-protocol.md) | [`architecture/etl-core/native-parser-adoptability.md`](architecture/etl-core/native-parser-adoptability.md) and [`architecture/etl-core/oneflow-file-parser-capabilities.md`](architecture/etl-core/oneflow-file-parser-capabilities.md) |
 | understand the Java `ItemStreamReader` adapter contract for future native parsing | [`architecture/etl-core/java-native-parser-reader-adapter-contract.md`](architecture/etl-core/java-native-parser-reader-adapter-contract.md) | [`architecture/etl-core/csv-native-parser-sidecar-protocol.md`](architecture/etl-core/csv-native-parser-sidecar-protocol.md) and [`architecture/etl-core/native-parser-adoptability.md`](architecture/etl-core/native-parser-adoptability.md) |
 | understand parser product planning and the CSV/XML-first freeze | [`product/epics/epic-p-source-native-parser-maturity.md`](product/epics/epic-p-source-native-parser-maturity.md) | [`product/product-backlog.md`](product/product-backlog.md) and [`architecture/etl-core/oneflow-file-parser-capabilities.md`](architecture/etl-core/oneflow-file-parser-capabilities.md) |
@@ -78,6 +79,13 @@ For every significant enhancement, add or update:
 1. one architecture note
 2. at least one Mermaid diagram if the runtime/config flow changes
 3. one ADR if the change introduces a meaningful design decision or tradeoff
+
+## Category scaffolding (staged migration)
+
+- ADR categories: [`adr/README.md`](adr/README.md)
+- Config references: [`config/README.md`](config/README.md) (current contract index; category split is deferred)
+
+These scaffolds are additive. Existing files stay in current paths for compatibility until a dedicated migration pass moves documents in focused batches.
 
 ## Current baseline docs
 
@@ -134,23 +142,25 @@ For every significant enhancement, add or update:
 - [`architecture/foundations/TEMPLATE.md`](architecture/foundations/TEMPLATE.md) - template for future design notes
 
 ### ADRs
-- [`adr/0001-use-architecture-docs-and-adrs.md`](adr/0001-use-architecture-docs-and-adrs.md)
-- [`adr/0002-config-driven-etl-pipeline.md`](adr/0002-config-driven-etl-pipeline.md)
-- [`adr/0003-adaptive-step-selection-and-generated-model-contract.md`](adr/0003-adaptive-step-selection-and-generated-model-contract.md)
-- [`adr/0004-use-explicit-job-config-for-business-scenario-selection.md`](adr/0004-use-explicit-job-config-for-business-scenario-selection.md)
-- [`adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md`](adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
-- [`adr/0006-separate-source-validation-and-processor-rule-spis.md`](adr/0006-separate-source-validation-and-processor-rule-spis.md)
-- [`adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
-- [`adr/0008-formalize-control-plane-and-etl-worker-boundary.md`](adr/0008-formalize-control-plane-and-etl-worker-boundary.md)
-- [`adr/0009-formalize-sqlite-first-local-control-plane-persistence.md`](adr/0009-formalize-sqlite-first-local-control-plane-persistence.md)
-- [`adr/0010-keep-native-parsers-behind-java-reader-boundary.md`](adr/0010-keep-native-parsers-behind-java-reader-boundary.md)
-- [`adr/0011-enforce-single-default-processor-contract.md`](adr/0011-enforce-single-default-processor-contract.md)
-- [`adr/0012-adopt-capability-first-hypercare-evolution.md`](adr/0012-adopt-capability-first-hypercare-evolution.md) - capability-first OneFlow evolution with optional later service extraction
-- [`adr/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md`](adr/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md) - formal naming split between technical identity and product-facing brand copy
+- [`adr/README.md`](adr/README.md) - ADR index and category scaffolding (`foundations`, `etl-core`, `control-plane`, `operator-ui`)
+- [`adr/foundations/0001-use-architecture-docs-and-adrs.md`](adr/foundations/0001-use-architecture-docs-and-adrs.md)
+- [`adr/etl-core/0002-config-driven-etl-pipeline.md`](adr/etl-core/0002-config-driven-etl-pipeline.md)
+- [`adr/etl-core/0003-adaptive-step-selection-and-generated-model-contract.md`](adr/etl-core/0003-adaptive-step-selection-and-generated-model-contract.md)
+- [`adr/etl-core/0004-use-explicit-job-config-for-business-scenario-selection.md`](adr/etl-core/0004-use-explicit-job-config-for-business-scenario-selection.md)
+- [`adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md`](adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md)
+- [`adr/etl-core/0006-separate-source-validation-and-processor-rule-spis.md`](adr/etl-core/0006-separate-source-validation-and-processor-rule-spis.md)
+- [`adr/etl-core/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](adr/etl-core/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
+- [`adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md`](adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md)
+- [`adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md`](adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md)
+- [`adr/etl-core/0010-keep-native-parsers-behind-java-reader-boundary.md`](adr/etl-core/0010-keep-native-parsers-behind-java-reader-boundary.md)
+- [`adr/etl-core/0011-enforce-single-default-processor-contract.md`](adr/etl-core/0011-enforce-single-default-processor-contract.md)
+- [`adr/foundations/0012-adopt-capability-first-hypercare-evolution.md`](adr/foundations/0012-adopt-capability-first-hypercare-evolution.md) - capability-first OneFlow evolution with optional later service extraction
+- [`adr/foundations/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md`](adr/foundations/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md) - formal naming split between technical identity and product-facing brand copy
 - [`adr/TEMPLATE.md`](adr/TEMPLATE.md) - template for future ADRs
 
 ### Configuration references
 - [`config/README.md`](config/README.md) - config documentation strategy, support matrix, and scenario usage
+- [`config/job-config.md`](config/job-config.md) - selected-job entry contract and ordered `steps` orchestration
 - [`config/source/csv-source.md`](config/source/csv-source.md) - CSV source fields supported today
 - [`config/source/xml-source.md`](config/source/xml-source.md) - XML source fields supported today
 - [`config/source/relational-source.md`](config/source/relational-source.md) - relational source fields and current phase-1 limitations
@@ -158,6 +168,9 @@ For every significant enhancement, add or update:
 - [`config/target/xml-target.md`](config/target/xml-target.md) - XML target fields and current runtime behavior
 - [`config/target/relational-target.md`](config/target/relational-target.md) - relational target fields and current SQL Server phase-1 limitations
 - [`config/processor/default-processor.md`](config/processor/default-processor.md) - default processor mapping contract
+
+### Operations docs
+- [`operations/README.md`](operations/README.md) - operations docs index (logging/evidence category scaffolding deferred; runtime logs stay under repo-root `logs/`)
 
 ### Product tracking
 - [`product/product-backlog.md`](product/product-backlog.md) - step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including optional scheduler/control-plane capabilities that grow around the independently runnable ETL core without becoming mandatory for teams that use external orchestration
@@ -253,7 +266,8 @@ The main architectural watchpoints are captured in [`architecture/foundations/ar
 
 The future observability and logging baseline is now captured in [`architecture/control-plane/job-history-and-operational-observability.md`](architecture/control-plane/job-history-and-operational-observability.md). The first runtime slice is now implemented with scenario/job-run MDC fields and daily scenario Logback files in the form `logs/<yyyy-MM-dd>/<scenario>.log`.
 
-Enterprise verification reporting direction is now captured in [`adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md`](adr/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md), and the current phase-1 implementation already includes a shared evidence model plus categorized Markdown verification reports.
+Enterprise verification reporting direction is now captured in [`adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md`](adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md), and the current phase-1 implementation already includes a shared evidence model plus categorized Markdown verification reports.
 
 The future AI-assisted operations direction is now captured in [AI-assisted operations intelligence](architecture/operator-ui/ai-assisted-operations-intelligence.md).
+
 

@@ -16,8 +16,8 @@ This epic is **not** the place for full scheduler/control-plane persistence, tho
 
 ## Related backlog items
 
-- [`C1 - Emit machine-readable run summary with scenario, status, and duration`](../backlog-items/C1-machine-readable-run-summary.md)
-- [`C2 - Complete run-level source / written / rejected count rollup`](../backlog-items/C2-run-level-count-rollup-and-reconciliation.md)
+- [`C1 - Emit machine-readable run summary with scenario, status, and duration`](../backlog-items/etl-core/C1-machine-readable-run-summary.md)
+- [`C2 - Complete run-level source / written / rejected count rollup`](../backlog-items/etl-core/C2-run-level-count-rollup-and-reconciliation.md)
 
 ## Related docs
 

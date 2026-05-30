@@ -1,4 +1,4 @@
-# Transformation Capability Catalog
+﻿# Transformation Capability Catalog
 
 ## Purpose
 
@@ -155,21 +155,21 @@ This map helps convert transformation growth into backlog items. Existing `T*` l
 
 | Major development | Current anchor | Candidate next item | Why it matters |
 |---|---|---|---|
-| Baseline rule/reject behavior | [`T1`](../../product/backlog-items/T1-field-level-validation-and-first-reject-handling-slice.md) | n/a | Shipped baseline for validation and reject path |
-| Transform SPI and normalization chain | [`T1a`](../../product/backlog-items/T1a-processor-transform-spi-and-first-cleaner-normalization-slice.md) | n/a | Shipped transform extension seam |
-| Expression-derived fields | [`T2`](../../product/backlog-items/T2-expression-based-derived-field-support.md) | n/a | Shipped derived field capability |
-| Conditional transforms/rules | [`T3`](../../product/backlog-items/T3-conditional-transformation-rule-support.md) | n/a | Shipped conditional transform baseline on the processor seam |
-| Duplicate hardening and scope boundaries | [`T4`](../../product/backlog-items/T4-transformation-quarantine-and-duplicate-hardening.md) | n/a | Stabilizes duplicate and quarantine behavior |
-| Lookup/enrichment baseline | [`T5`](../../product/backlog-items/T5-reference-set-validation-and-enrichment-baseline.md) | n/a | Introduces reference-data driven transformation |
-| Shared defaults/placeholders | [`T6`](../../product/backlog-items/T6-shared-default-value-and-placeholder-mapping.md) | n/a | Reduces repeated mapping logic |
-| Duplicate scalability redesign | [`T7`](../../product/backlog-items/T7-duplicate-tracking-scalability-redesign-deferment.md) | n/a | Keeps large-state dedupe work explicit |
-| Reusable transform profiles | [`T8`](../../product/backlog-items/T8-reusable-transform-profiles-and-versioning.md) | n/a | Reuse and versioning across scenarios |
-| Source-native transform seam | [`T9`](../../product/backlog-items/T9-source-native-transformation-seam.md) | n/a | Needed for XPath/namespace/token adaptation |
-| Record-level transformation stage | [`T10`](../../product/backlog-items/T10-record-level-transformation-stage.md) | n/a | Needed when field-centric model is insufficient |
-| Cross-record/window transformation | [`T11`](../../product/backlog-items/T11-cross-record-window-and-aggregation-transforms.md) | n/a | Needed for aggregation/group semantics |
-| Transformation governance and lineage | [`T12`](../../product/backlog-items/T12-transformation-governance-and-lineage.md) | n/a | Enterprise audit and policy requirements |
-| Transform-stage observability metrics | [`T13`](../../product/backlog-items/T13-transform-stage-observability-metrics.md) | n/a | Operator visibility at transform-stage granularity |
-| Secure data-shaping transforms | [`T14`](../../product/backlog-items/T14-secure-data-shaping-transforms.md) | n/a | Masking/tokenization for sensitive fields |
+| Baseline rule/reject behavior | [`T1`](../../product/backlog-items/etl-core/T1-field-level-validation-and-first-reject-handling-slice.md) | n/a | Shipped baseline for validation and reject path |
+| Transform SPI and normalization chain | [`T1a`](../../product/backlog-items/etl-core/T1a-processor-transform-spi-and-first-cleaner-normalization-slice.md) | n/a | Shipped transform extension seam |
+| Expression-derived fields | [`T2`](../../product/backlog-items/etl-core/T2-expression-based-derived-field-support.md) | n/a | Shipped derived field capability |
+| Conditional transforms/rules | [`T3`](../../product/backlog-items/etl-core/T3-conditional-transformation-rule-support.md) | n/a | Shipped conditional transform baseline on the processor seam |
+| Duplicate hardening and scope boundaries | [`T4`](../../product/backlog-items/etl-core/T4-transformation-quarantine-and-duplicate-hardening.md) | n/a | Stabilizes duplicate and quarantine behavior |
+| Lookup/enrichment baseline | [`T5`](../../product/backlog-items/etl-core/T5-reference-set-validation-and-enrichment-baseline.md) | n/a | Introduces reference-data driven transformation |
+| Shared defaults/placeholders | [`T6`](../../product/backlog-items/etl-core/T6-shared-default-value-and-placeholder-mapping.md) | n/a | Reduces repeated mapping logic |
+| Duplicate scalability redesign | [`T7`](../../product/backlog-items/etl-core/T7-duplicate-tracking-scalability-redesign-deferment.md) | n/a | Keeps large-state dedupe work explicit |
+| Reusable transform profiles | [`T8`](../../product/backlog-items/etl-core/T8-reusable-transform-profiles-and-versioning.md) | n/a | Reuse and versioning across scenarios |
+| Source-native transform seam | [`T9`](../../product/backlog-items/etl-core/T9-source-native-transformation-seam.md) | n/a | Needed for XPath/namespace/token adaptation |
+| Record-level transformation stage | [`T10`](../../product/backlog-items/etl-core/T10-record-level-transformation-stage.md) | n/a | Needed when field-centric model is insufficient |
+| Cross-record/window transformation | [`T11`](../../product/backlog-items/etl-core/T11-cross-record-window-and-aggregation-transforms.md) | n/a | Needed for aggregation/group semantics |
+| Transformation governance and lineage | [`T12`](../../product/backlog-items/etl-core/T12-transformation-governance-and-lineage.md) | n/a | Enterprise audit and policy requirements |
+| Transform-stage observability metrics | [`T13`](../../product/backlog-items/etl-core/T13-transform-stage-observability-metrics.md) | n/a | Operator visibility at transform-stage granularity |
+| Secure data-shaping transforms | [`T14`](../../product/backlog-items/etl-core/T14-secure-data-shaping-transforms.md) | n/a | Masking/tokenization for sensitive fields |
 
 ## Practical planning checklist
 
@@ -194,5 +194,6 @@ Start separate-layer design when two or more answers are yes:
 - [`runtime-flow.md`](runtime-flow.md)
 - [`default-processor.md`](../../config/processor/default-processor.md)
 - [`product-backlog.md`](../../product/product-backlog.md)
+
 
 

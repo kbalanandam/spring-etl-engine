@@ -1,4 +1,4 @@
-# Epic P - Source-native parser maturity
+﻿# Epic P - Source-native parser maturity
 
 ## Summary
 
@@ -24,11 +24,11 @@ The most important real-file proof anchors for this epic are the preserved bundl
 
 ## Related backlog items
 
-- [`P1 - Freeze parser roadmap around CSV and XML source-native maturity`](../backlog-items/P1-freeze-parser-roadmap-around-csv-and-xml-maturity.md)
-- [`P2 - Expand CSV parser strictness and malformed-row categorization on the read path`](../backlog-items/P2-expand-csv-parser-strictness-and-malformed-row-categorization.md)
-- [`P3 - Expand XML parser maturity for namespace-aware and fragment-contract scenarios`](../backlog-items/P3-expand-xml-parser-maturity-for-namespace-and-fragment-contracts.md)
-- [`P4 - Prove CSV and XML parser maturity through preserved scenarios and verification`](../backlog-items/P4-prove-csv-and-xml-parser-maturity-through-preserved-scenarios-and-verification.md)
-- [`P5 - Define native parser adoptability and CSV-first sidecar integration readiness`](../backlog-items/P5-native-parser-adoptability-and-sidecar-integration-readiness.md)
+- [`P1 - Freeze parser roadmap around CSV and XML source-native maturity`](../backlog-items/etl-core/P1-freeze-parser-roadmap-around-csv-and-xml-maturity.md)
+- [`P2 - Expand CSV parser strictness and malformed-row categorization on the read path`](../backlog-items/etl-core/P2-expand-csv-parser-strictness-and-malformed-row-categorization.md)
+- [`P3 - Expand XML parser maturity for namespace-aware and fragment-contract scenarios`](../backlog-items/etl-core/P3-expand-xml-parser-maturity-for-namespace-and-fragment-contracts.md)
+- [`P4 - Prove CSV and XML parser maturity through preserved scenarios and verification`](../backlog-items/etl-core/P4-prove-csv-and-xml-parser-maturity-through-preserved-scenarios-and-verification.md)
+- [`P5 - Define native parser adoptability and CSV-first sidecar integration readiness`](../backlog-items/etl-core/P5-native-parser-adoptability-and-sidecar-integration-readiness.md)
 
 ## Related docs
 
@@ -44,5 +44,6 @@ The most important real-file proof anchors for this epic are the preserved bundl
 ## Maintenance note
 
 Use [`../product-backlog.md`](../product-backlog.md) for execution-board status. Use this page for the shared parser boundary, CSV/XML-first planning stance, and explicit JSON-later scope decision that span the `P*` items.
+
 
 

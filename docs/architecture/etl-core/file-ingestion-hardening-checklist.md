@@ -1,4 +1,4 @@
-# File Ingestion Hardening Checklist
+﻿# File Ingestion Hardening Checklist
 
 ## Purpose
 
@@ -49,7 +49,7 @@ The following items are still not part of the shipped hardening contract:
 - multi-destination reject routing
 - rule severity levels
 - broad conditional rule engines
-- XML-native duplicate identity rules based on XPath/namespaces or other pre-flattening structure (deferred follow-on: [`T15`](../../product/backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md))
+- XML-native duplicate identity rules based on XPath/namespaces or other pre-flattening structure (deferred follow-on: [`T15`](../../product/backlog-items/etl-core/T15-xml-native-duplicate-identity-for-nested-xml-sources.md))
 - richer source-native XML validation beyond the current lightweight structural/file-level baseline
 
 ## Current architecture anchors
@@ -123,6 +123,7 @@ Before considering additional hardening changes complete, confirm:
 - [`Validation extension architecture`](validation-extension-architecture.md)
 - [`Transformation capability roadmap`](transformation-capability-roadmap.md)
 - [`Product backlog`](../../product/product-backlog.md)
-- [`T15 - XML-native duplicate identity for nested XML sources`](../../product/backlog-items/T15-xml-native-duplicate-identity-for-nested-xml-sources.md)
+- [`T15 - XML-native duplicate identity for nested XML sources`](../../product/backlog-items/etl-core/T15-xml-native-duplicate-identity-for-nested-xml-sources.md)
+
 
 

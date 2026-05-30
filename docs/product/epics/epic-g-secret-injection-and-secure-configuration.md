@@ -16,7 +16,7 @@ This epic is **not** the place for transport-specific partner security rules or 
 
 ## Related backlog items
 
-- [`G1 - Support secret injection via environment or secure config source`](../backlog-items/G1-secret-injection-via-environment-or-secure-config-source.md)
+- [`G1 - Support secret injection via environment or secure config source`](../backlog-items/etl-core/G1-secret-injection-via-environment-or-secure-config-source.md)
 
 ## Related docs
 

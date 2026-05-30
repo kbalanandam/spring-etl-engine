@@ -11,7 +11,7 @@
 - `spring-etl-engine` remains the stable technical identity for the repository, codebase, package structure, and technical references.
 - `OneFlow` is the current brand-facing product name for user-facing messaging, visual assets, and GitHub presentation.
 - Future branding changes should update brand-facing copy first and avoid unnecessary renames of technical identifiers unless there is a strong operational reason.
-- Future broader product renames or brand-wording refresh work should follow [`docs/product/github-promotion.md`](docs/product/github-promotion.md) and the tracked backlog path in [`E3 - Centralize product-brand naming and doc refresh automation`](docs/product/backlog-items/E3-centralize-brand-naming-and-doc-refresh.md) rather than a blind repository-wide replace.
+- Future broader product renames or brand-wording refresh work should follow [`docs/product/github-promotion.md`](docs/product/github-promotion.md) and the tracked backlog path in [`E3 - Centralize product-brand naming and doc refresh automation`](docs/product/backlog-items/etl-core/E3-centralize-brand-naming-and-doc-refresh.md) rather than a blind repository-wide replace.
 
 ## Product vision
 
@@ -224,8 +224,8 @@ Start here:
 - [`docs/architecture/control-plane/scheduler-architecture-direction.md`](docs/architecture/control-plane/scheduler-architecture-direction.md)
 - [`docs/architecture/operator-ui/operator-ui-architecture-direction.md`](docs/architecture/operator-ui/operator-ui-architecture-direction.md)
 - [`docs/architecture/etl-core/transformation-capability-roadmap.md`](docs/architecture/etl-core/transformation-capability-roadmap.md)
-- [`docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](docs/adr/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
-- [`docs/adr/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md`](docs/adr/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md)
+- [`docs/adr/etl-core/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md`](docs/adr/etl-core/0007-add-separate-processor-transform-spi-for-cleaning-and-normalization.md)
+- [`docs/adr/foundations/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md`](docs/adr/foundations/0013-keep-spring-etl-engine-technical-identity-and-oneflow-product-name.md)
 - [`docs/README.md#adrs`](docs/README.md#adrs)
 
 ## Repository Structure
@@ -265,3 +265,4 @@ Start here:
 |-- README.md
 |-- pom.xml
 \-- LICENSE
+

@@ -7,7 +7,7 @@ Define a future-direction architecture contract that lets customer-owned custom 
 ## Status
 
 - Classification: **Future direction**
-- Backlog anchor: [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../../product/backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+- Backlog anchor: [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
 
 ## Design goals
 
@@ -51,7 +51,7 @@ Use these as locked review criteria for A7 design and implementation PRs.
 
 Change rule:
 
-- any invariant change requires synchronized updates to this note and [`A7 backlog item`](../../product/backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md), and should include ADR review when tradeoffs materially shift runtime behavior.
+- any invariant change requires synchronized updates to this note and [`A7 backlog item`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md), and should include ADR review when tradeoffs materially shift runtime behavior.
 
 ## Backward compatibility contract
 
@@ -309,7 +309,7 @@ Recommended first preserved scenario coverage:
 - [`Runtime flow`](runtime-flow.md)
 - [`Flow normalization rules`](flow-normalization-rules.md)
 - [`Job config`](../../config/job-config.md)
-- [`A7 backlog item`](../../product/backlog-items/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+- [`A7 backlog item`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
 - [`Epic D - Error taxonomy and failure categorization`](../../product/epics/epic-d-error-taxonomy-and-failure-categorization.md)
 - [`Proposed package layout`](#proposed-package-layout)
 - [`Test matrix`](#test-matrix)

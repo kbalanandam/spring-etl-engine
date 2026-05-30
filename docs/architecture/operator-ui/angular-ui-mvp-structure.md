@@ -482,10 +482,10 @@ This Angular MVP shape depends on the contracts already preserved in:
 - [`../control-plane/control-plane-worker-boundary.md`](../control-plane/control-plane-worker-boundary.md)
 - [`../control-plane/control-plane-operational-data-model.md`](../control-plane/control-plane-operational-data-model.md)
 - [`../control-plane/job-history-and-operational-observability.md`](../control-plane/job-history-and-operational-observability.md)
-- [`../../product/backlog-items/S1-schedule-model-and-trigger-contract.md`](../../product/backlog-items/S1-schedule-model-and-trigger-contract.md)
-- [`../../product/backlog-items/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md`](../../product/backlog-items/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md)
-- [`../../product/backlog-items/S4-control-plane-operational-data-model.md`](../../product/backlog-items/S4-control-plane-operational-data-model.md)
-- [`../../product/backlog-items/F1-restart-semantics-per-execution-mode.md`](../../product/backlog-items/F1-restart-semantics-per-execution-mode.md)
+- [`../../product/backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md`](../../product/backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md)
+- [`../../product/backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md`](../../product/backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md)
+- [`../../product/backlog-items/scheduler/S4-control-plane-operational-data-model.md`](../../product/backlog-items/scheduler/S4-control-plane-operational-data-model.md)
+- [`../../product/backlog-items/etl-core/F1-restart-semantics-per-execution-mode.md`](../../product/backlog-items/etl-core/F1-restart-semantics-per-execution-mode.md)
 
 
 
