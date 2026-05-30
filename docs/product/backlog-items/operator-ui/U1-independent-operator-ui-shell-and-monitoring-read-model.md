@@ -8,7 +8,7 @@ Create the first independent Operator UI shell so users can view jobs and recent
 
 - Epic: **[Epic U](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **C1**
 
@@ -80,11 +80,11 @@ Use the monitoring-first API starter as the data source and ship a read-only UI 
 
 ## Acceptance criteria
 
-- [ ] UI shell launches independently from ETL worker runtime
-- [ ] jobs list view renders from control-plane API read model
-- [ ] recent runs list view renders status and key timestamps
-- [ ] empty/error states are explicit and non-blocking
-- [ ] documentation links users from UI pages to runtime evidence sources
+- [x] UI shell launches independently from ETL worker runtime
+- [x] jobs list view renders from control-plane API read model
+- [x] recent runs list view renders status and key timestamps
+- [x] empty/error states are explicit and non-blocking
+- [x] documentation links users from UI pages to runtime evidence sources
 
 ## Related docs
 
@@ -99,5 +99,5 @@ Keep this slice focused on observability. Do not merge trigger/scheduler control
 
 ## Status notes
 
-Started with a first thin shell slice: `/operator` entry route, Jobs/Runs read-only list rendering from existing control-plane APIs, explicit empty/error states, run-row and jobs-row click-through placeholder routes (`#/runs/{jobExecutionId}`, `#/jobs/{jobKey}`), lightweight client-side filter/sort controls for fast table triage, and hash-route state persistence for filter/sort context across refresh/back navigation.
+Completed as a monitoring-first thin shell slice: `/operator` entry route, Jobs/Runs read-only list rendering from existing control-plane APIs, explicit empty/error states, run-row and jobs-row click-through placeholder routes (`#/runs/{jobExecutionId}`, `#/jobs/{jobKey}`), lightweight client-side filter/sort controls for fast table triage, and hash-route state persistence for filter/sort context across refresh/back navigation.
 
