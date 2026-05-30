@@ -5,6 +5,7 @@ import com.etl.controlplane.api.JobBundleController;
 import com.etl.controlplane.api.RunSummaryController;
 import com.etl.controlplane.api.ScheduleController;
 import com.etl.controlplane.api.SystemController;
+import com.etl.controlplane.ui.OperatorUiController;
 import com.etl.runner.EtlJobRunner;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -82,6 +83,9 @@ class ControlPlaneApiLauncherIntegrationTest {
 	@Autowired
 	private SystemController systemController;
 
+	@Autowired
+	private OperatorUiController operatorUiController;
+
 	private MockMvc mockMvc;
 
 	@Autowired
@@ -99,7 +103,7 @@ class ControlPlaneApiLauncherIntegrationTest {
 	@BeforeEach
 	void setupMockMvc() {
 		this.mockMvc = MockMvcBuilders
-				.standaloneSetup(jobBundleController, runSummaryController, scheduleController, systemController)
+				.standaloneSetup(jobBundleController, runSummaryController, scheduleController, systemController, operatorUiController)
 				.setMessageConverters(new MappingJackson2HttpMessageConverter(objectMapper))
 				.build();
 	}
@@ -153,6 +157,10 @@ class ControlPlaneApiLauncherIntegrationTest {
 		mockMvc.perform(get("/api/v1/schedules/" + scheduleId + "/trigger-events"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.totalItems").value(0));
+
+		mockMvc.perform(get("/operator"))
+				.andExpect(status().is3xxRedirection())
+				.andExpect(result -> assertEquals("/operator/index.html", result.getResponse().getRedirectedUrl()));
 	}
 
 	private String readScheduleId(MvcResult result) throws IOException {
