@@ -99,5 +99,11 @@ Keep this slice read-only and evidence-first. Any action buttons should remain d
 
 ## Status notes
 
-Started as the second monitoring-first UI slice after jobs/runs overview, focused on replacing U1 run-detail placeholder rendering with full read-only drill-down sections from `/api/v1/runs/{jobExecutionId}/detail`.
+Started as the second monitoring-first UI slice after jobs/runs overview.
+
+Current progress:
+
+- replaced U1 run-detail placeholder panel with read-only sections for run summary, step outcomes/counts, failure summary, artifacts, and evidence links
+- preserved graceful "not available" handling for optional fields when data is absent
+- kept route/API contract unchanged on `/api/v1/runs/{jobExecutionId}/detail`
 
