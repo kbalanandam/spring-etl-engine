@@ -4,6 +4,11 @@ const routes = {
     view: document.getElementById("view-jobs"),
     load: loadJobs,
   },
+  jobDetail: {
+    tab: document.getElementById("tab-jobs"),
+    view: document.getElementById("view-job-detail"),
+    load: loadJobDetailPlaceholder,
+  },
   runs: {
     tab: document.getElementById("tab-runs"),
     view: document.getElementById("view-runs"),
@@ -28,15 +33,20 @@ window.addEventListener("DOMContentLoaded", () => {
 function currentRouteState() {
   const hash = location.hash.replace(/^#\/?/, "");
   const normalized = hash.toLowerCase();
-  const runDetailMatch = normalized.match(/^runs\/(\d+)$/);
+  const runDetailMatch = hash.match(/^runs\/(\d+)$/i);
+  const jobDetailMatch = hash.match(/^jobs\/([^/]+)$/i);
+
+  if (jobDetailMatch) {
+    return { key: "jobDetail", jobExecutionId: null, jobKey: decodeURIComponent(jobDetailMatch[1]) };
+  }
 
   if (runDetailMatch) {
-    return { key: "runDetail", jobExecutionId: runDetailMatch[1] };
+    return { key: "runDetail", jobExecutionId: runDetailMatch[1], jobKey: null };
   }
   if (normalized === "runs") {
-    return { key: "runs", jobExecutionId: null };
+    return { key: "runs", jobExecutionId: null, jobKey: null };
   }
-  return { key: "jobs", jobExecutionId: null };
+  return { key: "jobs", jobExecutionId: null, jobKey: null };
 }
 
 function renderRoute() {
@@ -77,6 +87,14 @@ async function loadJobs() {
 
     items.forEach((job) => {
       const row = document.createElement("tr");
+      const jobKey = job.jobKey;
+      if (jobKey) {
+        row.className = "clickable-row";
+        row.title = "Open job detail placeholder";
+        row.addEventListener("click", () => {
+          location.hash = `#/jobs/${encodeURIComponent(jobKey)}`;
+        });
+      }
       row.innerHTML = `
         <td>${escapeHtml(job.jobKey || "-")}</td>
         <td>${escapeHtml(job.displayName || "-")}</td>
@@ -89,6 +107,44 @@ async function loadJobs() {
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load jobs: ${error.message}`;
+  }
+}
+
+async function loadJobDetailPlaceholder(routeState) {
+  const state = document.getElementById("job-detail-state");
+  const summary = document.getElementById("job-detail-summary");
+  const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
+
+  state.className = "state";
+  summary.hidden = true;
+
+  if (!jobKeyValue) {
+    state.className = "state error";
+    state.textContent = "Missing job key in route. Use a row in Jobs list.";
+    return;
+  }
+
+  state.textContent = `Loading job ${jobKeyValue}...`;
+
+  try {
+    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(jobKeyValue)}`, { headers: { Accept: "application/json" } });
+    if (!response.ok) {
+      throw new Error(`Job detail API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    const job = payload.job || {};
+
+    document.getElementById("job-detail-key").textContent = job.jobKey || jobKeyValue;
+    document.getElementById("job-detail-name").textContent = job.displayName || "-";
+    document.getElementById("job-detail-readiness").textContent = job.readinessStatus || "-";
+    document.getElementById("job-detail-recent-run-count").textContent = String(Array.isArray(payload.recentRuns) ? payload.recentRuns.length : 0);
+    document.getElementById("job-detail-trigger-count").textContent = String(Array.isArray(payload.triggerEvents) ? payload.triggerEvents.length : 0);
+
+    state.textContent = "U3 job detail route is wired. Trigger actions remain deferred to U3.";
+    summary.hidden = false;
+  } catch (error) {
+    state.className = "state error";
+    state.textContent = `Unable to load job detail placeholder: ${error.message}`;
   }
 }
 
@@ -188,5 +244,6 @@ function escapeHtml(value) {
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
 
 

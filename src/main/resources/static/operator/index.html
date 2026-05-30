@@ -34,6 +34,20 @@
     </table>
   </section>
 
+  <section id="view-job-detail" class="panel" hidden>
+    <h2>Job Detail (U3 preparation)</h2>
+    <p class="hint">Read-only placeholder backed by <code>/api/v1/jobs/{jobKey}</code>. Trigger actions remain in `U3` scope.</p>
+    <div id="job-detail-state" class="state"></div>
+    <div id="job-detail-summary" hidden>
+      <p><strong>Job key:</strong> <span id="job-detail-key"></span></p>
+      <p><strong>Display name:</strong> <span id="job-detail-name"></span></p>
+      <p><strong>Readiness:</strong> <span id="job-detail-readiness"></span></p>
+      <p><strong>Recent runs shown:</strong> <span id="job-detail-recent-run-count"></span></p>
+      <p><strong>Trigger events shown:</strong> <span id="job-detail-trigger-count"></span></p>
+    </div>
+    <p><a href="#/jobs">Back to jobs list</a></p>
+  </section>
+
   <section id="view-runs" class="panel" hidden>
     <h2>Runs</h2>
     <p class="hint">Recent summaries from <code>/api/v1/runs?limit=25</code>.</p>
@@ -74,5 +88,6 @@
 <script src="/operator/app.js"></script>
 </body>
 </html>
+
 
 

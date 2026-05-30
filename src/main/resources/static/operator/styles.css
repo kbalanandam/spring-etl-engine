@@ -89,7 +89,8 @@ th {
   background: #eff6ff;
 }
 
-#run-detail-summary {
+#run-detail-summary,
+#job-detail-summary {
   border: 1px solid #cbd5e1;
   border-radius: 6px;
   background: #f8fafc;

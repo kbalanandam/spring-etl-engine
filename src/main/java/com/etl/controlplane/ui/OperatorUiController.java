@@ -19,6 +19,12 @@ public class OperatorUiController {
     public String runDetailPlaceholder(@PathVariable long jobExecutionId) {
         return "redirect:/operator/index.html#/runs/" + jobExecutionId;
     }
+
+    @GetMapping("/operator/jobs/{jobKey}")
+    public String jobDetailPlaceholder(@PathVariable String jobKey) {
+        return "redirect:/operator/index.html#/jobs/" + jobKey;
+    }
 }
+
 
 
