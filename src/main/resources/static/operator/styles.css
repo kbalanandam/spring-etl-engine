@@ -140,6 +140,78 @@ th {
   word-break: break-word;
 }
 
+.log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 420px;
+  overflow: auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
+.log-line {
+  border: 1px solid #dbe3ef;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 8px;
+}
+
+.log-line.raw {
+  background: #f1f5f9;
+}
+
+.log-line-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.log-chip {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  font-size: 11px;
+  padding: 1px 8px;
+  color: #334155;
+  background: #f8fafc;
+}
+
+.log-chip.level-error {
+  border-color: #fca5a5;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.log-chip.level-warn {
+  border-color: #fcd34d;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.log-chip.level-info {
+  border-color: #93c5fd;
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.log-time {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.log-line-text {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  color: #1f2937;
+}
+
 .trigger-row {
   display: flex;
   gap: 10px;

@@ -102,7 +102,7 @@ Use this page as the main browse index when you want to navigate backlog items b
 ### Epic U - Operator UI monitoring-first MVP
 
 - [`U1 - Stand up independent monitoring-first Operator UI shell with jobs and runs list views`](operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md)
-- [`U2 - Add job run detail drill-down with step outcomes and evidence links`](operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md)
+- [`U2 - Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer`](operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md)
 - [`U3 - Add guarded trigger-now action from job details without scheduler coupling`](operator-ui/U3-guarded-trigger-now-from-job-details.md)
 
 ### Epic V - Verification evidence and reporting

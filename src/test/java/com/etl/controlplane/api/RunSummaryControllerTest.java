@@ -6,6 +6,9 @@ import com.etl.controlplane.monitoring.EvidenceLinkView;
 import com.etl.controlplane.monitoring.StepRecordView;
 import com.etl.controlplane.monitoring.ArtifactRecordView;
 import com.etl.controlplane.monitoring.FailureSummaryView;
+import com.etl.controlplane.monitoring.RunScopedLogReadModelService;
+import com.etl.controlplane.monitoring.RunScopedLogView;
+import com.etl.controlplane.monitoring.RunLogLineView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryView;
 import org.junit.jupiter.api.Test;
@@ -40,6 +43,9 @@ class RunSummaryControllerTest {
 
 	@MockitoBean
 	private RunDetailReadModelService runDetailReadModelService;
+
+	@MockitoBean
+	private RunScopedLogReadModelService runScopedLogReadModelService;
 
 	@Test
 	void returnsRunsUsingDefaultLimit() throws Exception {
@@ -133,6 +139,42 @@ class RunSummaryControllerTest {
 				.andExpect(status().isNotFound());
 
 		verify(runDetailReadModelService).findRunDetailByJobExecutionId(eq(999L));
+	}
+
+	@Test
+	void returnsRunScopedLogByJobExecutionId() throws Exception {
+		when(runScopedLogReadModelService.findRunScopedLogByJobExecutionId(eq(101L), eq(50))).thenReturn(Optional.of(
+				new RunScopedLogView(
+						101L,
+						"customer-load",
+						"logs/2026-05-27/customer-load.log",
+						2,
+						false,
+						List.of(
+								new RunLogLineView(2, LocalDateTime.parse("2026-05-27T10:00:00"), "INFO", "STEP_EVENT", "step_started", "line 1", true),
+								new RunLogLineView(3, LocalDateTime.parse("2026-05-27T10:00:05"), "ERROR", "JOB_FAILURE", "job_failure", "line 2", true)
+						)
+				)
+		));
+
+		mockMvc.perform(get("/api/v1/runs/101/log").param("limit", "50"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.jobExecutionId").value(101))
+				.andExpect(jsonPath("$.scenario").value("customer-load"))
+				.andExpect(jsonPath("$.lines[0].recordType").value("STEP_EVENT"))
+				.andExpect(jsonPath("$.lines[1].level").value("ERROR"));
+
+		verify(runScopedLogReadModelService).findRunScopedLogByJobExecutionId(eq(101L), eq(50));
+	}
+
+	@Test
+	void returnsNotFoundWhenRunScopedLogDoesNotExist() throws Exception {
+		when(runScopedLogReadModelService.findRunScopedLogByJobExecutionId(eq(999L), eq(null))).thenReturn(Optional.empty());
+
+		mockMvc.perform(get("/api/v1/runs/999/log"))
+				.andExpect(status().isNotFound());
+
+		verify(runScopedLogReadModelService).findRunScopedLogByJobExecutionId(eq(999L), eq(null));
 	}
 }
 

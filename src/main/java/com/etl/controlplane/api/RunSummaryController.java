@@ -2,6 +2,8 @@ package com.etl.controlplane.api;
 
 import com.etl.controlplane.monitoring.RunDetailReadModelService;
 import com.etl.controlplane.monitoring.RunDetailView;
+import com.etl.controlplane.monitoring.RunScopedLogReadModelService;
+import com.etl.controlplane.monitoring.RunScopedLogView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryView;
 import org.springframework.http.ResponseEntity;
@@ -20,11 +22,14 @@ public class RunSummaryController {
 
 	private final RunSummaryReadModelService runSummaryReadModelService;
 	private final RunDetailReadModelService runDetailReadModelService;
+	private final RunScopedLogReadModelService runScopedLogReadModelService;
 
 	public RunSummaryController(RunSummaryReadModelService runSummaryReadModelService,
-	                            RunDetailReadModelService runDetailReadModelService) {
+	                            RunDetailReadModelService runDetailReadModelService,
+	                            RunScopedLogReadModelService runScopedLogReadModelService) {
 		this.runSummaryReadModelService = runSummaryReadModelService;
 		this.runDetailReadModelService = runDetailReadModelService;
+		this.runScopedLogReadModelService = runScopedLogReadModelService;
 	}
 
 	@GetMapping
@@ -44,6 +49,14 @@ public class RunSummaryController {
 	@GetMapping("/{jobExecutionId}/detail")
 	public ResponseEntity<RunDetailView> runDetailByJobExecutionId(@PathVariable long jobExecutionId) {
 		return runDetailReadModelService.findRunDetailByJobExecutionId(jobExecutionId)
+				.map(ResponseEntity::ok)
+				.orElseGet(() -> ResponseEntity.notFound().build());
+	}
+
+	@GetMapping("/{jobExecutionId}/log")
+	public ResponseEntity<RunScopedLogView> runScopedLogByJobExecutionId(@PathVariable long jobExecutionId,
+	                                                                    @RequestParam(name = "limit", required = false) Integer limit) {
+		return runScopedLogReadModelService.findRunScopedLogByJobExecutionId(jobExecutionId, limit)
 				.map(ResponseEntity::ok)
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}

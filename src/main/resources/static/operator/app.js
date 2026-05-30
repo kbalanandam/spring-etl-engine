@@ -534,10 +534,16 @@ function labelDirection(direction) {
 async function loadRunDetail(routeState) {
   const state = document.getElementById("run-detail-state");
   const summary = document.getElementById("run-detail-summary");
+  const logState = document.getElementById("run-detail-log-state");
+  const logList = document.getElementById("run-detail-log-list");
+  const logEmpty = document.getElementById("run-detail-log-empty");
   const runIdValue = routeState && routeState.jobExecutionId ? routeState.jobExecutionId : null;
 
   state.className = "state";
   summary.hidden = true;
+  logState.hidden = true;
+  logList.hidden = true;
+  logEmpty.hidden = true;
 
   if (!runIdValue) {
     state.className = "state error";
@@ -567,6 +573,7 @@ async function loadRunDetail(routeState) {
     renderRunFailureSummary(payload.failureSummary);
     renderRunArtifacts(payload.artifacts);
     renderRunEvidenceLinks(payload.evidenceLinks);
+    await loadRunScopedLog(runIdValue);
 
     state.textContent = "Run detail loaded.";
     summary.hidden = false;
@@ -574,6 +581,77 @@ async function loadRunDetail(routeState) {
     state.className = "state error";
     state.textContent = `Unable to load run detail: ${error.message}`;
   }
+}
+
+async function loadRunScopedLog(runIdValue) {
+  const logState = document.getElementById("run-detail-log-state");
+  const logList = document.getElementById("run-detail-log-list");
+  const logEmpty = document.getElementById("run-detail-log-empty");
+
+  logState.className = "state";
+  logState.textContent = "Loading run-scoped log lines...";
+  logState.hidden = false;
+  logList.hidden = true;
+  logEmpty.hidden = true;
+  logList.innerHTML = "";
+
+  try {
+    const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/log?limit=200`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Run log API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    renderRunLogLines(payload.lines, payload.truncated);
+  } catch (error) {
+    logState.className = "state error";
+    logState.textContent = `Unable to load run-scoped logs: ${error.message}`;
+  }
+}
+
+function renderRunLogLines(lines, truncated) {
+  const logState = document.getElementById("run-detail-log-state");
+  const logList = document.getElementById("run-detail-log-list");
+  const logEmpty = document.getElementById("run-detail-log-empty");
+  const list = Array.isArray(lines) ? lines : [];
+
+  logList.innerHTML = "";
+  if (list.length === 0) {
+    logState.hidden = true;
+    logList.hidden = true;
+    logEmpty.hidden = false;
+    return;
+  }
+
+  list.forEach((line) => {
+    const row = document.createElement("div");
+    row.className = `log-line ${line.structured ? "structured" : "raw"}`;
+
+    const level = (line.level || "").toUpperCase();
+    const recordType = valueOrDash(line.recordType);
+    const event = valueOrDash(line.event);
+    const lineNumber = valueOrDash(line.lineNumber);
+    const timestamp = valueOrDash(line.loggedAt);
+
+    row.innerHTML = `
+      <div class="log-line-meta">
+        <span class="log-chip level-${escapeHtml(level.toLowerCase())}">${escapeHtml(level || "RAW")}</span>
+        <span class="log-chip">L${escapeHtml(lineNumber)}</span>
+        <span class="log-chip">${escapeHtml(recordType)}</span>
+        <span class="log-chip">${escapeHtml(event)}</span>
+        <span class="log-time">${escapeHtml(timestamp)}</span>
+      </div>
+      <pre class="log-line-text">${escapeHtml(valueOrDash(line.message))}</pre>`;
+
+    logList.appendChild(row);
+  });
+
+  logEmpty.hidden = true;
+  logList.hidden = false;
+  logState.hidden = false;
+  logState.className = "state";
+  logState.textContent = truncated ? `Showing first ${list.length} run-scoped line(s).` : `Showing ${list.length} run-scoped line(s).`;
 }
 
 function renderRunSteps(steps) {

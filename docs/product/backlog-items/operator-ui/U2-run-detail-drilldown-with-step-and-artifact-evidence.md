@@ -1,14 +1,14 @@
-# U2 - Add job run detail drill-down with step outcomes and evidence links
+# U2 - Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer
 
 ## Summary
 
-Add run-detail drill-down in the Operator UI so users can inspect one run's step outcomes, counts, failure summaries, and artifact references without manually correlating multiple log files.
+Add run-detail drill-down in the Operator UI so users can inspect one run's step outcomes, counts, failure summaries, artifact references, and run-scoped log lines without manually correlating multiple log files.
 
 ## Current board status
 
 - Epic: **[Epic U](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)**
 - Priority: **P1**
-- Status: **Done**
+- Status: **In Progress**
 - Milestone: **M2**
 - Dependency: **U1, C2**
 
@@ -22,7 +22,7 @@ Users can see that a run succeeded or failed, but cannot quickly inspect why wit
 
 ## Goal
 
-Provide one run-detail page that exposes step outcomes and evidence links from existing monitoring projections.
+Provide one run-detail page that exposes step outcomes, evidence links, and run-instance-focused logs from existing monitoring projections.
 
 ## Subject details
 
@@ -40,6 +40,8 @@ The page should make failure triage faster than manual log correlation.
 - step-level status and count rendering
 - failure summary visibility
 - artifact/evidence link rendering (where available)
+- richer in-page log rendering (not raw plain-text fallback only)
+- run-instance-scoped log extraction so one run view does not show full scenario history
 - clear handling when optional evidence fields are absent
 
 ## Example UI actions
@@ -85,6 +87,8 @@ Build on the existing run-detail API response and focus on transparent, operator
 - [x] failure summary is visible when present
 - [x] artifact/evidence links are displayed when provided
 - [x] missing optional fields are handled gracefully
+- [ ] run-detail includes richer log rendering (structured/filtered view instead of raw full-file text)
+- [ ] run-detail log content is scoped to the selected run instance (for example by `jobExecutionId` and run correlation context), not full scenario-history output
 
 ## Related docs
 

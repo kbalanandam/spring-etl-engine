@@ -145,6 +145,12 @@ class ControlPlaneApiLauncherIntegrationTest {
 				.andExpect(jsonPath("$.run.jobExecutionId").value(901))
 				.andExpect(jsonPath("$.evidenceLinks[1].href").value(LOG_ROOT.resolve("2026-05-27/customer-load.log").toString() + "#L2"));
 
+		mockMvc.perform(get("/api/v1/runs/901/log").param("limit", "10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.jobExecutionId").value(901))
+				.andExpect(jsonPath("$.lines[0].recordType").value("STEP_EVENT"))
+				.andExpect(jsonPath("$.lines[1].recordType").value("RUN_SUMMARY"));
+
 		MvcResult createScheduleResult = mockMvc.perform(post("/api/v1/schedules")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"scheduleKey\":\"daily-customers\",\"selectedJobKey\":\"customer-load\",\"expression\":\"0 0 * * *\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"daily\"}"))
