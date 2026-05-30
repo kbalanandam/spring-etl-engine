@@ -802,7 +802,25 @@ function renderRunEvidenceLinks(evidenceLinks) {
   list.forEach((link) => {
     const item = document.createElement("li");
     const href = (link.href || "").trim();
-    if (href) {
+    if (href && String(link.type || "").toLowerCase() === "log-file") {
+      const scopedAnchor = document.createElement("a");
+      scopedAnchor.href = "#";
+      scopedAnchor.textContent = "Run log (scoped viewer)";
+      scopedAnchor.addEventListener("click", (event) => {
+        event.preventDefault();
+        focusRunScopedLogViewer();
+      });
+      item.appendChild(scopedAnchor);
+
+      item.appendChild(document.createTextNode(" | "));
+
+      const rawAnchor = document.createElement("a");
+      rawAnchor.href = href;
+      rawAnchor.textContent = "Full scenario log (raw file)";
+      rawAnchor.target = "_blank";
+      rawAnchor.rel = "noreferrer";
+      item.appendChild(rawAnchor);
+    } else if (href) {
       const anchor = document.createElement("a");
       anchor.href = href;
       anchor.textContent = `${valueOrDash(link.label)} (${valueOrDash(link.type)})`;
@@ -817,6 +835,20 @@ function renderRunEvidenceLinks(evidenceLinks) {
 
   empty.hidden = true;
   listElement.hidden = false;
+}
+
+function focusRunScopedLogViewer() {
+  const controls = document.getElementById("run-detail-log-controls");
+  const search = document.getElementById("run-detail-log-search");
+  const list = document.getElementById("run-detail-log-list");
+  const target = controls.hidden ? list : controls;
+
+  if (target && typeof target.scrollIntoView === "function") {
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  if (search && typeof search.focus === "function") {
+    search.focus();
+  }
 }
 
 function valueOrDash(value) {
