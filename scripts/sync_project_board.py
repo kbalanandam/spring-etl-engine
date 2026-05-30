@@ -85,7 +85,27 @@ SINGLE_SELECT_OPTION_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "Ready": ("Todo", "To do", "To-do"),
         "In Progress": ("In progress", "In-Progress", "InProgress"),
         "Done": ("Completed", "Complete"),
-    }
+    },
+    "Domain": {
+        "etl-core": ("ETL Core", "ETL", "ETL-Core"),
+        "scheduler": ("Scheduler", "Control Plane", "Scheduling"),
+        "operator-ui": ("Operator UI", "UI", "Operator-UI"),
+    },
+    "Category": {
+        "etl-core": ("ETL Core", "ETL", "ETL-Core"),
+        "scheduler": ("Scheduler", "Control Plane", "Scheduling"),
+        "operator-ui": ("Operator UI", "UI", "Operator-UI"),
+    },
+    "Track": {
+        "etl-core": ("ETL Core", "ETL", "ETL-Core"),
+        "scheduler": ("Scheduler", "Control Plane", "Scheduling"),
+        "operator-ui": ("Operator UI", "UI", "Operator-UI"),
+    },
+}
+
+EPIC_DOMAIN_FALLBACK = {
+    "Epic S": "scheduler",
+    "Epic U": "operator-ui",
 }
 
 
@@ -249,6 +269,16 @@ def parse_backlog_items(markdown_text: str) -> list[BacklogItem]:
         )
 
     return items
+
+
+def resolve_backlog_domain(item: BacklogItem) -> str:
+    if item.id_link:
+        normalized_link = item.id_link.strip().replace("\\", "/")
+        match = re.search(r"(?:^|/)backlog-items/([^/]+)/", normalized_link)
+        if match:
+            return match.group(1)
+
+    return EPIC_DOMAIN_FALLBACK.get((item.epic or "").strip(), "etl-core")
 
 
 def resolve_detail_page_target(
@@ -755,6 +785,7 @@ def sync_items(
         "Status": (("Status",), lambda item: item.status),
         "Priority": (("Priority",), lambda item: item.priority),
         "Epic": (("Epic",), lambda item: item.epic),
+        "Domain": (("Domain", "Category", "Track"), resolve_backlog_domain),
         "Milestone": (("Milestone", "Execution Milestone"), lambda item: item.milestone),
         "Dependency": (("Dependency",), lambda item: item.dependency),
     }
