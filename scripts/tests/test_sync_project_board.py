@@ -89,6 +89,19 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertEqual("opt-todo", option_id)
         self.assertEqual("Todo", resolved_name)
 
+    def test_resolve_single_select_option_uses_track_aliases_for_domain_values(self) -> None:
+        field = sync_project_board.ProjectField(
+            field_id="field-track",
+            name="Track",
+            data_type="SINGLE_SELECT",
+            options_by_name={"Control Plane": "opt-control-plane"},
+        )
+
+        option_id, resolved_name = sync_project_board.resolve_single_select_option(field, "scheduler")
+
+        self.assertEqual("opt-control-plane", option_id)
+        self.assertEqual("Control Plane", resolved_name)
+
     def test_resolve_single_select_option_reports_aliases_on_failure(self) -> None:
         field = sync_project_board.ProjectField(
             field_id="field-status",
@@ -257,6 +270,39 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertEqual("T3", items[1].backlog_id)
         self.assertEqual("Deferred", items[1].status)
 
+    def test_resolve_backlog_domain_uses_categorized_id_link(self) -> None:
+        item = sync_project_board.BacklogItem(
+            backlog_id="U2",
+            id_link="backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md",
+            item="Run detail",
+            epic="Epic U",
+            priority="P1",
+            status="Ready",
+            milestone="M2",
+            dependency="U1",
+            notes="",
+        )
+
+        self.assertEqual("operator-ui", sync_project_board.resolve_backlog_domain(item))
+
+    def test_resolve_backlog_domain_falls_back_to_epic_when_link_missing(self) -> None:
+        scheduler_item = sync_project_board.BacklogItem(
+            backlog_id="S1",
+            id_link=None,
+            item="Schedule model",
+            epic="Epic S",
+            priority="P1",
+            status="Ready",
+            milestone="M2",
+            dependency="A1, C1",
+            notes="",
+        )
+
+        default_item = self.make_item("A1")
+
+        self.assertEqual("scheduler", sync_project_board.resolve_backlog_domain(scheduler_item))
+        self.assertEqual("etl-core", sync_project_board.resolve_backlog_domain(default_item))
+
     def test_resolve_detail_page_target_builds_absolute_repository_blob_url(self) -> None:
         item = sync_project_board.BacklogItem(
             backlog_id="A6",
@@ -306,7 +352,7 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertEqual("Epic F — Restartability and recovery semantics", label)
         self.assertEqual(
             "https://github.com/kbalanandam/spring-etl-engine/blob/master/"
-            "docs/product/epics/epic-f-restartability-and-recovery-semantics.md",
+            "docs/product/epics/etl-core/epic-f-restartability-and-recovery-semantics.md",
             target,
         )
 
@@ -332,7 +378,33 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertEqual("Epic P — Source-native parser maturity", label)
         self.assertEqual(
             "https://github.com/kbalanandam/spring-etl-engine/blob/master/"
-            "docs/product/epics/epic-p-source-native-parser-maturity.md",
+            "docs/product/epics/etl-core/epic-p-source-native-parser-maturity.md",
+            target,
+        )
+
+    def test_resolve_epic_page_target_supports_operator_ui_epic(self) -> None:
+        item = sync_project_board.BacklogItem(
+            backlog_id="U1",
+            id_link="backlog-items/operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md",
+            item="Stand up independent monitoring-first Operator UI shell with jobs and runs list views",
+            epic="Epic U",
+            priority="P1",
+            status="Ready",
+            milestone="M2",
+            dependency="C1",
+            notes="",
+        )
+
+        label, target = sync_project_board.resolve_epic_page_target(
+            item,
+            repository_url="https://github.com/kbalanandam/spring-etl-engine",
+            repository_ref="master",
+        )
+
+        self.assertEqual("Epic U — Operator UI monitoring-first MVP", label)
+        self.assertEqual(
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/"
+            "docs/product/epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md",
             target,
         )
 
@@ -389,7 +461,7 @@ class SyncProjectBoardTests(unittest.TestCase):
             private_body,
         )
         self.assertIn(
-            "https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/epics/epic-a-runtime-contract-and-model-governance.md",
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/epics/etl-core/epic-a-runtime-contract-and-model-governance.md",
             private_body,
         )
         self.assertIn(

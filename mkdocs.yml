@@ -1,0 +1,41 @@
+site_name: Spring ETL Engine Docs
+site_description: Markdown documentation site for spring-etl-engine
+site_url: https://example.invalid/spring-etl-engine
+repo_name: kbalanandam/spring-etl-engine
+repo_url: https://github.com/kbalanandam/spring-etl-engine
+
+docs_dir: docs
+site_dir: target/docs-site
+
+markdown_extensions:
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: README.md
+  - Docs Portal: docs-portal.md
+  - Architecture:
+      - architecture/README.md
+      - architecture/foundations/README.md
+      - architecture/etl-core/README.md
+      - architecture/control-plane/README.md
+      - architecture/operator-ui/README.md
+  - ADR:
+      - adr/README.md
+      - adr/foundations/README.md
+      - adr/etl-core/README.md
+      - adr/control-plane/README.md
+      - adr/operator-ui/README.md
+  - Config: config/README.md
+  - Product:
+      - product/product-backlog.md
+      - product/epics/README.md
+      - product/backlog-items/README.md
+
+validation:
+  omitted_files: warn
+  absolute_links: relative_to_docs
+  links:
+    not_found: ignore
+

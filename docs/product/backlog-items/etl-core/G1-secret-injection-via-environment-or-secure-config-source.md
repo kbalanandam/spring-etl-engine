@@ -6,7 +6,7 @@ Define and implement a safer secret-consumption path so sensitive runtime settin
 
 ## Current board status
 
-- Epic: **[Epic G](../../epics/epic-g-secret-injection-and-secure-configuration.md)**
+- Epic: **[Epic G](../../epics/etl-core/epic-g-secret-injection-and-secure-configuration.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M3**

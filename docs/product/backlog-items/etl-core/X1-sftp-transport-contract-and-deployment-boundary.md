@@ -6,7 +6,7 @@ Define the first product-level SFTP transport contract and deployment boundary s
 
 ## Current board status
 
-- Epic: **[Epic X](../../epics/epic-x-file-transport-and-sftp-boundary.md)**
+- Epic: **[Epic X](../../epics/etl-core/epic-x-file-transport-and-sftp-boundary.md)**
 - Priority: **P1**
 - Status: **Ready**
 - Milestone: **M2**

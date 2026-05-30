@@ -6,7 +6,7 @@ Add a conditional transformation slice so jobs can apply mapping or cleanup beha
 
 ## Current board status
 
-- Epic: **[Epic T](../../epics/epic-t-transformation-capability.md)**
+- Epic: **[Epic T](../../epics/etl-core/epic-t-transformation-capability.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M2**

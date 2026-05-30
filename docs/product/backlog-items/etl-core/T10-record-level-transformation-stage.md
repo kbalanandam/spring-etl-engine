@@ -6,7 +6,7 @@ Define a record-level transformation stage for scenarios where single-field tran
 
 ## Current board status
 
-- Epic: **[Epic T](../../epics/epic-t-transformation-capability.md)**
+- Epic: **[Epic T](../../epics/etl-core/epic-t-transformation-capability.md)**
 - Priority: **P2**
 - Status: **Deferred**
 - Milestone: **M3**

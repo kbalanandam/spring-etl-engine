@@ -6,7 +6,7 @@ Define one shared naming contract for generated model packages, class names, and
 
 ## Current board status
 
-- Epic: **[Epic A](../../epics/epic-a-runtime-contract-and-model-governance.md)**
+- Epic: **[Epic A](../../epics/etl-core/epic-a-runtime-contract-and-model-governance.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M2**

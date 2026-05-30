@@ -18,7 +18,7 @@ Use this page as the main browse index when you want to navigate backlog items b
 
 - [`etl-core/`](etl-core/README.md) - ETL-core backlog-item category
 - [`scheduler/`](scheduler/README.md) - scheduler/control-plane backlog-item category
-- [`operator-ui/`](operator-ui/README.md) - future operator-UI backlog-item category
+- [`operator-ui/`](operator-ui/README.md) - operator-UI backlog-item category
 
 ## Browse by epic
 
@@ -98,6 +98,12 @@ Use this page as the main browse index when you want to navigate backlog items b
 - [`T14 - Define secure data-shaping transforms for sensitive fields`](etl-core/T14-secure-data-shaping-transforms.md)
 - [`T15 - Define XML-native duplicate identity for nested XML source scenarios`](etl-core/T15-xml-native-duplicate-identity-for-nested-xml-sources.md)
 - [`T16 - Define customer-owned processor transform extension seam`](etl-core/T16-customer-owned-processor-transform-extension-seam.md)
+
+### Epic U - Operator UI monitoring-first MVP
+
+- [`U1 - Stand up independent monitoring-first Operator UI shell with jobs and runs list views`](operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md)
+- [`U2 - Add job run detail drill-down with step outcomes and evidence links`](operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md)
+- [`U3 - Add guarded trigger-now action from job details without scheduler coupling`](operator-ui/U3-guarded-trigger-now-from-job-details.md)
 
 ### Epic V - Verification evidence and reporting
 

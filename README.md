@@ -202,6 +202,25 @@ Documentation intent is split deliberately:
 - `docs/architecture/` explains runtime design, extension seams, and future direction
 - `docs/product/` explains backlog, milestones, and execution priorities
 
+### Docs website (HTML from Markdown)
+
+This repository includes a lightweight MkDocs setup so docs under `docs/` can be rendered as a browsable HTML site.
+
+```powershell
+Set-Location "C:\spring-etl-engine"
+python -m pip install --user -r .\docs-requirements.txt
+python -m mkdocs serve
+```
+
+For a build-only output (no local server):
+
+```powershell
+Set-Location "C:\spring-etl-engine"
+python -m mkdocs build
+```
+
+Generated site output is written to `target/docs-site/`.
+
 ## Architecture Docs
 
 Architecture and design notes now live in-repo under [`docs/`](docs/README.md).

@@ -6,7 +6,7 @@ Capture the shipped practical CSV reader improvement: preserve the current simpl
 
 ## Current board status
 
-- Epic: **[Epic B](../../epics/epic-b-runtime-hardening-and-file-behavior.md)**
+- Epic: **[Epic B](../../epics/etl-core/epic-b-runtime-hardening-and-file-behavior.md)**
 - Priority: **P2**
 - Status: **Done**
 - Milestone: **M2**

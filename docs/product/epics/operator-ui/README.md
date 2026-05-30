@@ -1,8 +1,10 @@
 # Operator UI epics category
 
-This folder is the future landing zone for operator-UI epic pages.
+This folder contains operator-UI epic pages.
 
-No dedicated operator-UI epic pages are moved here yet.
+Current epics:
 
-Until category migration is scheduled, keep the primary epic index in `docs/product/epics/README.md` and execution-board ownership in `docs/product/product-backlog.md`.
+- `epic-u-operator-ui-monitoring-first-mvp.md`
+
+Keep item-level execution ownership in `docs/product/product-backlog.md`.
 

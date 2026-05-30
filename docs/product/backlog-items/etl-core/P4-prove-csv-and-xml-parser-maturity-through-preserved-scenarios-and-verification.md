@@ -6,7 +6,7 @@ Define the proof gate for parser maturity: before the product opens new parser-f
 
 ## Current board status
 
-- Epic: **[Epic P](../../epics/epic-p-source-native-parser-maturity.md)**
+- Epic: **[Epic P](../../epics/etl-core/epic-p-source-native-parser-maturity.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M2**
@@ -60,7 +60,7 @@ Treat parser maturity like any other shipped runtime capability: preserve runnab
 
 - [`Product backlog`](../../product-backlog.md)
 - [`OneFlow file parser capabilities and boundaries`](../../../architecture/etl-core/oneflow-file-parser-capabilities.md)
-- [`Verification evidence and reporting`](../../epics/epic-v-verification-evidence-and-reporting.md)
+- [`Verification evidence and reporting`](../../epics/etl-core/epic-v-verification-evidence-and-reporting.md)
 
 ## Implementation notes
 

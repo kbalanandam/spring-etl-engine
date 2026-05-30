@@ -6,7 +6,7 @@ Extend the staged SFTP capability so remote files can be moved, renamed, archive
 
 ## Current board status
 
-- Epic: **[Epic X](../../epics/epic-x-file-transport-and-sftp-boundary.md)**
+- Epic: **[Epic X](../../epics/etl-core/epic-x-file-transport-and-sftp-boundary.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M2**

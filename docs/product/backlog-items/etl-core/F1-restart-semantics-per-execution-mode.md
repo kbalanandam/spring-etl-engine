@@ -6,7 +6,7 @@ Define what restartable execution should mean for the selected-job runtime so re
 
 ## Current board status
 
-- Epic: **[Epic F](../../epics/epic-f-restartability-and-recovery-semantics.md)**
+- Epic: **[Epic F](../../epics/etl-core/epic-f-restartability-and-recovery-semantics.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M2**

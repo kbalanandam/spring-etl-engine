@@ -6,7 +6,7 @@ Add a dedicated follow-on item for XML-native duplicate identity so nested XML s
 
 ## Current board status
 
-- Epic: **[Epic T](../../epics/epic-t-transformation-capability.md)**
+- Epic: **[Epic T](../../epics/etl-core/epic-t-transformation-capability.md)**
 - Priority: **P2**
 - Status: **Done**
 - Milestone: **M3**

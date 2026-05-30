@@ -6,7 +6,7 @@ Define a stable operator-facing error taxonomy so failures can be grouped, searc
 
 ## Current board status
 
-- Epic: **[Epic D](../../epics/epic-d-error-taxonomy-and-failure-categorization.md)**
+- Epic: **[Epic D](../../epics/etl-core/epic-d-error-taxonomy-and-failure-categorization.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M2**

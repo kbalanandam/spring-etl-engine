@@ -8,9 +8,9 @@ That contract must also preserve first-class interoperability with external sche
 
 ## Current board status
 
-- Epic: **[Epic S](../../epics/epic-s-scheduling-and-control-plane.md)**
+- Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
-- Status: **Deferred**
+- Status: **Ready**
 - Milestone: **M2**
 - Dependency: **A1, C1**
 
@@ -36,6 +36,16 @@ Define a narrow schedule and trigger contract that starts scheduled execution fr
 The ETL core must remain directly runnable without this scheduler/control-plane layer.
 
 External schedulers/orchestrators must be able to launch that same contract without adopting OneFlow-native scheduling features first.
+
+## Subject details
+
+Primary user and system subjects in this slice are:
+
+- scheduler/control-plane contributors defining one schedule identity and trigger contract
+- external orchestrator adopters launching the same selected-job boundary without OneFlow-native coupling
+- operators investigating why a run started, and which launcher initiated it
+
+This slice must freeze the launch contract boundary, not the full scheduler feature set.
 
 ## Scope
 
@@ -71,6 +81,14 @@ The preferred direction is:
 6. keep retry and restart semantics separate so schedule definition does not quietly redefine runtime recovery behavior
 7. defer advanced controls such as pause/resume, overlap, and missed-run policy to `S2` and `S3`
 
+## Trigger origin contract matrix
+
+| Trigger source | Launch contract target | Required evidence shape | Guardrail |
+|---|---|---|---|
+| OneFlow native scheduler | selected job path (`etl.config.job` equivalent) | trigger origin + schedule identity + trigger decision/event id | must not bypass selected-job contract |
+| External scheduler/orchestrator | same selected job path | trigger origin marked external + external trigger reference when available | no OneFlow-only orchestration model required |
+| Operator ad hoc trigger (UI/API) | same selected job path | trigger origin marked operator ad hoc + trigger decision/event id | remains convenience launcher, not scheduler replacement |
+
 ## Operator / runtime impact
 
 Expected impact when this item ships:
@@ -83,12 +101,12 @@ Expected impact when this item ships:
 
 ## Acceptance criteria
 
-- [ ] the first schedule model is defined in terms of one selected job/scenario execution contract
-- [ ] trigger identity and origin are defined clearly enough for operational evidence
-- [ ] the contract separates scheduling from retry/restart semantics
-- [ ] follow-on items `S2`, `S3`, and `S4` can build from this contract without re-deciding the execution boundary
-- [ ] related runtime-direction or backlog documentation is updated accordingly
-- [ ] external schedulers/orchestrators are documented as valid first-class launchers of the same selected-job contract
+- [ ] schedule identity resolves to one selected job execution contract and does not introduce a second orchestration model
+- [ ] trigger-origin evidence contract is explicit for native scheduler, external orchestrator, and operator ad hoc launcher paths
+- [ ] launch contract keeps scheduling concerns separate from retry/restart semantics already governed by ETL runtime contracts
+- [ ] follow-on items `S2`, `S3`, and `S4` can extend controls/history without re-deciding launch boundary semantics
+- [ ] `U3` can consume the same trigger contract as an optional launcher without scheduler-only coupling
+- [ ] related backlog/architecture documentation is updated to reflect the frozen boundary checkpoint
 
 ## Related docs
 
@@ -99,6 +117,7 @@ Expected impact when this item ships:
 - [`S4 - Control-plane operational data model`](S4-control-plane-operational-data-model.md)
 - [`Scenario-driven runtime direction`](../../../architecture/etl-core/scenario-driven-runtime-direction.md)
 - [`Runtime flow`](../../../architecture/etl-core/runtime-flow.md)
+- [`U3 - Add guarded trigger-now action from job details without scheduler coupling`](../operator-ui/U3-guarded-trigger-now-from-job-details.md)
 
 ## Implementation notes
 
@@ -110,6 +129,12 @@ For early local control-plane work, lightweight relational persistence such as S
 
 ## Status notes
 
-Deferred for now, but important enough to document because scheduler work can easily drift into a second orchestration path if the contract is not defined early.
+Ready for parallel planning with monitoring-first Operator UI work because `S1` defines the trigger/launch boundary that `U3` depends on.
+
+Contract freeze checkpoint for cross-track work:
+
+- one selected-job launch boundary is fixed across native, external, and ad hoc launchers
+- trigger-origin and trigger-identity evidence fields are fixed for run diagnostics
+- retry/restart ownership remains on ETL runtime contracts, not schedule definitions
 
 

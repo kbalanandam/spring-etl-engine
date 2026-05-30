@@ -6,7 +6,7 @@ Document and preserve the supported packaged-run workflow so teams can execute s
 
 ## Current board status
 
-- Epic: **[Epic E](../../epics/epic-e-portability-and-packaged-run-guidance.md)**
+- Epic: **[Epic E](../../epics/etl-core/epic-e-portability-and-packaged-run-guidance.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M1**

@@ -6,7 +6,7 @@ Define one shared verification evidence model so different report formats can de
 
 ## Current board status
 
-- Epic: **[Epic V](../../epics/epic-v-verification-evidence-and-reporting.md)**
+- Epic: **[Epic V](../../epics/etl-core/epic-v-verification-evidence-and-reporting.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M3**

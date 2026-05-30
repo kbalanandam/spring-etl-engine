@@ -6,7 +6,7 @@ Archive successfully processed file-based inputs so completed runs leave a clear
 
 ## Current board status
 
-- Epic: **[Epic B](../../epics/epic-b-runtime-hardening-and-file-behavior.md)**
+- Epic: **[Epic B](../../epics/etl-core/epic-b-runtime-hardening-and-file-behavior.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M1**

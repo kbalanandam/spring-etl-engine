@@ -1,8 +1,12 @@
 # Operator UI backlog category
 
-This folder is the future landing zone for operator-UI-focused backlog item pages.
+This folder contains operator-UI-focused backlog item pages.
 
-No dedicated operator-UI backlog item pages are moved here yet.
+Current items:
 
-When UI-specific items are added, keep execution status canonical in `docs/product/product-backlog.md` and treat this folder as item-level drill-down only.
+- `U1-independent-operator-ui-shell-and-monitoring-read-model.md`
+- `U2-run-detail-drilldown-with-step-and-artifact-evidence.md`
+- `U3-guarded-trigger-now-from-job-details.md`
+
+Keep execution status canonical in `docs/product/product-backlog.md` and treat this folder as item-level drill-down only.
 

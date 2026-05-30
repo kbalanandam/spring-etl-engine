@@ -53,7 +53,7 @@ When those deferred items are activated, use this order:
 
 Board anchors:
 
-- [`Epic T`](./epics/epic-t-transformation-capability.md)
+- [`Epic T`](./epics/etl-core/epic-t-transformation-capability.md)
 - [`product-backlog.md`](./product-backlog.md)
 
 ### 5. Duplicate-handling reminder
@@ -84,7 +84,7 @@ Do not forget these boundaries:
 If you need to resume quickly, read in this order:
 
 1. [`product-backlog.md`](./product-backlog.md) - canonical status and sequencing
-2. [`Epic T`](./epics/epic-t-transformation-capability.md) - shared transformation boundary
+2. [`Epic T`](./epics/etl-core/epic-t-transformation-capability.md) - shared transformation boundary
 3. [`T4`](./backlog-items/etl-core/T4-transformation-quarantine-and-duplicate-hardening.md) - completed quarantine and duplicate hardening baseline
 4. [`T15`](./backlog-items/etl-core/T15-xml-native-duplicate-identity-for-nested-xml-sources.md) - closed XML-native duplicate identity item (`S1`-`S6` complete)
 5. [`T7`](./backlog-items/etl-core/T7-duplicate-tracking-scalability-redesign-deferment.md) - deferred duplicate-scale boundary

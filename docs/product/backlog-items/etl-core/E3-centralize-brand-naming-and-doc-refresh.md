@@ -6,7 +6,7 @@ Define one controlled source of truth for product-facing brand naming so future 
 
 ## Current board status
 
-- Epic: **[Epic E](../../epics/epic-e-portability-and-packaged-run-guidance.md)**
+- Epic: **[Epic E](../../epics/etl-core/epic-e-portability-and-packaged-run-guidance.md)**
 - Priority: **P2**
 - Status: **Deferred**
 - Milestone: **M2**

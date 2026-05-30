@@ -6,7 +6,7 @@ Capture the next relational reader contract improvement as a deferred backlog it
 
 ## Current board status
 
-- Epic: **[Epic A](../../epics/epic-a-runtime-contract-and-model-governance.md)**
+- Epic: **[Epic A](../../epics/etl-core/epic-a-runtime-contract-and-model-governance.md)**
 - Priority: **P2**
 - Status: **Deferred**
 - Milestone: **M2**

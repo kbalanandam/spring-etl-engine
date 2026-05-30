@@ -6,7 +6,7 @@ Replace implicit source-target pairing by list position with one explicit step c
 
 ## Current board status
 
-- Epic: **[Epic A](../../epics/epic-a-runtime-contract-and-model-governance.md)**
+- Epic: **[Epic A](../../epics/etl-core/epic-a-runtime-contract-and-model-governance.md)**
 - Priority: **P0**
 - Status: **Done**
 - Milestone: **M1**

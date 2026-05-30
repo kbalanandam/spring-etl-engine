@@ -6,7 +6,7 @@ Capture the shipped XML reader-adjacent hardening step: preserve the current lig
 
 ## Current board status
 
-- Epic: **[Epic B](../../epics/epic-b-runtime-hardening-and-file-behavior.md)**
+- Epic: **[Epic B](../../epics/etl-core/epic-b-runtime-hardening-and-file-behavior.md)**
 - Priority: **P2**
 - Status: **Done**
 - Milestone: **M2**

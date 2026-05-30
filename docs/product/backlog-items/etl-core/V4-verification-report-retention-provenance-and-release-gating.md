@@ -6,7 +6,7 @@ Define how verification reports should be retained, attributed, and used in mile
 
 ## Current board status
 
-- Epic: **[Epic V](../../epics/epic-v-verification-evidence-and-reporting.md)**
+- Epic: **[Epic V](../../epics/etl-core/epic-v-verification-evidence-and-reporting.md)**
 - Priority: **P2**
 - Status: **Deferred**
 - Milestone: **M3**

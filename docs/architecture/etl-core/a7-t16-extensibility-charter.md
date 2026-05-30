@@ -73,6 +73,6 @@ Keep the first implementation slices narrow:
 - [`ETL custom-step pairing and context handoff`](custom-step-pairing-and-context-handoff.md)
 - [`Customer-owned processor transform seam`](customer-owned-processor-transform-seam.md)
 - [`Extension points`](extension-points.md)
-- [`Epic D - Error taxonomy and failure categorization`](../../product/epics/epic-d-error-taxonomy-and-failure-categorization.md)
+- [`Epic D - Error taxonomy and failure categorization`](../../product/epics/etl-core/epic-d-error-taxonomy-and-failure-categorization.md)
 
 

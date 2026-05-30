@@ -6,7 +6,7 @@ Add HTML verification reporting from the same shared evidence model already used
 
 ## Current board status
 
-- Epic: **[Epic V](../../epics/epic-v-verification-evidence-and-reporting.md)**
+- Epic: **[Epic V](../../epics/etl-core/epic-v-verification-evidence-and-reporting.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M3**

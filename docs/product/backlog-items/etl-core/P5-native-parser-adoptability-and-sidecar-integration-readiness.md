@@ -6,7 +6,7 @@ Preserve one explicit future-ready path for adopting native parser engines, incl
 
 ## Current board status
 
-- Epic: **[Epic P](../../epics/epic-p-source-native-parser-maturity.md)**
+- Epic: **[Epic P](../../epics/etl-core/epic-p-source-native-parser-maturity.md)**
 - Priority: **P2**
 - Status: **Deferred**
 - Milestone: **M3**

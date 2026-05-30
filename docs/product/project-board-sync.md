@@ -1,4 +1,4 @@
-﻿# Product Backlog â†’ GitHub Project Sync
+﻿# Product Backlog -> GitHub Project Sync
 
 ## Purpose
 
@@ -10,7 +10,7 @@ The intent is to keep the Markdown execution board as the canonical execution-pl
 
 - **Canonical source** - [`product-backlog.md`](product-backlog.md) `## Current Execution Board`
 - **Projected live view** - GitHub Project **OneFlow Executive Dashboard**
-- **Sync direction** - Markdown table â†’ GitHub Project
+- **Sync direction** - Markdown table -> GitHub Project
 
 When the sync is enabled, update the execution-board table first and avoid manually editing the mirrored Project fields unless you are doing emergency cleanup.
 
@@ -26,6 +26,7 @@ Current field mapping:
 | `Status` | Project field `Status` |
 | `Priority` | Project field `Priority` |
 | `Epic` | Project field `Epic` |
+| category from `ID` link path (for example `backlog-items/etl-core/...`) | Project field `Domain` (fallback names: `Category`, `Track`) |
 | `Milestone` | Project field `Milestone` or fallback field `Execution Milestone` |
 | `Dependency` | Project field `Dependency` |
 | `Epic` page link | draft-item body as a raw repository URL when the epic label resolves to a known epic doc |
@@ -43,7 +44,7 @@ When the execution-board `Epic` value matches one of the maintained epic labels 
 The sync currently supports:
 
 - `Status` as a **single-select** or **text** field
-- `Priority`, `Epic`, `Milestone`, and `Dependency` as **single-select** or **text** fields
+- `Priority`, `Epic`, `Domain` (`Category`/`Track` fallback), `Milestone`, and `Dependency` as **single-select** or **text** fields
 
 The `Epic` Project field still behaves as a normal Project field for grouping/filtering. The epic-doc navigation lives in the synced draft-item body under a dedicated `Epic page` line plus raw URL, not in the Project field widget itself.
 
@@ -59,11 +60,26 @@ The preferred setup is still a custom `Status` field whose option names exactly 
 
 To reduce operator friction during first-time setup, the sync also tolerates a small alias set for `Status` single-select fields:
 
-- `Ready` â†’ `Todo`, `To do`, `To-do`
-- `In Progress` â†’ `In progress`, `In-Progress`, `InProgress`
-- `Done` â†’ `Completed`, `Complete`
+- `Ready` -> `Todo`, `To do`, `To-do`
+- `In Progress` -> `In progress`, `In-Progress`, `InProgress`
+- `Done` -> `Completed`, `Complete`
 
 That alias support is only a compatibility bridge. The most predictable setup remains using the exact backlog labels in the Project field options.
+
+### Important `Domain` / `Category` note
+
+The sync can populate a category-style Project field for easier board grouping by capability area.
+
+- preferred field name: `Domain`
+- fallback field names: `Category`, `Track`
+- value derivation: from the backlog `ID` link path under `backlog-items/<domain>/...`
+- epic fallback when link-path domain cannot be derived: `Epic S -> scheduler`, `Epic U -> operator-ui`, default `etl-core`
+
+For single-select fields, the sync also tolerates common option aliases:
+
+- `etl-core` -> `ETL Core`, `ETL`, `ETL-Core`
+- `scheduler` -> `Scheduler`, `Control Plane`, `Scheduling`
+- `operator-ui` -> `Operator UI`, `UI`, `Operator-UI`
 
 ### Important `Milestone` note
 
