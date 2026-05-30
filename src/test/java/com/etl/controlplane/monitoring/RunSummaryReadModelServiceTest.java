@@ -129,6 +129,31 @@ class RunSummaryReadModelServiceTest {
 		assertEquals(1001L, runs.get(0).jobExecutionId());
 	}
 
+	@Test
+	void skipsOversizedLogFilesDuringIndexing() throws IOException {
+		Path oversizedLog = tempDir.resolve("2026-05-27/oversized.log");
+		Files.createDirectories(oversizedLog.getParent());
+		String oversizedLine = "2026-05-27T11:02:03.001+00:00 INFO [main] [scenario:customer-load] [run:1] [job:1001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=1001 status=COMPLETED startTime=2026-05-27T11:00:00 endTime=2026-05-27T11:02:03 durationSeconds=123 sourceCount=10 writtenCount=10 rejectedCount=0 " + "x".repeat(4000);
+		Files.writeString(oversizedLog, oversizedLine);
+
+		createLog(
+				tempDir.resolve("2026-05-27/small.log"),
+				"2026-05-27T12:02:03.001+00:00 INFO [main] [scenario:customer-delta] [run:2] [job:1002] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-delta jobExecutionId=1002 status=COMPLETED startTime=2026-05-27T12:00:00 endTime=2026-05-27T12:02:03 durationSeconds=123 sourceCount=10 writtenCount=10 rejectedCount=0"
+		);
+
+		RunSummaryReadModelService service = new RunSummaryReadModelService(
+				tempDir,
+				new RunSummaryLogParser(),
+				new InMemoryRunSummaryRegistry(),
+				2000,
+				100
+		);
+		List<RunSummaryView> runs = service.latestRuns(10);
+
+		assertEquals(1, runs.size());
+		assertEquals(1002L, runs.get(0).jobExecutionId());
+	}
+
 	private Path createLog(Path path, String... lines) throws IOException {
 		Files.createDirectories(path.getParent());
 		Files.write(path, List.of(lines));
