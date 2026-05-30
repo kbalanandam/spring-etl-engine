@@ -21,6 +21,17 @@ Use these docs in two ways:
 1. as a reference for what each config type supports today
 2. as a guide when creating scenario-specific YAML files under `src/main/resources/config-jobs/` or developer-local private bundles under `private-jobs/`
 
+## Current folder map
+
+The active config documentation set is currently organized by runtime concern (not by architecture-layer categories):
+
+- [`job-config.md`](job-config.md) - selected-job entry contract and step orchestration
+- [`source/`](source/) - source format contracts (CSV, XML, relational)
+- [`target/`](target/) - target format contracts (CSV, JSON, XML, relational)
+- [`processor/`](processor/) - processor mapping, transform, and validation contracts
+
+Category-split placeholders such as `config/core/` and `config/runtime/` are intentionally deferred for now while impact is evaluated.
+
 ## YAML example maintenance contract
 
 Treat the YAML examples in this section as part of the active config contract, not as decorative snippets.

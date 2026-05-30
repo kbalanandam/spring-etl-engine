@@ -83,7 +83,7 @@ For every significant enhancement, add or update:
 ## Category scaffolding (staged migration)
 
 - ADR categories: [`adr/README.md`](adr/README.md)
-- Config categories: [`config/README.md`](config/README.md)
+- Config references: [`config/README.md`](config/README.md) (current contract index; category split is deferred)
 
 These scaffolds are additive. Existing files stay in current paths for compatibility until a dedicated migration pass moves documents in focused batches.
 
@@ -160,8 +160,7 @@ These scaffolds are additive. Existing files stay in current paths for compatibi
 
 ### Configuration references
 - [`config/README.md`](config/README.md) - config documentation strategy, support matrix, and scenario usage
-- [`config/core/README.md`](config/core/README.md) - future shared config-contract category landing zone
-- [`config/runtime/README.md`](config/runtime/README.md) - future runtime-selection config category landing zone
+- [`config/job-config.md`](config/job-config.md) - selected-job entry contract and ordered `steps` orchestration
 - [`config/source/csv-source.md`](config/source/csv-source.md) - CSV source fields supported today
 - [`config/source/xml-source.md`](config/source/xml-source.md) - XML source fields supported today
 - [`config/source/relational-source.md`](config/source/relational-source.md) - relational source fields and current phase-1 limitations
@@ -171,7 +170,7 @@ These scaffolds are additive. Existing files stay in current paths for compatibi
 - [`config/processor/default-processor.md`](config/processor/default-processor.md) - default processor mapping contract
 
 ### Operations docs
-- [`operations/README.md`](operations/README.md) - operations docs index (logging/evidence category scaffolding deferred)
+- [`operations/README.md`](operations/README.md) - operations docs index (logging/evidence category scaffolding deferred; runtime logs stay under repo-root `logs/`)
 
 ### Product tracking
 - [`product/product-backlog.md`](product/product-backlog.md) - step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including optional scheduler/control-plane capabilities that grow around the independently runnable ETL core without becoming mandatory for teams that use external orchestration
