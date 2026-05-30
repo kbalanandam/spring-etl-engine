@@ -272,6 +272,9 @@ This table is the day-to-day execution view for the current product stage.
 | [S2](backlog-items/scheduler/S2-time-based-schedule-definitions-with-pause-resume.md) | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Deferred | M2 | S1 | First practical scheduler slice after run-state and audit direction are clearer |
 | [S3](backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md) | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
 | [S4](backlog-items/scheduler/S4-control-plane-operational-data-model.md) | Define control-plane operational data model for schedules, watchers, trigger events, run and step history, artifact lineage, and restartability anchors | Epic S | P1 | Deferred | M3 | S1, C1, C2 | Persist optional scheduler/control-plane history coherently without making it a prerequisite for direct ETL-core execution |
+| [U1](backlog-items/operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md) | Stand up independent monitoring-first Operator UI shell with jobs and runs list views | Epic U | P1 | Ready | M2 | C1 | First centralized operator-facing visibility slice over existing read models; remains independent from ETL worker launch path |
+| [U2](backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md) | Add job run detail drill-down with step outcomes and evidence links | Epic U | P1 | Ready | M2 | U1, C2 | Deliver operator drill-down for run diagnosis using existing run-detail evidence without changing runtime contracts |
+| [U3](backlog-items/operator-ui/U3-guarded-trigger-now-from-job-details.md) | Add guarded trigger-now action from job details without scheduler coupling | Epic U | P1 | Ready | M2 | U1, S1 | Add constrained trigger convenience in UI while preserving selected-job launch boundaries and optional scheduler posture |
 | [G1](backlog-items/etl-core/G1-secret-injection-via-environment-or-secure-config-source.md) | Support secret injection via environment or secure config source | Epic G | P1 | Deferred | M3 | C1 | Important for enterprise readiness, but not first delivery blocker |
 | [V1](backlog-items/etl-core/V1-enterprise-verification-evidence-model-and-report-categories.md) | Define enterprise verification evidence model and report categories | Epic V | P1 | Done | M3 | C1, C2 | Shared evidence model and phase-1 report categories are defined in the report generator and ADRs |
 | [V2](backlog-items/etl-core/V2-markdown-verification-reports-from-shared-evidence-model.md) | Generate Markdown verification reports from the shared evidence model | Epic V | P1 | Done | M3 | V1 | Markdown reporting now renders from the shared evidence model |
@@ -291,7 +294,8 @@ Use this section as the near-term sequencing view behind the execution board:
 8. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
 9. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
 10. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-11. Leave `V3` / `V4` and scheduler/restart work for the next wider operational maturity pass.
+11. Start Operator UI in parallel as a monitoring-first independent slice (`U1` -> `U2` -> `U3`) so users get centralized job/run visibility without coupling UI to ETL-core launch behavior.
+12. Leave `V3` / `V4` and wider scheduler/restart work for the next operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
 

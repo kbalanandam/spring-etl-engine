@@ -31,13 +31,14 @@ Epic pages should also link back to the matching backlog item pages so the navig
 - [`Epic F - Restartability and recovery semantics`](epic-f-restartability-and-recovery-semantics.md)
 - [`Epic G - Secret injection and secure configuration`](epic-g-secret-injection-and-secure-configuration.md)
 - [`Epic S - Scheduling and control plane`](epic-s-scheduling-and-control-plane.md)
+- [`Epic U - Operator UI monitoring-first MVP`](operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)
 - [`Epic V - Verification evidence and reporting`](epic-v-verification-evidence-and-reporting.md)
 - [`Epic X - File transport and SFTP boundary`](epic-x-file-transport-and-sftp-boundary.md)
 
 ## Category scaffolding
 
 - [`scheduler/`](scheduler/README.md) - future scheduler/control-plane epic category
-- [`operator-ui/`](operator-ui/README.md) - future operator-UI epic category
+- [`operator-ui/`](operator-ui/README.md) - operator-UI epic category
 
 ## Maintenance rule
 

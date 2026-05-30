@@ -26,6 +26,7 @@ EPIC_PAGE_BY_LABEL = {
     "Epic G": ("Epic G — Secret injection and secure configuration", "docs/product/epics/epic-g-secret-injection-and-secure-configuration.md"),
     "Epic P": ("Epic P — Source-native parser maturity", "docs/product/epics/epic-p-source-native-parser-maturity.md"),
     "Epic S": ("Epic S — Scheduling and control plane", "docs/product/epics/epic-s-scheduling-and-control-plane.md"),
+    "Epic U": ("Epic U — Operator UI monitoring-first MVP", "docs/product/epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md"),
     "Epic T": ("Epic T — Transformation capability", "docs/product/epics/epic-t-transformation-capability.md"),
     "Epic V": ("Epic V — Verification evidence and reporting", "docs/product/epics/epic-v-verification-evidence-and-reporting.md"),
     "Epic X": ("Epic X — File transport and SFTP boundary", "docs/product/epics/epic-x-file-transport-and-sftp-boundary.md"),

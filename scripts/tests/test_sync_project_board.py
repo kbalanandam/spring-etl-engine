@@ -336,6 +336,32 @@ class SyncProjectBoardTests(unittest.TestCase):
             target,
         )
 
+    def test_resolve_epic_page_target_supports_operator_ui_epic(self) -> None:
+        item = sync_project_board.BacklogItem(
+            backlog_id="U1",
+            id_link="backlog-items/operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md",
+            item="Stand up independent monitoring-first Operator UI shell with jobs and runs list views",
+            epic="Epic U",
+            priority="P1",
+            status="Ready",
+            milestone="M2",
+            dependency="C1",
+            notes="",
+        )
+
+        label, target = sync_project_board.resolve_epic_page_target(
+            item,
+            repository_url="https://github.com/kbalanandam/spring-etl-engine",
+            repository_ref="master",
+        )
+
+        self.assertEqual("Epic U — Operator UI monitoring-first MVP", label)
+        self.assertEqual(
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/"
+            "docs/product/epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md",
+            target,
+        )
+
     def test_resolve_epic_page_target_returns_none_for_unknown_epic(self) -> None:
         item = sync_project_board.BacklogItem(
             backlog_id="Z1",
