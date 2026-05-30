@@ -6,7 +6,7 @@ Define a bounded extension contract so customers can add new processor-side fiel
 
 ## Current board status
 
-- Epic: **[Epic T](../../epics/epic-t-transformation-capability.md)**
+- Epic: **[Epic T](../../epics/etl-core/epic-t-transformation-capability.md)**
 - Priority: **P1**
 - Status: **In Progress**
 - Milestone: **M2**
@@ -121,8 +121,8 @@ mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dtest=TransformEv
 ## Related docs
 
 - [`Product backlog`](../../product-backlog.md)
-- [`Epic T - Transformation capability`](../../epics/epic-t-transformation-capability.md)
-- [`Epic D - Error taxonomy and failure categorization`](../../epics/epic-d-error-taxonomy-and-failure-categorization.md)
+- [`Epic T - Transformation capability`](../../epics/etl-core/epic-t-transformation-capability.md)
+- [`Epic D - Error taxonomy and failure categorization`](../../epics/etl-core/epic-d-error-taxonomy-and-failure-categorization.md)
 - [`Default processor reference`](../../../config/processor/default-processor.md)
 - [`Extension points`](../../../architecture/etl-core/extension-points.md)
 - [`Customer-owned processor transform seam`](../../../architecture/etl-core/customer-owned-processor-transform-seam.md)

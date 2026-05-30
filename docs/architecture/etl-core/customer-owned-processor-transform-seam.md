@@ -149,6 +149,6 @@ Keep T16 first slice narrow:
 - [`Default processor config`](../../config/processor/default-processor.md)
 - [`Transformation capability roadmap`](transformation-capability-roadmap.md)
 - [`T16 backlog item`](../../product/backlog-items/etl-core/T16-customer-owned-processor-transform-extension-seam.md)
-- [`Epic D - Error taxonomy and failure categorization`](../../product/epics/epic-d-error-taxonomy-and-failure-categorization.md)
+- [`Epic D - Error taxonomy and failure categorization`](../../product/epics/etl-core/epic-d-error-taxonomy-and-failure-categorization.md)
 
 

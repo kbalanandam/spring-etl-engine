@@ -6,7 +6,7 @@ Follow the shipped A4 selected-job contract by removing the remaining internal c
 
 ## Current board status
 
-- Epic: **[Epic A](../../epics/epic-a-runtime-contract-and-model-governance.md)**
+- Epic: **[Epic A](../../epics/etl-core/epic-a-runtime-contract-and-model-governance.md)**
 - Priority: **P2**
 - Status: **Deferred**
 - Milestone: **M2**

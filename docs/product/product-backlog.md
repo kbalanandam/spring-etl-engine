@@ -193,10 +193,10 @@ Use these links when you want to browse the backlog by capability area instead o
 
 - Full item browse index: [`docs/product/backlog-items/README.md`](backlog-items/README.md)
 - Epic browse index: [`docs/product/epics/README.md`](epics/README.md)
-- Near-term runtime and transformation work: [`Epic A`](epics/epic-a-runtime-contract-and-model-governance.md), [`Epic B`](epics/epic-b-runtime-hardening-and-file-behavior.md), [`Epic T`](epics/epic-t-transformation-capability.md), [`Epic P`](epics/epic-p-source-native-parser-maturity.md)
-- Portability and transport direction: [`Epic E`](epics/epic-e-portability-and-packaged-run-guidance.md), [`Epic X`](epics/epic-x-file-transport-and-sftp-boundary.md)
-- Scheduling and restart direction: [`Epic S`](epics/epic-s-scheduling-and-control-plane.md), [`Epic F`](epics/epic-f-restartability-and-recovery-semantics.md)
-- Evidence, security, and release readiness: [`Epic C`](epics/epic-c-observability-and-run-evidence.md), [`Epic D`](epics/epic-d-error-taxonomy-and-failure-categorization.md), [`Epic G`](epics/epic-g-secret-injection-and-secure-configuration.md), [`Epic V`](epics/epic-v-verification-evidence-and-reporting.md)
+- Near-term runtime and transformation work: [`Epic A`](epics/etl-core/epic-a-runtime-contract-and-model-governance.md), [`Epic B`](epics/etl-core/epic-b-runtime-hardening-and-file-behavior.md), [`Epic T`](epics/etl-core/epic-t-transformation-capability.md), [`Epic P`](epics/etl-core/epic-p-source-native-parser-maturity.md)
+- Portability and transport direction: [`Epic E`](epics/etl-core/epic-e-portability-and-packaged-run-guidance.md), [`Epic X`](epics/etl-core/epic-x-file-transport-and-sftp-boundary.md)
+- Scheduling and restart direction: [`Epic S`](epics/scheduler/epic-s-scheduling-and-control-plane.md), [`Epic F`](epics/etl-core/epic-f-restartability-and-recovery-semantics.md)
+- Evidence, security, and release readiness: [`Epic C`](epics/etl-core/epic-c-observability-and-run-evidence.md), [`Epic D`](epics/etl-core/epic-d-error-taxonomy-and-failure-categorization.md), [`Epic G`](epics/etl-core/epic-g-secret-injection-and-secure-configuration.md), [`Epic V`](epics/etl-core/epic-v-verification-evidence-and-reporting.md)
 
 ### Epic detail pages
 

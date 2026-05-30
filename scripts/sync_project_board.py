@@ -17,19 +17,19 @@ BACKLOG_SECTION_HEADING = "## Current Execution Board"
 BACKLOG_SOURCE_PATH = "docs/product/product-backlog.md"
 DEFAULT_REPOSITORY_REF = "master"
 EPIC_PAGE_BY_LABEL = {
-    "Epic A": ("Epic A — Runtime contract and generated-model governance", "docs/product/epics/epic-a-runtime-contract-and-model-governance.md"),
-    "Epic B": ("Epic B — Runtime hardening and file behavior", "docs/product/epics/epic-b-runtime-hardening-and-file-behavior.md"),
-    "Epic C": ("Epic C — Observability and run evidence", "docs/product/epics/epic-c-observability-and-run-evidence.md"),
-    "Epic D": ("Epic D — Error taxonomy and failure categorization", "docs/product/epics/epic-d-error-taxonomy-and-failure-categorization.md"),
-    "Epic E": ("Epic E — Portability and packaged-run guidance", "docs/product/epics/epic-e-portability-and-packaged-run-guidance.md"),
-    "Epic F": ("Epic F — Restartability and recovery semantics", "docs/product/epics/epic-f-restartability-and-recovery-semantics.md"),
-    "Epic G": ("Epic G — Secret injection and secure configuration", "docs/product/epics/epic-g-secret-injection-and-secure-configuration.md"),
-    "Epic P": ("Epic P — Source-native parser maturity", "docs/product/epics/epic-p-source-native-parser-maturity.md"),
-    "Epic S": ("Epic S — Scheduling and control plane", "docs/product/epics/epic-s-scheduling-and-control-plane.md"),
+    "Epic A": ("Epic A — Runtime contract and generated-model governance", "docs/product/epics/etl-core/epic-a-runtime-contract-and-model-governance.md"),
+    "Epic B": ("Epic B — Runtime hardening and file behavior", "docs/product/epics/etl-core/epic-b-runtime-hardening-and-file-behavior.md"),
+    "Epic C": ("Epic C — Observability and run evidence", "docs/product/epics/etl-core/epic-c-observability-and-run-evidence.md"),
+    "Epic D": ("Epic D — Error taxonomy and failure categorization", "docs/product/epics/etl-core/epic-d-error-taxonomy-and-failure-categorization.md"),
+    "Epic E": ("Epic E — Portability and packaged-run guidance", "docs/product/epics/etl-core/epic-e-portability-and-packaged-run-guidance.md"),
+    "Epic F": ("Epic F — Restartability and recovery semantics", "docs/product/epics/etl-core/epic-f-restartability-and-recovery-semantics.md"),
+    "Epic G": ("Epic G — Secret injection and secure configuration", "docs/product/epics/etl-core/epic-g-secret-injection-and-secure-configuration.md"),
+    "Epic P": ("Epic P — Source-native parser maturity", "docs/product/epics/etl-core/epic-p-source-native-parser-maturity.md"),
+    "Epic S": ("Epic S — Scheduling and control plane", "docs/product/epics/scheduler/epic-s-scheduling-and-control-plane.md"),
     "Epic U": ("Epic U — Operator UI monitoring-first MVP", "docs/product/epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md"),
-    "Epic T": ("Epic T — Transformation capability", "docs/product/epics/epic-t-transformation-capability.md"),
-    "Epic V": ("Epic V — Verification evidence and reporting", "docs/product/epics/epic-v-verification-evidence-and-reporting.md"),
-    "Epic X": ("Epic X — File transport and SFTP boundary", "docs/product/epics/epic-x-file-transport-and-sftp-boundary.md"),
+    "Epic T": ("Epic T — Transformation capability", "docs/product/epics/etl-core/epic-t-transformation-capability.md"),
+    "Epic V": ("Epic V — Verification evidence and reporting", "docs/product/epics/etl-core/epic-v-verification-evidence-and-reporting.md"),
+    "Epic X": ("Epic X — File transport and SFTP boundary", "docs/product/epics/etl-core/epic-x-file-transport-and-sftp-boundary.md"),
 }
 SYNC_MARKER_PATTERN = re.compile(r"<!--\s*backlog-sync-id:\s*([^\s]+)\s*-->")
 MARKDOWN_LINK_PATTERN = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")

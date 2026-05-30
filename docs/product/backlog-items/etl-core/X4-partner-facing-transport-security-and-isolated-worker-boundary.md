@@ -6,7 +6,7 @@ Define the stronger security and deployment boundaries needed when OneFlow parti
 
 ## Current board status
 
-- Epic: **[Epic X](../../epics/epic-x-file-transport-and-sftp-boundary.md)**
+- Epic: **[Epic X](../../epics/etl-core/epic-x-file-transport-and-sftp-boundary.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M3**

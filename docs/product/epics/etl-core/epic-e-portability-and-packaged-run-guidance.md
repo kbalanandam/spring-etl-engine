@@ -17,18 +17,18 @@ This epic is **not** the place for runtime scheduling, secret management, or con
 
 ## Related backlog items
 
-- [`E1 - Finalize cross-platform defaults and path handling rules`](../backlog-items/etl-core/E1-cross-platform-defaults-and-path-handling.md)
-- [`E2 - Add packaged-run guidance for jar execution with scenario configs`](../backlog-items/etl-core/E2-packaged-run-guidance-for-jar-execution.md)
-- [`E3 - Centralize product-brand naming and doc refresh automation`](../backlog-items/etl-core/E3-centralize-brand-naming-and-doc-refresh.md)
+- [`E1 - Finalize cross-platform defaults and path handling rules`](../../backlog-items/etl-core/E1-cross-platform-defaults-and-path-handling.md)
+- [`E2 - Add packaged-run guidance for jar execution with scenario configs`](../../backlog-items/etl-core/E2-packaged-run-guidance-for-jar-execution.md)
+- [`E3 - Centralize product-brand naming and doc refresh automation`](../../backlog-items/etl-core/E3-centralize-brand-naming-and-doc-refresh.md)
 
 ## Related docs
 
 - [`../../README.md`](../../README.md)
 - [`../../config/README.md`](../../config/README.md)
 - [`../github-promotion.md`](../github-promotion.md)
-- [`../product-backlog.md`](../product-backlog.md)
+- [`../product-backlog.md`](../../product-backlog.md)
 
 ## Maintenance note
 
-Use [`../product-backlog.md`](../product-backlog.md) for the live execution-board values. Use this page for the shared portability and packaged-run intent across Epic E.
+Use [`../product-backlog.md`](../../product-backlog.md) for the live execution-board values. Use this page for the shared portability and packaged-run intent across Epic E.
 

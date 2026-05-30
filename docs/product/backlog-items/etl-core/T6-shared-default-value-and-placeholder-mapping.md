@@ -6,7 +6,7 @@ Define one explicit config contract for common target-field defaults so jobs can
 
 ## Current board status
 
-- Epic: **[Epic T](../../epics/epic-t-transformation-capability.md)**
+- Epic: **[Epic T](../../epics/etl-core/epic-t-transformation-capability.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M2**

@@ -6,7 +6,7 @@ Extend the first shipped validation and reject-handling slice without redesignin
 
 ## Current board status
 
-- Epic: **[Epic T](../../epics/epic-t-transformation-capability.md)**
+- Epic: **[Epic T](../../epics/etl-core/epic-t-transformation-capability.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M2**

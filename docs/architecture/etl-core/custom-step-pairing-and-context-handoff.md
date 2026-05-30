@@ -310,7 +310,7 @@ Recommended first preserved scenario coverage:
 - [`Flow normalization rules`](flow-normalization-rules.md)
 - [`Job config`](../../config/job-config.md)
 - [`A7 backlog item`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
-- [`Epic D - Error taxonomy and failure categorization`](../../product/epics/epic-d-error-taxonomy-and-failure-categorization.md)
+- [`Epic D - Error taxonomy and failure categorization`](../../product/epics/etl-core/epic-d-error-taxonomy-and-failure-categorization.md)
 - [`Proposed package layout`](#proposed-package-layout)
 - [`Test matrix`](#test-matrix)
 

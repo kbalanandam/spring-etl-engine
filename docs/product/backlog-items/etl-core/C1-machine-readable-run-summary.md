@@ -6,7 +6,7 @@ Add one machine-readable run summary baseline so each selected job emits a conci
 
 ## Current board status
 
-- Epic: **[Epic C](../../epics/epic-c-observability-and-run-evidence.md)**
+- Epic: **[Epic C](../../epics/etl-core/epic-c-observability-and-run-evidence.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M1**

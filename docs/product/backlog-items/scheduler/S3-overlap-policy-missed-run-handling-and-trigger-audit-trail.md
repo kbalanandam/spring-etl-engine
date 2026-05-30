@@ -6,7 +6,7 @@ Add the next scheduler-credibility slice after basic schedule definitions so nat
 
 ## Current board status
 
-- Epic: **[Epic S](../../epics/epic-s-scheduling-and-control-plane.md)**
+- Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M3**

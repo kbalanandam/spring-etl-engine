@@ -6,7 +6,7 @@ Complete the run-level count model so operators can understand overall ETL outco
 
 ## Current board status
 
-- Epic: **[Epic C](../../epics/epic-c-observability-and-run-evidence.md)**
+- Epic: **[Epic C](../../epics/etl-core/epic-c-observability-and-run-evidence.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M1**

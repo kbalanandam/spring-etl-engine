@@ -6,7 +6,7 @@ Remove workstation-specific assumptions from defaults and tests so preserved sce
 
 ## Current board status
 
-- Epic: **[Epic E](../../epics/epic-e-portability-and-packaged-run-guidance.md)**
+- Epic: **[Epic E](../../epics/etl-core/epic-e-portability-and-packaged-run-guidance.md)**
 - Priority: **P0**
 - Status: **Done**
 - Milestone: **M1**

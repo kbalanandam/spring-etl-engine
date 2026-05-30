@@ -306,7 +306,7 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertEqual("Epic F — Restartability and recovery semantics", label)
         self.assertEqual(
             "https://github.com/kbalanandam/spring-etl-engine/blob/master/"
-            "docs/product/epics/epic-f-restartability-and-recovery-semantics.md",
+            "docs/product/epics/etl-core/epic-f-restartability-and-recovery-semantics.md",
             target,
         )
 
@@ -332,7 +332,7 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertEqual("Epic P — Source-native parser maturity", label)
         self.assertEqual(
             "https://github.com/kbalanandam/spring-etl-engine/blob/master/"
-            "docs/product/epics/epic-p-source-native-parser-maturity.md",
+            "docs/product/epics/etl-core/epic-p-source-native-parser-maturity.md",
             target,
         )
 
@@ -415,7 +415,7 @@ class SyncProjectBoardTests(unittest.TestCase):
             private_body,
         )
         self.assertIn(
-            "https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/epics/epic-a-runtime-contract-and-model-governance.md",
+            "https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/product/epics/etl-core/epic-a-runtime-contract-and-model-governance.md",
             private_body,
         )
         self.assertIn(

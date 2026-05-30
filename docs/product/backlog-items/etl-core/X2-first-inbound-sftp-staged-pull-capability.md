@@ -6,7 +6,7 @@ Implement the first inbound SFTP slice so OneFlow can stage remote files locally
 
 ## Current board status
 
-- Epic: **[Epic X](../../epics/epic-x-file-transport-and-sftp-boundary.md)**
+- Epic: **[Epic X](../../epics/etl-core/epic-x-file-transport-and-sftp-boundary.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M2**

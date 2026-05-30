@@ -6,7 +6,7 @@ Capture the larger duplicate-tracking scalability redesign as a separate deferre
 
 ## Current board status
 
-- Epic: **[Epic T](../../epics/epic-t-transformation-capability.md)**
+- Epic: **[Epic T](../../epics/etl-core/epic-t-transformation-capability.md)**
 - Priority: **P2**
 - Status: **Deferred**
 - Milestone: **M3**

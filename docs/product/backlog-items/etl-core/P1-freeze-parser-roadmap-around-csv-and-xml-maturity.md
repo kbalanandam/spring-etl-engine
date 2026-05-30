@@ -6,7 +6,7 @@ Create one explicit parser-planning baseline for the product so parser work stop
 
 ## Current board status
 
-- Epic: **[Epic P](../../epics/epic-p-source-native-parser-maturity.md)**
+- Epic: **[Epic P](../../epics/etl-core/epic-p-source-native-parser-maturity.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M2**

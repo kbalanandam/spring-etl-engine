@@ -6,7 +6,7 @@ Render the shared verification evidence model into Markdown so change validation
 
 ## Current board status
 
-- Epic: **[Epic V](../../epics/epic-v-verification-evidence-and-reporting.md)**
+- Epic: **[Epic V](../../epics/etl-core/epic-v-verification-evidence-and-reporting.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M3**

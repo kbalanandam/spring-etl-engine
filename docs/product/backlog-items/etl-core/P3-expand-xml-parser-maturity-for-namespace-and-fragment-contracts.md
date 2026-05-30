@@ -6,7 +6,7 @@ Capture the next XML parser-maturity slice for cases where preserved scenarios n
 
 ## Current board status
 
-- Epic: **[Epic P](../../epics/epic-p-source-native-parser-maturity.md)**
+- Epic: **[Epic P](../../epics/etl-core/epic-p-source-native-parser-maturity.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M2**

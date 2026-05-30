@@ -6,7 +6,7 @@ Add the first practical built-in scheduling slice so jobs can be configured to r
 
 ## Current board status
 
-- Epic: **[Epic S](../../epics/epic-s-scheduling-and-control-plane.md)**
+- Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M2**

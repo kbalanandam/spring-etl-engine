@@ -6,7 +6,7 @@ Add one explicit skip-policy contract so selected jobs can continue past approve
 
 ## Current board status
 
-- Epic: **[Epic B](../../epics/epic-b-runtime-hardening-and-file-behavior.md)**
+- Epic: **[Epic B](../../epics/etl-core/epic-b-runtime-hardening-and-file-behavior.md)**
 - Priority: **P1**
 - Status: **Done**
 - Milestone: **M1**

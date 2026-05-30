@@ -17,20 +17,21 @@ This epic is **not** the place to make UI a runtime prerequisite or to redesign 
 
 ## Related backlog items
 
-- [`U1 - Stand up independent monitoring-first Operator UI shell with jobs and runs list views`](../backlog-items/operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md)
-- [`U2 - Add job run detail drill-down with step outcomes and evidence links`](../backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md)
-- [`U3 - Add guarded trigger-now action from job details without scheduler coupling`](../backlog-items/operator-ui/U3-guarded-trigger-now-from-job-details.md)
+- [`U1 - Stand up independent monitoring-first Operator UI shell with jobs and runs list views`](../../backlog-items/operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md)
+- [`U2 - Add job run detail drill-down with step outcomes and evidence links`](../../backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md)
+- [`U3 - Add guarded trigger-now action from job details without scheduler coupling`](../../backlog-items/operator-ui/U3-guarded-trigger-now-from-job-details.md)
 
 ## Related docs
 
-- [`../../architecture/operator-ui/operator-ui-architecture-direction.md`](../../architecture/operator-ui/operator-ui-architecture-direction.md)
-- [`../../architecture/operator-ui/angular-ui-mvp-structure.md`](../../architecture/operator-ui/angular-ui-mvp-structure.md)
-- [`../../architecture/operator-ui/angular-ui-mvp-wireframes.md`](../../architecture/operator-ui/angular-ui-mvp-wireframes.md)
-- [`../../architecture/control-plane/operator-ui-mvp-api-surface.md`](../../architecture/control-plane/operator-ui-mvp-api-surface.md)
-- [`../../architecture/control-plane/operator-ui-mvp-openapi.yaml`](../../architecture/control-plane/operator-ui-mvp-openapi.yaml)
-- [`../../architecture/control-plane/control-plane-worker-boundary.md`](../../architecture/control-plane/control-plane-worker-boundary.md)
+- [`../../../architecture/operator-ui/operator-ui-architecture-direction.md`](../../../architecture/operator-ui/operator-ui-architecture-direction.md)
+- [`../../../architecture/operator-ui/angular-ui-mvp-structure.md`](../../../architecture/operator-ui/angular-ui-mvp-structure.md)
+- [`../../../architecture/operator-ui/angular-ui-mvp-wireframes.md`](../../../architecture/operator-ui/angular-ui-mvp-wireframes.md)
+- [`../../../architecture/control-plane/operator-ui-mvp-api-surface.md`](../../../architecture/control-plane/operator-ui-mvp-api-surface.md)
+- [`../../../architecture/control-plane/operator-ui-mvp-openapi.yaml`](../../../architecture/control-plane/operator-ui-mvp-openapi.yaml)
+- [`../../../architecture/control-plane/control-plane-worker-boundary.md`](../../../architecture/control-plane/control-plane-worker-boundary.md)
 
 ## Maintenance note
 
-Use [`../product-backlog.md`](../product-backlog.md) for live item-level board fields. Use this page for the shared Epic U boundary and cross-item intent.
+Use [`../../product-backlog.md`](../../product-backlog.md) for live item-level board fields. Use this page for the shared Epic U boundary and cross-item intent.
+
 

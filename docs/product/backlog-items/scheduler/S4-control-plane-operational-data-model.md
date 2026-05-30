@@ -6,7 +6,7 @@ Define the optional retained operational data model for the future OneFlow contr
 
 ## Current board status
 
-- Epic: **[Epic S](../../epics/epic-s-scheduling-and-control-plane.md)**
+- Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
 - Status: **Deferred**
 - Milestone: **M3**

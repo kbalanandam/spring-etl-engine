@@ -6,7 +6,7 @@ Define one additive runtime contract that lets customer-owned custom steps run b
 
 ## Current board status
 
-- Epic: **[Epic A](../../epics/epic-a-runtime-contract-and-model-governance.md)**
+- Epic: **[Epic A](../../epics/etl-core/epic-a-runtime-contract-and-model-governance.md)**
 - Priority: **P1**
 - Status: **Blocked**
 - Milestone: **M2**
@@ -216,8 +216,8 @@ Expected review artifacts:
 ## Related docs
 
 - [`Product backlog`](../../product-backlog.md)
-- [`Epic A - Runtime contract and generated-model governance`](../../epics/epic-a-runtime-contract-and-model-governance.md)
-- [`Epic D - Error taxonomy and failure categorization`](../../epics/epic-d-error-taxonomy-and-failure-categorization.md)
+- [`Epic A - Runtime contract and generated-model governance`](../../epics/etl-core/epic-a-runtime-contract-and-model-governance.md)
+- [`Epic D - Error taxonomy and failure categorization`](../../epics/etl-core/epic-d-error-taxonomy-and-failure-categorization.md)
 - [`Extension points`](../../../architecture/etl-core/extension-points.md)
 - [`ETL custom-step pairing and context handoff`](../../../architecture/etl-core/custom-step-pairing-and-context-handoff.md)
 - [`A7 + T16 extensibility charter`](../../../architecture/etl-core/a7-t16-extensibility-charter.md)

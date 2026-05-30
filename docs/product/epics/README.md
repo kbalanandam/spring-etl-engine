@@ -21,23 +21,24 @@ Epic pages should also link back to the matching backlog item pages so the navig
 
 ## Epic index
 
-- [`Epic A - Runtime contract and generated-model governance`](epic-a-runtime-contract-and-model-governance.md)
-- [`Epic T - Transformation capability`](epic-t-transformation-capability.md)
-- [`Epic B - Runtime hardening and file behavior`](epic-b-runtime-hardening-and-file-behavior.md)
-- [`Epic P - Source-native parser maturity`](epic-p-source-native-parser-maturity.md)
-- [`Epic C - Observability and run evidence`](epic-c-observability-and-run-evidence.md)
-- [`Epic D - Error taxonomy and failure categorization`](epic-d-error-taxonomy-and-failure-categorization.md)
-- [`Epic E - Portability and packaged-run guidance`](epic-e-portability-and-packaged-run-guidance.md)
-- [`Epic F - Restartability and recovery semantics`](epic-f-restartability-and-recovery-semantics.md)
-- [`Epic G - Secret injection and secure configuration`](epic-g-secret-injection-and-secure-configuration.md)
-- [`Epic S - Scheduling and control plane`](epic-s-scheduling-and-control-plane.md)
+- [`Epic A - Runtime contract and generated-model governance`](etl-core/epic-a-runtime-contract-and-model-governance.md)
+- [`Epic T - Transformation capability`](etl-core/epic-t-transformation-capability.md)
+- [`Epic B - Runtime hardening and file behavior`](etl-core/epic-b-runtime-hardening-and-file-behavior.md)
+- [`Epic P - Source-native parser maturity`](etl-core/epic-p-source-native-parser-maturity.md)
+- [`Epic C - Observability and run evidence`](etl-core/epic-c-observability-and-run-evidence.md)
+- [`Epic D - Error taxonomy and failure categorization`](etl-core/epic-d-error-taxonomy-and-failure-categorization.md)
+- [`Epic E - Portability and packaged-run guidance`](etl-core/epic-e-portability-and-packaged-run-guidance.md)
+- [`Epic F - Restartability and recovery semantics`](etl-core/epic-f-restartability-and-recovery-semantics.md)
+- [`Epic G - Secret injection and secure configuration`](etl-core/epic-g-secret-injection-and-secure-configuration.md)
+- [`Epic S - Scheduling and control plane`](scheduler/epic-s-scheduling-and-control-plane.md)
 - [`Epic U - Operator UI monitoring-first MVP`](operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)
-- [`Epic V - Verification evidence and reporting`](epic-v-verification-evidence-and-reporting.md)
-- [`Epic X - File transport and SFTP boundary`](epic-x-file-transport-and-sftp-boundary.md)
+- [`Epic V - Verification evidence and reporting`](etl-core/epic-v-verification-evidence-and-reporting.md)
+- [`Epic X - File transport and SFTP boundary`](etl-core/epic-x-file-transport-and-sftp-boundary.md)
 
 ## Category scaffolding
 
-- [`scheduler/`](scheduler/README.md) - future scheduler/control-plane epic category
+- [`etl-core/`](etl-core/README.md) - ETL-core epic category
+- [`scheduler/`](scheduler/README.md) - scheduler/control-plane epic category
 - [`operator-ui/`](operator-ui/README.md) - operator-UI epic category
 
 ## Maintenance rule
