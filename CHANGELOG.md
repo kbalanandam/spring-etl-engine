@@ -12,6 +12,7 @@ and this project adheres to **Semantic Versioning**.
 - Added lightweight client-side Jobs/Runs filtering and sorting with hash-route query persistence so operator list context survives refresh/back navigation without changing backend API contracts.
 - Completed U3 guarded trigger-now delivery in Operator UI job details: confirmation-gated `POST /api/v1/jobs/{jobKey}:trigger-now`, traceable decision/`triggerEventId` success feedback, categorized failure feedback (`validation`/`config`/`runtime`), and explicit wording that this remains ad hoc convenience rather than scheduler-management scope.
 - Shifted the shipped `controlplane` profile to SQLite-first local JDBC persistence under `.controlplane/controlplane.db`, disabled unused Spring Batch auto-configuration for the control-plane process, and aligned the control-plane JDBC tests with the SQLite-first local persistence contract.
+- Hardened control-plane profile/test startup boundaries so SQLite-backed control-plane runs no longer inherit `dev` SQL-init behavior (`schema-h2.sql`) through forced profile activation; the base profile now defaults to `dev` only when no profile is selected, while control-plane profile and integration tests explicitly disable Spring SQL and Spring Batch schema initialization.
 
 ## [1.7.9] - 2026-05-29
 
