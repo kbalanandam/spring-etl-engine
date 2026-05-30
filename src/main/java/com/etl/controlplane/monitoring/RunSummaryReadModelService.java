@@ -72,10 +72,24 @@ public class RunSummaryReadModelService {
 			paths
 					.filter(Files::isRegularFile)
 					.filter(path -> path.toString().endsWith(".log"))
+					.filter(this::isScenarioRunLog)
 					.forEach(this::collectRunSummaries);
 		} catch (IOException ignored) {
 			// Read-model refresh is best-effort; stale cache is acceptable for this slice.
 		}
+	}
+
+	private boolean isScenarioRunLog(Path path) {
+		Path relativePath;
+		try {
+			relativePath = logBaseDir.relativize(path);
+		} catch (IllegalArgumentException ex) {
+			return true;
+		}
+		if (relativePath.getNameCount() < 2) {
+			return false;
+		}
+		return !"startup".equalsIgnoreCase(relativePath.getName(0).toString());
 	}
 
 	private void collectRunSummaries(Path logPath) {

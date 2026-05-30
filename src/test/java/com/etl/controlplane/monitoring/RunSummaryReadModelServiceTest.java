@@ -111,6 +111,24 @@ class RunSummaryReadModelServiceTest {
 		assertEquals(1001L, runs.get(0).jobExecutionId());
 	}
 
+	@Test
+	void ignoresStartupLogsDuringRunSummaryIndexing() throws IOException {
+		createLog(
+				tempDir.resolve("startup/startup.log"),
+				"2026-05-27T08:00:00.000+00:00 INFO [main] [scenario:startup] [run:n/a] [job:3001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=startup jobExecutionId=3001 status=COMPLETED startTime=2026-05-27T08:00:00 endTime=2026-05-27T08:00:01 durationSeconds=1 sourceCount=1 writtenCount=1 rejectedCount=0"
+		);
+		createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T11:02:03.001+00:00 INFO [main] [scenario:customer-load] [run:20260527-110203-001] [job:1001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=1001 status=COMPLETED startTime=2026-05-27T11:00:00 endTime=2026-05-27T11:02:03 durationSeconds=123 sourceCount=10 writtenCount=10 rejectedCount=0"
+		);
+
+		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser());
+		List<RunSummaryView> runs = service.latestRuns(10);
+
+		assertEquals(1, runs.size());
+		assertEquals(1001L, runs.get(0).jobExecutionId());
+	}
+
 	private Path createLog(Path path, String... lines) throws IOException {
 		Files.createDirectories(path.getParent());
 		Files.write(path, List.of(lines));
