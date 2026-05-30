@@ -9,6 +9,11 @@ const routes = {
     view: document.getElementById("view-runs"),
     load: loadRuns,
   },
+  runDetail: {
+    tab: document.getElementById("tab-runs"),
+    view: document.getElementById("view-run-detail"),
+    load: loadRunDetailPlaceholder,
+  },
 };
 
 window.addEventListener("hashchange", renderRoute);
@@ -20,16 +25,23 @@ window.addEventListener("DOMContentLoaded", () => {
   renderRoute();
 });
 
-function currentRouteKey() {
-  const hash = location.hash.replace(/^#\/?/, "").toLowerCase();
-  if (hash === "runs") {
-    return "runs";
+function currentRouteState() {
+  const hash = location.hash.replace(/^#\/?/, "");
+  const normalized = hash.toLowerCase();
+  const runDetailMatch = normalized.match(/^runs\/(\d+)$/);
+
+  if (runDetailMatch) {
+    return { key: "runDetail", jobExecutionId: runDetailMatch[1] };
   }
-  return "jobs";
+  if (normalized === "runs") {
+    return { key: "runs", jobExecutionId: null };
+  }
+  return { key: "jobs", jobExecutionId: null };
 }
 
 function renderRoute() {
-  const routeKey = currentRouteKey();
+  const routeState = currentRouteState();
+  const routeKey = routeState.key;
 
   Object.entries(routes).forEach(([key, route]) => {
     const active = key === routeKey;
@@ -37,7 +49,7 @@ function renderRoute() {
     route.view.hidden = !active;
   });
 
-  routes[routeKey].load();
+  routes[routeKey].load(routeState);
 }
 
 async function loadJobs() {
@@ -105,6 +117,14 @@ async function loadRuns() {
 
     items.forEach((run) => {
       const row = document.createElement("tr");
+      const runId = run.jobExecutionId;
+      if (runId !== null && runId !== undefined) {
+        row.className = "clickable-row";
+        row.title = "Open run detail placeholder";
+        row.addEventListener("click", () => {
+          location.hash = `#/runs/${runId}`;
+        });
+      }
       row.innerHTML = `
         <td>${escapeHtml(run.scenario || "-")}</td>
         <td>${escapeHtml(run.status || "-")}</td>
@@ -122,6 +142,44 @@ async function loadRuns() {
   }
 }
 
+async function loadRunDetailPlaceholder(routeState) {
+  const state = document.getElementById("run-detail-state");
+  const summary = document.getElementById("run-detail-summary");
+  const runIdValue = routeState && routeState.jobExecutionId ? routeState.jobExecutionId : null;
+
+  state.className = "state";
+  summary.hidden = true;
+
+  if (!runIdValue) {
+    state.className = "state error";
+    state.textContent = "Missing run id in route. Use a row in Runs list.";
+    return;
+  }
+
+  state.textContent = `Loading run ${runIdValue}...`;
+
+  try {
+    const response = await fetch(`/api/v1/runs/${runIdValue}/detail`, { headers: { Accept: "application/json" } });
+    if (!response.ok) {
+      throw new Error(`Run detail API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    const run = payload.run || {};
+
+    document.getElementById("run-detail-id").textContent = String(run.jobExecutionId ?? runIdValue);
+    document.getElementById("run-detail-scenario").textContent = run.scenario || "-";
+    document.getElementById("run-detail-status").textContent = run.status || "-";
+    document.getElementById("run-detail-step-count").textContent = String(Array.isArray(payload.steps) ? payload.steps.length : 0);
+    document.getElementById("run-detail-artifact-count").textContent = String(Array.isArray(payload.artifacts) ? payload.artifacts.length : 0);
+
+    state.textContent = "U2 detail route is wired. Full drill-down remains in U2 scope.";
+    summary.hidden = false;
+  } catch (error) {
+    state.className = "state error";
+    state.textContent = `Unable to load run detail placeholder: ${error.message}`;
+  }
+}
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, "&amp;")
@@ -130,4 +188,5 @@ function escapeHtml(value) {
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
+
 

@@ -51,6 +51,20 @@
       <tbody id="runs-body"></tbody>
     </table>
   </section>
+
+  <section id="view-run-detail" class="panel" hidden>
+    <h2>Run Detail (U2 placeholder)</h2>
+    <p class="hint">Selected run detail path prepared for `U2` using <code>/api/v1/runs/{jobExecutionId}/detail</code>.</p>
+    <div id="run-detail-state" class="state"></div>
+    <div id="run-detail-summary" hidden>
+      <p><strong>Job execution:</strong> <span id="run-detail-id"></span></p>
+      <p><strong>Scenario:</strong> <span id="run-detail-scenario"></span></p>
+      <p><strong>Status:</strong> <span id="run-detail-status"></span></p>
+      <p><strong>Step records:</strong> <span id="run-detail-step-count"></span></p>
+      <p><strong>Artifacts:</strong> <span id="run-detail-artifact-count"></span></p>
+    </div>
+    <p><a href="#/runs">Back to runs list</a></p>
+  </section>
 </main>
 
 <footer class="footnote">
@@ -60,4 +74,5 @@
 <script src="/operator/app.js"></script>
 </body>
 </html>
+
 

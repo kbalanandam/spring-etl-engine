@@ -81,8 +81,24 @@ th {
   background: #f1f5f9;
 }
 
+.clickable-row {
+  cursor: pointer;
+}
+
+.clickable-row:hover {
+  background: #eff6ff;
+}
+
+#run-detail-summary {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
 .footnote {
   padding: 0 20px 16px;
   color: #475569;
 }
+
 

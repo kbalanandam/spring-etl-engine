@@ -32,5 +32,13 @@ class OperatorUiControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/operator/index.html"));
     }
+
+    @Test
+    void redirectsRunDeepLinkToHashRoutePlaceholder() throws Exception {
+        mockMvc.perform(get("/operator/runs/901"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/operator/index.html#/runs/901"));
+    }
 }
+
 
