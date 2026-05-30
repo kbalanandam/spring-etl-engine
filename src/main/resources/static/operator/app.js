@@ -36,6 +36,13 @@ const viewState = {
     sortKey: "startTime",
     sortDirection: "desc",
   },
+  runLog: {
+    lines: [],
+    truncated: false,
+    searchText: "",
+    structuredOnly: false,
+    compact: true,
+  },
 };
 
 const SORT_KEYS = {
@@ -46,6 +53,7 @@ const SORT_KEYS = {
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("DOMContentLoaded", () => {
   initializeControls();
+  initializeRunLogControls();
   if (!location.hash) {
     location.hash = "#/jobs";
     return;
@@ -537,6 +545,7 @@ async function loadRunDetail(routeState) {
   const logState = document.getElementById("run-detail-log-state");
   const logList = document.getElementById("run-detail-log-list");
   const logEmpty = document.getElementById("run-detail-log-empty");
+  const logControls = document.getElementById("run-detail-log-controls");
   const runIdValue = routeState && routeState.jobExecutionId ? routeState.jobExecutionId : null;
 
   state.className = "state";
@@ -544,6 +553,7 @@ async function loadRunDetail(routeState) {
   logState.hidden = true;
   logList.hidden = true;
   logEmpty.hidden = true;
+  logControls.hidden = true;
 
   if (!runIdValue) {
     state.className = "state error";
@@ -587,6 +597,7 @@ async function loadRunScopedLog(runIdValue) {
   const logState = document.getElementById("run-detail-log-state");
   const logList = document.getElementById("run-detail-log-list");
   const logEmpty = document.getElementById("run-detail-log-empty");
+  const logControls = document.getElementById("run-detail-log-controls");
 
   logState.className = "state";
   logState.textContent = "Loading run-scoped log lines...";
@@ -594,6 +605,7 @@ async function loadRunScopedLog(runIdValue) {
   logList.hidden = true;
   logEmpty.hidden = true;
   logList.innerHTML = "";
+  logControls.hidden = true;
 
   try {
     const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/log?limit=200`, {
@@ -603,22 +615,39 @@ async function loadRunScopedLog(runIdValue) {
       throw new Error(`Run log API returned ${response.status}`);
     }
     const payload = await response.json();
-    renderRunLogLines(payload.lines, payload.truncated);
+    viewState.runLog.lines = Array.isArray(payload.lines) ? payload.lines : [];
+    viewState.runLog.truncated = Boolean(payload.truncated);
+    logControls.hidden = false;
+    renderRunLogLines();
   } catch (error) {
     logState.className = "state error";
     logState.textContent = `Unable to load run-scoped logs: ${error.message}`;
   }
 }
 
-function renderRunLogLines(lines, truncated) {
+function renderRunLogLines() {
   const logState = document.getElementById("run-detail-log-state");
   const logList = document.getElementById("run-detail-log-list");
   const logEmpty = document.getElementById("run-detail-log-empty");
-  const list = Array.isArray(lines) ? lines : [];
+  const allLines = Array.isArray(viewState.runLog.lines) ? viewState.runLog.lines : [];
+  const searchTerm = (viewState.runLog.searchText || "").trim().toLowerCase();
+  const filtered = allLines.filter((line) => {
+    if (viewState.runLog.structuredOnly && !line.structured) {
+      return false;
+    }
+    if (!searchTerm) {
+      return true;
+    }
+    const haystack = `${valueOrDash(line.message)} ${valueOrDash(line.recordType)} ${valueOrDash(line.event)} ${valueOrDash(line.level)}`.toLowerCase();
+    return haystack.includes(searchTerm);
+  });
+  const list = filtered;
 
   logList.innerHTML = "";
   if (list.length === 0) {
-    logState.hidden = true;
+    logState.className = "state";
+    logState.hidden = false;
+    logState.textContent = allLines.length === 0 ? "No run-scoped log lines returned." : "No run-scoped log lines match the current filter.";
     logList.hidden = true;
     logEmpty.hidden = false;
     return;
@@ -634,6 +663,8 @@ function renderRunLogLines(lines, truncated) {
     const lineNumber = valueOrDash(line.lineNumber);
     const timestamp = valueOrDash(line.loggedAt);
 
+    const fullMessage = valueOrDash(line.message);
+    const renderedMessage = viewState.runLog.compact ? truncateForCompact(fullMessage, 240) : fullMessage;
     row.innerHTML = `
       <div class="log-line-meta">
         <span class="log-chip level-${escapeHtml(level.toLowerCase())}">${escapeHtml(level || "RAW")}</span>
@@ -642,7 +673,7 @@ function renderRunLogLines(lines, truncated) {
         <span class="log-chip">${escapeHtml(event)}</span>
         <span class="log-time">${escapeHtml(timestamp)}</span>
       </div>
-      <pre class="log-line-text">${escapeHtml(valueOrDash(line.message))}</pre>`;
+      <pre class="log-line-text ${viewState.runLog.compact ? "compact" : ""}" title="${escapeHtml(fullMessage)}">${escapeHtml(renderedMessage)}</pre>`;
 
     logList.appendChild(row);
   });
@@ -651,7 +682,37 @@ function renderRunLogLines(lines, truncated) {
   logList.hidden = false;
   logState.hidden = false;
   logState.className = "state";
-  logState.textContent = truncated ? `Showing first ${list.length} run-scoped line(s).` : `Showing ${list.length} run-scoped line(s).`;
+  const baseMessage = viewState.runLog.truncated
+    ? `Showing ${list.length} of ${allLines.length} loaded line(s) (source truncated server-side).`
+    : `Showing ${list.length} of ${allLines.length} loaded line(s).`;
+  logState.textContent = baseMessage;
+}
+
+function initializeRunLogControls() {
+  const searchInput = document.getElementById("run-detail-log-search");
+  const structuredOnly = document.getElementById("run-detail-log-structured-only");
+  const compact = document.getElementById("run-detail-log-compact");
+
+  searchInput.addEventListener("input", (event) => {
+    viewState.runLog.searchText = event.target.value || "";
+    renderRunLogLines();
+  });
+  structuredOnly.addEventListener("change", (event) => {
+    viewState.runLog.structuredOnly = Boolean(event.target.checked);
+    renderRunLogLines();
+  });
+  compact.addEventListener("change", (event) => {
+    viewState.runLog.compact = Boolean(event.target.checked);
+    renderRunLogLines();
+  });
+}
+
+function truncateForCompact(value, maxLength) {
+  const text = valueOrDash(value);
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.substring(0, maxLength)}...`;
 }
 
 function renderRunSteps(steps) {
