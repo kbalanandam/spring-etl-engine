@@ -84,6 +84,7 @@ Integrate the existing trigger-now API in a guarded manner and keep messaging ex
 - [ ] UI messaging preserves selected-job contract boundaries
 - [ ] action failures are categorized and visible to operator
 - [ ] docs call out that scheduler capability remains optional
+- [ ] trigger-now request/response contract aligns with the `S1` trigger-origin boundary
 
 ## Related docs
 
@@ -99,4 +100,10 @@ Treat this as an optional launcher convenience, not as a replacement for existin
 ## Status notes
 
 Planned after U1 baseline visibility is in place.
+
+Handshake with `S1`:
+
+- proceed when S1 trigger contract freeze checkpoint is documented
+- consume the same selected-job launch boundary used by scheduler and external orchestrator launchers
+- preserve explicit operator wording that this remains ad hoc trigger convenience, not full scheduler governance
 

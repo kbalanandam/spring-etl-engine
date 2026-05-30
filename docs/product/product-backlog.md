@@ -295,7 +295,7 @@ Use this section as the near-term sequencing view behind the execution board:
 9. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
 10. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
 11. Start Operator UI in parallel as a monitoring-first independent slice (`U1` -> `U2` -> `U3`) so users get centralized job/run visibility without coupling UI to ETL-core launch behavior.
-12. Start `S1` in parallel with `U1` and keep `S2`/`S3`/`S4` deferred until the schedule/trigger contract boundary is frozen.
+12. Start `S1` in parallel with `U1` and keep `S2`/`S3`/`S4` deferred until the schedule/trigger contract freeze checkpoint is documented (single selected-job launch boundary, trigger-origin evidence shape, and retry/restart separation).
 13. Leave `V3` / `V4` and wider scheduler/restart work for the next operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
