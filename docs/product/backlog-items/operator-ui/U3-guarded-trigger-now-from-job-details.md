@@ -101,6 +101,12 @@ Treat this as an optional launcher convenience, not as a replacement for existin
 
 Started after U1/U2 monitoring baseline delivery with a guarded UI-first trigger-now kickoff.
 
+Current progress:
+
+- added guarded `Trigger now` action in job-detail UI with explicit ad hoc wording and selected-job boundary note
+- wired POST request mapping to `/api/v1/jobs/{jobKey}:trigger-now` with confirmation and decision feedback including `triggerEventId`
+- added categorized failure feedback (`validation` / `config` / `runtime`) in the UI without introducing scheduler-management controls
+
 Handshake with `S1`:
 
 - proceed when S1 trigger contract freeze checkpoint is documented

@@ -140,6 +140,32 @@ th {
   word-break: break-word;
 }
 
+.trigger-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+#job-detail-trigger-now-btn {
+  padding: 6px 10px;
+  border: 1px solid #2563eb;
+  border-radius: 6px;
+  background: #2563eb;
+  color: #ffffff;
+  cursor: pointer;
+}
+
+#job-detail-trigger-now-btn:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.boundary-note {
+  color: #475569;
+  font-size: 13px;
+}
+
 .footnote {
   padding: 0 20px 16px;
   color: #475569;
