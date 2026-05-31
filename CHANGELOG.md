@@ -6,6 +6,8 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.7.10] - 2026-05-31
+
 ### Changed
 - Added a monitoring-first Operator UI shell under `/operator` in the optional control-plane launcher, backed by existing Jobs/Runs read-model APIs and explicit empty/error states.
 - Added U1 deep-link placeholders for run/job drill-down routes (`#/runs/{jobExecutionId}`, `#/jobs/{jobKey}`), with server-side redirects for `/operator/runs/{jobExecutionId}` and `/operator/jobs/{jobKey}` to keep route contracts stable for U2/U3.
