@@ -140,6 +140,19 @@ class ControlPlaneApiLauncherIntegrationTest {
 				.andExpect(jsonPath("$.totalItems").value(1))
 				.andExpect(jsonPath("$.items[0].jobExecutionId").value(901));
 
+		mockMvc.perform(get("/api/v1/runs")
+				.param("job", "customer-load")
+				.param("startDate", "2026-05-27")
+				.param("timezone", "UTC"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalItems").value(1));
+
+		mockMvc.perform(get("/api/v1/runs")
+				.param("startDate", "2026-05-28")
+				.param("timezone", "UTC"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalItems").value(0));
+
 		mockMvc.perform(get("/api/v1/runs/901/detail"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.run.jobExecutionId").value(901))
@@ -171,7 +184,7 @@ class ControlPlaneApiLauncherIntegrationTest {
 
 		mockMvc.perform(get("/operator"))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(result -> assertEquals("/operator/index.html", result.getResponse().getRedirectedUrl()));
+				.andExpect(result -> assertTrue(result.getResponse().getRedirectedUrl().startsWith("/operator/index.html?v=")));
 	}
 
 	private String readScheduleId(MvcResult result) throws IOException {

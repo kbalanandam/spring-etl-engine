@@ -34,11 +34,13 @@ const viewState = {
     loadedForKey: "",
     items: [],
     cache: {
-      all: null,
-      byJob: {},
+      byFilter: {},
     },
     jobOptions: [],
     selectedJobKey: "",
+    startDate: "",
+    timezone: "",
+    browserTimezone: "UTC",
     filterText: "",
     sortKey: "startTime",
     sortDirection: "desc",
@@ -60,6 +62,7 @@ const SORT_KEYS = {
 
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("DOMContentLoaded", () => {
+  initializeRunsDefaults();
   initializeControls();
   initializeRunLogControls();
   if (!location.hash) {
@@ -90,6 +93,8 @@ function currentRouteState() {
       jobKey: null,
       query: parsed.query,
       selectedJobKey: parsed.query.job || "",
+      startDate: parsed.query.startDate || "",
+      timezone: parsed.query.timezone || "",
       filterText: parsed.query.f || "",
       sortKey: normalizeSortKey("runs", parsed.query.sort, "startTime"),
       sortDirection: normalizeDirection(parsed.query.dir, "desc"),
@@ -284,7 +289,9 @@ async function loadRuns() {
   const table = document.getElementById("runs-table");
   const body = document.getElementById("runs-body");
   const selectedJobKey = viewState.runs.selectedJobKey || "";
-  const loadKey = selectedJobKey || "__all__";
+  const selectedStartDate = viewState.runs.startDate || "";
+  const selectedTimezone = viewState.runs.timezone || viewState.runs.browserTimezone || "UTC";
+  const loadKey = `${selectedJobKey || "__all__"}|${selectedStartDate || "__no_date__"}|${selectedTimezone}`;
 
   if (viewState.runs.loaded && viewState.runs.loadedForKey === loadKey) {
     renderRunsTable();
@@ -292,23 +299,20 @@ async function loadRuns() {
   }
 
   state.className = "state";
-  state.textContent = selectedJobKey
-    ? `Loading runs for job ${selectedJobKey}...`
-    : "Loading runs...";
+  state.textContent = "Loading runs...";
   table.hidden = true;
   body.innerHTML = "";
+  clearRunsInstanceOptions();
 
   try {
     await ensureRunsJobOptions();
-    const runs = await fetchRunsForSelectedJob(selectedJobKey);
+    const runs = await fetchRunsForFilters(selectedJobKey, selectedStartDate, selectedTimezone);
     viewState.runs.items = runs;
     viewState.runs.loaded = true;
     viewState.runs.loadedForKey = loadKey;
 
     if (viewState.runs.items.length === 0) {
-      state.textContent = selectedJobKey
-        ? `No recent runs found for job '${selectedJobKey}'.`
-        : "No recent runs found.";
+      state.textContent = "No runs found for the selected filters.";
       return;
     }
     renderRunsTable();
@@ -316,6 +320,69 @@ async function loadRuns() {
     state.className = "state error";
     state.textContent = `Unable to load runs: ${error.message}`;
   }
+}
+
+function initializeRunsDefaults() {
+  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  viewState.runs.browserTimezone = browserTimezone;
+  if (!viewState.runs.timezone) {
+    viewState.runs.timezone = browserTimezone;
+  }
+  if (!viewState.runs.startDate) {
+    viewState.runs.startDate = formatDateForInput(new Date());
+  }
+}
+
+function formatDateForInput(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function runFilterSummaryText(totalCount) {
+  const bits = [];
+  if (viewState.runs.startDate) {
+    bits.push(`startDate=${viewState.runs.startDate}`);
+  }
+  if (viewState.runs.timezone) {
+    bits.push(`timezone=${viewState.runs.timezone}`);
+  }
+  if (viewState.runs.selectedJobKey) {
+    bits.push(`job='${viewState.runs.selectedJobKey}'`);
+  }
+  if (bits.length === 0) {
+    return `${totalCount} run(s)`;
+  }
+  return `${totalCount} run(s) for ${bits.join(", ")}`;
+}
+
+function renderRunsTimezoneOptions() {
+  const select = document.getElementById("runs-timezone-select");
+  if (!select) {
+    return;
+  }
+
+  const browserTimezone = viewState.runs.browserTimezone || "UTC";
+  const preferred = [browserTimezone, "UTC", "America/New_York", "Europe/London", "Asia/Kolkata"];
+  const uniqueTimezones = Array.from(new Set(preferred.filter(Boolean)));
+
+  select.innerHTML = "";
+  uniqueTimezones.forEach((timezone) => {
+    const option = document.createElement("option");
+    option.value = timezone;
+    option.textContent = timezone === browserTimezone ? `${timezone} (browser)` : timezone;
+    select.appendChild(option);
+  });
+
+  if (!uniqueTimezones.includes(viewState.runs.timezone)) {
+    const option = document.createElement("option");
+    option.value = viewState.runs.timezone;
+    option.textContent = viewState.runs.timezone;
+    select.appendChild(option);
+  }
+
+  select.value = viewState.runs.timezone;
 }
 
 function initializeControls() {
@@ -341,14 +408,37 @@ function initializeControls() {
   });
 
   const runsFilter = document.getElementById("runs-filter-input");
+  const runsStartDate = document.getElementById("runs-start-date-input");
+  const runsTimezone = document.getElementById("runs-timezone-select");
   const runsJobSelect = document.getElementById("runs-job-select");
+  const runsInstanceSelect = document.getElementById("runs-instance-select");
   const runsSort = document.getElementById("runs-sort-select");
   const runsDirection = document.getElementById("runs-sort-dir-btn");
+
+  renderRunsTimezoneOptions();
+
+  runsStartDate.addEventListener("change", (event) => {
+    viewState.runs.startDate = event.target.value || "";
+    viewState.runs.loaded = false;
+    syncListRouteHash("runs");
+  });
+  runsTimezone.addEventListener("change", (event) => {
+    viewState.runs.timezone = event.target.value || viewState.runs.browserTimezone;
+    viewState.runs.loaded = false;
+    syncListRouteHash("runs");
+  });
 
   runsJobSelect.addEventListener("change", (event) => {
     viewState.runs.selectedJobKey = event.target.value || "";
     viewState.runs.loaded = false;
     syncListRouteHash("runs");
+  });
+  runsInstanceSelect.addEventListener("change", (event) => {
+    const runId = event.target.value || "";
+    if (!runId) {
+      return;
+    }
+    location.hash = `#/runs/${encodeURIComponent(runId)}`;
   });
   runsFilter.addEventListener("input", (event) => {
     viewState.runs.filterText = event.target.value || "";
@@ -382,14 +472,20 @@ function applyRouteStateToListView(routeState) {
 
   viewState.runs.filterText = routeState.filterText || "";
   viewState.runs.selectedJobKey = routeState.selectedJobKey || "";
+  viewState.runs.startDate = routeState.startDate || viewState.runs.startDate || formatDateForInput(new Date());
+  viewState.runs.timezone = routeState.timezone || viewState.runs.timezone || viewState.runs.browserTimezone || "UTC";
   viewState.runs.sortKey = routeState.sortKey || "startTime";
   viewState.runs.sortDirection = routeState.sortDirection || "desc";
 
+  renderRunsTimezoneOptions();
   renderRunsJobOptions();
+  document.getElementById("runs-start-date-input").value = viewState.runs.startDate;
+  document.getElementById("runs-timezone-select").value = viewState.runs.timezone;
   document.getElementById("runs-job-select").value = viewState.runs.selectedJobKey;
   document.getElementById("runs-filter-input").value = viewState.runs.filterText;
   document.getElementById("runs-sort-select").value = viewState.runs.sortKey;
   document.getElementById("runs-sort-dir-btn").textContent = labelDirection(viewState.runs.sortDirection);
+  clearRunsInstanceOptions();
 }
 
 function syncListRouteHash(routeKey) {
@@ -401,6 +497,14 @@ function syncListRouteHash(routeKey) {
   }
   if (source.selectedJobKey && source.selectedJobKey.trim() !== "") {
     params.set("job", source.selectedJobKey.trim());
+  }
+  if (routeKey === "runs") {
+    if (source.startDate && source.startDate.trim() !== "") {
+      params.set("startDate", source.startDate.trim());
+    }
+    if (source.timezone && source.timezone.trim() !== "") {
+      params.set("timezone", source.timezone.trim());
+    }
   }
   params.set("sort", source.sortKey);
   params.set("dir", source.sortDirection);
@@ -492,12 +596,11 @@ function renderRunsTable() {
     return haystack.includes(viewState.runs.filterText.trim().toLowerCase());
   });
   const sorted = sortItems(filtered, viewState.runs.sortKey, viewState.runs.sortDirection);
+  renderRunsInstanceOptions(sorted);
 
   body.innerHTML = "";
   if (sorted.length === 0) {
-    state.textContent = viewState.runs.selectedJobKey
-      ? `No runs match the current filter for job '${viewState.runs.selectedJobKey}'.`
-      : "No runs match the current filter.";
+    state.textContent = "No runs match the current filters.";
     table.hidden = true;
     return;
   }
@@ -521,11 +624,43 @@ function renderRunsTable() {
     body.appendChild(row);
   });
 
-  const scopeSuffix = viewState.runs.selectedJobKey
-    ? ` for job '${viewState.runs.selectedJobKey}'`
-    : "";
-  state.textContent = `Showing ${sorted.length} of ${viewState.runs.items.length} run(s)${scopeSuffix}.`;
+  state.textContent = `Showing ${sorted.length} of ${runFilterSummaryText(viewState.runs.items.length)}.`;
   table.hidden = false;
+}
+
+function clearRunsInstanceOptions() {
+  const select = document.getElementById("runs-instance-select");
+  if (!select) {
+    return;
+  }
+  select.innerHTML = '<option value="">Select run instance</option>';
+  select.disabled = true;
+}
+
+function renderRunsInstanceOptions(runs) {
+  const select = document.getElementById("runs-instance-select");
+  if (!select) {
+    return;
+  }
+
+  const items = Array.isArray(runs)
+    ? runs.filter((run) => run && run.jobExecutionId !== null && run.jobExecutionId !== undefined)
+    : [];
+
+  select.innerHTML = '<option value="">Select run instance</option>';
+  if (items.length === 0) {
+    select.disabled = true;
+    return;
+  }
+
+  items.forEach((run) => {
+    const option = document.createElement("option");
+    option.value = String(run.jobExecutionId);
+    option.textContent = `${run.jobExecutionId} | ${run.status || "-"} | ${run.startTime || "-"}`;
+    select.appendChild(option);
+  });
+
+  select.disabled = false;
 }
 
 async function ensureRunsJobOptions() {
@@ -581,36 +716,34 @@ async function fetchJobsForRunsScope() {
   return jobs;
 }
 
-async function fetchRunsForSelectedJob(selectedJobKey) {
-  if (!selectedJobKey) {
-    if (Array.isArray(viewState.runs.cache.all)) {
-      return viewState.runs.cache.all;
-    }
-    const response = await fetch("/api/v1/runs?limit=25", { headers: { Accept: "application/json" } });
-    if (!response.ok) {
-      throw new Error(`Runs API returned ${response.status}`);
-    }
-    const payload = await response.json();
-    const items = Array.isArray(payload.items) ? payload.items : [];
-    viewState.runs.cache.all = items;
-    return items;
+async function fetchRunsForFilters(selectedJobKey, startDate, timezone) {
+  const cacheKey = `${selectedJobKey || ""}|${startDate || ""}|${timezone || ""}`;
+  if (Array.isArray(viewState.runs.cache.byFilter[cacheKey])) {
+    return viewState.runs.cache.byFilter[cacheKey];
   }
 
-  if (Array.isArray(viewState.runs.cache.byJob[selectedJobKey])) {
-    return viewState.runs.cache.byJob[selectedJobKey];
+  const params = new URLSearchParams();
+  params.set("limit", "200");
+  if (selectedJobKey) {
+    params.set("job", selectedJobKey);
+  }
+  if (startDate) {
+    params.set("startDate", startDate);
+  }
+  if (timezone) {
+    params.set("timezone", timezone);
   }
 
-  const response = await fetch(`/api/v1/jobs/${encodeURIComponent(selectedJobKey)}`, {
-    headers: { Accept: "application/json" },
-  });
+  const response = await fetch(`/api/v1/runs?${params.toString()}`, { headers: { Accept: "application/json" } });
   if (!response.ok) {
-    throw new Error(`Job detail API returned ${response.status}`);
+    throw new Error(`Runs API returned ${response.status}`);
   }
   const payload = await response.json();
-  const runs = Array.isArray(payload.recentRuns) ? payload.recentRuns : [];
-  viewState.runs.cache.byJob[selectedJobKey] = runs;
-  return runs;
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  viewState.runs.cache.byFilter[cacheKey] = items;
+  return items;
 }
+
 
 function sortItems(items, key, direction) {
   const factor = direction === "desc" ? -1 : 1;
@@ -996,6 +1129,3 @@ function escapeHtml(value) {
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
-
-
-

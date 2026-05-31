@@ -6,6 +6,8 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -92,6 +94,28 @@ class RunSummaryReadModelServiceTest {
 		assertEquals(2, runs.size());
 		assertEquals(2002L, runs.get(0).jobExecutionId());
 		assertEquals(2001L, runs.get(1).jobExecutionId());
+	}
+
+	@Test
+	void appliesIndependentJobAndStartDateFilters() throws IOException {
+		createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T09:00:00.000+00:00 INFO [main] [scenario:customer-load] [run:1] [job:2001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=2001 status=COMPLETED startTime=2026-05-27T09:00:00 endTime=2026-05-27T09:00:01 durationSeconds=1 sourceCount=1 writtenCount=1 rejectedCount=0",
+				"2026-05-27T09:10:00.000+00:00 INFO [main] [scenario:other-job] [run:2] [job:2002] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=other-job jobExecutionId=2002 status=COMPLETED startTime=2026-05-28T09:10:00 endTime=2026-05-28T09:10:02 durationSeconds=2 sourceCount=2 writtenCount=2 rejectedCount=0"
+		);
+
+		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser());
+
+		List<RunSummaryView> dateOnly = service.latestRunsFiltered(10, null, LocalDate.parse("2026-05-28"), ZoneId.of("UTC"));
+		assertEquals(1, dateOnly.size());
+		assertEquals(2002L, dateOnly.get(0).jobExecutionId());
+
+		List<RunSummaryView> jobOnly = service.latestRunsFiltered(10, "customer-load", null, ZoneId.of("UTC"));
+		assertEquals(1, jobOnly.size());
+		assertEquals(2001L, jobOnly.get(0).jobExecutionId());
+
+		List<RunSummaryView> combined = service.latestRunsFiltered(10, "customer-load", LocalDate.parse("2026-05-28"), ZoneId.of("UTC"));
+		assertEquals(0, combined.size());
 	}
 
 	@Test

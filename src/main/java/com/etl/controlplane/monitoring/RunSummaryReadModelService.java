@@ -8,6 +8,8 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -55,11 +57,24 @@ public class RunSummaryReadModelService {
 	}
 
 	public List<RunSummaryView> latestRuns(int limit) {
+		return latestRunsFiltered(limit, null, null, ZoneId.systemDefault());
+	}
+
+	public List<RunSummaryView> latestRunsFiltered(int limit,
+	                                              String jobFilter,
+	                                              LocalDate startDate,
+	                                              ZoneId selectedZoneId) {
 		if (limit <= 0) {
 			return List.of();
 		}
 		reindexFromLogs();
-		return registry.latestRuns(limit);
+		ZoneId effectiveZone = selectedZoneId == null ? ZoneId.systemDefault() : selectedZoneId;
+		String normalizedJobFilter = normalizeToken(jobFilter);
+		return registry.latestRuns(Integer.MAX_VALUE).stream()
+				.filter(run -> matchesJobFilter(run, normalizedJobFilter))
+				.filter(run -> matchesStartDate(run, startDate, effectiveZone))
+				.limit(limit)
+				.toList();
 	}
 
 	public Optional<RunSummaryView> findRunByJobExecutionId(long jobExecutionId) {
@@ -133,6 +148,32 @@ public class RunSummaryReadModelService {
 		String scenario = normalize(run.scenario());
 		return scenario.equalsIgnoreCase(normalizedJobKey)
 				|| (!normalizedDisplayName.isBlank() && scenario.equalsIgnoreCase(normalizedDisplayName));
+	}
+
+	private boolean matchesJobFilter(RunSummaryView run, String normalizedJobFilter) {
+		if (normalizedJobFilter.isBlank()) {
+			return true;
+		}
+		return normalizeToken(run.scenario()).equals(normalizedJobFilter);
+	}
+
+	private boolean matchesStartDate(RunSummaryView run, LocalDate startDate, ZoneId selectedZoneId) {
+		if (startDate == null) {
+			return true;
+		}
+		if (run.startTime() == null) {
+			return false;
+		}
+		LocalDate runDateInSelectedZone = run.startTime()
+				.atZone(ZoneId.systemDefault())
+				.withZoneSameInstant(selectedZoneId)
+				.toLocalDate();
+		return !runDateInSelectedZone.isBefore(startDate);
+	}
+
+	private String normalizeToken(String value) {
+		return normalize(value).toLowerCase()
+				.replaceAll("[^a-z0-9]", "");
 	}
 
 	private String normalize(String value) {

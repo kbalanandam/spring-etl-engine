@@ -246,6 +246,9 @@ Returns run summaries for the Runs screen.
 Current query support:
 
 - `limit` (optional)
+- `job` (optional selected-job filter)
+- `startDate` (optional inclusive start date in `yyyy-MM-dd`)
+- `timezone` (optional IANA timezone used with `startDate`, defaults to server timezone)
 
 Response body shape:
 

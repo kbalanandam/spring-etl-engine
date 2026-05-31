@@ -12,6 +12,12 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.time.LocalDate;
+import java.time.ZoneId;
+
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
 @RestController
 @RequestMapping("/api/v1/runs")
@@ -33,10 +39,37 @@ public class RunSummaryController {
 	}
 
 	@GetMapping
-	public RunSummaryListResponse latestRuns(@RequestParam(name = "limit", required = false) Integer limit) {
+	public RunSummaryListResponse latestRuns(@RequestParam(name = "limit", required = false) Integer limit,
+	                                        @RequestParam(name = "job", required = false) String job,
+	                                        @RequestParam(name = "startDate", required = false) String startDate,
+	                                        @RequestParam(name = "timezone", required = false) String timezone) {
 		int effectiveLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
-		var runs = runSummaryReadModelService.latestRuns(effectiveLimit);
+		LocalDate effectiveStartDate = parseStartDate(startDate);
+		ZoneId effectiveZoneId = parseTimezone(timezone);
+		var runs = runSummaryReadModelService.latestRunsFiltered(effectiveLimit, job, effectiveStartDate, effectiveZoneId);
 		return new RunSummaryListResponse(runs, 0, effectiveLimit, runs.size());
+	}
+
+	private LocalDate parseStartDate(String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		try {
+			return LocalDate.parse(value.trim());
+		} catch (RuntimeException ex) {
+			throw new ResponseStatusException(BAD_REQUEST, "Invalid startDate. Expected yyyy-MM-dd.");
+		}
+	}
+
+	private ZoneId parseTimezone(String value) {
+		if (value == null || value.isBlank()) {
+			return ZoneId.systemDefault();
+		}
+		try {
+			return ZoneId.of(value.trim());
+		} catch (RuntimeException ex) {
+			throw new ResponseStatusException(BAD_REQUEST, "Invalid timezone. Expected IANA zone id.");
+		}
 	}
 
 	@GetMapping("/{jobExecutionId}")

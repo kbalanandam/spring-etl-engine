@@ -8,7 +8,7 @@ Add run-detail drill-down in the Operator UI so users can inspect one run's step
 
 - Epic: **[Epic U](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **U1, C2**
 
@@ -38,6 +38,7 @@ The page should make failure triage faster than manual log correlation.
 
 - run-detail page route and model
 - runs list supports selected-job scoping before run drill-down
+- runs list supports independent/combined job and start-date filters before run drill-down
 - step-level status and count rendering
 - failure summary visibility
 - artifact/evidence link rendering (where available)
@@ -89,8 +90,8 @@ Build on the existing run-detail API response and focus on transparent, operator
 - [x] failure summary is visible when present
 - [x] artifact/evidence links are displayed when provided
 - [x] missing optional fields are handled gracefully
-- [ ] run-detail includes richer log rendering (structured/filtered view instead of raw full-file text)
-- [ ] run-detail log content is scoped to the selected run instance (for example by `jobExecutionId` and run correlation context), not full scenario-history output
+- [x] run-detail includes richer log rendering (structured/filtered view instead of raw full-file text)
+- [x] run-detail log content is scoped to the selected run instance (for example by `jobExecutionId` and run correlation context), not full scenario-history output
 
 ## Related docs
 
@@ -105,7 +106,7 @@ Keep this slice read-only and evidence-first. Any action buttons should remain d
 
 ## Status notes
 
-Completed as the second monitoring-first UI slice after jobs/runs overview.
+Completed as the second monitoring-first UI slice after jobs/runs overview, including follow-on UX/filtering polish and run-scoped log rendering.
 
 Shipped scope:
 
@@ -114,4 +115,5 @@ Shipped scope:
 - kept route/API contract unchanged on `/api/v1/runs/{jobExecutionId}/detail`
 - added first-pass UX polish for section readability (timestamps, richer artifact/evidence text, safer missing-link handling)
 - added runs-list job selector flow so operators can scope the list to one selected job and drill into one run instance from that narrowed context
+- added runs-list start-date + timezone filtering (browser-default date/timezone) with independent/combined job filtering before run-instance selection
 

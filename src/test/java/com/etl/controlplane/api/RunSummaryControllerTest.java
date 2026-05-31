@@ -20,10 +20,13 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -49,7 +52,7 @@ class RunSummaryControllerTest {
 
 	@Test
 	void returnsRunsUsingDefaultLimit() throws Exception {
-		when(runSummaryReadModelService.latestRuns(eq(25))).thenReturn(List.of(
+		when(runSummaryReadModelService.latestRunsFiltered(eq(25), isNull(), isNull(), eq(ZoneId.systemDefault()))).thenReturn(List.of(
 				new RunSummaryView("customer-load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
 						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L, "logs/2026-05-27/customer-load.log")
 		));
@@ -62,12 +65,12 @@ class RunSummaryControllerTest {
 				.andExpect(jsonPath("$.size").value(25))
 				.andExpect(jsonPath("$.totalItems").value(1));
 
-		verify(runSummaryReadModelService).latestRuns(eq(25));
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(25), isNull(), isNull(), eq(ZoneId.systemDefault()));
 	}
 
 	@Test
 	void clampsLimitToAcceptedRange() throws Exception {
-		when(runSummaryReadModelService.latestRuns(eq(200))).thenReturn(List.of());
+		when(runSummaryReadModelService.latestRunsFiltered(eq(200), isNull(), isNull(), eq(ZoneId.systemDefault()))).thenReturn(List.of());
 
 		mockMvc.perform(get("/api/v1/runs").param("limit", "999"))
 				.andExpect(status().isOk())
@@ -76,7 +79,35 @@ class RunSummaryControllerTest {
 				.andExpect(jsonPath("$.size").value(200))
 				.andExpect(jsonPath("$.totalItems").value(0));
 
-		verify(runSummaryReadModelService).latestRuns(eq(200));
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(200), isNull(), isNull(), eq(ZoneId.systemDefault()));
+	}
+
+	@Test
+	void passesJobDateAndTimezoneFiltersToService() throws Exception {
+		when(runSummaryReadModelService.latestRunsFiltered(eq(50), eq("customer-load"), eq(LocalDate.parse("2026-05-27")), eq(ZoneId.of("UTC"))))
+				.thenReturn(List.of());
+
+		mockMvc.perform(get("/api/v1/runs")
+				.param("limit", "50")
+				.param("job", "customer-load")
+				.param("startDate", "2026-05-27")
+				.param("timezone", "UTC"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.size").value(50));
+
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(50), eq("customer-load"), eq(LocalDate.parse("2026-05-27")), eq(ZoneId.of("UTC")));
+	}
+
+	@Test
+	void returnsBadRequestForInvalidStartDateFilter() throws Exception {
+		mockMvc.perform(get("/api/v1/runs").param("startDate", "2026/05/27"))
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void returnsBadRequestForInvalidTimezoneFilter() throws Exception {
+		mockMvc.perform(get("/api/v1/runs").param("timezone", "Mars/Phobos"))
+				.andExpect(status().isBadRequest());
 	}
 
 	@Test
