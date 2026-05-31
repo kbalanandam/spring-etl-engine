@@ -37,6 +37,7 @@ The page should make failure triage faster than manual log correlation.
 ## Scope
 
 - run-detail page route and model
+- runs list supports selected-job scoping before run drill-down
 - step-level status and count rendering
 - failure summary visibility
 - artifact/evidence link rendering (where available)
@@ -47,6 +48,7 @@ The page should make failure triage faster than manual log correlation.
 ## Example UI actions
 
 - open a run from the runs list and land on a **Run Detail** page
+- narrow runs list to one selected job, then choose one run instance for diagnosis
 - expand step list to inspect status per step (`COMPLETED`, `FAILED`, `BLOCKED`)
 - inspect step counts (source/written/rejected) without switching screens
 - view failure summary and category to identify likely root-cause area
@@ -111,4 +113,5 @@ Shipped scope:
 - preserved graceful "not available" handling for optional fields when data is absent
 - kept route/API contract unchanged on `/api/v1/runs/{jobExecutionId}/detail`
 - added first-pass UX polish for section readability (timestamps, richer artifact/evidence text, safer missing-link handling)
+- added runs-list job selector flow so operators can scope the list to one selected job and drill into one run instance from that narrowed context
 

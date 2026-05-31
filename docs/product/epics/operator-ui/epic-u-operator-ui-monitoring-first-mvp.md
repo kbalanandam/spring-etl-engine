@@ -10,6 +10,7 @@ This epic is the home for work that:
 
 - keeps the UI and control-plane API optional and independently deployable from the ETL worker
 - starts with monitoring-first read models (jobs list, run list, run detail)
+- supports selected-job run narrowing so operators can choose one run instance before opening run detail
 - exposes operational evidence for faster diagnosis (status, counts, failure summary, artifacts)
 - preserves explicit selected-job launch behavior and avoids scheduler lock-in
 
