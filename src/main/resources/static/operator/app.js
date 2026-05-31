@@ -37,6 +37,7 @@ const viewState = {
     sortDirection: "desc",
   },
   runLog: {
+    currentRunId: null,
     lines: [],
     truncated: false,
     searchText: "",
@@ -561,6 +562,8 @@ async function loadRunDetail(routeState) {
     return;
   }
 
+  resetRunLogContext(runIdValue);
+
   state.textContent = `Loading run ${runIdValue}...`;
 
   try {
@@ -590,6 +593,23 @@ async function loadRunDetail(routeState) {
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load run detail: ${error.message}`;
+  }
+}
+
+function resetRunLogContext(runIdValue) {
+  const normalizedRunId = String(runIdValue || "");
+  if (viewState.runLog.currentRunId === normalizedRunId) {
+    return;
+  }
+
+  viewState.runLog.currentRunId = normalizedRunId;
+  viewState.runLog.lines = [];
+  viewState.runLog.truncated = false;
+  viewState.runLog.searchText = "";
+
+  const searchInput = document.getElementById("run-detail-log-search");
+  if (searchInput) {
+    searchInput.value = "";
   }
 }
 
