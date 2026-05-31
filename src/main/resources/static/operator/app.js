@@ -31,7 +31,14 @@ const viewState = {
   },
   runs: {
     loaded: false,
+    loadedForKey: "",
     items: [],
+    cache: {
+      all: null,
+      byJob: {},
+    },
+    jobOptions: [],
+    selectedJobKey: "",
     filterText: "",
     sortKey: "startTime",
     sortDirection: "desc",
@@ -82,6 +89,7 @@ function currentRouteState() {
       jobExecutionId: null,
       jobKey: null,
       query: parsed.query,
+      selectedJobKey: parsed.query.job || "",
       filterText: parsed.query.f || "",
       sortKey: normalizeSortKey("runs", parsed.query.sort, "startTime"),
       sortDirection: normalizeDirection(parsed.query.dir, "desc"),
@@ -275,28 +283,32 @@ async function loadRuns() {
   const state = document.getElementById("runs-state");
   const table = document.getElementById("runs-table");
   const body = document.getElementById("runs-body");
+  const selectedJobKey = viewState.runs.selectedJobKey || "";
+  const loadKey = selectedJobKey || "__all__";
 
-  if (viewState.runs.loaded) {
+  if (viewState.runs.loaded && viewState.runs.loadedForKey === loadKey) {
     renderRunsTable();
     return;
   }
 
   state.className = "state";
-  state.textContent = "Loading runs...";
+  state.textContent = selectedJobKey
+    ? `Loading runs for job ${selectedJobKey}...`
+    : "Loading runs...";
   table.hidden = true;
   body.innerHTML = "";
 
   try {
-    const response = await fetch("/api/v1/runs?limit=25", { headers: { Accept: "application/json" } });
-    if (!response.ok) {
-      throw new Error(`Runs API returned ${response.status}`);
-    }
-    const payload = await response.json();
-    viewState.runs.items = Array.isArray(payload.items) ? payload.items : [];
+    await ensureRunsJobOptions();
+    const runs = await fetchRunsForSelectedJob(selectedJobKey);
+    viewState.runs.items = runs;
     viewState.runs.loaded = true;
+    viewState.runs.loadedForKey = loadKey;
 
     if (viewState.runs.items.length === 0) {
-      state.textContent = "No recent runs found.";
+      state.textContent = selectedJobKey
+        ? `No recent runs found for job '${selectedJobKey}'.`
+        : "No recent runs found.";
       return;
     }
     renderRunsTable();
@@ -329,9 +341,15 @@ function initializeControls() {
   });
 
   const runsFilter = document.getElementById("runs-filter-input");
+  const runsJobSelect = document.getElementById("runs-job-select");
   const runsSort = document.getElementById("runs-sort-select");
   const runsDirection = document.getElementById("runs-sort-dir-btn");
 
+  runsJobSelect.addEventListener("change", (event) => {
+    viewState.runs.selectedJobKey = event.target.value || "";
+    viewState.runs.loaded = false;
+    syncListRouteHash("runs");
+  });
   runsFilter.addEventListener("input", (event) => {
     viewState.runs.filterText = event.target.value || "";
     syncListRouteHash("runs");
@@ -363,9 +381,12 @@ function applyRouteStateToListView(routeState) {
   }
 
   viewState.runs.filterText = routeState.filterText || "";
+  viewState.runs.selectedJobKey = routeState.selectedJobKey || "";
   viewState.runs.sortKey = routeState.sortKey || "startTime";
   viewState.runs.sortDirection = routeState.sortDirection || "desc";
 
+  renderRunsJobOptions();
+  document.getElementById("runs-job-select").value = viewState.runs.selectedJobKey;
   document.getElementById("runs-filter-input").value = viewState.runs.filterText;
   document.getElementById("runs-sort-select").value = viewState.runs.sortKey;
   document.getElementById("runs-sort-dir-btn").textContent = labelDirection(viewState.runs.sortDirection);
@@ -377,6 +398,9 @@ function syncListRouteHash(routeKey) {
 
   if (source.filterText.trim() !== "") {
     params.set("f", source.filterText.trim());
+  }
+  if (source.selectedJobKey && source.selectedJobKey.trim() !== "") {
+    params.set("job", source.selectedJobKey.trim());
   }
   params.set("sort", source.sortKey);
   params.set("dir", source.sortDirection);
@@ -471,7 +495,9 @@ function renderRunsTable() {
 
   body.innerHTML = "";
   if (sorted.length === 0) {
-    state.textContent = "No runs match the current filter.";
+    state.textContent = viewState.runs.selectedJobKey
+      ? `No runs match the current filter for job '${viewState.runs.selectedJobKey}'.`
+      : "No runs match the current filter.";
     table.hidden = true;
     return;
   }
@@ -495,8 +521,95 @@ function renderRunsTable() {
     body.appendChild(row);
   });
 
-  state.textContent = `Showing ${sorted.length} of ${viewState.runs.items.length} run(s).`;
+  const scopeSuffix = viewState.runs.selectedJobKey
+    ? ` for job '${viewState.runs.selectedJobKey}'`
+    : "";
+  state.textContent = `Showing ${sorted.length} of ${viewState.runs.items.length} run(s)${scopeSuffix}.`;
   table.hidden = false;
+}
+
+async function ensureRunsJobOptions() {
+  if (viewState.runs.jobOptions.length > 0) {
+    return;
+  }
+
+  const jobs = viewState.jobs.loaded
+    ? viewState.jobs.items
+    : await fetchJobsForRunsScope();
+
+  viewState.runs.jobOptions = jobs.map((job) => ({
+    jobKey: job.jobKey,
+    displayName: job.displayName,
+  }));
+  renderRunsJobOptions();
+}
+
+function renderRunsJobOptions() {
+  const select = document.getElementById("runs-job-select");
+  if (!select) {
+    return;
+  }
+
+  const selected = viewState.runs.selectedJobKey || "";
+  select.innerHTML = '<option value="">All jobs</option>';
+
+  const options = [...viewState.runs.jobOptions].sort((left, right) =>
+    String(left.displayName || left.jobKey || "").localeCompare(String(right.displayName || right.jobKey || ""))
+  );
+
+  options.forEach((job) => {
+    const option = document.createElement("option");
+    option.value = job.jobKey || "";
+    option.textContent = job.displayName
+      ? `${job.displayName} (${job.jobKey})`
+      : (job.jobKey || "-");
+    select.appendChild(option);
+  });
+
+  select.value = selected;
+}
+
+async function fetchJobsForRunsScope() {
+  const response = await fetch("/api/v1/jobs", { headers: { Accept: "application/json" } });
+  if (!response.ok) {
+    throw new Error(`Jobs API returned ${response.status}`);
+  }
+  const payload = await response.json();
+  const jobs = Array.isArray(payload.items) ? payload.items : [];
+  viewState.jobs.items = jobs;
+  viewState.jobs.loaded = true;
+  return jobs;
+}
+
+async function fetchRunsForSelectedJob(selectedJobKey) {
+  if (!selectedJobKey) {
+    if (Array.isArray(viewState.runs.cache.all)) {
+      return viewState.runs.cache.all;
+    }
+    const response = await fetch("/api/v1/runs?limit=25", { headers: { Accept: "application/json" } });
+    if (!response.ok) {
+      throw new Error(`Runs API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    viewState.runs.cache.all = items;
+    return items;
+  }
+
+  if (Array.isArray(viewState.runs.cache.byJob[selectedJobKey])) {
+    return viewState.runs.cache.byJob[selectedJobKey];
+  }
+
+  const response = await fetch(`/api/v1/jobs/${encodeURIComponent(selectedJobKey)}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error(`Job detail API returned ${response.status}`);
+  }
+  const payload = await response.json();
+  const runs = Array.isArray(payload.recentRuns) ? payload.recentRuns : [];
+  viewState.runs.cache.byJob[selectedJobKey] = runs;
+  return runs;
 }
 
 function sortItems(items, key, direction) {

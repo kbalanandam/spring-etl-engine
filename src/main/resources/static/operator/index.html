@@ -72,6 +72,10 @@
     <h2>Runs</h2>
     <p class="hint">Recent summaries from <code>/api/v1/runs?limit=25</code>.</p>
     <div class="control-row">
+      <label for="runs-job-select">Job</label>
+      <select id="runs-job-select">
+        <option value="">All jobs</option>
+      </select>
       <label for="runs-filter-input">Filter</label>
       <input id="runs-filter-input" type="text" placeholder="scenario or status">
       <label for="runs-sort-select">Sort</label>
