@@ -1,6 +1,8 @@
 package com.etl.controlplane.api;
 
 import com.etl.controlplane.schedules.ScheduleService;
+import com.etl.controlplane.schedules.ScheduleExpressionSupport;
+import com.etl.controlplane.schedules.ScheduleValidationException;
 import com.etl.controlplane.schedules.ScheduleView;
 import com.etl.controlplane.triggers.TriggerEventRegistry;
 import org.springframework.http.HttpStatus;
@@ -14,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
+
 @RestController
 @RequestMapping("/api/v1/schedules")
 public class ScheduleController {
@@ -22,6 +26,7 @@ public class ScheduleController {
 	private static final int MAX_LIMIT = 200;
 	private static final int DEFAULT_TRIGGER_EVENT_LIMIT = 20;
 	private static final int MAX_TRIGGER_EVENT_LIMIT = 200;
+	private static final Clock RESPONSE_CLOCK = Clock.systemUTC();
 
 	private final ScheduleService scheduleService;
 	private final TriggerEventRegistry triggerEventRegistry;
@@ -61,7 +66,7 @@ public class ScheduleController {
 	}
 
 	@PostMapping
-	public ResponseEntity<ScheduleViewResponse> createSchedule(@RequestBody CreateScheduleRequest request) {
+	public ResponseEntity<?> createSchedule(@RequestBody CreateScheduleRequest request) {
 		try {
 			ScheduleView created = scheduleService.createSchedule(
 					request.scheduleKey(),
@@ -74,13 +79,15 @@ public class ScheduleController {
 			return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
 		} catch (IllegalStateException conflict) {
 			return ResponseEntity.status(HttpStatus.CONFLICT).build();
+		} catch (ScheduleValidationException invalid) {
+			return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse(invalid.reasonToken(), invalid.getMessage()));
 		} catch (IllegalArgumentException invalid) {
-			return ResponseEntity.badRequest().build();
+			return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse("invalid_schedule", invalid.getMessage()));
 		}
 	}
 
 	@PutMapping("/{scheduleId}")
-	public ResponseEntity<ScheduleViewResponse> updateSchedule(@PathVariable String scheduleId,
+	public ResponseEntity<?> updateSchedule(@PathVariable String scheduleId,
 	                                                          @RequestBody UpdateScheduleRequest request) {
 		try {
 			return scheduleService.updateSchedule(
@@ -93,8 +100,10 @@ public class ScheduleController {
 			)
 					.map(schedule -> ResponseEntity.ok(toResponse(schedule)))
 					.orElseGet(() -> ResponseEntity.notFound().build());
+		} catch (ScheduleValidationException invalid) {
+			return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse(invalid.reasonToken(), invalid.getMessage()));
 		} catch (IllegalArgumentException invalid) {
-			return ResponseEntity.badRequest().build();
+			return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse("invalid_schedule", invalid.getMessage()));
 		}
 	}
 
@@ -131,6 +140,18 @@ public class ScheduleController {
 	}
 
 	private ScheduleViewResponse toResponse(ScheduleView schedule) {
+		java.time.Instant nextDueAt = null;
+		try {
+			nextDueAt = ScheduleExpressionSupport.resolveNextDueAt(
+					schedule.expression(),
+					schedule.timezone(),
+					schedule.enabled(),
+					schedule.paused(),
+					RESPONSE_CLOCK
+			);
+		} catch (IllegalArgumentException ignored) {
+			// Keep existing persisted schedules readable even if authored expression/timezone is invalid.
+		}
 		return new ScheduleViewResponse(
 				schedule.scheduleId(),
 				schedule.scheduleKey(),
@@ -140,7 +161,8 @@ public class ScheduleController {
 				schedule.enabled(),
 				schedule.paused(),
 				schedule.description(),
-				schedule.updatedAt()
+				schedule.updatedAt(),
+				nextDueAt
 		);
 	}
 

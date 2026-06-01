@@ -1,5 +1,6 @@
 package com.etl.controlplane.schedules;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -14,9 +15,16 @@ import java.util.UUID;
 public class ScheduleService {
 
 	private final ScheduleRegistry registry;
+	private final ScheduleDefinitionValidator definitionValidator;
 
-	public ScheduleService(ScheduleRegistry registry) {
+	@Autowired
+	public ScheduleService(ScheduleRegistry registry, ScheduleDefinitionValidator definitionValidator) {
 		this.registry = registry;
+		this.definitionValidator = definitionValidator;
+	}
+
+	ScheduleService(ScheduleRegistry registry) {
+		this(registry, ScheduleDefinitionValidator.permissive());
 	}
 
 	public ScheduleView createSchedule(String scheduleKey,
@@ -25,17 +33,21 @@ public class ScheduleService {
 	                                   String timezone,
 	                                   boolean enabled,
 	                                   String description) {
-		String normalizedScheduleKey = normalizeKey(scheduleKey);
+		String normalizedScheduleKey = normalizeScheduleKey(scheduleKey);
 		if (registry.findByScheduleKey(normalizedScheduleKey).isPresent()) {
 			throw new IllegalStateException("schedule_key already exists: " + normalizedScheduleKey);
 		}
+		String normalizedJobKey = normalizeSelectedJobKey(selectedJobKey);
+		String normalizedExpression = normalizeRequired(expression, "invalid_expression", "expression is required");
+		String normalizedTimezone = normalizeRequired(timezone, "invalid_timezone", "timezone is required");
+		definitionValidator.validateDefinition(normalizedJobKey, normalizedExpression, normalizedTimezone);
 		LocalDateTime now = LocalDateTime.now();
 		ScheduleView schedule = new ScheduleView(
 				"sch-" + UUID.randomUUID(),
 				normalizedScheduleKey,
-				normalizeKey(selectedJobKey),
-				normalizeRequired(expression, "expression"),
-				normalizeRequired(timezone, "timezone"),
+				normalizedJobKey,
+				normalizedExpression,
+				normalizedTimezone,
 				enabled,
 				false,
 				normalizeOptional(description),
@@ -53,13 +65,17 @@ public class ScheduleService {
 	                                            String timezone,
 	                                            boolean enabled,
 	                                            String description) {
+		String normalizedJobKey = normalizeSelectedJobKey(selectedJobKey);
+		String normalizedExpression = normalizeRequired(expression, "invalid_expression", "expression is required");
+		String normalizedTimezone = normalizeRequired(timezone, "invalid_timezone", "timezone is required");
+		definitionValidator.validateDefinition(normalizedJobKey, normalizedExpression, normalizedTimezone);
 		return findByScheduleId(scheduleId)
 				.map(existing -> registry.upsert(new ScheduleView(
 						existing.scheduleId(),
 						existing.scheduleKey(),
-						normalizeKey(selectedJobKey),
-						normalizeRequired(expression, "expression"),
-						normalizeRequired(timezone, "timezone"),
+						normalizedJobKey,
+						normalizedExpression,
+						normalizedTimezone,
 						enabled,
 						existing.paused() && enabled,
 						normalizeOptional(description),
@@ -126,16 +142,21 @@ public class ScheduleService {
 				)));
 	}
 
-	private String normalizeRequired(String value, String fieldName) {
+	private String normalizeRequired(String value, String reasonToken, String message) {
 		String normalized = normalizeOptional(value);
 		if (normalized.isBlank()) {
-			throw new IllegalArgumentException(fieldName + " is required");
+			throw new ScheduleValidationException(reasonToken, message);
 		}
 		return normalized;
 	}
 
-	private String normalizeKey(String value) {
-		String normalized = normalizeRequired(value, "key");
+	private String normalizeScheduleKey(String value) {
+		String normalized = normalizeRequired(value, "schedule_key_required", "scheduleKey is required");
+		return normalized.toLowerCase();
+	}
+
+	private String normalizeSelectedJobKey(String value) {
+		String normalized = normalizeRequired(value, "selected_job_key_required", "selectedJobKey is required");
 		return normalized.toLowerCase();
 	}
 

@@ -52,7 +52,7 @@ This item does not cover:
 
 - making persisted control-plane data mandatory for normal ETL-core execution
 - final restart/resume semantics per execution mode
-- one final database vendor, DDL shape, or migration-tool choice
+- one final database vendor or final vendor-specific DDL/migration-tool choice
 - a final UI, dashboard, or API contract
 - replacing runtime logs as the current evidence source of truth
 - changing the `etl.config.job` / `job-config.yaml` launch contract
@@ -70,7 +70,7 @@ The preferred direction is:
 6. preserve artifact and evidence references explicitly so operators can trace input files, intermediate handoffs, final outputs, reject outputs, and archived originals where the runtime exposes them
 7. carry config identity and trigger origin through the retained model so later UI, audit, and support workflows can answer why a run started and which configuration it used
 8. keep restartability anchors limited to retained identifiers and attempt relationships first, leaving full restart semantics to `F1`
-9. allow early local or single-node implementations to use lightweight relational persistence such as SQLite, while keeping stronger relational deployment targets open for later phases
+9. allow early local or single-node implementations to use lightweight relational persistence such as SQLite, while keeping PostgreSQL, SQL Server, and MySQL targets open for later phases
 10. ensure native scheduler-triggered runs and externally orchestrated runs can both be represented in the same retained model
 
 ## Operator / runtime impact
@@ -91,7 +91,7 @@ Expected impact when this item ships:
 - [ ] run and step history fields are defined well enough to support later operator search, schedule-to-run traceability, and evidence drill-down
 - [ ] artifact lineage and config identity expectations are documented well enough for audit and diagnosis planning
 - [ ] restartability anchors are documented without prematurely claiming one final restart/resume behavior
-- [ ] local-first relational persistence direction is documented without locking the product to one permanent storage engine too early
+- [ ] local-first relational persistence direction is documented without locking the product to one permanent storage engine, while preserving later portability to PostgreSQL, SQL Server, and MySQL
 
 ## Related docs
 
@@ -100,6 +100,7 @@ Expected impact when this item ships:
 - [`Control plane and worker boundary`](../../../architecture/control-plane/control-plane-worker-boundary.md)
 - [`Control-plane operational data model`](../../../architecture/control-plane/control-plane-operational-data-model.md)
 - [`Control-plane local relational schema`](../../../architecture/control-plane/control-plane-local-relational-schema.md)
+- [`Scheduler ER model artifact`](../../../architecture/control-plane/control-plane-local-relational-schema.md#scheduler-er-model-artifact)
 - [`Scheduler architecture direction`](../../../architecture/control-plane/scheduler-architecture-direction.md)
 - [`Operator UI architecture direction`](../../../architecture/operator-ui/operator-ui-architecture-direction.md)
 - [`S1 - Schedule model and trigger contract`](S1-schedule-model-and-trigger-contract.md)

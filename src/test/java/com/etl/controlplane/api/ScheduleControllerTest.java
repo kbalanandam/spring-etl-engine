@@ -1,6 +1,7 @@
 package com.etl.controlplane.api;
 
 import com.etl.controlplane.schedules.ScheduleService;
+import com.etl.controlplane.schedules.ScheduleValidationException;
 import com.etl.controlplane.schedules.ScheduleView;
 import com.etl.controlplane.triggers.TriggerEventRegistry;
 import com.etl.controlplane.triggers.TriggerEventView;
@@ -47,6 +48,7 @@ class ScheduleControllerTest {
 		mockMvc.perform(get("/api/v1/schedules"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items[0].scheduleId").value("sch-1"))
+				.andExpect(jsonPath("$.items[0].nextDueAt").exists())
 				.andExpect(jsonPath("$.page").value(0))
 				.andExpect(jsonPath("$.size").value(25));
 
@@ -59,7 +61,8 @@ class ScheduleControllerTest {
 
 		mockMvc.perform(get("/api/v1/schedules/sch-1"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.scheduleKey").value("daily-customers"));
+				.andExpect(jsonPath("$.scheduleKey").value("daily-customers"))
+				.andExpect(jsonPath("$.nextDueAt").exists());
 	}
 
 	@Test
@@ -71,7 +74,8 @@ class ScheduleControllerTest {
 						.contentType("application/json")
 						.content("{\"scheduleKey\":\"daily-customers\",\"selectedJobKey\":\"customer-load\",\"expression\":\"0 0 * * *\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"daily\"}"))
 				.andExpect(status().isCreated())
-				.andExpect(jsonPath("$.scheduleId").value("sch-1"));
+				.andExpect(jsonPath("$.scheduleId").value("sch-1"))
+				.andExpect(jsonPath("$.nextDueAt").exists());
 	}
 
 	@Test
@@ -83,7 +87,32 @@ class ScheduleControllerTest {
 						.contentType("application/json")
 						.content("{\"selectedJobKey\":\"customer-load\",\"expression\":\"0 15 * * *\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"updated\"}"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.scheduleId").value("sch-1"));
+				.andExpect(jsonPath("$.scheduleId").value("sch-1"))
+				.andExpect(jsonPath("$.nextDueAt").exists());
+	}
+
+	@Test
+	void returnsValidationReasonForCreateBadRequest() throws Exception {
+		when(scheduleService.createSchedule(eq("daily-customers"), eq("customer-load"), eq("bad"), eq("UTC"), eq(true), eq("daily")))
+				.thenThrow(new ScheduleValidationException("invalid_expression", "Schedule expression is invalid."));
+
+		mockMvc.perform(post("/api/v1/schedules")
+						.contentType("application/json")
+						.content("{\"scheduleKey\":\"daily-customers\",\"selectedJobKey\":\"customer-load\",\"expression\":\"bad\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"daily\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.reason").value("invalid_expression"));
+	}
+
+	@Test
+	void returnsValidationReasonForUpdateBadRequest() throws Exception {
+		when(scheduleService.updateSchedule(eq("sch-1"), eq("customer-load"), eq("0 15 * * *"), eq("Bad/Timezone"), eq(true), eq("updated")))
+				.thenThrow(new ScheduleValidationException("invalid_timezone", "Schedule timezone is invalid."));
+
+		mockMvc.perform(put("/api/v1/schedules/sch-1")
+						.contentType("application/json")
+						.content("{\"selectedJobKey\":\"customer-load\",\"expression\":\"0 15 * * *\",\"timezone\":\"Bad/Timezone\",\"enabled\":true,\"description\":\"updated\"}"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.reason").value("invalid_timezone"));
 	}
 
 	@Test

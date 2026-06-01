@@ -184,6 +184,14 @@ Use this support view when you need the extra detail that the top-level assembly
 - once `EtlJobRunner` and the listeners seed the scenario MDC values, scenario-scoped lifecycle evidence routes to the selected scenario log file
 - `FileIngestionRuntimeSupport` and `DuplicateResolverFactory` enrich the active step path with hardening behavior that does not change the core flat execution shape
 
+## Development persistence baseline
+
+For local ETL development under the default `dev` profile:
+
+- Spring Batch metadata uses a persistent local SQLite file (`.etl-dev/etl-dev.db`) with the shipped Batch SQLite schema script.
+- Ordered duplicate winner selection remains intentionally H2-backed through `EmbeddedDbDuplicateResolver` as a separate step-local engine path.
+- This split keeps duplicate-resolution behavior stable while aligning the primary Batch metadata path with SQLite-first local persistence.
+
 ## Verified log split
 
 The shipped runtime currently splits machine-readable evidence into two operational log paths.

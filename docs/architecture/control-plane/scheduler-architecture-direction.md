@@ -31,6 +31,7 @@ This document covers:
 - the relationship between scheduler backend services and operator UI screens
 - the minimal scheduler MVP versus later governance features
 - guardrails around retained history, overlap, and restart semantics
+- storage portability alignment with the SQLite-first direction and later PostgreSQL, SQL Server, or MySQL deployment targets
 
 This document does **not** define:
 
@@ -172,6 +173,7 @@ Those APIs can support UI screens later without making the UI itself the archite
 - [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md)
 - [`control-plane-operational-data-model.md`](control-plane-operational-data-model.md)
 - [`control-plane-local-relational-schema.md`](control-plane-local-relational-schema.md)
+- [`Scheduler ER model artifact`](control-plane-local-relational-schema.md#scheduler-er-model-artifact)
 - [`../operator-ui/operator-ui-architecture-direction.md`](../operator-ui/operator-ui-architecture-direction.md)
 - [`../../product/backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md`](../../product/backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md)
 - [`../../product/backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md`](../../product/backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md)

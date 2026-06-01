@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -201,9 +202,24 @@ class ScheduleTriggerTickServiceTest {
 
 	@Test
 	void skipsInvalidExpressions() {
-		ScheduleService scheduleService = new ScheduleService(new InMemoryScheduleRegistry());
+		InMemoryScheduleRegistry registry = new InMemoryScheduleRegistry();
+		ScheduleService scheduleService = new ScheduleService(registry);
 		RecordingTriggerRegistry triggerRegistry = new RecordingTriggerRegistry();
-		scheduleService.createSchedule("bad-expression", "customer-load", "bad expression", "UTC", true, "invalid");
+		LocalDateTime now = LocalDateTime.now();
+		registry.upsert(new ScheduleView(
+				"sch-bad-expression",
+				"bad-expression",
+				"customer-load",
+				"bad expression",
+				"UTC",
+				true,
+				false,
+				"invalid",
+				now,
+				now,
+				null,
+				null
+		));
 
 		Clock fixedClock = Clock.fixed(Instant.parse("2026-05-28T10:00:20Z"), ZoneOffset.UTC);
 		ScheduleTriggerTickService tickService = new ScheduleTriggerTickService(
