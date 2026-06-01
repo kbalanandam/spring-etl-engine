@@ -7,3 +7,4 @@ Use this page as the entry point for repository documentation.
 - [`config/README.md`](config/README.md) - config contract docs
 - [`operations/README.md`](operations/README.md) - operations notes
 - [`product/product-backlog.md`](product/product-backlog.md) - product backlog and execution board
+- [`product/release-planning-and-delivery-control.md`](product/release-planning-and-delivery-control.md) - release lanes, version mapping, and parallel delivery control

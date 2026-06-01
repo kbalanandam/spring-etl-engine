@@ -12,6 +12,8 @@ The intent is to keep the Markdown execution board as the canonical execution-pl
 - **Projected live view** - GitHub Project **OneFlow Executive Dashboard**
 - **Sync direction** - Markdown table -> GitHub Project
 
+Use [`release-planning-and-delivery-control.md`](release-planning-and-delivery-control.md) for version-lane planning and milestone-to-release mapping; keep this file focused on board projection mechanics.
+
 When the sync is enabled, update the execution-board table first and avoid manually editing the mirrored Project fields unless you are doing emergency cleanup.
 
 ## What gets synced

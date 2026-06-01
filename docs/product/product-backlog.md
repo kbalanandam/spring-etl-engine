@@ -6,6 +6,8 @@ Quick memory-aid summary for the latest transformation decisions: [`transformati
 
 The canonical source for backlog `Priority`, `Status`, `Milestone`, and `Dependency` remains this document.
 
+Release planning and version mapping guidance lives in [`release-planning-and-delivery-control.md`](release-planning-and-delivery-control.md).
+
 ## Executive Dashboard
 
 The GitHub Project **[OneFlow Executive Dashboard](https://github.com/users/kbalanandam/projects/3/views/1)** is the live projected execution view for this backlog.

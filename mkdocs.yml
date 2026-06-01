@@ -30,6 +30,7 @@ nav:
   - Config: config/README.md
   - Product:
       - product/product-backlog.md
+      - product/release-planning-and-delivery-control.md
       - product/epics/README.md
       - product/backlog-items/README.md
 

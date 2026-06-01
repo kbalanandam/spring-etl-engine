@@ -6,6 +6,18 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
 ## [1.7.10] - 2026-05-31
 
 ### Changed
