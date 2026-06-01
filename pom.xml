@@ -38,6 +38,8 @@
 		<log4j2.version>2.25.4</log4j2.version>
 		<!-- Overrides the Spring-managed Tomcat embed line to a CVE-remediated release. -->
 		<tomcat.version>10.1.55</tomcat.version>
+		<!-- Pins SQLite JDBC above CVE-2025-6965 / CVE-2025-70873-affected versions. -->
+		<sqlite-jdbc.version>3.53.1.0</sqlite-jdbc.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -127,6 +129,7 @@
 		<dependency>
 			<groupId>org.xerial</groupId>
 			<artifactId>sqlite-jdbc</artifactId>
+			<version>${sqlite-jdbc.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 		<dependency>
