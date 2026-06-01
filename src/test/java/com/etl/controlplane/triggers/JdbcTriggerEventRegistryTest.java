@@ -182,6 +182,74 @@ class JdbcTriggerEventRegistryTest {
 		assertEquals(first.triggerEventId(), events.get(1).triggerEventId());
 	}
 
+	@Test
+	void resolvesSchedulePkForMixedCaseAndWhitespaceScheduleIdInputs() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry scheduleRegistry = new JdbcScheduleRegistry(jdbcTemplate);
+		scheduleRegistry.upsert(new ScheduleView(
+				"sch-mixed",
+				"daily-mixed",
+				"customer-load",
+				"0 0 * * *",
+				"UTC",
+				true,
+				false,
+				"mixed",
+				LocalDateTime.parse("2026-05-28T09:00:00"),
+				LocalDateTime.parse("2026-05-28T10:00:00"),
+				null,
+				null
+		));
+
+		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+		TriggerEventView created = registry.recordAcceptedForSchedule("  SCH-MIXED  ", "customer-load", "schedule_tick", "scheduler", "mixed-case");
+
+		Long expectedSchedulePk = jdbcTemplate.queryForObject(
+				"select schedule_pk from controlplane_schedule where schedule_id = ?",
+				Long.class,
+				"sch-mixed"
+		);
+		Long recordedSchedulePk = jdbcTemplate.queryForObject(
+				"select schedule_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				created.triggerEventId()
+		);
+		String recordedScheduleId = jdbcTemplate.queryForObject(
+				"select schedule_id from controlplane_trigger_event where trigger_event_id = ?",
+				String.class,
+				created.triggerEventId()
+		);
+
+		assertEquals(expectedSchedulePk, recordedSchedulePk);
+		assertEquals("sch-mixed", recordedScheduleId);
+	}
+
+	@Test
+	void listByScheduleIdMatchesRowsCaseInsensitively() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry scheduleRegistry = new JdbcScheduleRegistry(jdbcTemplate);
+		scheduleRegistry.upsert(new ScheduleView(
+				"sch-case",
+				"daily-case",
+				"customer-load",
+				"0 0 * * *",
+				"UTC",
+				true,
+				false,
+				"case",
+				LocalDateTime.parse("2026-05-28T09:00:00"),
+				LocalDateTime.parse("2026-05-28T10:00:00"),
+				null,
+				null
+		));
+		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+		registry.recordAcceptedForSchedule("sch-case", "customer-load", "schedule_tick", "scheduler", "first");
+
+		List<TriggerEventView> events = registry.listByScheduleId("  SCH-CASE  ", 10);
+		assertEquals(1, events.size());
+		assertEquals("first", events.get(0).message());
+	}
+
 	private DriverManagerDataSource inMemoryDataSource() {
 		DriverManagerDataSource dataSource = new DriverManagerDataSource();
 		dataSource.setDriverClassName("org.sqlite.JDBC");

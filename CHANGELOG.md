@@ -16,6 +16,7 @@ and this project adheres to **Semantic Versioning**.
 - Started `S2` first implementation slice in the current `1.8.0` lane for time-based schedule definitions and pause/resume controls on the frozen selected-job launch boundary.
 - Started S4 code implementation with a non-breaking scheduler table evolution slice: `controlplane_schedule` now provisions/backfills an internal numeric surrogate key (`schedule_pk`) while preserving external string `schedule_id` contracts.
 - Continued S4 first implementation with trigger-event persistence readiness: `controlplane_trigger_event` now carries optional `schedule_pk` and resolves it from `controlplane_schedule` when schedule-origin events are recorded, while preserving existing `schedule_id` behavior.
+- Hardened schedule-origin trigger matching with case/whitespace-tolerant `schedule_id` normalization so `schedule_pk` resolution and `listByScheduleId` behavior remain consistent during phased migration.
 
 ### Fixed
 - N/A

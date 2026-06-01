@@ -44,7 +44,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 	                                              String requestedBy,
 	                                              String message) {
 		String normalizedJobKey = normalize(jobKey);
-		String normalizedScheduleId = normalize(scheduleId);
+		String normalizedScheduleId = normalizeScheduleId(scheduleId);
 		String normalizedReason = normalize(reason);
 		String normalizedRequestedBy = normalize(requestedBy);
 		Long schedulePk = resolveSchedulePk(normalizedScheduleId);
@@ -118,7 +118,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 		if (limit <= 0) {
 			return List.of();
 		}
-		String normalizedScheduleId = normalize(scheduleId);
+		String normalizedScheduleId = normalizeScheduleId(scheduleId);
 		if (normalizedScheduleId.isBlank()) {
 			return List.of();
 		}
@@ -127,7 +127,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				? jdbcTemplate.query("""
 						select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message
 						from controlplane_trigger_event
-						where schedule_id = ?
+						where lower(trim(schedule_id)) = ?
 						order by requested_at desc, trigger_event_id desc
 						""",
 						(rs, rowNum) -> toView(rs),
@@ -137,7 +137,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 						select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message
 						from controlplane_trigger_event
 						where schedule_pk = ?
-						   or (schedule_pk is null and schedule_id = ?)
+						   or (schedule_pk is null and lower(trim(schedule_id)) = ?)
 						order by requested_at desc, trigger_event_id desc
 						""",
 						(rs, rowNum) -> toView(rs),
@@ -259,7 +259,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 		}
 		try {
 			return jdbcTemplate.query(
-					"select schedule_pk from controlplane_schedule where schedule_id = ?",
+					"select schedule_pk from controlplane_schedule where lower(trim(schedule_id)) = ?",
 					rs -> rs.next() ? rs.getObject(1, Long.class) : null,
 					normalizedScheduleId
 			);
@@ -271,6 +271,10 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 
 	private String normalize(String value) {
 		return value == null ? "" : value.trim();
+	}
+
+	private String normalizeScheduleId(String value) {
+		return normalize(value).toLowerCase();
 	}
 }
 
