@@ -124,8 +124,10 @@ It intentionally runs as a separate process from the ETL worker so the selected-
 Example local run:
 
 ```powershell
-mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dspring-boot.run.mainClass=com.etl.controlplane.ControlPlaneApiApplication" "-Dspring-boot.run.profiles=controlplane" spring-boot:run
+mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dspring-boot.run.main-class=com.etl.controlplane.ControlPlaneApiApplication" "-Dspring-boot.run.profiles=controlplane" spring-boot:run
 ```
+
+The shipped `controlplane` profile now defaults to SQLite-first local persistence under `.controlplane/controlplane.db` for developer-laptop and single-node use.
 
 If startup fails locally with trigger-persistence mode-switch guardrails, use the explicit override once for intentional local mode resets:
 
@@ -140,7 +142,7 @@ Operator UI endpoint for this profile:
 Quick local diagnostics:
 
 - if you see `Unable to find a single main class`, use `spring-boot.run.main-class` exactly as shown above
-- if you see `BATCH_JOB_INSTANCE already exists`, start with the `controlplane` profile (not the default `dev` profile)
+- if you see `Database may be already in use` or `.controlplane/controlplane.db` locked, stop other control-plane JVMs and keep only one local control-plane process pointed at that SQLite file
 - if you see `Trigger-event persistence mode switch detected`, add `-Dcontrolplane.triggers.persistence.allow-mode-switch=true` for the intentional local switch
 
 First monitoring endpoints:

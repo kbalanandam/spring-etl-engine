@@ -162,7 +162,7 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 					last_accepted_due_at timestamp
 				)
 				""");
-		jdbcTemplate.execute("alter table controlplane_schedule add column if not exists last_accepted_due_at timestamp");
+		ensureColumnExists("controlplane_schedule", "last_accepted_due_at", "timestamp");
 		jdbcTemplate.execute("""
 				create index if not exists idx_schedule_selected_job
 				on controlplane_schedule (selected_job_key, updated_at)
@@ -171,6 +171,24 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 				create index if not exists idx_schedule_state
 				on controlplane_schedule (is_enabled, is_paused, updated_at)
 				""");
+	}
+
+	private void ensureColumnExists(String tableName, String columnName, String columnDefinition) {
+		Boolean columnExists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+			try (java.sql.Statement statement = connection.createStatement();
+			     java.sql.ResultSet resultSet = statement.executeQuery("select * from " + tableName + " where 1 = 0")) {
+				java.sql.ResultSetMetaData metadata = resultSet.getMetaData();
+				for (int index = 1; index <= metadata.getColumnCount(); index++) {
+					if (columnName.equalsIgnoreCase(metadata.getColumnName(index))) {
+						return true;
+					}
+				}
+				return false;
+			}
+		});
+		if (Boolean.FALSE.equals(columnExists)) {
+			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + columnDefinition);
+		}
 	}
 
 	private static Timestamp toTimestamp(LocalDateTime value) {

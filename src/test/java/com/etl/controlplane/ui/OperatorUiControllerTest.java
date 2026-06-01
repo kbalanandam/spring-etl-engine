@@ -23,28 +23,28 @@ class OperatorUiControllerTest {
     void redirectsOperatorRootToStaticShell() throws Exception {
         mockMvc.perform(get("/operator"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/operator/index.html"));
+                .andExpect(redirectedUrl("/operator/index.html?v=20260531-compact6"));
     }
 
     @Test
     void redirectsOperatorRootWithTrailingSlashToStaticShell() throws Exception {
         mockMvc.perform(get("/operator/"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/operator/index.html"));
+                .andExpect(redirectedUrl("/operator/index.html?v=20260531-compact6"));
     }
 
     @Test
     void redirectsRunDeepLinkToHashRoutePlaceholder() throws Exception {
         mockMvc.perform(get("/operator/runs/901"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/operator/index.html#/runs/901"));
+                .andExpect(redirectedUrl("/operator/index.html?v=20260531-compact6#/runs/901"));
     }
 
     @Test
     void redirectsJobDeepLinkToHashRoutePlaceholder() throws Exception {
         mockMvc.perform(get("/operator/jobs/customer-load"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/operator/index.html#/jobs/customer-load"));
+                .andExpect(redirectedUrl("/operator/index.html?v=20260531-compact6#/jobs/customer-load"));
     }
 }
 

@@ -10,6 +10,7 @@ It exists to translate the conceptual retained operational data model into a pra
 
 - Classification: **Future direction**
 - The Mermaid diagrams in this document describe the preferred future direction; trigger-event persistence, run-summary persistence, and an internal schedule-table foundation are now shipped behind the optional control-plane API when JDBC mode is enabled.
+- The shipped `controlplane` profile now defaults to a SQLite file under `.controlplane/controlplane.db` for developer-laptop and single-node use, while stronger relational targets remain open for later deployment profiles.
 
 ## Scope
 
@@ -228,6 +229,8 @@ For the first local control-plane implementation, prefer these SQLite-friendly r
 - treat large payloads such as raw logs or binary artifacts as external references rather than in-row blobs
 
 SQLite is the first convenience target, not the permanent product-wide storage commitment.
+
+For the shipped local control-plane profile today, SQLite should be treated as a single-node operational store: keep one control-plane JVM per SQLite file path, and move to a stronger relational target when multi-user or broader concurrent-control-plane access becomes a real requirement.
 
 ## Portability guardrails for PostgreSQL and SQL Server
 

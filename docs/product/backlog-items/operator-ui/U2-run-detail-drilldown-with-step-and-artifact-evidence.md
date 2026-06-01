@@ -1,8 +1,8 @@
-# U2 - Add job run detail drill-down with step outcomes and evidence links
+# U2 - Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer
 
 ## Summary
 
-Add run-detail drill-down in the Operator UI so users can inspect one run's step outcomes, counts, failure summaries, and artifact references without manually correlating multiple log files.
+Add run-detail drill-down in the Operator UI so users can inspect one run's step outcomes, counts, failure summaries, artifact references, and run-scoped log lines without manually correlating multiple log files.
 
 ## Current board status
 
@@ -22,7 +22,7 @@ Users can see that a run succeeded or failed, but cannot quickly inspect why wit
 
 ## Goal
 
-Provide one run-detail page that exposes step outcomes and evidence links from existing monitoring projections.
+Provide one run-detail page that exposes step outcomes, evidence links, and run-instance-focused logs from existing monitoring projections.
 
 ## Subject details
 
@@ -37,14 +37,19 @@ The page should make failure triage faster than manual log correlation.
 ## Scope
 
 - run-detail page route and model
+- runs list supports selected-job scoping before run drill-down
+- runs list supports independent/combined job and start-date filters before run drill-down
 - step-level status and count rendering
 - failure summary visibility
 - artifact/evidence link rendering (where available)
+- richer in-page log rendering (not raw plain-text fallback only)
+- run-instance-scoped log extraction so one run view does not show full scenario history
 - clear handling when optional evidence fields are absent
 
 ## Example UI actions
 
 - open a run from the runs list and land on a **Run Detail** page
+- narrow runs list to one selected job, then choose one run instance for diagnosis
 - expand step list to inspect status per step (`COMPLETED`, `FAILED`, `BLOCKED`)
 - inspect step counts (source/written/rejected) without switching screens
 - view failure summary and category to identify likely root-cause area
@@ -85,6 +90,8 @@ Build on the existing run-detail API response and focus on transparent, operator
 - [x] failure summary is visible when present
 - [x] artifact/evidence links are displayed when provided
 - [x] missing optional fields are handled gracefully
+- [x] run-detail includes richer log rendering (structured/filtered view instead of raw full-file text)
+- [x] run-detail log content is scoped to the selected run instance (for example by `jobExecutionId` and run correlation context), not full scenario-history output
 
 ## Related docs
 
@@ -99,7 +106,7 @@ Keep this slice read-only and evidence-first. Any action buttons should remain d
 
 ## Status notes
 
-Completed as the second monitoring-first UI slice after jobs/runs overview.
+Completed as the second monitoring-first UI slice after jobs/runs overview, including follow-on UX/filtering polish and run-scoped log rendering.
 
 Shipped scope:
 
@@ -107,4 +114,6 @@ Shipped scope:
 - preserved graceful "not available" handling for optional fields when data is absent
 - kept route/API contract unchanged on `/api/v1/runs/{jobExecutionId}/detail`
 - added first-pass UX polish for section readability (timestamps, richer artifact/evidence text, safer missing-link handling)
+- added runs-list job selector flow so operators can scope the list to one selected job and drill into one run instance from that narrowed context
+- added runs-list start-date + timezone filtering (browser-default date/timezone) with independent/combined job filtering before run-instance selection
 

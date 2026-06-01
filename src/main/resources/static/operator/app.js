@@ -31,10 +31,27 @@ const viewState = {
   },
   runs: {
     loaded: false,
+    loadedForKey: "",
     items: [],
+    cache: {
+      byFilter: {},
+    },
+    jobOptions: [],
+    selectedJobKey: "",
+    startDate: "",
+    timezone: "",
+    browserTimezone: "UTC",
     filterText: "",
     sortKey: "startTime",
     sortDirection: "desc",
+  },
+  runLog: {
+    currentRunId: null,
+    lines: [],
+    truncated: false,
+    searchText: "",
+    structuredOnly: false,
+    compact: true,
   },
 };
 
@@ -45,7 +62,9 @@ const SORT_KEYS = {
 
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("DOMContentLoaded", () => {
+  initializeRunsDefaults();
   initializeControls();
+  initializeRunLogControls();
   if (!location.hash) {
     location.hash = "#/jobs";
     return;
@@ -73,6 +92,9 @@ function currentRouteState() {
       jobExecutionId: null,
       jobKey: null,
       query: parsed.query,
+      selectedJobKey: parsed.query.job || "",
+      startDate: parsed.query.startDate || "",
+      timezone: parsed.query.timezone || "",
       filterText: parsed.query.f || "",
       sortKey: normalizeSortKey("runs", parsed.query.sort, "startTime"),
       sortDirection: normalizeDirection(parsed.query.dir, "desc"),
@@ -266,8 +288,12 @@ async function loadRuns() {
   const state = document.getElementById("runs-state");
   const table = document.getElementById("runs-table");
   const body = document.getElementById("runs-body");
+  const selectedJobKey = viewState.runs.selectedJobKey || "";
+  const selectedStartDate = viewState.runs.startDate || "";
+  const selectedTimezone = viewState.runs.timezone || viewState.runs.browserTimezone || "UTC";
+  const loadKey = `${selectedJobKey || "__all__"}|${selectedStartDate || "__no_date__"}|${selectedTimezone}`;
 
-  if (viewState.runs.loaded) {
+  if (viewState.runs.loaded && viewState.runs.loadedForKey === loadKey) {
     renderRunsTable();
     return;
   }
@@ -276,18 +302,17 @@ async function loadRuns() {
   state.textContent = "Loading runs...";
   table.hidden = true;
   body.innerHTML = "";
+  clearRunsInstanceOptions();
 
   try {
-    const response = await fetch("/api/v1/runs?limit=25", { headers: { Accept: "application/json" } });
-    if (!response.ok) {
-      throw new Error(`Runs API returned ${response.status}`);
-    }
-    const payload = await response.json();
-    viewState.runs.items = Array.isArray(payload.items) ? payload.items : [];
+    await ensureRunsJobOptions();
+    const runs = await fetchRunsForFilters(selectedJobKey, selectedStartDate, selectedTimezone);
+    viewState.runs.items = runs;
     viewState.runs.loaded = true;
+    viewState.runs.loadedForKey = loadKey;
 
     if (viewState.runs.items.length === 0) {
-      state.textContent = "No recent runs found.";
+      state.textContent = "No runs found for the selected filters.";
       return;
     }
     renderRunsTable();
@@ -295,6 +320,69 @@ async function loadRuns() {
     state.className = "state error";
     state.textContent = `Unable to load runs: ${error.message}`;
   }
+}
+
+function initializeRunsDefaults() {
+  const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  viewState.runs.browserTimezone = browserTimezone;
+  if (!viewState.runs.timezone) {
+    viewState.runs.timezone = browserTimezone;
+  }
+  if (!viewState.runs.startDate) {
+    viewState.runs.startDate = formatDateForInput(new Date());
+  }
+}
+
+function formatDateForInput(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function runFilterSummaryText(totalCount) {
+  const bits = [];
+  if (viewState.runs.startDate) {
+    bits.push(`startDate=${viewState.runs.startDate}`);
+  }
+  if (viewState.runs.timezone) {
+    bits.push(`timezone=${viewState.runs.timezone}`);
+  }
+  if (viewState.runs.selectedJobKey) {
+    bits.push(`job='${viewState.runs.selectedJobKey}'`);
+  }
+  if (bits.length === 0) {
+    return `${totalCount} run(s)`;
+  }
+  return `${totalCount} run(s) for ${bits.join(", ")}`;
+}
+
+function renderRunsTimezoneOptions() {
+  const select = document.getElementById("runs-timezone-select");
+  if (!select) {
+    return;
+  }
+
+  const browserTimezone = viewState.runs.browserTimezone || "UTC";
+  const preferred = [browserTimezone, "UTC", "America/New_York", "Europe/London", "Asia/Kolkata"];
+  const uniqueTimezones = Array.from(new Set(preferred.filter(Boolean)));
+
+  select.innerHTML = "";
+  uniqueTimezones.forEach((timezone) => {
+    const option = document.createElement("option");
+    option.value = timezone;
+    option.textContent = timezone === browserTimezone ? `${timezone} (browser)` : timezone;
+    select.appendChild(option);
+  });
+
+  if (!uniqueTimezones.includes(viewState.runs.timezone)) {
+    const option = document.createElement("option");
+    option.value = viewState.runs.timezone;
+    option.textContent = viewState.runs.timezone;
+    select.appendChild(option);
+  }
+
+  select.value = viewState.runs.timezone;
 }
 
 function initializeControls() {
@@ -320,9 +408,38 @@ function initializeControls() {
   });
 
   const runsFilter = document.getElementById("runs-filter-input");
+  const runsStartDate = document.getElementById("runs-start-date-input");
+  const runsTimezone = document.getElementById("runs-timezone-select");
+  const runsJobSelect = document.getElementById("runs-job-select");
+  const runsInstanceSelect = document.getElementById("runs-instance-select");
   const runsSort = document.getElementById("runs-sort-select");
   const runsDirection = document.getElementById("runs-sort-dir-btn");
 
+  renderRunsTimezoneOptions();
+
+  runsStartDate.addEventListener("change", (event) => {
+    viewState.runs.startDate = event.target.value || "";
+    viewState.runs.loaded = false;
+    syncListRouteHash("runs");
+  });
+  runsTimezone.addEventListener("change", (event) => {
+    viewState.runs.timezone = event.target.value || viewState.runs.browserTimezone;
+    viewState.runs.loaded = false;
+    syncListRouteHash("runs");
+  });
+
+  runsJobSelect.addEventListener("change", (event) => {
+    viewState.runs.selectedJobKey = event.target.value || "";
+    viewState.runs.loaded = false;
+    syncListRouteHash("runs");
+  });
+  runsInstanceSelect.addEventListener("change", (event) => {
+    const runId = event.target.value || "";
+    if (!runId) {
+      return;
+    }
+    location.hash = `#/runs/${encodeURIComponent(runId)}`;
+  });
   runsFilter.addEventListener("input", (event) => {
     viewState.runs.filterText = event.target.value || "";
     syncListRouteHash("runs");
@@ -354,12 +471,21 @@ function applyRouteStateToListView(routeState) {
   }
 
   viewState.runs.filterText = routeState.filterText || "";
+  viewState.runs.selectedJobKey = routeState.selectedJobKey || "";
+  viewState.runs.startDate = routeState.startDate || viewState.runs.startDate || formatDateForInput(new Date());
+  viewState.runs.timezone = routeState.timezone || viewState.runs.timezone || viewState.runs.browserTimezone || "UTC";
   viewState.runs.sortKey = routeState.sortKey || "startTime";
   viewState.runs.sortDirection = routeState.sortDirection || "desc";
 
+  renderRunsTimezoneOptions();
+  renderRunsJobOptions();
+  document.getElementById("runs-start-date-input").value = viewState.runs.startDate;
+  document.getElementById("runs-timezone-select").value = viewState.runs.timezone;
+  document.getElementById("runs-job-select").value = viewState.runs.selectedJobKey;
   document.getElementById("runs-filter-input").value = viewState.runs.filterText;
   document.getElementById("runs-sort-select").value = viewState.runs.sortKey;
   document.getElementById("runs-sort-dir-btn").textContent = labelDirection(viewState.runs.sortDirection);
+  clearRunsInstanceOptions();
 }
 
 function syncListRouteHash(routeKey) {
@@ -368,6 +494,17 @@ function syncListRouteHash(routeKey) {
 
   if (source.filterText.trim() !== "") {
     params.set("f", source.filterText.trim());
+  }
+  if (source.selectedJobKey && source.selectedJobKey.trim() !== "") {
+    params.set("job", source.selectedJobKey.trim());
+  }
+  if (routeKey === "runs") {
+    if (source.startDate && source.startDate.trim() !== "") {
+      params.set("startDate", source.startDate.trim());
+    }
+    if (source.timezone && source.timezone.trim() !== "") {
+      params.set("timezone", source.timezone.trim());
+    }
   }
   params.set("sort", source.sortKey);
   params.set("dir", source.sortDirection);
@@ -459,10 +596,11 @@ function renderRunsTable() {
     return haystack.includes(viewState.runs.filterText.trim().toLowerCase());
   });
   const sorted = sortItems(filtered, viewState.runs.sortKey, viewState.runs.sortDirection);
+  renderRunsInstanceOptions(sorted);
 
   body.innerHTML = "";
   if (sorted.length === 0) {
-    state.textContent = "No runs match the current filter.";
+    state.textContent = "No runs match the current filters.";
     table.hidden = true;
     return;
   }
@@ -486,9 +624,126 @@ function renderRunsTable() {
     body.appendChild(row);
   });
 
-  state.textContent = `Showing ${sorted.length} of ${viewState.runs.items.length} run(s).`;
+  state.textContent = `Showing ${sorted.length} of ${runFilterSummaryText(viewState.runs.items.length)}.`;
   table.hidden = false;
 }
+
+function clearRunsInstanceOptions() {
+  const select = document.getElementById("runs-instance-select");
+  if (!select) {
+    return;
+  }
+  select.innerHTML = '<option value="">Select run instance</option>';
+  select.disabled = true;
+}
+
+function renderRunsInstanceOptions(runs) {
+  const select = document.getElementById("runs-instance-select");
+  if (!select) {
+    return;
+  }
+
+  const items = Array.isArray(runs)
+    ? runs.filter((run) => run && run.jobExecutionId !== null && run.jobExecutionId !== undefined)
+    : [];
+
+  select.innerHTML = '<option value="">Select run instance</option>';
+  if (items.length === 0) {
+    select.disabled = true;
+    return;
+  }
+
+  items.forEach((run) => {
+    const option = document.createElement("option");
+    option.value = String(run.jobExecutionId);
+    option.textContent = `${run.jobExecutionId} | ${run.status || "-"} | ${run.startTime || "-"}`;
+    select.appendChild(option);
+  });
+
+  select.disabled = false;
+}
+
+async function ensureRunsJobOptions() {
+  if (viewState.runs.jobOptions.length > 0) {
+    return;
+  }
+
+  const jobs = viewState.jobs.loaded
+    ? viewState.jobs.items
+    : await fetchJobsForRunsScope();
+
+  viewState.runs.jobOptions = jobs.map((job) => ({
+    jobKey: job.jobKey,
+    displayName: job.displayName,
+  }));
+  renderRunsJobOptions();
+}
+
+function renderRunsJobOptions() {
+  const select = document.getElementById("runs-job-select");
+  if (!select) {
+    return;
+  }
+
+  const selected = viewState.runs.selectedJobKey || "";
+  select.innerHTML = '<option value="">All jobs</option>';
+
+  const options = [...viewState.runs.jobOptions].sort((left, right) =>
+    String(left.displayName || left.jobKey || "").localeCompare(String(right.displayName || right.jobKey || ""))
+  );
+
+  options.forEach((job) => {
+    const option = document.createElement("option");
+    option.value = job.jobKey || "";
+    option.textContent = job.displayName
+      ? `${job.displayName} (${job.jobKey})`
+      : (job.jobKey || "-");
+    select.appendChild(option);
+  });
+
+  select.value = selected;
+}
+
+async function fetchJobsForRunsScope() {
+  const response = await fetch("/api/v1/jobs", { headers: { Accept: "application/json" } });
+  if (!response.ok) {
+    throw new Error(`Jobs API returned ${response.status}`);
+  }
+  const payload = await response.json();
+  const jobs = Array.isArray(payload.items) ? payload.items : [];
+  viewState.jobs.items = jobs;
+  viewState.jobs.loaded = true;
+  return jobs;
+}
+
+async function fetchRunsForFilters(selectedJobKey, startDate, timezone) {
+  const cacheKey = `${selectedJobKey || ""}|${startDate || ""}|${timezone || ""}`;
+  if (Array.isArray(viewState.runs.cache.byFilter[cacheKey])) {
+    return viewState.runs.cache.byFilter[cacheKey];
+  }
+
+  const params = new URLSearchParams();
+  params.set("limit", "200");
+  if (selectedJobKey) {
+    params.set("job", selectedJobKey);
+  }
+  if (startDate) {
+    params.set("startDate", startDate);
+  }
+  if (timezone) {
+    params.set("timezone", timezone);
+  }
+
+  const response = await fetch(`/api/v1/runs?${params.toString()}`, { headers: { Accept: "application/json" } });
+  if (!response.ok) {
+    throw new Error(`Runs API returned ${response.status}`);
+  }
+  const payload = await response.json();
+  const items = Array.isArray(payload.items) ? payload.items : [];
+  viewState.runs.cache.byFilter[cacheKey] = items;
+  return items;
+}
+
 
 function sortItems(items, key, direction) {
   const factor = direction === "desc" ? -1 : 1;
@@ -534,16 +789,26 @@ function labelDirection(direction) {
 async function loadRunDetail(routeState) {
   const state = document.getElementById("run-detail-state");
   const summary = document.getElementById("run-detail-summary");
+  const logState = document.getElementById("run-detail-log-state");
+  const logList = document.getElementById("run-detail-log-list");
+  const logEmpty = document.getElementById("run-detail-log-empty");
+  const logControls = document.getElementById("run-detail-log-controls");
   const runIdValue = routeState && routeState.jobExecutionId ? routeState.jobExecutionId : null;
 
   state.className = "state";
   summary.hidden = true;
+  logState.hidden = true;
+  logList.hidden = true;
+  logEmpty.hidden = true;
+  logControls.hidden = true;
 
   if (!runIdValue) {
     state.className = "state error";
     state.textContent = "Missing run id in route. Use a row in Runs list.";
     return;
   }
+
+  resetRunLogContext(runIdValue);
 
   state.textContent = `Loading run ${runIdValue}...`;
 
@@ -567,6 +832,7 @@ async function loadRunDetail(routeState) {
     renderRunFailureSummary(payload.failureSummary);
     renderRunArtifacts(payload.artifacts);
     renderRunEvidenceLinks(payload.evidenceLinks);
+    await loadRunScopedLog(runIdValue);
 
     state.textContent = "Run detail loaded.";
     summary.hidden = false;
@@ -574,6 +840,145 @@ async function loadRunDetail(routeState) {
     state.className = "state error";
     state.textContent = `Unable to load run detail: ${error.message}`;
   }
+}
+
+function resetRunLogContext(runIdValue) {
+  const normalizedRunId = String(runIdValue || "");
+  if (viewState.runLog.currentRunId === normalizedRunId) {
+    return;
+  }
+
+  viewState.runLog.currentRunId = normalizedRunId;
+  viewState.runLog.lines = [];
+  viewState.runLog.truncated = false;
+  viewState.runLog.searchText = "";
+
+  const searchInput = document.getElementById("run-detail-log-search");
+  if (searchInput) {
+    searchInput.value = "";
+  }
+}
+
+async function loadRunScopedLog(runIdValue) {
+  const logState = document.getElementById("run-detail-log-state");
+  const logList = document.getElementById("run-detail-log-list");
+  const logEmpty = document.getElementById("run-detail-log-empty");
+  const logControls = document.getElementById("run-detail-log-controls");
+
+  logState.className = "state";
+  logState.textContent = "Loading run-scoped log lines...";
+  logState.hidden = false;
+  logList.hidden = true;
+  logEmpty.hidden = true;
+  logList.innerHTML = "";
+  logControls.hidden = true;
+
+  try {
+    const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/log?limit=200`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Run log API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    viewState.runLog.lines = Array.isArray(payload.lines) ? payload.lines : [];
+    viewState.runLog.truncated = Boolean(payload.truncated);
+    logControls.hidden = false;
+    renderRunLogLines();
+  } catch (error) {
+    logState.className = "state error";
+    logState.textContent = `Unable to load run-scoped logs: ${error.message}`;
+  }
+}
+
+function renderRunLogLines() {
+  const logState = document.getElementById("run-detail-log-state");
+  const logList = document.getElementById("run-detail-log-list");
+  const logEmpty = document.getElementById("run-detail-log-empty");
+  const allLines = Array.isArray(viewState.runLog.lines) ? viewState.runLog.lines : [];
+  const searchTerm = (viewState.runLog.searchText || "").trim().toLowerCase();
+  const filtered = allLines.filter((line) => {
+    if (viewState.runLog.structuredOnly && !line.structured) {
+      return false;
+    }
+    if (!searchTerm) {
+      return true;
+    }
+    const haystack = `${valueOrDash(line.message)} ${valueOrDash(line.recordType)} ${valueOrDash(line.event)} ${valueOrDash(line.level)}`.toLowerCase();
+    return haystack.includes(searchTerm);
+  });
+  const list = filtered;
+
+  logList.innerHTML = "";
+  if (list.length === 0) {
+    logState.className = "state";
+    logState.hidden = false;
+    logState.textContent = allLines.length === 0 ? "No run-scoped log lines returned." : "No run-scoped log lines match the current filter.";
+    logList.hidden = true;
+    logEmpty.hidden = false;
+    return;
+  }
+
+  list.forEach((line) => {
+    const row = document.createElement("div");
+    row.className = `log-line ${line.structured ? "structured" : "raw"}`;
+
+    const level = (line.level || "").toUpperCase();
+    const recordType = valueOrDash(line.recordType);
+    const event = valueOrDash(line.event);
+    const lineNumber = valueOrDash(line.lineNumber);
+    const timestamp = valueOrDash(line.loggedAt);
+
+    const fullMessage = valueOrDash(line.message);
+    const renderedMessage = viewState.runLog.compact ? truncateForCompact(fullMessage, 240) : fullMessage;
+    row.innerHTML = `
+      <div class="log-line-meta">
+        <span class="log-chip level-${escapeHtml(level.toLowerCase())}">${escapeHtml(level || "RAW")}</span>
+        <span class="log-chip">L${escapeHtml(lineNumber)}</span>
+        <span class="log-chip">${escapeHtml(recordType)}</span>
+        <span class="log-chip">${escapeHtml(event)}</span>
+        <span class="log-time">${escapeHtml(timestamp)}</span>
+      </div>
+      <pre class="log-line-text ${viewState.runLog.compact ? "compact" : ""}" title="${escapeHtml(fullMessage)}">${escapeHtml(renderedMessage)}</pre>`;
+
+    logList.appendChild(row);
+  });
+
+  logEmpty.hidden = true;
+  logList.hidden = false;
+  logState.hidden = false;
+  logState.className = "state";
+  const baseMessage = viewState.runLog.truncated
+    ? `Showing ${list.length} of ${allLines.length} loaded line(s) (source truncated server-side).`
+    : `Showing ${list.length} of ${allLines.length} loaded line(s).`;
+  logState.textContent = baseMessage;
+}
+
+function initializeRunLogControls() {
+  const searchInput = document.getElementById("run-detail-log-search");
+  const structuredOnly = document.getElementById("run-detail-log-structured-only");
+  const compact = document.getElementById("run-detail-log-compact");
+
+  searchInput.addEventListener("input", (event) => {
+    viewState.runLog.searchText = event.target.value || "";
+    renderRunLogLines();
+  });
+  structuredOnly.addEventListener("change", (event) => {
+    viewState.runLog.structuredOnly = Boolean(event.target.checked);
+    renderRunLogLines();
+  });
+  compact.addEventListener("change", (event) => {
+    viewState.runLog.compact = Boolean(event.target.checked);
+    renderRunLogLines();
+  });
+}
+
+function truncateForCompact(value, maxLength) {
+  const text = valueOrDash(value);
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.substring(0, maxLength)}...`;
 }
 
 function renderRunSteps(steps) {
@@ -663,7 +1068,25 @@ function renderRunEvidenceLinks(evidenceLinks) {
   list.forEach((link) => {
     const item = document.createElement("li");
     const href = (link.href || "").trim();
-    if (href) {
+    if (href && String(link.type || "").toLowerCase() === "log-file") {
+      const scopedAnchor = document.createElement("a");
+      scopedAnchor.href = "#";
+      scopedAnchor.textContent = "Run log (scoped viewer)";
+      scopedAnchor.addEventListener("click", (event) => {
+        event.preventDefault();
+        focusRunScopedLogViewer();
+      });
+      item.appendChild(scopedAnchor);
+
+      item.appendChild(document.createTextNode(" | "));
+
+      const rawAnchor = document.createElement("a");
+      rawAnchor.href = href;
+      rawAnchor.textContent = "Full scenario log (raw file)";
+      rawAnchor.target = "_blank";
+      rawAnchor.rel = "noreferrer";
+      item.appendChild(rawAnchor);
+    } else if (href) {
       const anchor = document.createElement("a");
       anchor.href = href;
       anchor.textContent = `${valueOrDash(link.label)} (${valueOrDash(link.type)})`;
@@ -680,6 +1103,20 @@ function renderRunEvidenceLinks(evidenceLinks) {
   listElement.hidden = false;
 }
 
+function focusRunScopedLogViewer() {
+  const controls = document.getElementById("run-detail-log-controls");
+  const search = document.getElementById("run-detail-log-search");
+  const list = document.getElementById("run-detail-log-list");
+  const target = controls.hidden ? list : controls;
+
+  if (target && typeof target.scrollIntoView === "function") {
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  if (search && typeof search.focus === "function") {
+    search.focus();
+  }
+}
+
 function valueOrDash(value) {
   return value === null || value === undefined || value === "" ? "-" : String(value);
 }
@@ -692,6 +1129,3 @@ function escapeHtml(value) {
     .replace(/\"/g, "&quot;")
     .replace(/'/g, "&#39;");
 }
-
-
-

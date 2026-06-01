@@ -6,11 +6,20 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.7.10] - 2026-05-31
+
 ### Changed
 - Added a monitoring-first Operator UI shell under `/operator` in the optional control-plane launcher, backed by existing Jobs/Runs read-model APIs and explicit empty/error states.
 - Added U1 deep-link placeholders for run/job drill-down routes (`#/runs/{jobExecutionId}`, `#/jobs/{jobKey}`), with server-side redirects for `/operator/runs/{jobExecutionId}` and `/operator/jobs/{jobKey}` to keep route contracts stable for U2/U3.
 - Added lightweight client-side Jobs/Runs filtering and sorting with hash-route query persistence so operator list context survives refresh/back navigation without changing backend API contracts.
 - Completed U3 guarded trigger-now delivery in Operator UI job details: confirmation-gated `POST /api/v1/jobs/{jobKey}:trigger-now`, traceable decision/`triggerEventId` success feedback, categorized failure feedback (`validation`/`config`/`runtime`), and explicit wording that this remains ad hoc convenience rather than scheduler-management scope.
+- Added control-plane operator log-file serving at `/operator/logs/**` (backed by `etl.logging.base-dir`) so run-detail evidence links can render scenario logs in-browser, including path traversal guardrails.
+- Extended U2 run-detail diagnosis with run-scoped log viewing: added `GET /api/v1/runs/{jobExecutionId}/log` for selected-instance log extraction and upgraded the Operator UI run-detail screen to render structured in-page log lines (level/record metadata + bounded list) instead of relying only on raw full-file links.
+- Polished the U2 run-scoped log viewer with client-side search/filter controls (`message`, `event`, `recordType`, `level`) and compact/expanded line rendering for faster in-page triage.
+- Extended the Runs list UX with selected-job scoping so operators can choose one job, view recent runs for that job, and then drill into one run instance for detail diagnosis.
+- Extended the Runs list UX and `/api/v1/runs` query contract with independent/combined `job` + `startDate` filters plus optional `timezone`; Operator UI now defaults start-date and timezone from the browser and keeps both in route hash state for shareable diagnosis links.
+- Shifted the shipped `controlplane` profile to SQLite-first local JDBC persistence under `.controlplane/controlplane.db`, disabled unused Spring Batch auto-configuration for the control-plane process, and aligned the control-plane JDBC tests with the SQLite-first local persistence contract.
+- Hardened control-plane profile/test startup boundaries so SQLite-backed control-plane runs no longer inherit `dev` SQL-init behavior (`schema-h2.sql`) through forced profile activation; the base profile now defaults to `dev` only when no profile is selected, while control-plane profile and integration tests explicitly disable Spring SQL and Spring Batch schema initialization.
 
 ## [1.7.9] - 2026-05-29
 

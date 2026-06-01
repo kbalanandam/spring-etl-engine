@@ -6,6 +6,9 @@ import com.etl.controlplane.monitoring.EvidenceLinkView;
 import com.etl.controlplane.monitoring.StepRecordView;
 import com.etl.controlplane.monitoring.ArtifactRecordView;
 import com.etl.controlplane.monitoring.FailureSummaryView;
+import com.etl.controlplane.monitoring.RunScopedLogReadModelService;
+import com.etl.controlplane.monitoring.RunScopedLogView;
+import com.etl.controlplane.monitoring.RunLogLineView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryView;
 import org.junit.jupiter.api.Test;
@@ -17,10 +20,13 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.LocalDateTime;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -41,9 +47,12 @@ class RunSummaryControllerTest {
 	@MockitoBean
 	private RunDetailReadModelService runDetailReadModelService;
 
+	@MockitoBean
+	private RunScopedLogReadModelService runScopedLogReadModelService;
+
 	@Test
 	void returnsRunsUsingDefaultLimit() throws Exception {
-		when(runSummaryReadModelService.latestRuns(eq(25))).thenReturn(List.of(
+		when(runSummaryReadModelService.latestRunsFiltered(eq(25), isNull(), isNull(), eq(ZoneId.systemDefault()))).thenReturn(List.of(
 				new RunSummaryView("customer-load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
 						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L, "logs/2026-05-27/customer-load.log")
 		));
@@ -56,12 +65,12 @@ class RunSummaryControllerTest {
 				.andExpect(jsonPath("$.size").value(25))
 				.andExpect(jsonPath("$.totalItems").value(1));
 
-		verify(runSummaryReadModelService).latestRuns(eq(25));
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(25), isNull(), isNull(), eq(ZoneId.systemDefault()));
 	}
 
 	@Test
 	void clampsLimitToAcceptedRange() throws Exception {
-		when(runSummaryReadModelService.latestRuns(eq(200))).thenReturn(List.of());
+		when(runSummaryReadModelService.latestRunsFiltered(eq(200), isNull(), isNull(), eq(ZoneId.systemDefault()))).thenReturn(List.of());
 
 		mockMvc.perform(get("/api/v1/runs").param("limit", "999"))
 				.andExpect(status().isOk())
@@ -70,7 +79,35 @@ class RunSummaryControllerTest {
 				.andExpect(jsonPath("$.size").value(200))
 				.andExpect(jsonPath("$.totalItems").value(0));
 
-		verify(runSummaryReadModelService).latestRuns(eq(200));
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(200), isNull(), isNull(), eq(ZoneId.systemDefault()));
+	}
+
+	@Test
+	void passesJobDateAndTimezoneFiltersToService() throws Exception {
+		when(runSummaryReadModelService.latestRunsFiltered(eq(50), eq("customer-load"), eq(LocalDate.parse("2026-05-27")), eq(ZoneId.of("UTC"))))
+				.thenReturn(List.of());
+
+		mockMvc.perform(get("/api/v1/runs")
+				.param("limit", "50")
+				.param("job", "customer-load")
+				.param("startDate", "2026-05-27")
+				.param("timezone", "UTC"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.size").value(50));
+
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(50), eq("customer-load"), eq(LocalDate.parse("2026-05-27")), eq(ZoneId.of("UTC")));
+	}
+
+	@Test
+	void returnsBadRequestForInvalidStartDateFilter() throws Exception {
+		mockMvc.perform(get("/api/v1/runs").param("startDate", "2026/05/27"))
+				.andExpect(status().isBadRequest());
+	}
+
+	@Test
+	void returnsBadRequestForInvalidTimezoneFilter() throws Exception {
+		mockMvc.perform(get("/api/v1/runs").param("timezone", "Mars/Phobos"))
+				.andExpect(status().isBadRequest());
 	}
 
 	@Test
@@ -133,6 +170,42 @@ class RunSummaryControllerTest {
 				.andExpect(status().isNotFound());
 
 		verify(runDetailReadModelService).findRunDetailByJobExecutionId(eq(999L));
+	}
+
+	@Test
+	void returnsRunScopedLogByJobExecutionId() throws Exception {
+		when(runScopedLogReadModelService.findRunScopedLogByJobExecutionId(eq(101L), eq(50))).thenReturn(Optional.of(
+				new RunScopedLogView(
+						101L,
+						"customer-load",
+						"logs/2026-05-27/customer-load.log",
+						2,
+						false,
+						List.of(
+								new RunLogLineView(2, LocalDateTime.parse("2026-05-27T10:00:00"), "INFO", "STEP_EVENT", "step_started", "line 1", true),
+								new RunLogLineView(3, LocalDateTime.parse("2026-05-27T10:00:05"), "ERROR", "JOB_FAILURE", "job_failure", "line 2", true)
+						)
+				)
+		));
+
+		mockMvc.perform(get("/api/v1/runs/101/log").param("limit", "50"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.jobExecutionId").value(101))
+				.andExpect(jsonPath("$.scenario").value("customer-load"))
+				.andExpect(jsonPath("$.lines[0].recordType").value("STEP_EVENT"))
+				.andExpect(jsonPath("$.lines[1].level").value("ERROR"));
+
+		verify(runScopedLogReadModelService).findRunScopedLogByJobExecutionId(eq(101L), eq(50));
+	}
+
+	@Test
+	void returnsNotFoundWhenRunScopedLogDoesNotExist() throws Exception {
+		when(runScopedLogReadModelService.findRunScopedLogByJobExecutionId(eq(999L), eq(null))).thenReturn(Optional.empty());
+
+		mockMvc.perform(get("/api/v1/runs/999/log"))
+				.andExpect(status().isNotFound());
+
+		verify(runScopedLogReadModelService).findRunScopedLogByJobExecutionId(eq(999L), eq(null));
 	}
 }
 

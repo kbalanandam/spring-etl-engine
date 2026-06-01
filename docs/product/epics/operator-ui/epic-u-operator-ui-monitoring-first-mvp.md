@@ -10,6 +10,7 @@ This epic is the home for work that:
 
 - keeps the UI and control-plane API optional and independently deployable from the ETL worker
 - starts with monitoring-first read models (jobs list, run list, run detail)
+- supports selected-job and/or start-date run narrowing so operators can choose one run instance before opening run detail
 - exposes operational evidence for faster diagnosis (status, counts, failure summary, artifacts)
 - preserves explicit selected-job launch behavior and avoids scheduler lock-in
 
@@ -18,7 +19,7 @@ This epic is **not** the place to make UI a runtime prerequisite or to redesign 
 ## Related backlog items
 
 - [`U1 - Stand up independent monitoring-first Operator UI shell with jobs and runs list views`](../../backlog-items/operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md)
-- [`U2 - Add job run detail drill-down with step outcomes and evidence links`](../../backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md)
+- [`U2 - Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer`](../../backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md)
 - [`U3 - Add guarded trigger-now action from job details without scheduler coupling`](../../backlog-items/operator-ui/U3-guarded-trigger-now-from-job-details.md)
 
 ## Related docs

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Operator UI - Monitoring First</title>
-  <link rel="stylesheet" href="/operator/styles.css">
+  <link rel="stylesheet" href="/operator/styles.css?v=20260531-compact6">
 </head>
 <body>
 <header class="topbar">
@@ -15,6 +15,10 @@
 <nav class="tabs">
   <a href="#/jobs" id="tab-jobs">Jobs</a>
   <a href="#/runs" id="tab-runs">Runs</a>
+  <div class="tabs-timezone">
+    <label for="runs-timezone-select">Timezone</label>
+    <select id="runs-timezone-select"></select>
+  </div>
 </nav>
 
 <main class="content">
@@ -70,18 +74,43 @@
 
   <section id="view-runs" class="panel" hidden>
     <h2>Runs</h2>
-    <p class="hint">Recent summaries from <code>/api/v1/runs?limit=25</code>.</p>
-    <div class="control-row">
-      <label for="runs-filter-input">Filter</label>
-      <input id="runs-filter-input" type="text" placeholder="scenario or status">
-      <label for="runs-sort-select">Sort</label>
-      <select id="runs-sort-select">
-        <option value="startTime">Start time</option>
-        <option value="jobExecutionId">Job execution</option>
-        <option value="scenario">Scenario</option>
-        <option value="status">Status</option>
-      </select>
-      <button id="runs-sort-dir-btn" type="button">Desc</button>
+    <p class="hint">Run summaries from <code>/api/v1/runs</code> with optional date/job filters.</p>
+    <div class="control-row runs-controls runs-primary-controls">
+      <div class="control-field">
+        <label for="runs-start-date-input">Start date</label>
+        <input id="runs-start-date-input" type="date">
+      </div>
+      <div class="control-field">
+        <label for="runs-job-select">Job</label>
+        <select id="runs-job-select">
+          <option value="">All jobs</option>
+        </select>
+      </div>
+      <div class="control-field">
+        <label for="runs-instance-select">Run instance</label>
+        <select id="runs-instance-select" disabled>
+          <option value="">Select run instance</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="control-row runs-controls runs-secondary-controls">
+      <div class="control-field control-field-filter">
+        <label for="runs-filter-input">Filter</label>
+        <input id="runs-filter-input" type="text" placeholder="scenario or status">
+      </div>
+      <div class="control-field control-field-sort">
+        <label for="runs-sort-select">Sort</label>
+        <div class="control-field-row">
+          <select id="runs-sort-select">
+            <option value="startTime">Start time</option>
+            <option value="jobExecutionId">Job execution</option>
+            <option value="scenario">Scenario</option>
+            <option value="status">Status</option>
+          </select>
+          <button id="runs-sort-dir-btn" type="button">Desc</button>
+        </div>
+      </div>
     </div>
     <div id="runs-state" class="state"></div>
     <table id="runs-table" hidden>
@@ -140,21 +169,37 @@
     <div id="run-detail-artifacts-empty" class="state" hidden>No artifacts available.</div>
 
     <h3>Evidence links</h3>
+    <p class="hint">Use scoped run-log viewer first; raw full-file scenario log remains available for deep diagnostics.</p>
     <ul id="run-detail-evidence-list" class="detail-list" hidden></ul>
     <div id="run-detail-evidence-empty" class="state" hidden>No evidence links available.</div>
+
+    <h3>Run log (selected instance)</h3>
+    <p class="hint">Structured lines for this run only from <code>/api/v1/runs/{jobExecutionId}/log</code>.</p>
+    <div id="run-detail-log-controls" class="control-row" hidden>
+      <label for="run-detail-log-search">Search</label>
+      <input id="run-detail-log-search" type="text" placeholder="message, event, level">
+      <label>
+        <input id="run-detail-log-structured-only" type="checkbox">
+        Structured only
+      </label>
+      <label>
+        <input id="run-detail-log-compact" type="checkbox" checked>
+        Compact
+      </label>
+    </div>
+    <div id="run-detail-log-state" class="state" hidden></div>
+    <div id="run-detail-log-empty" class="state" hidden>No run-scoped log lines available.</div>
+    <div id="run-detail-log-list" class="log-list" hidden></div>
 
     <p><a href="#/runs">Back to runs list</a></p>
   </section>
 </main>
 
 <footer class="footnote">
-  <p>Evidence guidance: see <a href="https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/architecture/control-plane/job-history-and-operational-observability.md" target="_blank" rel="noreferrer">job history and operational observability</a>.</p>
+  <p class="footnote-links">Evidence guidance: see <a href="https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/architecture/control-plane/job-history-and-operational-observability.md" target="_blank" rel="noreferrer">job history and operational observability</a>.</p>
+  <p class="footnote-meta">&copy; 2026 OneFlow contributors. All rights reserved.</p>
 </footer>
 
-<script src="/operator/app.js"></script>
+<script src="/operator/app.js?v=20260531-compact6"></script>
 </body>
 </html>
-
-
-
-

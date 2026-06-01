@@ -18,6 +18,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -27,7 +28,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -38,18 +38,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(classes = ControlPlaneApiApplication.class, webEnvironment = SpringBootTest.WebEnvironment.MOCK)
+@ActiveProfiles("controlplane")
 class ControlPlaneApiLauncherIntegrationTest {
 
 	private static final Path TEST_ROOT;
 	private static final Path JOBS_ROOT;
 	private static final Path LOG_ROOT;
-	private static final String DB_NAME = "cp-api-int-" + UUID.randomUUID();
+	private static final Path DB_PATH;
 
 	static {
 		try {
 			TEST_ROOT = Files.createTempDirectory("controlplane-api-int-");
 			JOBS_ROOT = TEST_ROOT.resolve("config-jobs");
 			LOG_ROOT = TEST_ROOT.resolve("logs");
+			DB_PATH = TEST_ROOT.resolve("controlplane.db");
 		} catch (IOException ex) {
 			throw new ExceptionInInitializerError(ex);
 		}
@@ -63,10 +65,13 @@ class ControlPlaneApiLauncherIntegrationTest {
 		registry.add("controlplane.runs.persistence.mode", () -> "jdbc");
 		registry.add("controlplane.schedules.persistence.mode", () -> "jdbc");
 		registry.add("controlplane.scheduler.enabled", () -> "false");
-		registry.add("spring.datasource.url", () -> "jdbc:h2:mem:" + DB_NAME + ";MODE=PostgreSQL;DB_CLOSE_DELAY=-1");
-		registry.add("spring.datasource.username", () -> "sa");
+		registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + DB_PATH.toAbsolutePath().toString().replace('\\', '/'));
+		registry.add("spring.datasource.username", () -> "");
 		registry.add("spring.datasource.password", () -> "");
-		registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
+		registry.add("spring.datasource.driver-class-name", () -> "org.sqlite.JDBC");
+		registry.add("spring.sql.init.mode", () -> "never");
+		registry.add("spring.batch.jdbc.initialize-schema", () -> "never");
+		registry.add("spring.sql.init.schema-locations", () -> "");
 		registry.add("controlplane.triggers.persistence.mode-marker-path",
 				() -> TEST_ROOT.resolve("trigger-persistence-mode.marker").toString());
 	}
@@ -135,10 +140,29 @@ class ControlPlaneApiLauncherIntegrationTest {
 				.andExpect(jsonPath("$.totalItems").value(1))
 				.andExpect(jsonPath("$.items[0].jobExecutionId").value(901));
 
+		mockMvc.perform(get("/api/v1/runs")
+				.param("job", "customer-load")
+				.param("startDate", "2026-05-27")
+				.param("timezone", "UTC"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalItems").value(1));
+
+		mockMvc.perform(get("/api/v1/runs")
+				.param("startDate", "2026-05-28")
+				.param("timezone", "UTC"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalItems").value(0));
+
 		mockMvc.perform(get("/api/v1/runs/901/detail"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.run.jobExecutionId").value(901))
 				.andExpect(jsonPath("$.evidenceLinks[1].href").value(LOG_ROOT.resolve("2026-05-27/customer-load.log").toString() + "#L2"));
+
+		mockMvc.perform(get("/api/v1/runs/901/log").param("limit", "10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.jobExecutionId").value(901))
+				.andExpect(jsonPath("$.lines[0].recordType").value("STEP_EVENT"))
+				.andExpect(jsonPath("$.lines[1].recordType").value("RUN_SUMMARY"));
 
 		MvcResult createScheduleResult = mockMvc.perform(post("/api/v1/schedules")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -160,7 +184,7 @@ class ControlPlaneApiLauncherIntegrationTest {
 
 		mockMvc.perform(get("/operator"))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(result -> assertEquals("/operator/index.html", result.getResponse().getRedirectedUrl()));
+				.andExpect(result -> assertTrue(result.getResponse().getRedirectedUrl().startsWith("/operator/index.html?v=")));
 	}
 
 	private String readScheduleId(MvcResult result) throws IOException {
