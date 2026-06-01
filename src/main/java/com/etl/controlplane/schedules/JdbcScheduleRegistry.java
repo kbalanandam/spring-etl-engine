@@ -48,8 +48,8 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 			jdbcTemplate.update("""
 					insert into controlplane_schedule (
 						schedule_id, schedule_key, selected_job_key, expression, timezone,
-						is_enabled, is_paused, description, created_at, updated_at, watcher_key, last_accepted_due_at
-					) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+						is_enabled, is_paused, description, created_at, updated_at, watcher_key, last_accepted_due_at, schedule_pk
+					) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""",
 					schedule.scheduleId(),
 					schedule.scheduleKey(),
@@ -62,7 +62,8 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 					toTimestamp(schedule.createdAt()),
 					toTimestamp(schedule.updatedAt()),
 					schedule.watcherKey(),
-					toTimestamp(schedule.lastAcceptedDueAt())
+					toTimestamp(schedule.lastAcceptedDueAt()),
+					nextSchedulePk()
 			);
 		}
 		return schedule;
@@ -159,10 +160,17 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 					created_at timestamp not null,
 					updated_at timestamp not null,
 					watcher_key varchar(200),
-					last_accepted_due_at timestamp
+					last_accepted_due_at timestamp,
+					schedule_pk integer
 				)
 				""");
 		ensureColumnExists("controlplane_schedule", "last_accepted_due_at", "timestamp");
+		ensureColumnExists("controlplane_schedule", "schedule_pk", "integer");
+		backfillSchedulePk();
+		jdbcTemplate.execute("""
+				create unique index if not exists idx_schedule_pk
+				on controlplane_schedule (schedule_pk)
+				""");
 		jdbcTemplate.execute("""
 				create index if not exists idx_schedule_selected_job
 				on controlplane_schedule (selected_job_key, updated_at)
@@ -189,6 +197,19 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 		if (Boolean.FALSE.equals(columnExists)) {
 			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + columnDefinition);
 		}
+	}
+
+	private void backfillSchedulePk() {
+		jdbcTemplate.update("""
+				update controlplane_schedule
+				set schedule_pk = rowid
+				where schedule_pk is null
+				""");
+	}
+
+	private long nextSchedulePk() {
+		Long value = jdbcTemplate.queryForObject("select coalesce(max(schedule_pk), 0) + 1 from controlplane_schedule", Long.class);
+		return value == null ? 1L : value;
 	}
 
 	private static Timestamp toTimestamp(LocalDateTime value) {

@@ -25,12 +25,35 @@ class JdbcScheduleRegistryTest {
 
 	@Test
 	void upsertsAndFindsByIdAndKey() {
-		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(new JdbcTemplate(inMemoryDataSource()));
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(jdbcTemplate);
 		ScheduleView schedule = schedule("sch-1", "daily-a", LocalDateTime.parse("2026-05-28T09:00:00"));
 		registry.upsert(schedule);
 
 		assertTrue(registry.findByScheduleId("sch-1").isPresent());
 		assertTrue(registry.findByScheduleKey("daily-a").isPresent());
+		Long schedulePk = jdbcTemplate.queryForObject(
+				"select schedule_pk from controlplane_schedule where schedule_id = ?",
+				Long.class,
+				"sch-1"
+		);
+		assertTrue(schedulePk != null && schedulePk > 0);
+	}
+
+	@Test
+	void assignsDistinctSchedulePkValuesForNewRows() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(jdbcTemplate);
+		registry.upsert(schedule("sch-1", "daily-a", LocalDateTime.parse("2026-05-28T09:00:00")));
+		registry.upsert(schedule("sch-2", "daily-b", LocalDateTime.parse("2026-05-28T10:00:00")));
+
+		List<Long> values = jdbcTemplate.queryForList(
+				"select schedule_pk from controlplane_schedule order by schedule_pk asc",
+				Long.class
+		);
+		assertEquals(2, values.size());
+		assertTrue(values.get(0) != null && values.get(1) != null);
+		assertTrue(values.get(1) > values.get(0));
 	}
 
 	@Test

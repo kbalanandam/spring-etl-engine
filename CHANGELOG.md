@@ -14,6 +14,7 @@ and this project adheres to **Semantic Versioning**.
 - Updated product execution planning docs to mark `S1` in progress for `1.8.0` and align near-term sequencing around contract freeze before `S2` implementation expansion.
 - Expanded current `1.8.0` scope to include a first `S4` retained-history slice for scheduler table-structure evolution, with phased migration guidance that preserves stable external schedule identity while relational internals evolve.
 - Started `S2` first implementation slice in the current `1.8.0` lane for time-based schedule definitions and pause/resume controls on the frozen selected-job launch boundary.
+- Started S4 code implementation with a non-breaking scheduler table evolution slice: `controlplane_schedule` now provisions/backfills an internal numeric surrogate key (`schedule_pk`) while preserving external string `schedule_id` contracts.
 
 ### Fixed
 - N/A
