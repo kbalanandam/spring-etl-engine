@@ -47,6 +47,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 		String normalizedScheduleId = normalize(scheduleId);
 		String normalizedReason = normalize(reason);
 		String normalizedRequestedBy = normalize(requestedBy);
+		Long schedulePk = resolveSchedulePk(normalizedScheduleId);
 		Instant requestedAt = Instant.now();
 		String triggerEventId = "te-" + UUID.randomUUID();
 
@@ -62,9 +63,10 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 					message,
 					trigger_origin,
 					schedule_id,
+					schedule_pk,
 					watcher_id,
 					external_origin_key
-				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""",
 				triggerEventId,
 				normalizedJobKey,
@@ -76,6 +78,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				message,
 				triggerOrigin,
 				normalizedScheduleId.isBlank() ? null : normalizedScheduleId,
+				schedulePk,
 				null,
 				null
 		);
@@ -168,10 +171,12 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 					message varchar(2000),
 					trigger_origin varchar(50),
 					schedule_id varchar(80),
+					schedule_pk integer,
 					watcher_id varchar(80),
 					external_origin_key varchar(200)
 				)
 				""");
+		ensureColumnExists("controlplane_trigger_event", "schedule_pk", "integer");
 		jdbcTemplate.execute("""
 				create index if not exists idx_trigger_event_job_time
 				on controlplane_trigger_event (job_key, requested_at)
@@ -184,6 +189,44 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				create index if not exists idx_trigger_event_schedule_time
 				on controlplane_trigger_event (schedule_id, requested_at)
 				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_trigger_event_schedule_pk_time
+				on controlplane_trigger_event (schedule_pk, requested_at)
+				""");
+	}
+
+	private void ensureColumnExists(String tableName, String columnName, String columnDefinition) {
+		Boolean columnExists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+			try (java.sql.Statement statement = connection.createStatement();
+			     java.sql.ResultSet resultSet = statement.executeQuery("select * from " + tableName + " where 1 = 0")) {
+				java.sql.ResultSetMetaData metadata = resultSet.getMetaData();
+				for (int index = 1; index <= metadata.getColumnCount(); index++) {
+					if (columnName.equalsIgnoreCase(metadata.getColumnName(index))) {
+						return true;
+					}
+				}
+				return false;
+			}
+		});
+		if (Boolean.FALSE.equals(columnExists)) {
+			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + columnDefinition);
+		}
+	}
+
+	private Long resolveSchedulePk(String normalizedScheduleId) {
+		if (normalizedScheduleId.isBlank()) {
+			return null;
+		}
+		try {
+			return jdbcTemplate.query(
+					"select schedule_pk from controlplane_schedule where schedule_id = ?",
+					rs -> rs.next() ? rs.getObject(1, Long.class) : null,
+					normalizedScheduleId
+			);
+		} catch (org.springframework.dao.DataAccessException ignored) {
+			// Keep trigger persistence available even when schedule table/column state is older or optional.
+			return null;
+		}
 	}
 
 	private String normalize(String value) {
