@@ -2,6 +2,7 @@ package com.etl.controlplane.monitoring;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
@@ -16,6 +17,8 @@ import java.util.Optional;
 @Component
 @ConditionalOnProperty(name = "controlplane.runs.persistence.mode", havingValue = "jdbc")
 public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
+	private static final java.time.Duration TRIGGER_LOOKBACK_WINDOW = java.time.Duration.ofMinutes(30);
+	private static final java.time.Duration TRIGGER_LOOKAHEAD_WINDOW = java.time.Duration.ofMinutes(5);
 
 	private final JdbcTemplate jdbcTemplate;
 	private final int retention;
@@ -196,12 +199,17 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				on controlplane_run_record (selected_job_key, started_at)
 				""");
 		backfillRunRecordFromRunSummary();
+		backfillRunRecordTriggerEventLinkage();
 	}
 
 	private void upsertRunRecord(RunSummaryView runSummary) {
 		Long jobExecutionId = runSummary.jobExecutionId();
 		if (jobExecutionId == null) {
 			return;
+		}
+		String resolvedTriggerEventId = resolveTriggerEventIdForUpsert(runSummary);
+		if (resolvedTriggerEventId != null) {
+			backfillLaunchedRunId(resolvedTriggerEventId, jobExecutionId);
 		}
 		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 		jdbcTemplate.update("""
@@ -222,7 +230,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					updated_at
 				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				on conflict(job_execution_id) do update set
-					trigger_event_id = excluded.trigger_event_id,
+					trigger_event_id = coalesce(controlplane_run_record.trigger_event_id, excluded.trigger_event_id),
 					selected_job_key = excluded.selected_job_key,
 					scenario = excluded.scenario,
 					run_status = excluded.run_status,
@@ -236,7 +244,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				""",
 				"rr-" + jobExecutionId,
 				jobExecutionId,
-				null,
+				resolvedTriggerEventId,
 				null,
 				runSummary.scenario(),
 				runSummary.status(),
@@ -295,6 +303,114 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				now,
 				now
 		);
+	}
+
+	private void backfillRunRecordTriggerEventLinkage() {
+		List<RunRecordLinkCandidate> candidates;
+		try {
+			candidates = jdbcTemplate.query("""
+					select job_execution_id, scenario, started_at
+					from controlplane_run_record
+					where trigger_event_id is null
+					order by case when started_at is null then 1 else 0 end,
+					         started_at desc,
+					         job_execution_id desc
+					""", (rs, rowNum) -> new RunRecordLinkCandidate(
+					rs.getLong("job_execution_id"),
+					rs.getString("scenario"),
+					toLocalDateTime(rs.getTimestamp("started_at"))
+			));
+		} catch (DataAccessException ignored) {
+			return;
+		}
+		for (RunRecordLinkCandidate candidate : candidates) {
+			String triggerEventId = resolveTriggerEventIdForBackfill(candidate.jobExecutionId(), candidate.scenario(), candidate.startedAt());
+			if (triggerEventId == null) {
+				continue;
+			}
+			jdbcTemplate.update(
+					"update controlplane_run_record set trigger_event_id = ? where job_execution_id = ? and trigger_event_id is null",
+					triggerEventId,
+					candidate.jobExecutionId()
+			);
+			backfillLaunchedRunId(triggerEventId, candidate.jobExecutionId());
+		}
+	}
+
+	private String resolveTriggerEventIdForUpsert(RunSummaryView runSummary) {
+		return resolveTriggerEventId(runSummary.jobExecutionId(), runSummary.scenario(), runSummary.startTime(), false);
+	}
+
+	private String resolveTriggerEventIdForBackfill(Long jobExecutionId, String scenario, LocalDateTime startedAt) {
+		return resolveTriggerEventId(jobExecutionId, scenario, startedAt, true);
+	}
+
+	private String resolveTriggerEventId(Long jobExecutionId, String scenario, LocalDateTime startedAt, boolean allowTimeWindowFallback) {
+		if (jobExecutionId == null) {
+			return null;
+		}
+		try {
+			String directMatch = jdbcTemplate.query("""
+					select trigger_event_id
+					from controlplane_trigger_event
+					where launched_run_id = ?
+					order by requested_at desc, trigger_event_id desc
+					limit 1
+					""", rs -> rs.next() ? rs.getString(1) : null, String.valueOf(jobExecutionId));
+			if (directMatch != null && !directMatch.isBlank()) {
+				return directMatch;
+			}
+			if (!allowTimeWindowFallback) {
+				return null;
+			}
+			if (startedAt == null) {
+				return null;
+			}
+			String normalizedScenario = normalize(scenario);
+			if (normalizedScenario.isBlank()) {
+				return null;
+			}
+			Timestamp lowerBound = Timestamp.valueOf(startedAt.minus(TRIGGER_LOOKBACK_WINDOW));
+			Timestamp upperBound = Timestamp.valueOf(startedAt.plus(TRIGGER_LOOKAHEAD_WINDOW));
+			List<String> candidates = jdbcTemplate.queryForList("""
+					select te.trigger_event_id
+					from controlplane_trigger_event te
+					where te.job_key = ?
+					  and te.decision_status = 'ACCEPTED'
+					  and te.requested_at between ? and ?
+					  and not exists (
+						select 1
+						from controlplane_run_record rr
+						where rr.trigger_event_id = te.trigger_event_id
+						  and rr.job_execution_id <> ?
+					  )
+					order by te.requested_at desc, te.trigger_event_id desc
+					limit 2
+					""", String.class, normalizedScenario, lowerBound, upperBound, jobExecutionId);
+			return candidates.size() == 1 ? candidates.get(0) : null;
+		} catch (DataAccessException ignored) {
+			// Trigger table remains optional while run-summary persistence stays available.
+			return null;
+		}
+	}
+
+	private void backfillLaunchedRunId(String triggerEventId, Long jobExecutionId) {
+		try {
+			jdbcTemplate.update(
+					"update controlplane_trigger_event set launched_run_id = ? where trigger_event_id = ? and (launched_run_id is null or trim(launched_run_id) = '')",
+					String.valueOf(jobExecutionId),
+					triggerEventId
+			);
+		} catch (DataAccessException ignored) {
+			// Trigger linkage is best-effort and should not block run-summary projection writes.
+		}
+	}
+
+	private String normalize(String value) {
+		return value == null ? "" : value.trim();
+	}
+
+	private record RunRecordLinkCandidate(long jobExecutionId, String scenario, LocalDateTime startedAt) {
 	}
 
 	private static Timestamp toTimestamp(LocalDateTime value) {

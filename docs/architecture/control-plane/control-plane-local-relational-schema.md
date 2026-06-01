@@ -9,7 +9,7 @@ It exists to translate the conceptual retained operational data model into a pra
 ## Status
 
 - Classification: **Future direction**
-- The Mermaid diagrams in this document describe the preferred future direction; trigger-event persistence, run-summary persistence, and an internal schedule-table foundation are now shipped behind the optional control-plane API when JDBC mode is enabled.
+- The Mermaid diagrams in this document describe the preferred future direction; trigger-event persistence, run-summary persistence, an internal schedule-table foundation, and initial run-record linkage are now shipped behind the optional control-plane API when JDBC mode is enabled.
 - The shipped `controlplane` profile now defaults to a SQLite file under `.controlplane/controlplane.db` for developer-laptop and single-node use, while stronger relational targets remain open for later deployment profiles.
 
 ## Scope
@@ -93,6 +93,7 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 - It reflects what is shipped now in JDBC mode (`controlplane_schedule`, `controlplane_trigger_event`) plus the immediate retained-history direction.
 - Update this section when scheduler entity boundaries or relationships change; avoid editing it for non-schema code-only refactors.
 - First-slice S4 evolution may introduce internal numeric surrogate keys for relational efficiency, but should keep stable external schedule identity (`schedule_id`) to avoid breaking launch/audit contracts while migration is phased.
+- The current linkage contract is intentionally additive: new `controlplane_run_record.trigger_event_id` writes are populated only from exact `controlplane_trigger_event.launched_run_id` matches, while a conservative single-candidate time-window fallback is limited to startup backfill for legacy mixed data.
 
 ```mermaid
 erDiagram
@@ -322,6 +323,7 @@ The likely later direction is:
 - Artifact and checkpoint storage should be reference-oriented rather than large-payload-oriented in the first slice.
 - The schema direction must remain optional from the ETL worker point of view; direct `etl.config.job` execution cannot depend on this database.
 - Trigger-event persistence fallback must be explicit: switching `controlplane.triggers.persistence.mode` between `jdbc` and `memory` across restarts is treated as a continuity break unless intentionally acknowledged.
+- Run-record linkage to trigger events must remain best-effort and non-blocking: unresolved links should stay nullable rather than blocking `RUN_SUMMARY` projection updates.
 
 ### Trigger-event fallback safety
 
