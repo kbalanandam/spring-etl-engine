@@ -12,6 +12,7 @@ and this project adheres to **Semantic Versioning**.
 ### Changed
 - Started `S1` first-slice contract freeze as a docs-first boundary baseline: scheduler launchers now explicitly align to one selected-job contract, trigger-origin/identity evidence expectations are clarified, and scheduler retry/restart ownership remains separated from ETL runtime recovery semantics.
 - Updated product execution planning docs to mark `S1` in progress for `1.8.0` and align near-term sequencing around contract freeze before `S2` implementation expansion.
+- Expanded current `1.8.0` scope to include a first `S4` retained-history slice for scheduler table-structure evolution, with phased migration guidance that preserves stable external schedule identity while relational internals evolve.
 
 ### Fixed
 - N/A

@@ -92,6 +92,7 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 
 - It reflects what is shipped now in JDBC mode (`controlplane_schedule`, `controlplane_trigger_event`) plus the immediate retained-history direction.
 - Update this section when scheduler entity boundaries or relationships change; avoid editing it for non-schema code-only refactors.
+- First-slice S4 evolution may introduce internal numeric surrogate keys for relational efficiency, but should keep stable external schedule identity (`schedule_id`) to avoid breaking launch/audit contracts while migration is phased.
 
 ```mermaid
 erDiagram

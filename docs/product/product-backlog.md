@@ -273,7 +273,7 @@ This table is the day-to-day execution view for the current product stage.
 | [S1](backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md) | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | In Progress | M2 | A1, C1 | First slice in progress: freeze one selected-job launch contract plus trigger-origin/identity evidence boundary before `S2` implementation expands controls |
 | [S2](backlog-items/scheduler/S2-time-based-schedule-definitions-with-pause-resume.md) | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Deferred | M2 | S1 | First practical scheduler slice after run-state and audit direction are clearer |
 | [S3](backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md) | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
-| [S4](backlog-items/scheduler/S4-control-plane-operational-data-model.md) | Define control-plane operational data model for schedules, watchers, trigger events, run and step history, artifact lineage, and restartability anchors | Epic S | P1 | Deferred | M3 | S1, C1, C2 | Persist optional scheduler/control-plane history coherently without making it a prerequisite for direct ETL-core execution |
+| [S4](backlog-items/scheduler/S4-control-plane-operational-data-model.md) | Define control-plane operational data model for schedules, watchers, trigger events, run and step history, artifact lineage, and restartability anchors | Epic S | P1 | In Progress | M2 | S1, C1, C2 | Current-release first slice: evolve scheduler table structures and retained-history boundaries in a portable way while preserving the optional control-plane contract |
 | [U1](backlog-items/operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md) | Stand up independent monitoring-first Operator UI shell with jobs and runs list views | Epic U | P1 | Done | M2 | C1 | Completed monitoring-first shell on `/operator` with read-only Jobs/Runs list views, placeholder deep links (`#/runs/{jobExecutionId}`, `#/jobs/{jobKey}`), client-side filter/sort controls, and hash-route state persistence; remains independent from ETL worker launch path |
 | [U2](backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md) | Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer | Epic U | P1 | Done | M2 | U1, C2 | Completed run-detail drill-down with step/failure/artifact evidence, independent/combined runs-list job + start-date filtering, and richer run-instance-scoped in-page log rendering (without widening scheduler/launch boundaries) |
 | [U3](backlog-items/operator-ui/U3-guarded-trigger-now-from-job-details.md) | Add guarded trigger-now action from job details without scheduler coupling | Epic U | P1 | Done | M2 | U1, S1 | Completed guarded trigger-now action on job detail with confirmation, traceable `triggerEventId`/decision feedback, categorized failure messages, and explicit selected-job boundary wording (no scheduler-management controls added) |
@@ -297,7 +297,7 @@ Use this section as the near-term sequencing view behind the execution board:
 9. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
 10. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
 11. Start Operator UI in parallel as a monitoring-first independent slice (`U1` -> `U2` -> `U3`) so users get centralized job/run visibility without coupling UI to ETL-core launch behavior.
-12. Run `S1` contract freeze as the active scheduler slice and keep `S2`/`S3`/`S4` deferred until boundary sign-off is complete (single selected-job launch boundary, trigger-origin/identity evidence shape, and retry/restart separation).
+12. Run `S1` contract freeze as the active scheduler boundary and execute first `S2` + `S4` implementation slices in the same release lane, while keeping advanced `S3` overlap/missed-run policy deferred.
 13. Leave `V3` / `V4` and wider scheduler/restart work for the next operational maturity pass.
 
 ### Duplicate-handling checkpoint for next session
@@ -752,7 +752,7 @@ Focus:
 
 Current state:
 - a monitoring-first control-plane API starter is now available as an optional separate launcher for jobs/runs/system projections while preserving the independent selected-job ETL worker contract
-- schedule/trigger semantics and retained control-plane operational history remain deferred under `Epic S`
+- schedule/trigger semantics are active under `S1`/`S2`, and retained control-plane operational history is now in first-slice implementation under `S4`
 
 Exit signal:
 - operations support can answer what failed, why, and what to do next
@@ -786,7 +786,7 @@ Use this as the condensed near-term priority order:
 3. deferred `Epic T` advanced sequence - `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
 4. `Epic P` - first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
 5. `X1` / `X2` - SFTP contract and first inbound slice
-6. `F1` / `S1` / `S2` - restartability and scheduler baseline
+6. `F1` / `S1` / `S2` / `S4` - restartability, scheduler baseline, and first retained-history table-structure evolution slice
 7. `V3` / `V4` / `G1` - reporting, release gating, and secure config
 
 ---

@@ -8,8 +8,8 @@ Define the optional retained operational data model for the future OneFlow contr
 
 - Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
-- Status: **Deferred**
-- Milestone: **M3**
+- Status: **In Progress**
+- Milestone: **M2**
 - Dependency: **S1, C1, C2**
 
 > Keep these fields synchronized with the row in [`product-backlog.md`](../../product-backlog.md). The execution board remains the canonical source for changing status values.
@@ -45,6 +45,7 @@ This item covers:
 - retained config identity / selected-job identity fields needed for audit and diagnosis
 - restartability anchors such as prior-run linkage, attempt lineage, checkpoint references, or resumable markers without defining final restart semantics yet
 - local-first relational persistence direction for early control-plane slices
+- first-slice scheduler table-structure evolution needed for retained-history portability (without changing the selected-job launch boundary)
 
 ## Out of scope
 
@@ -117,7 +118,7 @@ When this item is implemented, keep one rule explicit: persisted control-plane d
 
 ## Status notes
 
-Deferred today, but important enough to document before optional scheduler, watcher, and retained-history work grows in multiple directions without one shared operational data model.
+Current release now includes a first S4 slice focused on scheduler table-structure evolution and retained-history boundary alignment. Full S4 closure remains phased beyond this first slice.
 
 
 

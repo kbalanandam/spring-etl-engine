@@ -39,13 +39,14 @@ Planned scope:
 
 - `S1` contract freeze (single selected-job launch boundary, trigger-origin evidence, retry/restart separation)
 - first `S2` slice (time-based schedule definitions + pause/resume baseline)
+- first `S4` slice (scheduler data-model and table-structure evolution baseline for portable retained history)
 - operator UI schedule visibility and controls aligned to the same launch contract
 - run evidence fields to explain launch origin and schedule identity
 
 Out of scope for `1.8.0`:
 
 - advanced overlap/missed-run policies (`S3`)
-- full retained operational data model closure (`S4`)
+- full retained operational data model closure (`S4`) beyond the first table-structure evolution slice
 - broad transport expansion beyond already-approved scope
 
 ### Lane C - follow-on visible chunk (`1.9.0`)
@@ -147,6 +148,6 @@ Use this compact template for each new target version:
 
 ## Immediate next step
 
-`1.8.0` lane is now running the `S1` docs-first contract-freeze PR; after merge, proceed with backend/runtime/UI stacked implementation PRs against the frozen boundary.
+`1.8.0` lane is now running `S1` contract freeze together with first implementation slices from `S2` and `S4`; continue using backend/runtime/UI stacked PRs against the frozen launch boundary.
 
 
