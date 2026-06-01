@@ -15,9 +15,10 @@ It exists to clarify that scheduling is a control-plane capability that launches
 
 Current S1 planning freezes the launch boundary for parallel scheduler and operator-UI work:
 
-- all launchers (native scheduler, external orchestrator, ad hoc operator trigger) target the same selected-job boundary
-- trigger evidence keeps explicit origin and trigger identity so runs remain diagnosable
+- all launchers (native scheduler, external orchestrator, operator ad hoc trigger) target the same selected-job boundary
+- run evidence includes trigger origin, trigger identity (`scheduleId` and/or external trigger reference), and trigger decision/event id when available
 - retry/restart ownership remains on ETL runtime contracts and is not redefined by schedule configuration
+- native scheduling remains optional and does not replace external-orchestrator launch paths
 
 This checkpoint intentionally freezes boundary semantics only. It does not imply S2/S3/S4 feature completion.
 

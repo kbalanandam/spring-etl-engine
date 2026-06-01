@@ -147,6 +147,6 @@ Use this compact template for each new target version:
 
 ## Immediate next step
 
-Start `1.8.0` lane with an `S1` contract-freeze PR, then execute the stacked implementation sequence.
+`1.8.0` lane is now running the `S1` docs-first contract-freeze PR; after merge, proceed with backend/runtime/UI stacked implementation PRs against the frozen boundary.
 
 
