@@ -67,18 +67,48 @@ jobs:
             FAIL_ON_ERROR="true"
           fi
 
+          DC_COMMON_ARGS="\
+            -DdataDirectory=$HOME/.cache/dependency-check \
+            -DossindexAnalyzerEnabled=false \
+            -Danalyzer.ossindex.enabled=false \
+            -DfailOnError=${FAIL_ON_ERROR} \
+            ${EXTRA_ARGS}"
+
+          run_update() {
+            mvn --batch-mode --no-transfer-progress \
+              org.owasp:dependency-check-maven:12.1.1:update-only \
+              ${DC_COMMON_ARGS}
+          }
+
           run_scan() {
             mvn --batch-mode --no-transfer-progress \
               org.owasp:dependency-check-maven:12.1.1:check \
               -Dformats=HTML,JSON \
               -DoutputDirectory=target/dependency-check-report \
-              -DdataDirectory="$HOME/.cache/dependency-check" \
-              -DossindexAnalyzerEnabled=false \
-              -Danalyzer.ossindex.enabled=false \
-              -DfailOnError=${FAIL_ON_ERROR} \
+              -DautoUpdate=false \
               -DfailBuildOnCVSS=7 \
-              ${EXTRA_ARGS}
+              ${DC_COMMON_ARGS}
           }
+
+          purge_cache() {
+            rm -rf "$HOME/.cache/dependency-check"
+            mkdir -p "$HOME/.cache/dependency-check"
+          }
+
+          set +e
+          run_update 2>&1 | tee target/dependency-check-update.log
+          UPDATE_EXIT=${PIPESTATUS[0]}
+          set -e
+
+          if [ "${UPDATE_EXIT}" -ne 0 ]; then
+            if grep -Eq 'Unable to obtain an exclusive lock|WriteLockException|NoDataException|No documents exist' target/dependency-check-update.log; then
+              echo "Dependency-Check update lock/no-data issue detected; purging cache and retrying update once."
+              purge_cache
+              run_update
+            else
+              exit "${UPDATE_EXIT}"
+            fi
+          fi
 
           set +e
           run_scan 2>&1 | tee target/dependency-check-run.log
@@ -86,10 +116,10 @@ jobs:
           set -e
 
           if [ "${SCAN_EXIT}" -ne 0 ]; then
-            if grep -q 'Value too long for column "URL CHARACTER VARYING(1000)"' target/dependency-check-run.log; then
-              echo "Dependency-Check DB URL-length ingestion issue detected; purging cache and retrying once."
-              rm -rf "$HOME/.cache/dependency-check"
-              mkdir -p "$HOME/.cache/dependency-check"
+            if grep -Eq 'Value too long for column "URL CHARACTER VARYING\(1000\)"|Unable to obtain an exclusive lock|WriteLockException|NoDataException|No documents exist' target/dependency-check-run.log; then
+              echo "Dependency-Check cache/update issue detected during scan; purging cache and retrying update+scan once."
+              purge_cache
+              run_update
               run_scan
             else
               exit "${SCAN_EXIT}"
