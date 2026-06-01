@@ -115,13 +115,38 @@ Use `CHANGELOG.md` `Unreleased` as a staging area for merged PR notes.
 - group by `Added`, `Changed`, `Fixed`, `Security`
 - at release cut, move grouped entries into the version section and clear `Unreleased`
 
-## Operating cadence
+## Lightweight documentation guardrail
 
-- weekly: release-lane checkpoint (scope, risk, blockers)
-- per merge: update changelog + release lane notes
-- per milestone transition: re-validate version mapping in this file
+Keep this page as control-plane planning only, not a design dump.
+
+- keep one-screen summaries for each release lane
+- keep implementation detail in PRs and code-level docs
+- link to architecture/backlog pages instead of duplicating long detail
+- prefer updates to existing sections over adding many new sections
+
+## Operating template (copy per release)
+
+Use this compact template for each new target version:
+
+```markdown
+### Release `<version>`
+
+- Goal: <visible value>
+- In scope: <3-5 bullets>
+- Out of scope: <2-4 bullets>
+- Planned PR stack: <docs -> backend -> runtime -> ui -> hardening>
+- Risks/blockers: <short list>
+- Gate status: Entry [ ] Exit [ ]
+```
+
+## Operating rhythm
+
+- weekly: checkpoint scope, blockers, and gate status
+- per merged PR: update `CHANGELOG.md` `Unreleased`
+- at release cut: move notes from `Unreleased` into the version section
 
 ## Immediate next step
 
 Start `1.8.0` lane with an `S1` contract-freeze PR, then execute the stacked implementation sequence.
+
 
