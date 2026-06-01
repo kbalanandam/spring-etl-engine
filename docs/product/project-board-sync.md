@@ -28,7 +28,7 @@ Current field mapping:
 | `Status` | Project field `Status` |
 | `Priority` | Project field `Priority` |
 | `Epic` | Project field `Epic` |
-| category from `ID` link path (for example `backlog-items/etl-core/...`) | Project field `Domain` (fallback names: `Category`, `Track`) |
+| category from `ID` link path (for example `backlog-items/etl-core/...`) | Project field `Module` (fallback names: `Domain`, `Category`, `Track`) |
 | `Milestone` | Project field `Milestone` or fallback field `Execution Milestone` |
 | `Dependency` | Project field `Dependency` |
 | `Epic` page link | draft-item body as a raw repository URL when the epic label resolves to a known epic doc |
@@ -46,7 +46,7 @@ When the execution-board `Epic` value matches one of the maintained epic labels 
 The sync currently supports:
 
 - `Status` as a **single-select** or **text** field
-- `Priority`, `Epic`, `Domain` (`Category`/`Track` fallback), `Milestone`, and `Dependency` as **single-select** or **text** fields
+- `Priority`, `Epic`, `Module` (`Domain`/`Category`/`Track` fallback), `Milestone`, and `Dependency` as **single-select** or **text** fields
 
 The `Epic` Project field still behaves as a normal Project field for grouping/filtering. The epic-doc navigation lives in the synced draft-item body under a dedicated `Epic page` line plus raw URL, not in the Project field widget itself.
 
@@ -68,12 +68,12 @@ To reduce operator friction during first-time setup, the sync also tolerates a s
 
 That alias support is only a compatibility bridge. The most predictable setup remains using the exact backlog labels in the Project field options.
 
-### Important `Domain` / `Category` note
+### Important `Module` / `Domain` / `Category` note
 
 The sync can populate a category-style Project field for easier board grouping by capability area.
 
-- preferred field name: `Domain`
-- fallback field names: `Category`, `Track`
+- preferred field name: `Module`
+- fallback field names: `Domain`, `Category`, `Track`
 - value derivation: from the backlog `ID` link path under `backlog-items/<domain>/...`
 - epic fallback when link-path domain cannot be derived: `Epic S -> scheduler`, `Epic U -> operator-ui`, default `etl-core`
 
