@@ -41,6 +41,43 @@ class JdbcRunSummaryRegistryTest {
 	}
 
 	@Test
+	void writesRunRecordFoundationRowsAlongsideRunSummary() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(run(2001L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+
+		Long recordCount = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				2001L
+		);
+		String runRecordId = jdbcTemplate.queryForObject(
+				"select run_record_id from controlplane_run_record where job_execution_id = ?",
+				String.class,
+				2001L
+		);
+		assertEquals(1L, recordCount);
+		assertEquals("rr-2001", runRecordId);
+	}
+
+	@Test
+	void backfillsMissingRunRecordRowsFromRunSummaryOnStartup() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry first = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		first.upsert(run(3001L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+		jdbcTemplate.update("delete from controlplane_run_record where job_execution_id = ?", 3001L);
+
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		Long recordCount = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				3001L
+		);
+		assertEquals(1L, recordCount);
+	}
+
+	@Test
 	void enforcesGlobalRetention() {
 		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(new JdbcTemplate(inMemoryDataSource()), 2);
 		registry.upsert(run(1001L, "a", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));

@@ -80,6 +80,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					Timestamp.valueOf(LocalDateTime.now())
 			);
 		}
+		upsertRunRecord(runSummary);
 		pruneOverflow();
 	}
 
@@ -168,6 +169,132 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				create index if not exists idx_run_summary_start_time
 				on controlplane_run_summary (start_time, job_execution_id)
 				""");
+		jdbcTemplate.execute("""
+				create table if not exists controlplane_run_record (
+					run_record_id varchar(80) primary key,
+					job_execution_id bigint not null unique,
+					trigger_event_id varchar(80),
+					selected_job_key varchar(200),
+					scenario varchar(200) not null,
+					run_status varchar(50) not null,
+					started_at timestamp,
+					finished_at timestamp,
+					duration_seconds bigint,
+					source_count bigint,
+					written_count bigint,
+					rejected_count bigint,
+					created_at timestamp not null,
+					updated_at timestamp not null
+				)
+				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_run_record_started_at
+				on controlplane_run_record (started_at, job_execution_id)
+				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_run_record_selected_job
+				on controlplane_run_record (selected_job_key, started_at)
+				""");
+		backfillRunRecordFromRunSummary();
+	}
+
+	private void upsertRunRecord(RunSummaryView runSummary) {
+		Long jobExecutionId = runSummary.jobExecutionId();
+		if (jobExecutionId == null) {
+			return;
+		}
+		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_id,
+					job_execution_id,
+					trigger_event_id,
+					selected_job_key,
+					scenario,
+					run_status,
+					started_at,
+					finished_at,
+					duration_seconds,
+					source_count,
+					written_count,
+					rejected_count,
+					created_at,
+					updated_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				on conflict(job_execution_id) do update set
+					trigger_event_id = excluded.trigger_event_id,
+					selected_job_key = excluded.selected_job_key,
+					scenario = excluded.scenario,
+					run_status = excluded.run_status,
+					started_at = excluded.started_at,
+					finished_at = excluded.finished_at,
+					duration_seconds = excluded.duration_seconds,
+					source_count = excluded.source_count,
+					written_count = excluded.written_count,
+					rejected_count = excluded.rejected_count,
+					updated_at = excluded.updated_at
+				""",
+				"rr-" + jobExecutionId,
+				jobExecutionId,
+				null,
+				null,
+				runSummary.scenario(),
+				runSummary.status(),
+				toTimestamp(runSummary.startTime()),
+				toTimestamp(runSummary.endTime()),
+				runSummary.durationSeconds(),
+				runSummary.sourceCount(),
+				runSummary.writtenCount(),
+				runSummary.rejectedCount(),
+				now,
+				now
+		);
+	}
+
+	private void backfillRunRecordFromRunSummary() {
+		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_id,
+					job_execution_id,
+					trigger_event_id,
+					selected_job_key,
+					scenario,
+					run_status,
+					started_at,
+					finished_at,
+					duration_seconds,
+					source_count,
+					written_count,
+					rejected_count,
+					created_at,
+					updated_at
+				)
+				select
+					'rr-' || cast(rs.job_execution_id as text),
+					rs.job_execution_id,
+					null,
+					null,
+					rs.scenario,
+					rs.status,
+					rs.start_time,
+					rs.end_time,
+					rs.duration_seconds,
+					rs.source_count,
+					rs.written_count,
+					rs.rejected_count,
+					?,
+					?
+				from controlplane_run_summary rs
+				where not exists (
+					select 1
+					from controlplane_run_record rr
+					where rr.job_execution_id = rs.job_execution_id
+				)
+				""",
+				now,
+				now
+		);
 	}
 
 	private static Timestamp toTimestamp(LocalDateTime value) {
