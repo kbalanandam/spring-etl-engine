@@ -65,9 +65,15 @@ class JdbcRunSummaryRegistryTest {
 				String.class,
 				2001L
 		);
+		Long runRecordPk = jdbcTemplate.queryForObject(
+				"select run_record_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				2001L
+		);
 		assertEquals(1L, recordCount);
 		assertEquals("rr-2001", runRecordId);
 		assertEquals("customer-load", selectedJobKey);
+		assertEquals(1L, runRecordPk);
 	}
 
 	@Test
@@ -106,7 +112,24 @@ class JdbcRunSummaryRegistryTest {
 				String.class,
 				4001L
 		);
+		Long linkedTriggerEventPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				4001L
+		);
+		Long launchedRunPk = jdbcTemplate.queryForObject(
+				"select launched_run_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				triggerEvent.triggerEventId()
+		);
+		Long runRecordPk = jdbcTemplate.queryForObject(
+				"select run_record_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				4001L
+		);
 		assertEquals(triggerEvent.triggerEventId(), linkedTriggerEventId);
+		assertEquals(1L, linkedTriggerEventPk);
+		assertEquals(runRecordPk, launchedRunPk);
 	}
 
 	@Test
@@ -130,7 +153,13 @@ class JdbcRunSummaryRegistryTest {
 				String.class,
 				5001L
 		);
+		Long linkedTriggerEventPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				5001L
+		);
 		assertEquals(triggerEvent.triggerEventId(), linkedTriggerEventId);
+		assertEquals(1L, linkedTriggerEventPk);
 	}
 
 	@Test

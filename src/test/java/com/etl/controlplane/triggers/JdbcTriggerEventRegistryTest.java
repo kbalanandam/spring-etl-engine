@@ -33,6 +33,20 @@ class JdbcTriggerEventRegistryTest {
 	}
 
 	@Test
+	void assignsTriggerEventPkForNewRows() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+		TriggerEventView created = registry.recordAccepted("customer-load", "reason-a", "user-a", "first");
+
+		Long triggerEventPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				created.triggerEventId()
+		);
+		assertEquals(1L, triggerEventPk);
+	}
+
+	@Test
 	void enforcesRetentionPerJob() throws Exception {
 		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(new JdbcTemplate(inMemoryDataSource()), 2);
 		registry.recordAccepted("customer-load", "reason-a", "user-a", "first");
@@ -151,6 +165,30 @@ class JdbcTriggerEventRegistryTest {
 				"te-legacy-1"
 		);
 		assertEquals(expectedSchedulePk, backfilledSchedulePk);
+	}
+
+	@Test
+	void backfillsLegacyTriggerEventPkOnStartup() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+		jdbcTemplate.update("""
+				insert into controlplane_trigger_event (
+					trigger_event_pk, trigger_event_id, job_key, decision_status, reason, requested_by,
+					requested_at, launched_run_id, launched_run_pk, message, trigger_origin
+				) values (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
+				""",
+				null, "te-legacy-pk-1", "customer-load", "ACCEPTED", "manual_operator_request", "operator-ui",
+				null, null, "legacy", "MANUAL"
+		);
+
+		new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+
+		Long triggerEventPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				"te-legacy-pk-1"
+		);
+		assertEquals(1L, triggerEventPk);
 	}
 
 	@Test

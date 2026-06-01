@@ -174,8 +174,10 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				""");
 		jdbcTemplate.execute("""
 				create table if not exists controlplane_run_record (
+					run_record_pk integer,
 					run_record_id varchar(80) primary key,
 					job_execution_id bigint not null unique,
+					trigger_event_pk integer,
 					trigger_event_id varchar(80),
 					selected_job_key varchar(200),
 					scenario varchar(200) not null,
@@ -190,13 +192,24 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					updated_at timestamp not null
 				)
 				""");
+		ensureColumnExists("controlplane_run_record", "run_record_pk", "integer");
+		ensureColumnExists("controlplane_run_record", "trigger_event_pk", "integer");
+		backfillRunRecordPk();
 		jdbcTemplate.execute("""
 				create index if not exists idx_run_record_started_at
 				on controlplane_run_record (started_at, job_execution_id)
 				""");
 		jdbcTemplate.execute("""
+				create unique index if not exists idx_run_record_pk
+				on controlplane_run_record (run_record_pk)
+				""");
+		jdbcTemplate.execute("""
 				create index if not exists idx_run_record_selected_job
 				on controlplane_run_record (selected_job_key, started_at)
+				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_run_record_trigger_event_pk
+				on controlplane_run_record (trigger_event_pk)
 				""");
 		jdbcTemplate.execute("""
 				create index if not exists idx_run_record_trigger_event
@@ -207,6 +220,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				on controlplane_run_record (selected_job_key, run_status, started_at)
 				""");
 		backfillRunRecordFromRunSummary();
+		backfillRunRecordTriggerEventPk();
 		backfillRunRecordSelectedJobKey();
 		backfillRunRecordTriggerEventLinkage();
 	}
@@ -217,15 +231,14 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			return;
 		}
 		String selectedJobKey = normalize(runSummary.scenario());
-		String resolvedTriggerEventId = resolveTriggerEventIdForUpsert(runSummary);
-		if (resolvedTriggerEventId != null) {
-			backfillLaunchedRunId(resolvedTriggerEventId, jobExecutionId);
-		}
+		TriggerEventLink resolvedTriggerEvent = resolveTriggerEventLinkForUpsert(runSummary);
 		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 		jdbcTemplate.update("""
 				insert into controlplane_run_record (
+					run_record_pk,
 					run_record_id,
 					job_execution_id,
+					trigger_event_pk,
 					trigger_event_id,
 					selected_job_key,
 					scenario,
@@ -238,8 +251,10 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					rejected_count,
 					created_at,
 					updated_at
-				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				on conflict(job_execution_id) do update set
+					run_record_pk = coalesce(controlplane_run_record.run_record_pk, excluded.run_record_pk),
+					trigger_event_pk = coalesce(controlplane_run_record.trigger_event_pk, excluded.trigger_event_pk),
 					trigger_event_id = coalesce(controlplane_run_record.trigger_event_id, excluded.trigger_event_id),
 					selected_job_key = coalesce(controlplane_run_record.selected_job_key, excluded.selected_job_key),
 					scenario = excluded.scenario,
@@ -252,9 +267,11 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					rejected_count = excluded.rejected_count,
 					updated_at = excluded.updated_at
 				""",
+				nextRunRecordPk(),
 				"rr-" + jobExecutionId,
 				jobExecutionId,
-				resolvedTriggerEventId,
+				resolvedTriggerEvent.triggerEventPk(),
+				resolvedTriggerEvent.triggerEventId(),
 				selectedJobKey.isBlank() ? null : selectedJobKey,
 				runSummary.scenario(),
 				runSummary.status(),
@@ -267,14 +284,17 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				now,
 				now
 		);
+		backfillLaunchedRunLink(jobExecutionId, resolvedTriggerEvent);
 	}
 
 	private void backfillRunRecordFromRunSummary() {
 		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 		jdbcTemplate.update("""
 				insert into controlplane_run_record (
+					run_record_pk,
 					run_record_id,
 					job_execution_id,
+					trigger_event_pk,
 					trigger_event_id,
 					selected_job_key,
 					scenario,
@@ -289,8 +309,10 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					updated_at
 				)
 				select
+					null,
 					'rr-' || cast(rs.job_execution_id as text),
 					rs.job_execution_id,
+					null,
 					null,
 					nullif(trim(rs.scenario), ''),
 					rs.scenario,
@@ -313,6 +335,54 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				now,
 				now
 		);
+	}
+
+	private void ensureColumnExists(String tableName, String columnName, String columnDefinition) {
+		Boolean columnExists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+			try (java.sql.Statement statement = connection.createStatement();
+			     java.sql.ResultSet resultSet = statement.executeQuery("select * from " + tableName + " where 1 = 0")) {
+				java.sql.ResultSetMetaData metadata = resultSet.getMetaData();
+				for (int index = 1; index <= metadata.getColumnCount(); index++) {
+					if (columnName.equalsIgnoreCase(metadata.getColumnName(index))) {
+						return true;
+					}
+				}
+				return false;
+			}
+		});
+		if (Boolean.FALSE.equals(columnExists)) {
+			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + columnDefinition);
+		}
+	}
+
+	private void backfillRunRecordPk() {
+		jdbcTemplate.update("""
+				update controlplane_run_record
+				set run_record_pk = rowid
+				where run_record_pk is null
+				""");
+	}
+
+	private void backfillRunRecordTriggerEventPk() {
+		try {
+			jdbcTemplate.update("""
+					update controlplane_run_record
+					set trigger_event_pk = (
+						select te.trigger_event_pk
+						from controlplane_trigger_event te
+						where te.trigger_event_id = controlplane_run_record.trigger_event_id
+					)
+					where trigger_event_pk is null
+					  and trigger_event_id is not null
+					  and exists (
+						select 1
+						from controlplane_trigger_event te
+						where te.trigger_event_id = controlplane_run_record.trigger_event_id
+					  )
+					""");
+		} catch (DataAccessException ignored) {
+			// Keep run-summary persistence available when trigger table state is optional.
+		}
 	}
 
 	private void backfillRunRecordSelectedJobKey() {
@@ -362,56 +432,59 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			return;
 		}
 		for (RunRecordLinkCandidate candidate : candidates) {
-			String triggerEventId = resolveTriggerEventIdForBackfill(candidate.jobExecutionId(), candidate.scenario(), candidate.startedAt());
-			if (triggerEventId == null) {
+			TriggerEventLink triggerEvent = resolveTriggerEventLinkForBackfill(candidate.jobExecutionId(), candidate.scenario(), candidate.startedAt());
+			if (triggerEvent.isEmpty()) {
 				continue;
 			}
 			jdbcTemplate.update(
-					"update controlplane_run_record set trigger_event_id = ? where job_execution_id = ? and trigger_event_id is null",
-					triggerEventId,
+					"update controlplane_run_record set trigger_event_id = ?, trigger_event_pk = ? where job_execution_id = ? and trigger_event_id is null",
+					triggerEvent.triggerEventId(),
+					triggerEvent.triggerEventPk(),
 					candidate.jobExecutionId()
 			);
-			backfillLaunchedRunId(triggerEventId, candidate.jobExecutionId());
+			backfillLaunchedRunLink(candidate.jobExecutionId(), triggerEvent);
 		}
 	}
 
-	private String resolveTriggerEventIdForUpsert(RunSummaryView runSummary) {
-		return resolveTriggerEventId(runSummary.jobExecutionId(), runSummary.scenario(), runSummary.startTime(), false);
+	private TriggerEventLink resolveTriggerEventLinkForUpsert(RunSummaryView runSummary) {
+		return resolveTriggerEventLink(runSummary.jobExecutionId(), runSummary.scenario(), runSummary.startTime(), false);
 	}
 
-	private String resolveTriggerEventIdForBackfill(Long jobExecutionId, String scenario, LocalDateTime startedAt) {
-		return resolveTriggerEventId(jobExecutionId, scenario, startedAt, true);
+	private TriggerEventLink resolveTriggerEventLinkForBackfill(Long jobExecutionId, String scenario, LocalDateTime startedAt) {
+		return resolveTriggerEventLink(jobExecutionId, scenario, startedAt, true);
 	}
 
-	private String resolveTriggerEventId(Long jobExecutionId, String scenario, LocalDateTime startedAt, boolean allowTimeWindowFallback) {
+	private TriggerEventLink resolveTriggerEventLink(Long jobExecutionId, String scenario, LocalDateTime startedAt, boolean allowTimeWindowFallback) {
 		if (jobExecutionId == null) {
-			return null;
+			return TriggerEventLink.empty();
 		}
 		try {
-			String directMatch = jdbcTemplate.query("""
-					select trigger_event_id
+				TriggerEventLink directMatch = jdbcTemplate.query("""
+					select trigger_event_id, trigger_event_pk
 					from controlplane_trigger_event
 					where launched_run_id = ?
 					order by requested_at desc, trigger_event_id desc
 					limit 1
-					""", rs -> rs.next() ? rs.getString(1) : null, String.valueOf(jobExecutionId));
-			if (directMatch != null && !directMatch.isBlank()) {
+					""", rs -> rs.next()
+						? new TriggerEventLink(rs.getString("trigger_event_id"), nullableLong(rs, "trigger_event_pk"))
+						: TriggerEventLink.empty(), String.valueOf(jobExecutionId));
+			if (!directMatch.isEmpty()) {
 				return directMatch;
 			}
 			if (!allowTimeWindowFallback) {
-				return null;
+				return TriggerEventLink.empty();
 			}
 			if (startedAt == null) {
-				return null;
+				return TriggerEventLink.empty();
 			}
 			String normalizedScenario = normalize(scenario);
 			if (normalizedScenario.isBlank()) {
-				return null;
+				return TriggerEventLink.empty();
 			}
 			Timestamp lowerBound = Timestamp.valueOf(startedAt.minus(TRIGGER_LOOKBACK_WINDOW));
 			Timestamp upperBound = Timestamp.valueOf(startedAt.plus(TRIGGER_LOOKAHEAD_WINDOW));
-			List<String> candidates = jdbcTemplate.queryForList("""
-					select te.trigger_event_id
+				List<TriggerEventLink> candidates = jdbcTemplate.query("""
+					select te.trigger_event_id, te.trigger_event_pk
 					from controlplane_trigger_event te
 					where te.job_key = ?
 					  and te.decision_status = 'ACCEPTED'
@@ -424,24 +497,44 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					  )
 					order by te.requested_at desc, te.trigger_event_id desc
 					limit 2
-					""", String.class, normalizedScenario, lowerBound, upperBound, jobExecutionId);
-			return candidates.size() == 1 ? candidates.get(0) : null;
+					""", (rs, rowNum) -> new TriggerEventLink(
+						rs.getString("trigger_event_id"),
+						nullableLong(rs, "trigger_event_pk")
+					), normalizedScenario, lowerBound, upperBound, jobExecutionId);
+			return candidates.size() == 1 ? candidates.get(0) : TriggerEventLink.empty();
 		} catch (DataAccessException ignored) {
 			// Trigger table remains optional while run-summary persistence stays available.
-			return null;
+			return TriggerEventLink.empty();
 		}
 	}
 
-	private void backfillLaunchedRunId(String triggerEventId, Long jobExecutionId) {
+	private void backfillLaunchedRunLink(Long jobExecutionId, TriggerEventLink triggerEvent) {
+		if (jobExecutionId == null || triggerEvent.isEmpty()) {
+			return;
+		}
 		try {
+			Long runRecordPk = jdbcTemplate.query(
+					"select run_record_pk from controlplane_run_record where job_execution_id = ?",
+					rs -> rs.next() ? rs.getObject(1, Long.class) : null,
+					jobExecutionId
+			);
 			jdbcTemplate.update(
-					"update controlplane_trigger_event set launched_run_id = ? where trigger_event_id = ? and (launched_run_id is null or trim(launched_run_id) = '')",
+					"update controlplane_trigger_event set launched_run_id = ?, launched_run_pk = ? where trigger_event_id = ? and ((launched_run_id is null or trim(launched_run_id) = '') or launched_run_pk is null)",
 					String.valueOf(jobExecutionId),
-					triggerEventId
+					runRecordPk,
+					triggerEvent.triggerEventId()
 			);
 		} catch (DataAccessException ignored) {
 			// Trigger linkage is best-effort and should not block run-summary projection writes.
 		}
+	}
+
+	private long nextRunRecordPk() {
+		Long value = jdbcTemplate.queryForObject(
+				"select coalesce(max(run_record_pk), 0) + 1 from controlplane_run_record",
+				Long.class
+		);
+		return value == null ? 1L : value;
 	}
 
 	private String normalize(String value) {
@@ -449,6 +542,16 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	}
 
 	private record RunRecordLinkCandidate(long jobExecutionId, String scenario, LocalDateTime startedAt) {
+	}
+
+	private record TriggerEventLink(String triggerEventId, Long triggerEventPk) {
+		private static TriggerEventLink empty() {
+			return new TriggerEventLink(null, null);
+		}
+
+		private boolean isEmpty() {
+			return triggerEventId == null || triggerEventId.isBlank();
+		}
 	}
 
 	private static Timestamp toTimestamp(LocalDateTime value) {

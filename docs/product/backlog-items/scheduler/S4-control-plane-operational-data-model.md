@@ -118,7 +118,7 @@ When this item is implemented, keep one rule explicit: persisted control-plane d
 
 ## Status notes
 
-Current release now includes a first S4 slice focused on scheduler table-structure evolution and retained-history boundary alignment. Full S4 closure remains phased beyond this first slice.
+Current release now includes phased S4 slices focused on scheduler table-structure evolution, retained-history boundary alignment, and additive internal surrogate-key foundations (`schedule_pk`, `trigger_event_pk`, `run_record_pk`) that preserve stable external IDs while future relational normalization is phased in.
 
 
 

@@ -9,7 +9,7 @@ It exists to translate the conceptual retained operational data model into a pra
 ## Status
 
 - Classification: **Future direction**
-- The Mermaid diagrams in this document describe the preferred future direction; trigger-event persistence, run-summary persistence, an internal schedule-table foundation, and initial run-record linkage are now shipped behind the optional control-plane API when JDBC mode is enabled.
+- The Mermaid diagrams in this document describe the preferred future direction; trigger-event persistence, run-summary persistence, internal schedule/trigger/run surrogate-key foundations, and initial run-record linkage are now shipped behind the optional control-plane API when JDBC mode is enabled.
 - The shipped `controlplane` profile now defaults to a SQLite file under `.controlplane/controlplane.db` for developer-laptop and single-node use, while stronger relational targets remain open for later deployment profiles.
 
 ## Scope
@@ -95,6 +95,7 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 - First-slice S4 evolution may introduce internal numeric surrogate keys for relational efficiency, but should keep stable external schedule identity (`schedule_id`) to avoid breaking launch/audit contracts while migration is phased.
 - The current linkage contract is intentionally additive: new `controlplane_run_record.trigger_event_id` writes are populated only from exact `controlplane_trigger_event.launched_run_id` matches, while a conservative single-candidate time-window fallback is limited to startup backfill for legacy mixed data.
 - `controlplane_run_record.selected_job_key` is treated as an active relational key: new writes populate it from run context, legacy null/blank rows are backfilled at startup, and lookup-oriented indexes (`selected_job_key`, `run_status`, `started_at`, `trigger_event_id`) are part of the current local-read scaling baseline.
+- Internal numeric surrogates now follow one phased pattern across retained scheduler history: `schedule_pk`, `trigger_event_pk`, and `run_record_pk` are additive integer keys for relational joins and future foreign-key hardening, while external `*_id` strings remain the stable operator/API identities.
 
 ```mermaid
 erDiagram
