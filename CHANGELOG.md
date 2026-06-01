@@ -18,6 +18,7 @@ and this project adheres to **Semantic Versioning**.
 - Continued S4 first implementation with trigger-event persistence readiness: `controlplane_trigger_event` now carries optional `schedule_pk` and resolves it from `controlplane_schedule` when schedule-origin events are recorded, while preserving existing `schedule_id` behavior.
 - Hardened schedule-origin trigger matching with case/whitespace-tolerant `schedule_id` normalization so `schedule_pk` resolution and `listByScheduleId` behavior remain consistent during phased migration.
 - Extended S4 retained-history implementation with a non-breaking `controlplane_run_record` foundation table that dual-writes from run-summary persistence and backfills from existing `controlplane_run_summary` rows at startup.
+- Hardened S4 relational-normalization behavior for run history: `controlplane_run_record.selected_job_key` is now populated/backfilled from persisted run context, direct upsert linkage remains deterministic through `launched_run_id`, and additional run-record indexes were added for scalable relational lookup paths.
 
 ### Fixed
 - N/A

@@ -94,6 +94,7 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 - Update this section when scheduler entity boundaries or relationships change; avoid editing it for non-schema code-only refactors.
 - First-slice S4 evolution may introduce internal numeric surrogate keys for relational efficiency, but should keep stable external schedule identity (`schedule_id`) to avoid breaking launch/audit contracts while migration is phased.
 - The current linkage contract is intentionally additive: new `controlplane_run_record.trigger_event_id` writes are populated only from exact `controlplane_trigger_event.launched_run_id` matches, while a conservative single-candidate time-window fallback is limited to startup backfill for legacy mixed data.
+- `controlplane_run_record.selected_job_key` is treated as an active relational key: new writes populate it from run context, legacy null/blank rows are backfilled at startup, and lookup-oriented indexes (`selected_job_key`, `run_status`, `started_at`, `trigger_event_id`) are part of the current local-read scaling baseline.
 
 ```mermaid
 erDiagram

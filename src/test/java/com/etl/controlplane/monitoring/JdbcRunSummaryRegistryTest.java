@@ -60,8 +60,14 @@ class JdbcRunSummaryRegistryTest {
 				String.class,
 				2001L
 		);
+		String selectedJobKey = jdbcTemplate.queryForObject(
+				"select selected_job_key from controlplane_run_record where job_execution_id = ?",
+				String.class,
+				2001L
+		);
 		assertEquals(1L, recordCount);
 		assertEquals("rr-2001", runRecordId);
+		assertEquals("customer-load", selectedJobKey);
 	}
 
 	@Test
@@ -203,6 +209,23 @@ class JdbcRunSummaryRegistryTest {
 		);
 		assertEquals("te-window-backfill-1", linkedTriggerEventId);
 		assertEquals("7001", launchedRunId);
+	}
+
+	@Test
+	void startupBackfillsSelectedJobKeyForLegacyRowsWhenMissing() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry firstRegistry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		firstRegistry.upsert(run(8001L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+		jdbcTemplate.update("update controlplane_run_record set selected_job_key = null where job_execution_id = ?", 8001L);
+
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		String selectedJobKey = jdbcTemplate.queryForObject(
+				"select selected_job_key from controlplane_run_record where job_execution_id = ?",
+				String.class,
+				8001L
+		);
+		assertEquals("customer-load", selectedJobKey);
 	}
 
 	@Test

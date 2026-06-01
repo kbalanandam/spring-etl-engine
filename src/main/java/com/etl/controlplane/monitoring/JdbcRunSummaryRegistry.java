@@ -198,7 +198,16 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				create index if not exists idx_run_record_selected_job
 				on controlplane_run_record (selected_job_key, started_at)
 				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_run_record_trigger_event
+				on controlplane_run_record (trigger_event_id)
+				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_run_record_job_status_time
+				on controlplane_run_record (selected_job_key, run_status, started_at)
+				""");
 		backfillRunRecordFromRunSummary();
+		backfillRunRecordSelectedJobKey();
 		backfillRunRecordTriggerEventLinkage();
 	}
 
@@ -207,6 +216,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (jobExecutionId == null) {
 			return;
 		}
+		String selectedJobKey = normalize(runSummary.scenario());
 		String resolvedTriggerEventId = resolveTriggerEventIdForUpsert(runSummary);
 		if (resolvedTriggerEventId != null) {
 			backfillLaunchedRunId(resolvedTriggerEventId, jobExecutionId);
@@ -231,7 +241,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				on conflict(job_execution_id) do update set
 					trigger_event_id = coalesce(controlplane_run_record.trigger_event_id, excluded.trigger_event_id),
-					selected_job_key = excluded.selected_job_key,
+					selected_job_key = coalesce(controlplane_run_record.selected_job_key, excluded.selected_job_key),
 					scenario = excluded.scenario,
 					run_status = excluded.run_status,
 					started_at = excluded.started_at,
@@ -245,7 +255,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				"rr-" + jobExecutionId,
 				jobExecutionId,
 				resolvedTriggerEventId,
-				null,
+				selectedJobKey.isBlank() ? null : selectedJobKey,
 				runSummary.scenario(),
 				runSummary.status(),
 				toTimestamp(runSummary.startTime()),
@@ -282,7 +292,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					'rr-' || cast(rs.job_execution_id as text),
 					rs.job_execution_id,
 					null,
-					null,
+					nullif(trim(rs.scenario), ''),
 					rs.scenario,
 					rs.status,
 					rs.start_time,
@@ -303,6 +313,34 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				now,
 				now
 		);
+	}
+
+	private void backfillRunRecordSelectedJobKey() {
+		jdbcTemplate.update("""
+				update controlplane_run_record
+				set selected_job_key = nullif(trim(scenario), '')
+				where selected_job_key is null
+				   or trim(selected_job_key) = ''
+				""");
+		try {
+			jdbcTemplate.update("""
+					update controlplane_run_record
+					set selected_job_key = (
+						select nullif(trim(te.job_key), '')
+						from controlplane_trigger_event te
+						where te.trigger_event_id = controlplane_run_record.trigger_event_id
+					)
+					where (selected_job_key is null or trim(selected_job_key) = '')
+					  and trigger_event_id is not null
+					  and exists (
+						select 1
+						from controlplane_trigger_event te
+						where te.trigger_event_id = controlplane_run_record.trigger_event_id
+					  )
+					""");
+		} catch (DataAccessException ignored) {
+			// Keep run-summary persistence available when trigger table state is optional.
+		}
 	}
 
 	private void backfillRunRecordTriggerEventLinkage() {
