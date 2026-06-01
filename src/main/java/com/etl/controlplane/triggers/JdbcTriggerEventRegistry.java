@@ -118,15 +118,32 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 		if (limit <= 0) {
 			return List.of();
 		}
-		List<TriggerEventView> events = jdbcTemplate.query("""
-				select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message
-				from controlplane_trigger_event
-				where schedule_id = ?
-				order by requested_at desc, trigger_event_id desc
-				""",
-				(rs, rowNum) -> toView(rs),
-				normalize(scheduleId)
-		);
+		String normalizedScheduleId = normalize(scheduleId);
+		if (normalizedScheduleId.isBlank()) {
+			return List.of();
+		}
+		Long schedulePk = resolveSchedulePk(normalizedScheduleId);
+		List<TriggerEventView> events = schedulePk == null
+				? jdbcTemplate.query("""
+						select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message
+						from controlplane_trigger_event
+						where schedule_id = ?
+						order by requested_at desc, trigger_event_id desc
+						""",
+						(rs, rowNum) -> toView(rs),
+						normalizedScheduleId
+				)
+				: jdbcTemplate.query("""
+						select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message
+						from controlplane_trigger_event
+						where schedule_pk = ?
+						   or (schedule_pk is null and schedule_id = ?)
+						order by requested_at desc, trigger_event_id desc
+						""",
+						(rs, rowNum) -> toView(rs),
+						schedulePk,
+						normalizedScheduleId
+				);
 		return events.size() <= limit ? events : events.subList(0, limit);
 	}
 
@@ -177,6 +194,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				)
 				""");
 		ensureColumnExists("controlplane_trigger_event", "schedule_pk", "integer");
+		backfillSchedulePk();
 		jdbcTemplate.execute("""
 				create index if not exists idx_trigger_event_job_time
 				on controlplane_trigger_event (job_key, requested_at)
@@ -210,6 +228,28 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 		});
 		if (Boolean.FALSE.equals(columnExists)) {
 			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + columnDefinition);
+		}
+	}
+
+	private void backfillSchedulePk() {
+		try {
+			jdbcTemplate.update("""
+					update controlplane_trigger_event
+					set schedule_pk = (
+						select schedule_pk
+						from controlplane_schedule
+						where lower(trim(controlplane_schedule.schedule_id)) = lower(trim(controlplane_trigger_event.schedule_id))
+					)
+					where schedule_pk is null
+					  and schedule_id is not null
+					  and exists (
+						select 1
+						from controlplane_schedule
+						where lower(trim(controlplane_schedule.schedule_id)) = lower(trim(controlplane_trigger_event.schedule_id))
+					)
+					""");
+		} catch (org.springframework.dao.DataAccessException ignored) {
+			// Keep trigger persistence available even when schedule table state is optional.
 		}
 	}
 

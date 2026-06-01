@@ -108,6 +108,80 @@ class JdbcTriggerEventRegistryTest {
 		assertEquals(expectedSchedulePk, recordedSchedulePk);
 	}
 
+	@Test
+	void backfillsLegacyScheduleEventsWithSchedulePkOnStartup() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+		jdbcTemplate.update("""
+				insert into controlplane_trigger_event (
+					trigger_event_id, job_key, decision_status, reason, requested_by,
+					requested_at, message, trigger_origin, schedule_id, schedule_pk
+				) values (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?, ?, ?)
+				""",
+				"te-legacy-1", "customer-load", "ACCEPTED", "schedule_tick", "scheduler",
+				"legacy", "SCHEDULE", "sch-legacy", null
+		);
+
+		JdbcScheduleRegistry scheduleRegistry = new JdbcScheduleRegistry(jdbcTemplate);
+		scheduleRegistry.upsert(new ScheduleView(
+				"sch-legacy",
+				"daily-legacy",
+				"customer-load",
+				"0 0 * * *",
+				"UTC",
+				true,
+				false,
+				"legacy",
+				LocalDateTime.parse("2026-05-28T09:00:00"),
+				LocalDateTime.parse("2026-05-28T10:00:00"),
+				null,
+				null
+		));
+
+		new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+
+		Long expectedSchedulePk = jdbcTemplate.queryForObject(
+				"select schedule_pk from controlplane_schedule where schedule_id = ?",
+				Long.class,
+				"sch-legacy"
+		);
+		Long backfilledSchedulePk = jdbcTemplate.queryForObject(
+				"select schedule_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				"te-legacy-1"
+		);
+		assertEquals(expectedSchedulePk, backfilledSchedulePk);
+	}
+
+	@Test
+	void listByScheduleIdReturnsPkAndLegacyRowsTogether() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry scheduleRegistry = new JdbcScheduleRegistry(jdbcTemplate);
+		scheduleRegistry.upsert(new ScheduleView(
+				"sch-join",
+				"daily-join",
+				"customer-load",
+				"0 0 * * *",
+				"UTC",
+				true,
+				false,
+				"join",
+				LocalDateTime.parse("2026-05-28T09:00:00"),
+				LocalDateTime.parse("2026-05-28T10:00:00"),
+				null,
+				null
+		));
+		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+		TriggerEventView first = registry.recordAcceptedForSchedule("sch-join", "customer-load", "schedule_tick", "scheduler", "first");
+		jdbcTemplate.update("update controlplane_trigger_event set schedule_pk = null where trigger_event_id = ?", first.triggerEventId());
+		TriggerEventView second = registry.recordAcceptedForSchedule("sch-join", "customer-load", "schedule_tick", "scheduler", "second");
+
+		List<TriggerEventView> events = registry.listByScheduleId("sch-join", 10);
+		assertEquals(2, events.size());
+		assertEquals(second.triggerEventId(), events.get(0).triggerEventId());
+		assertEquals(first.triggerEventId(), events.get(1).triggerEventId());
+	}
+
 	private DriverManagerDataSource inMemoryDataSource() {
 		DriverManagerDataSource dataSource = new DriverManagerDataSource();
 		dataSource.setDriverClassName("org.sqlite.JDBC");
