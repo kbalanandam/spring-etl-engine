@@ -2,6 +2,7 @@ package com.etl.controlplane.api;
 
 import com.etl.controlplane.monitoring.RunDetailReadModelService;
 import com.etl.controlplane.monitoring.RunDetailView;
+import com.etl.controlplane.monitoring.RunSummaryRegistry;
 import com.etl.controlplane.monitoring.RunScopedLogReadModelService;
 import com.etl.controlplane.monitoring.RunScopedLogView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
@@ -27,13 +28,16 @@ public class RunSummaryController {
 	private static final int MAX_LIMIT = 200;
 
 	private final RunSummaryReadModelService runSummaryReadModelService;
+	private final RunSummaryRegistry runSummaryRegistry;
 	private final RunDetailReadModelService runDetailReadModelService;
 	private final RunScopedLogReadModelService runScopedLogReadModelService;
 
 	public RunSummaryController(RunSummaryReadModelService runSummaryReadModelService,
+	                            RunSummaryRegistry runSummaryRegistry,
 	                            RunDetailReadModelService runDetailReadModelService,
 	                            RunScopedLogReadModelService runScopedLogReadModelService) {
 		this.runSummaryReadModelService = runSummaryReadModelService;
+		this.runSummaryRegistry = runSummaryRegistry;
 		this.runDetailReadModelService = runDetailReadModelService;
 		this.runScopedLogReadModelService = runScopedLogReadModelService;
 	}
@@ -77,6 +81,28 @@ public class RunSummaryController {
 		return runSummaryReadModelService.findRunByJobExecutionId(jobExecutionId)
 				.map(ResponseEntity::ok)
 				.orElseGet(() -> ResponseEntity.notFound().build());
+	}
+
+	@GetMapping("/{jobExecutionId}/step-records")
+	public ResponseEntity<RunStepRecordListResponse> stepRecordsByJobExecutionId(@PathVariable long jobExecutionId,
+	                                                                            @RequestParam(name = "limit", required = false) Integer limit) {
+		int effectiveLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
+		if (runSummaryReadModelService.findRunByJobExecutionId(jobExecutionId).isEmpty()) {
+			return ResponseEntity.notFound().build();
+		}
+		var records = runSummaryRegistry.listStepRecordsByJobExecutionId(jobExecutionId, effectiveLimit);
+		return ResponseEntity.ok(new RunStepRecordListResponse(records, 0, effectiveLimit, records.size()));
+	}
+
+	@GetMapping("/{jobExecutionId}/artifact-records")
+	public ResponseEntity<RunArtifactRecordListResponse> artifactRecordsByJobExecutionId(@PathVariable long jobExecutionId,
+	                                                                                    @RequestParam(name = "limit", required = false) Integer limit) {
+		int effectiveLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
+		if (runSummaryReadModelService.findRunByJobExecutionId(jobExecutionId).isEmpty()) {
+			return ResponseEntity.notFound().build();
+		}
+		var records = runSummaryRegistry.listArtifactRecordsByJobExecutionId(jobExecutionId, effectiveLimit);
+		return ResponseEntity.ok(new RunArtifactRecordListResponse(records, 0, effectiveLimit, records.size()));
 	}
 
 	@GetMapping("/{jobExecutionId}/detail")

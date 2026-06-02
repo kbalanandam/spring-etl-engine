@@ -820,6 +820,9 @@ async function loadRunDetail(routeState) {
     const payload = await response.json();
     const run = payload.run || {};
 
+    const persistedStepRecords = await fetchPersistedRunStepRecords(runIdValue);
+    const persistedArtifactRecords = await fetchPersistedRunArtifactRecords(runIdValue);
+
     document.getElementById("run-detail-id").textContent = String(run.jobExecutionId ?? runIdValue);
     document.getElementById("run-detail-scenario").textContent = run.scenario || "-";
     document.getElementById("run-detail-status").textContent = run.status || "-";
@@ -828,9 +831,16 @@ async function loadRunDetail(routeState) {
     document.getElementById("run-detail-duration").textContent = String(run.durationSeconds ?? "-");
     document.getElementById("run-detail-counts").textContent = `${valueOrDash(run.sourceCount)} / ${valueOrDash(run.writtenCount)} / ${valueOrDash(run.rejectedCount)}`;
 
-    renderRunSteps(payload.steps);
+    const stepItems = Array.isArray(persistedStepRecords) && persistedStepRecords.length > 0
+      ? mapPersistedStepRecordsToDetailView(persistedStepRecords)
+      : payload.steps;
+    const artifactItems = Array.isArray(persistedArtifactRecords) && persistedArtifactRecords.length > 0
+      ? mapPersistedArtifactRecordsToDetailView(persistedArtifactRecords)
+      : payload.artifacts;
+
+    renderRunSteps(stepItems);
     renderRunFailureSummary(payload.failureSummary);
-    renderRunArtifacts(payload.artifacts);
+    renderRunArtifacts(artifactItems);
     renderRunEvidenceLinks(payload.evidenceLinks);
     await loadRunScopedLog(runIdValue);
 
@@ -840,6 +850,54 @@ async function loadRunDetail(routeState) {
     state.className = "state error";
     state.textContent = `Unable to load run detail: ${error.message}`;
   }
+}
+
+async function fetchPersistedRunStepRecords(runIdValue) {
+  try {
+    const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/step-records?limit=200`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      return null;
+    }
+    const payload = await response.json();
+    return Array.isArray(payload.items) ? payload.items : [];
+  } catch (error) {
+    return null;
+  }
+}
+
+async function fetchPersistedRunArtifactRecords(runIdValue) {
+  try {
+    const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/artifact-records?limit=200`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      return null;
+    }
+    const payload = await response.json();
+    return Array.isArray(payload.items) ? payload.items : [];
+  } catch (error) {
+    return null;
+  }
+}
+
+function mapPersistedStepRecordsToDetailView(records) {
+  return records.map((record) => ({
+    stepName: record.stepName,
+    status: record.stepStatus,
+    readCount: record.readCount,
+    writeCount: record.writeCount,
+    rejectedCount: record.rejectedCount,
+  }));
+}
+
+function mapPersistedArtifactRecordsToDetailView(records) {
+  return records.map((record) => ({
+    role: record.artifactRole,
+    path: record.artifactPath,
+    recordCount: null,
+  }));
 }
 
 function resetRunLogContext(runIdValue) {

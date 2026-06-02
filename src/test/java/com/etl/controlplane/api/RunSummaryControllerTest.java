@@ -9,7 +9,10 @@ import com.etl.controlplane.monitoring.FailureSummaryView;
 import com.etl.controlplane.monitoring.RunScopedLogReadModelService;
 import com.etl.controlplane.monitoring.RunScopedLogView;
 import com.etl.controlplane.monitoring.RunLogLineView;
+import com.etl.controlplane.monitoring.RunSummaryRegistry;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
+import com.etl.controlplane.monitoring.RunStepRecordView;
+import com.etl.controlplane.monitoring.RunArtifactRecordView;
 import com.etl.controlplane.monitoring.RunSummaryView;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,6 +46,9 @@ class RunSummaryControllerTest {
 
 	@MockitoBean
 	private RunSummaryReadModelService runSummaryReadModelService;
+
+	@MockitoBean
+	private RunSummaryRegistry runSummaryRegistry;
 
 	@MockitoBean
 	private RunDetailReadModelService runDetailReadModelService;
@@ -160,6 +166,59 @@ class RunSummaryControllerTest {
 				.andExpect(jsonPath("$.evidenceLinks[0].href").value("logs/2026-05-27/customer-load.log"));
 
 		verify(runDetailReadModelService).findRunDetailByJobExecutionId(eq(101L));
+	}
+
+	@Test
+	void returnsPersistedStepRecordsByRunId() throws Exception {
+		when(runSummaryReadModelService.findRunByJobExecutionId(eq(101L))).thenReturn(Optional.of(
+				new RunSummaryView("customer-load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
+						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L, "logs/2026-05-27/customer-load.log")
+		));
+		when(runSummaryRegistry.listStepRecordsByJobExecutionId(eq(101L), eq(25))).thenReturn(List.of(
+				new RunStepRecordView("sr-101-1", "rr-101", "load-customers", "COMPLETED",
+						LocalDateTime.parse("2026-05-27T10:00:01"), LocalDateTime.parse("2026-05-27T10:00:05"), 4L,
+						10L, 10L, 0L, null, 0L, 0L)
+		));
+
+		mockMvc.perform(get("/api/v1/runs/101/step-records"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items[0].stepRecordId").value("sr-101-1"))
+				.andExpect(jsonPath("$.items[0].stepName").value("load-customers"))
+				.andExpect(jsonPath("$.size").value(25));
+
+		verify(runSummaryReadModelService).findRunByJobExecutionId(eq(101L));
+		verify(runSummaryRegistry).listStepRecordsByJobExecutionId(eq(101L), eq(25));
+	}
+
+	@Test
+	void returnsPersistedArtifactRecordsByRunIdWithClampedLimit() throws Exception {
+		when(runSummaryReadModelService.findRunByJobExecutionId(eq(101L))).thenReturn(Optional.of(
+				new RunSummaryView("customer-load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
+						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L, "logs/2026-05-27/customer-load.log")
+		));
+		when(runSummaryRegistry.listArtifactRecordsByJobExecutionId(eq(101L), eq(200))).thenReturn(List.of(
+				new RunArtifactRecordView("ar-log-101", "rr-101", null, "RUN_LOG", "logs/2026-05-27/customer-load.log",
+						LocalDateTime.parse("2026-05-27T10:00:10"))
+		));
+
+		mockMvc.perform(get("/api/v1/runs/101/artifact-records").param("limit", "999"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items[0].artifactRecordId").value("ar-log-101"))
+				.andExpect(jsonPath("$.items[0].artifactRole").value("RUN_LOG"))
+				.andExpect(jsonPath("$.size").value(200));
+
+		verify(runSummaryReadModelService).findRunByJobExecutionId(eq(101L));
+		verify(runSummaryRegistry).listArtifactRecordsByJobExecutionId(eq(101L), eq(200));
+	}
+
+	@Test
+	void returnsNotFoundWhenPersistedStepRecordsRunIsMissing() throws Exception {
+		when(runSummaryReadModelService.findRunByJobExecutionId(eq(999L))).thenReturn(Optional.empty());
+
+		mockMvc.perform(get("/api/v1/runs/999/step-records"))
+				.andExpect(status().isNotFound());
+
+		verify(runSummaryReadModelService).findRunByJobExecutionId(eq(999L));
 	}
 
 	@Test

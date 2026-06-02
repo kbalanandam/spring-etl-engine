@@ -158,6 +158,15 @@ class ControlPlaneApiLauncherIntegrationTest {
 				.andExpect(jsonPath("$.run.jobExecutionId").value(901))
 				.andExpect(jsonPath("$.evidenceLinks[1].href").value(LOG_ROOT.resolve("2026-05-27/customer-load.log").toString() + "#L2"));
 
+		mockMvc.perform(get("/api/v1/runs/901/step-records").param("limit", "10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items").isArray());
+
+		mockMvc.perform(get("/api/v1/runs/901/artifact-records").param("limit", "10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalItems").value(1))
+				.andExpect(jsonPath("$.items[0].artifactRole").value("RUN_LOG"));
+
 		mockMvc.perform(get("/api/v1/runs/901/log").param("limit", "10"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.jobExecutionId").value(901))
