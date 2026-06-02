@@ -38,7 +38,7 @@ Use this checklist to execute the `S4b` slice under [`S4-control-plane-operation
 - [x] schema-shape tests for new tables/columns/indexes
 - [x] invariant tests for artifact ownership/linkage
 - [x] write/read tests for step and artifact persistence
-- [ ] compatibility tests for startup on pre-S4b local SQLite state
+- [x] compatibility tests for startup on pre-S4b local SQLite state
 
 ## Docs and board alignment
 

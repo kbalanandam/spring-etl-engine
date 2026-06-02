@@ -625,6 +625,114 @@ class JdbcRunSummaryRegistryTest {
 	}
 
 	@Test
+	void startsAgainstPreS4bSchemaAndPreservesExistingRunData() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		jdbcTemplate.execute("""
+				create table controlplane_run_summary (
+					job_execution_id bigint primary key,
+					scenario varchar(200) not null,
+					status varchar(50) not null,
+					start_time timestamp,
+					end_time timestamp,
+					duration_seconds bigint,
+					source_count bigint,
+					written_count bigint,
+					rejected_count bigint,
+					log_path varchar(2000),
+					last_seen_at timestamp not null
+				)
+				""");
+		jdbcTemplate.execute("""
+				create table controlplane_run_record (
+					run_record_pk bigint primary key,
+					run_record_id varchar(80) not null unique,
+					job_execution_id bigint not null unique,
+					trigger_event_pk bigint,
+					trigger_event_id varchar(80),
+					selected_job_key varchar(200),
+					scenario varchar(200) not null,
+					run_status varchar(50) not null,
+					started_at timestamp,
+					finished_at timestamp,
+					duration_seconds bigint,
+					source_count bigint,
+					written_count bigint,
+					rejected_count bigint,
+					created_at timestamp not null,
+					updated_at timestamp not null
+				)
+				""");
+		jdbcTemplate.update("""
+				insert into controlplane_run_summary (
+					job_execution_id, scenario, status, start_time, end_time,
+					duration_seconds, source_count, written_count, rejected_count, log_path, last_seen_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				9801L,
+				"customer-load",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00"),
+				60L,
+				10L,
+				10L,
+				0L,
+				"logs/2026-05-27/customer-load.log",
+				Timestamp.valueOf("2026-05-27 09:01:00")
+		);
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_pk, run_record_id, job_execution_id, trigger_event_pk, trigger_event_id,
+					selected_job_key, scenario, run_status, started_at, finished_at,
+					duration_seconds, source_count, written_count, rejected_count, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				1L,
+				"rr-9801",
+				9801L,
+				null,
+				null,
+				"customer-load",
+				"customer-load",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00"),
+				60L,
+				10L,
+				10L,
+				0L,
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00")
+		);
+
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		Long stepTableExists = jdbcTemplate.queryForObject(
+				"select count(*) from sqlite_master where type = 'table' and name = 'controlplane_step_record'",
+				Long.class
+		);
+		Long artifactTableExists = jdbcTemplate.queryForObject(
+				"select count(*) from sqlite_master where type = 'table' and name = 'controlplane_artifact_record'",
+				Long.class
+		);
+		Long preservedRunSummary = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_run_summary where job_execution_id = ?",
+				Long.class,
+				9801L
+		);
+		Long preservedRunRecord = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				9801L
+		);
+
+		assertEquals(1L, stepTableExists);
+		assertEquals(1L, artifactTableExists);
+		assertEquals(1L, preservedRunSummary);
+		assertEquals(1L, preservedRunRecord);
+	}
+
+	@Test
 	void listsStepRecordsByJobExecutionId() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		jdbcTemplate.execute("""
