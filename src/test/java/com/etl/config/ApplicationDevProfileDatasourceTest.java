@@ -22,6 +22,7 @@ class ApplicationDevProfileDatasourceTest {
         assertEquals("org.sqlite.JDBC", properties.getProperty("spring.datasource.driver-class-name"));
         assertEquals("always", properties.getProperty("spring.batch.jdbc.initialize-schema"));
         assertEquals("always", properties.getProperty("spring.sql.init.mode"));
+        assertEquals("true", properties.getProperty("spring.sql.init.continue-on-error"));
         assertEquals("classpath:org/springframework/batch/core/schema-sqlite.sql",
                 properties.getProperty("spring.sql.init.schema-locations"));
     }

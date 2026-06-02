@@ -6,6 +6,7 @@ Automation helpers under `scripts/` for local verification, cleanup, project-boa
 
 - Generate local verification report (`mvn test` + smoke + markdown report): `generate-verification-report.ps1`
 - Run smoke-only verification checks: `verify-recent-changes.ps1`
+- Migrate legacy control-plane SQLite tables into the shared dev database: `migrate-controlplane-sqlite-to-shared.ps1`
 - Remove one job bundle and matching generated artifacts safely: `remove-job-bundle.ps1`
 - Sync product backlog execution board to GitHub Project V2: `sync_project_board.py`
 - Prepare/run one explicit job config on Windows: `job-runner.ps1`
@@ -44,6 +45,27 @@ Usage:
 ```powershell
 Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\verify-recent-changes.ps1
+```
+
+## `migrate-controlplane-sqlite-to-shared.ps1`
+
+Purpose:
+- Copies legacy `controlplane_*` tables from `.controlplane/controlplane.db`
+- Merges them into the shared `.etl-dev/etl-dev.db`
+- Creates a timestamped backup of the target DB before migration unless `-SkipBackup` is used
+
+Usage:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\migrate-controlplane-sqlite-to-shared.ps1
+```
+
+Custom source/target paths:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\migrate-controlplane-sqlite-to-shared.ps1 -SourceDbPath .\.controlplane\controlplane.db -TargetDbPath .\.etl-dev\etl-dev.db
 ```
 
 ## `remove-job-bundle.ps1`

@@ -189,6 +189,8 @@ Use this support view when you need the extra detail that the top-level assembly
 For local ETL development under the default `dev` profile:
 
 - Spring Batch metadata uses a persistent local SQLite file (`.etl-dev/etl-dev.db`) with the shipped Batch SQLite schema script.
+- The optional `controlplane` profile now points to that same `.etl-dev/etl-dev.db` file so local retained-history control-plane tables and Spring Batch metadata can be inspected together.
+- Because that shared SQLite file is intentionally persistent, the dev profile now tolerates already-existing Batch metadata tables during startup schema initialization instead of treating them as a fatal bootstrap error.
 - Ordered duplicate winner selection remains intentionally H2-backed through `EmbeddedDbDuplicateResolver` as a separate step-local engine path.
 - This split keeps duplicate-resolution behavior stable while aligning the primary Batch metadata path with SQLite-first local persistence.
 

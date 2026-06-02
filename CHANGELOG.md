@@ -21,6 +21,7 @@ and this project adheres to **Semantic Versioning**.
 - Hardened S4 relational-normalization behavior for run history: `controlplane_run_record.selected_job_key` is now populated/backfilled from persisted run context, direct upsert linkage remains deterministic through `launched_run_id`, and additional run-record indexes were added for scalable relational lookup paths.
 - Continued S4 retained-history normalization with additive internal surrogate keys for trigger and run records: `controlplane_trigger_event` now carries `trigger_event_pk` and `launched_run_pk`, `controlplane_run_record` now carries `run_record_pk` and `trigger_event_pk`, and startup backfills reconcile legacy rows while external string IDs remain stable.
 - Refined the same S4 slice to prefer PK-based linkage reads for run-trigger correlation (`launched_run_pk`/`trigger_event_pk`) before legacy string-ID fallback, and added mixed-phase lookup indexing for `launched_run_id` to keep transitional queries portable and scalable.
+- Aligned local persistence to one SQLite file by pointing the shipped `controlplane` profile at `.etl-dev/etl-dev.db`, so Spring Batch metadata and control-plane retained-history tables now coexist in a single developer database file.
 
 ### Fixed
 - N/A

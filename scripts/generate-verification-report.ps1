@@ -1861,6 +1861,16 @@ $targetDir = Join-Path $RepoRoot 'target'
 $testLog = Join-Path $targetDir 'verification-mvn-test.log'
 $smokeCapture = Join-Path $targetDir 'verification-smoke.log'
 $surefireDir = Join-Path $targetDir 'surefire-reports'
+$reportDirectory = Split-Path -Path $ReportPath -Parent
+
+if (-not (Test-Path $targetDir)) {
+    New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+}
+
+if (-not [string]::IsNullOrWhiteSpace($reportDirectory) -and -not (Test-Path $reportDirectory)) {
+    New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null
+}
+
 $timestampedReportPath = Get-TimestampedReportPath -BaseReportPath $ReportPath
 $gitSummary = Get-GitSummary -WorkingDirectory $RepoRoot
 

@@ -41,6 +41,7 @@ tmp-test-config/
 !/private-jobs/README.md
 tmp-sqlserver-connect.txt
 logs/
+.etl-dev/
 .controlplane/
 src/main/resources/config-jobs/**/output/
 src/main/resources/config-jobs/xml-nested-to-csv-tag-validation/input/*.DTVL
