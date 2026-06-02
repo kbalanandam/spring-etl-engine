@@ -77,6 +77,23 @@ class JdbcRunSummaryRegistryTest {
 	}
 
 	@Test
+	void usesBigintTypeForRunRecordSurrogateAndLinkageColumns() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		String runRecordPkType = jdbcTemplate.queryForObject(
+				"select type from pragma_table_info('controlplane_run_record') where lower(name) = 'run_record_pk'",
+				String.class
+		);
+		String triggerEventPkType = jdbcTemplate.queryForObject(
+				"select type from pragma_table_info('controlplane_run_record') where lower(name) = 'trigger_event_pk'",
+				String.class
+		);
+		assertEquals("bigint", runRecordPkType == null ? "" : runRecordPkType.toLowerCase());
+		assertEquals("bigint", triggerEventPkType == null ? "" : triggerEventPkType.toLowerCase());
+	}
+
+	@Test
 	void backfillsMissingRunRecordRowsFromRunSummaryOnStartup() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		JdbcRunSummaryRegistry first = new JdbcRunSummaryRegistry(jdbcTemplate, 100);

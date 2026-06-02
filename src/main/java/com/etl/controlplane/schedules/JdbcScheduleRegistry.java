@@ -149,7 +149,8 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 	private void initializeSchema() {
 		jdbcTemplate.execute("""
 				create table if not exists controlplane_schedule (
-					schedule_id varchar(80) primary key,
+					schedule_pk bigint primary key,
+					schedule_id varchar(80) not null unique,
 					schedule_key varchar(200) not null unique,
 					selected_job_key varchar(200) not null,
 					expression varchar(200) not null,
@@ -160,12 +161,12 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 					created_at timestamp not null,
 					updated_at timestamp not null,
 					watcher_key varchar(200),
-					last_accepted_due_at timestamp,
-					schedule_pk integer
+					last_accepted_due_at timestamp
 				)
 				""");
+		migrateLegacyPrimaryKeyIfRequired();
 		ensureColumnExists("controlplane_schedule", "last_accepted_due_at", "timestamp");
-		ensureColumnExists("controlplane_schedule", "schedule_pk", "integer");
+		ensureColumnExists("controlplane_schedule", "schedule_pk", "bigint");
 		backfillSchedulePk();
 		jdbcTemplate.execute("""
 				create unique index if not exists idx_schedule_pk
@@ -179,6 +180,84 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 				create index if not exists idx_schedule_state
 				on controlplane_schedule (is_enabled, is_paused, updated_at)
 				""");
+	}
+
+	private void migrateLegacyPrimaryKeyIfRequired() {
+		List<String> primaryKeyColumns = jdbcTemplate.query(
+				"select lower(name) from pragma_table_info('controlplane_schedule') where pk > 0 order by pk",
+				(rs, rowNum) -> rs.getString(1)
+		);
+		if (primaryKeyColumns.size() == 1 && "schedule_pk".equals(primaryKeyColumns.get(0))) {
+			return;
+		}
+
+		jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection -> {
+			boolean originalAutoCommit = connection.getAutoCommit();
+			connection.setAutoCommit(false);
+			try (java.sql.Statement statement = connection.createStatement()) {
+				statement.execute("""
+						create table controlplane_schedule_new (
+							schedule_pk bigint primary key,
+							schedule_id varchar(80) not null unique,
+							schedule_key varchar(200) not null unique,
+							selected_job_key varchar(200) not null,
+							expression varchar(200) not null,
+							timezone varchar(100) not null,
+							is_enabled boolean not null,
+							is_paused boolean not null,
+							description varchar(2000),
+							created_at timestamp not null,
+							updated_at timestamp not null,
+							watcher_key varchar(200),
+							last_accepted_due_at timestamp
+						)
+						""");
+				statement.execute("""
+						insert into controlplane_schedule_new (
+							schedule_pk,
+							schedule_id,
+							schedule_key,
+							selected_job_key,
+							expression,
+							timezone,
+							is_enabled,
+							is_paused,
+							description,
+							created_at,
+							updated_at,
+							watcher_key,
+							last_accepted_due_at
+						)
+						select
+							coalesce(schedule_pk, rowid),
+							schedule_id,
+							schedule_key,
+							selected_job_key,
+							expression,
+							timezone,
+							is_enabled,
+							is_paused,
+							description,
+							created_at,
+							updated_at,
+							watcher_key,
+							last_accepted_due_at
+						from controlplane_schedule
+						""");
+				statement.execute("drop table controlplane_schedule");
+				statement.execute("alter table controlplane_schedule_new rename to controlplane_schedule");
+				connection.commit();
+			} catch (java.sql.SQLException ex) {
+				connection.rollback();
+				throw ex;
+			} catch (RuntimeException ex) {
+				connection.rollback();
+				throw ex;
+			} finally {
+				connection.setAutoCommit(originalAutoCommit);
+			}
+			return null;
+		});
 	}
 
 	private void ensureColumnExists(String tableName, String columnName, String columnDefinition) {

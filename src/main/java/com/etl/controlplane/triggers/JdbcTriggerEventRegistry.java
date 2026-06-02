@@ -183,26 +183,26 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 	private void initializeSchema() {
 		jdbcTemplate.execute("""
 				create table if not exists controlplane_trigger_event (
-					trigger_event_pk integer,
+					trigger_event_pk bigint,
 					trigger_event_id varchar(80) primary key,
 					job_key varchar(200) not null,
 					decision_status varchar(50) not null,
 					reason varchar(200),
 					requested_by varchar(200),
 					requested_at timestamp not null,
-					launched_run_pk integer,
+					launched_run_pk bigint,
 					launched_run_id varchar(80),
 					message varchar(2000),
 					trigger_origin varchar(50),
 					schedule_id varchar(80),
-					schedule_pk integer,
+					schedule_pk bigint,
 					watcher_id varchar(80),
 					external_origin_key varchar(200)
 				)
 				""");
-		ensureColumnExists("controlplane_trigger_event", "trigger_event_pk", "integer");
-		ensureColumnExists("controlplane_trigger_event", "launched_run_pk", "integer");
-		ensureColumnExists("controlplane_trigger_event", "schedule_pk", "integer");
+		ensureColumnExists("controlplane_trigger_event", "trigger_event_pk", "bigint");
+		ensureColumnExists("controlplane_trigger_event", "launched_run_pk", "bigint");
+		ensureColumnExists("controlplane_trigger_event", "schedule_pk", "bigint");
 		backfillTriggerEventPk();
 		backfillSchedulePk();
 		backfillLaunchedRunPk();

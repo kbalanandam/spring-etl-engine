@@ -174,10 +174,10 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				""");
 		jdbcTemplate.execute("""
 				create table if not exists controlplane_run_record (
-					run_record_pk integer,
+					run_record_pk bigint,
 					run_record_id varchar(80) primary key,
 					job_execution_id bigint not null unique,
-					trigger_event_pk integer,
+					trigger_event_pk bigint,
 					trigger_event_id varchar(80),
 					selected_job_key varchar(200),
 					scenario varchar(200) not null,
@@ -192,8 +192,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					updated_at timestamp not null
 				)
 				""");
-		ensureColumnExists("controlplane_run_record", "run_record_pk", "integer");
-		ensureColumnExists("controlplane_run_record", "trigger_event_pk", "integer");
+		ensureColumnExists("controlplane_run_record", "run_record_pk", "bigint");
+		ensureColumnExists("controlplane_run_record", "trigger_event_pk", "bigint");
 		backfillRunRecordPk();
 		jdbcTemplate.execute("""
 				create index if not exists idx_run_record_started_at

@@ -47,6 +47,28 @@ class JdbcTriggerEventRegistryTest {
 	}
 
 	@Test
+	void usesBigintTypeForSurrogateAndLinkageColumns() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+
+		String schedulePkType = jdbcTemplate.queryForObject(
+				"select type from pragma_table_info('controlplane_trigger_event') where lower(name) = 'schedule_pk'",
+				String.class
+		);
+		String triggerEventPkType = jdbcTemplate.queryForObject(
+				"select type from pragma_table_info('controlplane_trigger_event') where lower(name) = 'trigger_event_pk'",
+				String.class
+		);
+		String launchedRunPkType = jdbcTemplate.queryForObject(
+				"select type from pragma_table_info('controlplane_trigger_event') where lower(name) = 'launched_run_pk'",
+				String.class
+		);
+		assertEquals("bigint", schedulePkType == null ? "" : schedulePkType.toLowerCase());
+		assertEquals("bigint", triggerEventPkType == null ? "" : triggerEventPkType.toLowerCase());
+		assertEquals("bigint", launchedRunPkType == null ? "" : launchedRunPkType.toLowerCase());
+	}
+
+	@Test
 	void enforcesRetentionPerJob() throws Exception {
 		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(new JdbcTemplate(inMemoryDataSource()), 2);
 		registry.recordAccepted("customer-load", "reason-a", "user-a", "first");

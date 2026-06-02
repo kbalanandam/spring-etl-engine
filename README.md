@@ -131,6 +131,8 @@ The shipped `controlplane` profile now defaults to the shared SQLite-first local
 
 If you have existing local retained-history data in the legacy `.controlplane/controlplane.db`, run `scripts/migrate-controlplane-sqlite-to-shared.ps1` once to merge the preserved `controlplane_*` tables into the shared `.etl-dev/etl-dev.db` file before deleting or archiving the old control-plane DB.
 
+If your local shared DB was created before the control-plane `*_pk bigint` typing updates (`schedule_pk`, `trigger_event_pk`, `launched_run_pk`, `run_record_pk`), recreate `.etl-dev/etl-dev.db` (or rebuild from migration + fresh startup) to apply the new column types because SQLite does not alter existing column definitions in place.
+
 If startup fails locally with trigger-persistence mode-switch guardrails, use the explicit override once for intentional local mode resets:
 
 ```powershell
