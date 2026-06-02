@@ -15,6 +15,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JdbcRunSummaryRegistryTest {
@@ -411,6 +412,136 @@ class JdbcRunSummaryRegistryTest {
 		assertEquals(1003L, runs.get(0).jobExecutionId());
 		assertEquals(1002L, runs.get(1).jobExecutionId());
 		assertTrue(registry.findByJobExecutionId(1001L).isEmpty());
+	}
+
+	@Test
+	void initializesStepAndArtifactTablesForS4bSlice() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		Long stepTableExists = jdbcTemplate.queryForObject(
+				"select count(*) from sqlite_master where type = 'table' and name = 'controlplane_step_record'",
+				Long.class
+		);
+		Long artifactTableExists = jdbcTemplate.queryForObject(
+				"select count(*) from sqlite_master where type = 'table' and name = 'controlplane_artifact_record'",
+				Long.class
+		);
+
+		assertEquals(1L, stepTableExists);
+		assertEquals(1L, artifactTableExists);
+	}
+
+	@Test
+	void allowsStepLevelArtifactWhenRunLineageMatches() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_pk, run_record_id, job_execution_id, scenario, run_status, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				1L,
+				"rr-9001",
+				9001L,
+				"customer-load",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00")
+		);
+		jdbcTemplate.update("""
+				insert into controlplane_step_record (
+					step_record_pk, step_record_id, run_record_id, step_name, step_status, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				1L,
+				"sr-9001-1",
+				"rr-9001",
+				"load-customers",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00")
+		);
+
+		jdbcTemplate.update("""
+				insert into controlplane_artifact_record (
+					artifact_record_pk, artifact_record_id, run_record_id, step_record_id, artifact_role, artifact_path, created_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				1L,
+				"ar-9001-1",
+				"rr-9001",
+				"sr-9001-1",
+				"STEP_OUTPUT",
+				"output/customers.csv",
+				Timestamp.valueOf("2026-05-27 09:01:00")
+		);
+
+		Long count = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_artifact_record where artifact_record_id = ?",
+				Long.class,
+				"ar-9001-1"
+		);
+		assertEquals(1L, count);
+	}
+
+	@Test
+	void rejectsStepLevelArtifactWhenStepLineageDoesNotMatchRun() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_pk, run_record_id, job_execution_id, scenario, run_status, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				1L,
+				"rr-9101",
+				9101L,
+				"customer-load",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00")
+		);
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_pk, run_record_id, job_execution_id, scenario, run_status, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				2L,
+				"rr-9102",
+				9102L,
+				"customer-load",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00")
+		);
+		jdbcTemplate.update("""
+				insert into controlplane_step_record (
+					step_record_pk, step_record_id, run_record_id, step_name, step_status, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				1L,
+				"sr-9102-1",
+				"rr-9102",
+				"load-customers",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00")
+		);
+
+		assertThrows(org.springframework.dao.DataAccessException.class, () -> jdbcTemplate.update("""
+				insert into controlplane_artifact_record (
+					artifact_record_pk, artifact_record_id, run_record_id, step_record_id, artifact_role, artifact_path, created_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				1L,
+				"ar-9101-1",
+				"rr-9101",
+				"sr-9102-1",
+				"STEP_OUTPUT",
+				"output/customers.csv",
+				Timestamp.valueOf("2026-05-27 09:01:00")
+		));
 	}
 
 	private RunSummaryView run(Long id, String scenario, LocalDateTime start, String status) {

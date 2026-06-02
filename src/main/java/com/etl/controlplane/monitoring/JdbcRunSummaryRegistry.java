@@ -220,10 +220,89 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				create index if not exists idx_run_record_job_status_time
 				on controlplane_run_record (selected_job_key, run_status, started_at)
 				""");
+		jdbcTemplate.execute("""
+				create table if not exists controlplane_step_record (
+					step_record_pk bigint primary key,
+					step_record_id varchar(80) not null unique,
+					run_record_id varchar(80) not null,
+					step_name varchar(200) not null,
+					step_status varchar(50) not null,
+					started_at timestamp,
+					finished_at timestamp,
+					duration_seconds bigint,
+					read_count bigint,
+					write_count bigint,
+					filter_count bigint,
+					skip_count bigint,
+					rollback_count bigint,
+					rejected_count bigint,
+					created_at timestamp not null,
+					updated_at timestamp not null
+				)
+				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_step_record_run
+				on controlplane_step_record (run_record_id, started_at)
+				""");
+		jdbcTemplate.execute("""
+				create unique index if not exists idx_step_record_id_run
+				on controlplane_step_record (step_record_id, run_record_id)
+				""");
+		jdbcTemplate.execute("""
+				create table if not exists controlplane_artifact_record (
+					artifact_record_pk bigint primary key,
+					artifact_record_id varchar(80) not null unique,
+					run_record_id varchar(80) not null,
+					step_record_id varchar(80),
+					artifact_role varchar(80) not null,
+					artifact_path varchar(2000),
+					created_at timestamp not null
+				)
+				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_artifact_record_run
+				on controlplane_artifact_record (run_record_id, created_at)
+				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_artifact_record_step
+				on controlplane_artifact_record (step_record_id, created_at)
+				""");
+		createArtifactOwnershipTriggers();
 		backfillRunRecordFromRunSummary();
 		backfillRunRecordTriggerEventPk();
 		backfillRunRecordSelectedJobKey();
 		backfillRunRecordTriggerEventLinkage();
+	}
+
+	private void createArtifactOwnershipTriggers() {
+		jdbcTemplate.execute("""
+				create trigger if not exists trg_artifact_record_insert_step_lineage
+				before insert on controlplane_artifact_record
+				when new.step_record_id is not null
+				 and not exists (
+					select 1
+					from controlplane_step_record sr
+					where sr.step_record_id = new.step_record_id
+					  and sr.run_record_id = new.run_record_id
+				 )
+				begin
+					select raise(abort, 'artifact step lineage mismatch');
+				end
+				""");
+		jdbcTemplate.execute("""
+				create trigger if not exists trg_artifact_record_update_step_lineage
+				before update of run_record_id, step_record_id on controlplane_artifact_record
+				when new.step_record_id is not null
+				 and not exists (
+					select 1
+					from controlplane_step_record sr
+					where sr.step_record_id = new.step_record_id
+					  and sr.run_record_id = new.run_record_id
+				 )
+				begin
+					select raise(abort, 'artifact step lineage mismatch');
+				end
+				""");
 	}
 
 	private void migrateLegacyRunRecordPrimaryKeyIfRequired() {
