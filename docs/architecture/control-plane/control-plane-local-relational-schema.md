@@ -97,6 +97,7 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 - `controlplane_run_record.selected_job_key` is treated as an active relational key: new writes populate it from run context, legacy null/blank rows are backfilled at startup, and lookup-oriented indexes (`selected_job_key`, `run_status`, `started_at`, `trigger_event_id`) are part of the current local-read scaling baseline.
 - Internal numeric surrogates now follow one phased pattern across retained scheduler history: active control-plane surrogate/linkage `*_pk` columns (`schedule_pk`, `trigger_event_pk`, `launched_run_pk`, `run_record_pk`) are now provisioned as `bigint` for relational joins and future foreign-key hardening. PK-constraint cutover is now active across schedule, trigger-event, and run-record tables (`schedule_pk`, `trigger_event_pk`, `run_record_pk` as relational primary keys) while external `*_id` fields remain stable unique operator/API identities.
 - Current linkage resolution now prefers PK-based joins (`launched_run_pk` / `trigger_event_pk`) before legacy string-ID fallback (`launched_run_id` / `trigger_event_id`) so mixed historical data can migrate without changing external API identifiers.
+- Artifact ownership should be explicit and non-ambiguous: one `artifact_record` row is either run-level (`run_record_id` set, `step_record_id` null) or step-level (`step_record_id` set with consistent `run_record_id` lineage), never an unowned or contradictory combination.
 
 ```mermaid
 erDiagram
@@ -266,6 +267,12 @@ Suggested column families:
 - integrity/summary: `record_count`, `checksum`, `size_bytes`
 - timing: `created_at`, `published_at`
 - notes: `artifact_status`, `artifact_summary`
+
+Ownership invariant for future implementation:
+
+- enforce one clear owner per row: run-level artifact or step-level artifact
+- when `step_record_id` is populated, its parent run identity must match `run_record_id`
+- avoid nullable combinations that allow ambiguous ownership
 
 ### 7. `attempt_link`
 

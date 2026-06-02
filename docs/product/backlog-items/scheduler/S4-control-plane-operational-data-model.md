@@ -120,6 +120,66 @@ When this item is implemented, keep one rule explicit: persisted control-plane d
 
 Current release now includes phased S4 slices focused on scheduler table-structure evolution, retained-history boundary alignment, and additive internal surrogate-key foundations (`schedule_pk`, `trigger_event_pk`, `run_record_pk`) that preserve stable external IDs while future relational normalization is phased in.
 
+S4 should continue as one phased track instead of reopening a new scheduler ID for each retained-history table:
+
+- **S4a (shipped)** - schedule/trigger/run retained-history foundations with PK-constraint cutover and mixed-phase linkage compatibility.
+- **S4b (next)** - durable `step_record` + `artifact_record` persistence with explicit ownership invariants and read-model proof.
+- **S4c (later)** - `attempt_link` + `checkpoint_anchor` after `F1` restart semantics are defined.
+
+## Proposed next delivery chunk (S4b)
+
+### Scope
+
+- add durable `step_record` storage keyed to retained run identity
+- add durable `artifact_record` storage for run-level and step-level evidence references
+- enforce artifact ownership invariants so a row is unambiguous (run-level only, or step-level with matching run lineage)
+- add startup-safe schema initialization and compatibility behavior for existing local SQLite files
+- add focused JDBC tests for schema shape, writes, and key lookup/read paths
+- update architecture docs so ER semantics and ownership rules match shipped behavior
+- track delivery tasks in [`S4b step/artifact persistence checklist`](S4b-step-artifact-persistence-checklist.md)
+
+### Out of scope for S4b
+
+- final restart/resume semantics
+- `attempt_link` and `checkpoint_anchor` table implementation
+- broad operator UI redesign beyond additive read-model support
+
+### S4b acceptance criteria
+
+- [ ] `step_record` persistence is implemented and queryable under retained `run_record` identity
+- [ ] `artifact_record` persistence is implemented for both run-level and step-level evidence references
+- [ ] artifact ownership invariants are documented and test-covered
+- [ ] existing direct ETL worker execution remains independent from control-plane persistence
+- [ ] architecture/docs + backlog notes are aligned with the shipped S4b slice
+
+## Proposed later delivery chunk (S4c)
+
+### Scope
+
+- add durable `attempt_link` persistence for current/prior run attempt lineage
+- add durable `checkpoint_anchor` persistence for resumable/reference checkpoints
+- define minimum retained fields needed to support `F1` restart semantics without overfitting early implementation details
+- add lookup/read paths required for recovery-oriented operator diagnosis
+- add focused JDBC tests for schema shape, linkage integrity, and recovery lookup behavior
+
+### Out of scope for S4c
+
+- changing the independently runnable ETL worker boundary
+- final enterprise multi-node concurrency strategy
+- broad scheduler policy redesign beyond lineage/checkpoint anchors
+
+### Delivery gate
+
+- start implementation only after `F1` restart semantics are explicit enough to anchor attempt/checkpoint meaning
+
+### S4c acceptance criteria
+
+- [ ] `attempt_link` persistence is implemented with clear current/prior linkage semantics
+- [ ] `checkpoint_anchor` persistence is implemented with explicit anchor identity and lifecycle fields
+- [ ] retained lineage/checkpoint fields align with `F1` restart-semantics decisions
+- [ ] recovery-oriented lookup paths are documented and test-covered
+- [ ] direct ETL worker execution remains independent from control-plane persistence
+
 
 
 

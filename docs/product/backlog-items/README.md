@@ -78,6 +78,7 @@ Use this page as the main browse index when you want to navigate backlog items b
 - [`S2 - Add time-based schedule definitions with pause/resume controls`](scheduler/S2-time-based-schedule-definitions-with-pause-resume.md)
 - [`S3 - Add overlap policy, missed-run handling, and basic trigger audit trail`](scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md)
 - [`S4 - Define control-plane operational data model`](scheduler/S4-control-plane-operational-data-model.md)
+- [`S4b checklist - Step/artifact persistence delivery tasks`](scheduler/S4b-step-artifact-persistence-checklist.md)
 
 ### Epic T - Transformation capability maturity
 
