@@ -18,10 +18,14 @@
       as successful.
 #>
 param(
-    [string]$RepoRoot = "C:\spring-etl-engine"
+    [string]$RepoRoot
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+}
 
 # Builds selected scenario-scoped generated classes for one explicit job config.
 function Invoke-ScenarioGeneration {

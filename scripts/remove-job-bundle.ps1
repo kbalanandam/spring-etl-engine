@@ -26,7 +26,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$JobConfigPath,
 
-    [string]$RepoRoot = "C:\spring-etl-engine",
+    [string]$RepoRoot,
 
     [switch]$DeleteSharedBundle,
 
@@ -36,6 +36,10 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+}
 
 function Resolve-NormalizedPath {
     param(

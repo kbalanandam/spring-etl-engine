@@ -22,14 +22,14 @@ Purpose:
 Common usage:
 
 ```powershell
-Set-Location "C:\spring-etl-engine"
+Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\generate-verification-report.ps1
 ```
 
 Skip smoke:
 
 ```powershell
-Set-Location "C:\spring-etl-engine"
+Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\generate-verification-report.ps1 -SkipSmoke
 ```
 
@@ -42,7 +42,7 @@ Purpose:
 Usage:
 
 ```powershell
-Set-Location "C:\spring-etl-engine"
+Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\verify-recent-changes.ps1
 ```
 
@@ -56,7 +56,7 @@ Purpose:
 Preview first:
 
 ```powershell
-Set-Location "C:\spring-etl-engine"
+Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\remove-job-bundle.ps1 -JobConfigPath .\private-jobs\local-verification\your-job\config\job-config.yaml -WhatIf
 ```
 
@@ -69,7 +69,7 @@ Purpose:
 Dry-run parse only:
 
 ```powershell
-Set-Location "C:\spring-etl-engine"
+Set-Location (Resolve-Path ..)
 python .\scripts\sync_project_board.py --dry-run
 ```
 
@@ -83,7 +83,7 @@ Purpose:
 Usage:
 
 ```powershell
-Set-Location "C:\spring-etl-engine"
+Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\job-runner.ps1 -Action prepare -JobConfigPath tmp-test-config/customer-load-reject-demo/job-config.yaml
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\job-runner.ps1 -Action run -JobConfigPath tmp-test-config/customer-load-reject-demo/job-config.yaml
 ```
