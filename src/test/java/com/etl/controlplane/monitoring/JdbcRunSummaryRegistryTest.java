@@ -624,6 +624,114 @@ class JdbcRunSummaryRegistryTest {
 		assertEquals(1L, count);
 	}
 
+	@Test
+	void listsStepRecordsByJobExecutionId() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		jdbcTemplate.execute("""
+				create table batch_step_execution (
+					step_execution_id bigint primary key,
+					job_execution_id bigint not null,
+					step_name varchar(100) not null,
+					status varchar(20),
+					start_time timestamp,
+					end_time timestamp,
+					read_count bigint,
+					write_count bigint,
+					filter_count bigint,
+					rollback_count bigint
+				)
+				""");
+		jdbcTemplate.update("""
+				insert into batch_step_execution (
+					step_execution_id, job_execution_id, step_name, status, start_time, end_time,
+					read_count, write_count, filter_count, rollback_count
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				201L,
+				9401L,
+				"extract-customers",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00"),
+				5L,
+				5L,
+				0L,
+				0L
+		);
+		jdbcTemplate.update("""
+				insert into batch_step_execution (
+					step_execution_id, job_execution_id, step_name, status, start_time, end_time,
+					read_count, write_count, filter_count, rollback_count
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				202L,
+				9401L,
+				"load-customers",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:01:00"),
+				Timestamp.valueOf("2026-05-27 09:02:00"),
+				5L,
+				5L,
+				0L,
+				0L
+		);
+
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(run(9401L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+
+		List<RunStepRecordView> steps = registry.listStepRecordsByJobExecutionId(9401L, 10);
+		assertEquals(2, steps.size());
+		assertEquals("sr-9401-201", steps.get(0).stepRecordId());
+		assertEquals("extract-customers", steps.get(0).stepName());
+		assertEquals("sr-9401-202", steps.get(1).stepRecordId());
+		assertEquals("load-customers", steps.get(1).stepName());
+	}
+
+	@Test
+	void listsArtifactsByJobExecutionIdAndStepRecordId() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(run(9501L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+
+		jdbcTemplate.update("""
+				insert into controlplane_step_record (
+					step_record_pk, step_record_id, run_record_id, step_name, step_status, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				1L,
+				"sr-9501-1",
+				"rr-9501",
+				"load-customers",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00")
+		);
+		jdbcTemplate.update("""
+				insert into controlplane_artifact_record (
+					artifact_record_pk, artifact_record_id, run_record_id, step_record_id, artifact_role, artifact_path, created_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				2L,
+				"ar-step-9501-1",
+				"rr-9501",
+				"sr-9501-1",
+				"STEP_OUTPUT",
+				"output/customers.csv",
+				Timestamp.valueOf("2026-05-27 09:01:00")
+		);
+
+		List<RunArtifactRecordView> runArtifacts = registry.listArtifactRecordsByJobExecutionId(9501L, 10);
+		assertEquals(2, runArtifacts.size());
+		List<String> artifactIds = runArtifacts.stream().map(RunArtifactRecordView::artifactRecordId).toList();
+		assertTrue(artifactIds.contains("ar-step-9501-1"));
+		assertTrue(artifactIds.contains("ar-log-9501"));
+
+		List<RunArtifactRecordView> stepArtifacts = registry.listArtifactRecordsByStepRecordId("sr-9501-1", 10);
+		assertEquals(1, stepArtifacts.size());
+		assertEquals("ar-step-9501-1", stepArtifacts.get(0).artifactRecordId());
+		assertEquals("STEP_OUTPUT", stepArtifacts.get(0).artifactRole());
+	}
+
 	private RunSummaryView run(Long id, String scenario, LocalDateTime start, String status) {
 		return new RunSummaryView(
 				scenario,

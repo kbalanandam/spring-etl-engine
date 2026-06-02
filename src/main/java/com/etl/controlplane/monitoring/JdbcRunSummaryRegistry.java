@@ -137,6 +137,97 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		return matches.stream().findFirst();
 	}
 
+	@Override
+	public List<RunStepRecordView> listStepRecordsByJobExecutionId(long jobExecutionId, int limit) {
+		if (limit <= 0) {
+			return List.of();
+		}
+		String runRecordId = resolveRunRecordId(jobExecutionId);
+		if (runRecordId == null || runRecordId.isBlank()) {
+			return List.of();
+		}
+		List<RunStepRecordView> steps = jdbcTemplate.query("""
+				select step_record_id, run_record_id, step_name, step_status,
+				       started_at, finished_at, duration_seconds,
+				       read_count, write_count, filter_count,
+				       skip_count, rollback_count, rejected_count
+				from controlplane_step_record
+				where run_record_id = ?
+				order by case when started_at is null then 1 else 0 end,
+				         started_at asc,
+				         step_record_id asc
+				""", (rs, rowNum) -> new RunStepRecordView(
+				rs.getString("step_record_id"),
+				rs.getString("run_record_id"),
+				rs.getString("step_name"),
+				rs.getString("step_status"),
+				toLocalDateTime(rs.getTimestamp("started_at")),
+				toLocalDateTime(rs.getTimestamp("finished_at")),
+				nullableLong(rs, "duration_seconds"),
+				nullableLong(rs, "read_count"),
+				nullableLong(rs, "write_count"),
+				nullableLong(rs, "filter_count"),
+				nullableLong(rs, "skip_count"),
+				nullableLong(rs, "rollback_count"),
+				nullableLong(rs, "rejected_count")
+		), runRecordId);
+		return steps.size() <= limit ? steps : steps.subList(0, limit);
+	}
+
+	@Override
+	public List<RunArtifactRecordView> listArtifactRecordsByJobExecutionId(long jobExecutionId, int limit) {
+		if (limit <= 0) {
+			return List.of();
+		}
+		String runRecordId = resolveRunRecordId(jobExecutionId);
+		if (runRecordId == null || runRecordId.isBlank()) {
+			return List.of();
+		}
+		List<RunArtifactRecordView> artifacts = jdbcTemplate.query("""
+				select artifact_record_id, run_record_id, step_record_id, artifact_role, artifact_path, created_at
+				from controlplane_artifact_record
+				where run_record_id = ?
+				order by case when created_at is null then 1 else 0 end,
+				         created_at desc,
+				         artifact_record_id desc
+				""", (rs, rowNum) -> new RunArtifactRecordView(
+				rs.getString("artifact_record_id"),
+				rs.getString("run_record_id"),
+				rs.getString("step_record_id"),
+				rs.getString("artifact_role"),
+				rs.getString("artifact_path"),
+				toLocalDateTime(rs.getTimestamp("created_at"))
+		), runRecordId);
+		return artifacts.size() <= limit ? artifacts : artifacts.subList(0, limit);
+	}
+
+	@Override
+	public List<RunArtifactRecordView> listArtifactRecordsByStepRecordId(String stepRecordId, int limit) {
+		if (limit <= 0) {
+			return List.of();
+		}
+		String normalizedStepRecordId = normalize(stepRecordId);
+		if (normalizedStepRecordId.isBlank()) {
+			return List.of();
+		}
+		List<RunArtifactRecordView> artifacts = jdbcTemplate.query("""
+				select artifact_record_id, run_record_id, step_record_id, artifact_role, artifact_path, created_at
+				from controlplane_artifact_record
+				where step_record_id = ?
+				order by case when created_at is null then 1 else 0 end,
+				         created_at desc,
+				         artifact_record_id desc
+				""", (rs, rowNum) -> new RunArtifactRecordView(
+				rs.getString("artifact_record_id"),
+				rs.getString("run_record_id"),
+				rs.getString("step_record_id"),
+				rs.getString("artifact_role"),
+				rs.getString("artifact_path"),
+				toLocalDateTime(rs.getTimestamp("created_at"))
+		), normalizedStepRecordId);
+		return artifacts.size() <= limit ? artifacts : artifacts.subList(0, limit);
+	}
+
 	private void pruneOverflow() {
 		List<Long> ids = jdbcTemplate.queryForList("""
 				select job_execution_id
