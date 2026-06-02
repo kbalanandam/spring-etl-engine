@@ -459,15 +459,30 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			return TriggerEventLink.empty();
 		}
 		try {
-				TriggerEventLink directMatch = jdbcTemplate.query("""
+			Long runRecordPk = resolveRunRecordPk(jobExecutionId);
+			if (runRecordPk != null) {
+				TriggerEventLink pkMatch = Optional.ofNullable(jdbcTemplate.query("""
+						select trigger_event_id, trigger_event_pk
+						from controlplane_trigger_event
+						where launched_run_pk = ?
+						order by requested_at desc, trigger_event_pk desc, trigger_event_id desc
+						limit 1
+						""", rs -> rs.next()
+							? new TriggerEventLink(rs.getString("trigger_event_id"), nullableLong(rs, "trigger_event_pk"))
+							: TriggerEventLink.empty(), runRecordPk)).orElse(TriggerEventLink.empty());
+				if (!pkMatch.isEmpty()) {
+					return pkMatch;
+				}
+			}
+			TriggerEventLink directMatch = Optional.ofNullable(jdbcTemplate.query("""
 					select trigger_event_id, trigger_event_pk
 					from controlplane_trigger_event
 					where launched_run_id = ?
-					order by requested_at desc, trigger_event_id desc
+					order by requested_at desc, trigger_event_pk desc, trigger_event_id desc
 					limit 1
 					""", rs -> rs.next()
 						? new TriggerEventLink(rs.getString("trigger_event_id"), nullableLong(rs, "trigger_event_pk"))
-						: TriggerEventLink.empty(), String.valueOf(jobExecutionId));
+						: TriggerEventLink.empty(), String.valueOf(jobExecutionId))).orElse(TriggerEventLink.empty());
 			if (!directMatch.isEmpty()) {
 				return directMatch;
 			}
@@ -492,10 +507,13 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					  and not exists (
 						select 1
 						from controlplane_run_record rr
-						where rr.trigger_event_id = te.trigger_event_id
+										where (
+											(rr.trigger_event_pk is not null and te.trigger_event_pk is not null and rr.trigger_event_pk = te.trigger_event_pk)
+											or (rr.trigger_event_pk is null and rr.trigger_event_id = te.trigger_event_id)
+										)
 						  and rr.job_execution_id <> ?
 					  )
-					order by te.requested_at desc, te.trigger_event_id desc
+									order by te.requested_at desc, te.trigger_event_pk desc, te.trigger_event_id desc
 					limit 2
 					""", (rs, rowNum) -> new TriggerEventLink(
 						rs.getString("trigger_event_id"),
@@ -508,20 +526,33 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		}
 	}
 
+	private Long resolveRunRecordPk(Long jobExecutionId) {
+		if (jobExecutionId == null) {
+			return null;
+		}
+		return jdbcTemplate.query(
+				"select run_record_pk from controlplane_run_record where job_execution_id = ?",
+				rs -> rs.next() ? rs.getObject(1, Long.class) : null,
+				jobExecutionId
+		);
+	}
+
 	private void backfillLaunchedRunLink(Long jobExecutionId, TriggerEventLink triggerEvent) {
 		if (jobExecutionId == null || triggerEvent.isEmpty()) {
 			return;
 		}
 		try {
-			Long runRecordPk = jdbcTemplate.query(
-					"select run_record_pk from controlplane_run_record where job_execution_id = ?",
-					rs -> rs.next() ? rs.getObject(1, Long.class) : null,
-					jobExecutionId
-			);
+			Long runRecordPk = resolveRunRecordPk(jobExecutionId);
 			jdbcTemplate.update(
-					"update controlplane_trigger_event set launched_run_id = ?, launched_run_pk = ? where trigger_event_id = ? and ((launched_run_id is null or trim(launched_run_id) = '') or launched_run_pk is null)",
+					"""
+					update controlplane_trigger_event
+					set launched_run_id = ?, launched_run_pk = ?
+					where (trigger_event_pk = ? or trigger_event_id = ?)
+					  and ((launched_run_id is null or trim(launched_run_id) = '') or launched_run_pk is null)
+					""",
 					String.valueOf(jobExecutionId),
 					runRecordPk,
+					triggerEvent.triggerEventPk(),
 					triggerEvent.triggerEventId()
 			);
 		} catch (DataAccessException ignored) {

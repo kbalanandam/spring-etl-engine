@@ -96,6 +96,7 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 - The current linkage contract is intentionally additive: new `controlplane_run_record.trigger_event_id` writes are populated only from exact `controlplane_trigger_event.launched_run_id` matches, while a conservative single-candidate time-window fallback is limited to startup backfill for legacy mixed data.
 - `controlplane_run_record.selected_job_key` is treated as an active relational key: new writes populate it from run context, legacy null/blank rows are backfilled at startup, and lookup-oriented indexes (`selected_job_key`, `run_status`, `started_at`, `trigger_event_id`) are part of the current local-read scaling baseline.
 - Internal numeric surrogates now follow one phased pattern across retained scheduler history: `schedule_pk`, `trigger_event_pk`, and `run_record_pk` are additive integer keys for relational joins and future foreign-key hardening, while external `*_id` strings remain the stable operator/API identities.
+- Current linkage resolution now prefers PK-based joins (`launched_run_pk` / `trigger_event_pk`) before legacy string-ID fallback (`launched_run_id` / `trigger_event_id`) so mixed historical data can migrate without changing external API identifiers.
 
 ```mermaid
 erDiagram

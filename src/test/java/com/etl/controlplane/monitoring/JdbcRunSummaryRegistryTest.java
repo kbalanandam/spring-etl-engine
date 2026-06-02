@@ -163,6 +163,57 @@ class JdbcRunSummaryRegistryTest {
 	}
 
 	@Test
+	void startupBackfillPrefersLaunchedRunPkOverAmbiguousLaunchedRunIdMatches() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcTriggerEventRegistry(jdbcTemplate, 100);
+		JdbcRunSummaryRegistry firstRegistry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		firstRegistry.upsert(run(5101L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+
+		Long runRecordPk = jdbcTemplate.queryForObject(
+				"select run_record_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				5101L
+		);
+
+		jdbcTemplate.update("""
+				insert into controlplane_trigger_event (
+					trigger_event_pk, trigger_event_id, job_key, decision_status, reason, requested_by,
+					requested_at, launched_run_pk, launched_run_id, message, trigger_origin
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				11L, "te-id-only", "customer-load", "ACCEPTED", "manual_operator_request", "operator-ui",
+				Timestamp.valueOf(LocalDateTime.parse("2026-05-27T09:10:00")), null, "5101", "legacy-id", "MANUAL"
+		);
+		jdbcTemplate.update("""
+				insert into controlplane_trigger_event (
+					trigger_event_pk, trigger_event_id, job_key, decision_status, reason, requested_by,
+					requested_at, launched_run_pk, launched_run_id, message, trigger_origin
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				12L, "te-pk-match", "customer-load", "ACCEPTED", "manual_operator_request", "operator-ui",
+				Timestamp.valueOf(LocalDateTime.parse("2026-05-27T09:05:00")), runRecordPk, "5101", "pk-match", "MANUAL"
+		);
+
+		jdbcTemplate.update("update controlplane_run_record set trigger_event_id = null, trigger_event_pk = null where job_execution_id = ?", 5101L);
+
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		String linkedTriggerEventId = jdbcTemplate.queryForObject(
+				"select trigger_event_id from controlplane_run_record where job_execution_id = ?",
+				String.class,
+				5101L
+		);
+		Long linkedTriggerEventPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				5101L
+		);
+
+		assertEquals("te-pk-match", linkedTriggerEventId);
+		assertEquals(12L, linkedTriggerEventPk);
+	}
+
+	@Test
 	void doesNotUseTimeWindowFallbackDuringUpsertWhenLaunchIdIsNotSet() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		new JdbcTriggerEventRegistry(jdbcTemplate, 100);

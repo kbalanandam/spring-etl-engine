@@ -230,6 +230,10 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				create index if not exists idx_trigger_event_launched_run_pk
 				on controlplane_trigger_event (launched_run_pk, requested_at)
 				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_trigger_event_launched_run_id
+				on controlplane_trigger_event (launched_run_id, requested_at)
+				""");
 	}
 
 	private void ensureColumnExists(String tableName, String columnName, String columnDefinition) {
