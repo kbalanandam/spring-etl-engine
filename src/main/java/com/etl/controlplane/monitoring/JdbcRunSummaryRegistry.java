@@ -467,6 +467,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					nullableLong(rs, "rollback_count")
 			), jobExecutionId);
 			for (BatchStepProjection step : steps) {
+				String stepRecordId = "sr-" + jobExecutionId + "-" + step.stepExecutionId();
 				Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 				jdbcTemplate.update("""
 						insert into controlplane_step_record (
@@ -501,7 +502,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 							updated_at = excluded.updated_at
 						""",
 						nextStepRecordPk(),
-						"sr-" + jobExecutionId + "-" + step.stepExecutionId(),
+						stepRecordId,
 						runRecordId,
 						normalize(step.stepName()),
 						normalize(step.status()),
@@ -517,11 +518,84 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 						now,
 						now
 				);
+				upsertStepArtifactsFromExecutionContext(step.stepExecutionId(), runRecordId, stepRecordId);
 			}
 			backfillStepRecordPk();
 		} catch (DataAccessException ignored) {
 			// Keep run-summary persistence available when batch step metadata is absent.
 		}
+	}
+
+	private void upsertStepArtifactsFromExecutionContext(Long stepExecutionId, String runRecordId, String stepRecordId) {
+		if (stepExecutionId == null || runRecordId == null || runRecordId.isBlank() || stepRecordId == null || stepRecordId.isBlank()) {
+			return;
+		}
+		try {
+			String shortContext = jdbcTemplate.query(
+					"select short_context from batch_step_execution_context where step_execution_id = ?",
+					rs -> rs.next() ? rs.getString(1) : null,
+					stepExecutionId
+			);
+			if (shortContext == null || shortContext.isBlank()) {
+				return;
+			}
+			String rejectOutputPath = extractContextValue(shortContext, "rejectOutputPath");
+			String archivedSourcePath = extractContextValue(shortContext, "archivedSourcePath");
+			upsertStepArtifact(runRecordId, stepRecordId, "STEP_REJECT_OUTPUT", "ar-step-reject-" + stepRecordId, rejectOutputPath);
+			upsertStepArtifact(runRecordId, stepRecordId, "STEP_ARCHIVED_SOURCE", "ar-step-archive-" + stepRecordId, archivedSourcePath);
+			backfillArtifactRecordPk();
+		} catch (DataAccessException ignored) {
+			// Keep run-summary persistence available when step execution context metadata is absent.
+		}
+	}
+
+	private void upsertStepArtifact(String runRecordId,
+	                               String stepRecordId,
+	                               String artifactRole,
+	                               String artifactRecordId,
+	                               String artifactPath) {
+		String normalizedPath = normalize(artifactPath);
+		if (normalizedPath.isBlank()) {
+			return;
+		}
+		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+		jdbcTemplate.update("""
+				insert into controlplane_artifact_record (
+					artifact_record_pk,
+					artifact_record_id,
+					run_record_id,
+					step_record_id,
+					artifact_role,
+					artifact_path,
+					created_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				on conflict(artifact_record_id) do update set
+					run_record_id = excluded.run_record_id,
+					step_record_id = excluded.step_record_id,
+					artifact_role = excluded.artifact_role,
+					artifact_path = excluded.artifact_path
+				""",
+				nextArtifactRecordPk(),
+				artifactRecordId,
+				runRecordId,
+				stepRecordId,
+				artifactRole,
+				normalizedPath,
+				now
+		);
+	}
+
+	private String extractContextValue(String context, String key) {
+		if (context == null || context.isBlank() || key == null || key.isBlank()) {
+			return "";
+		}
+		java.util.regex.Matcher matcher = java.util.regex.Pattern
+				.compile("\\\"" + java.util.regex.Pattern.quote(key) + "\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"")
+				.matcher(context);
+		if (!matcher.find()) {
+			return "";
+		}
+		return matcher.group(1);
 	}
 
 	private void upsertRunLogArtifact(Long jobExecutionId, String runRecordId, String logPath) {

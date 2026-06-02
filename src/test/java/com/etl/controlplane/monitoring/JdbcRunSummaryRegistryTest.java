@@ -840,6 +840,70 @@ class JdbcRunSummaryRegistryTest {
 		assertEquals("STEP_OUTPUT", stepArtifacts.get(0).artifactRole());
 	}
 
+	@Test
+	void writesStepLevelArtifactsFromBatchStepExecutionContext() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		jdbcTemplate.execute("""
+				create table batch_step_execution (
+					step_execution_id bigint primary key,
+					job_execution_id bigint not null,
+					step_name varchar(100) not null,
+					status varchar(20),
+					start_time timestamp,
+					end_time timestamp,
+					read_count bigint,
+					write_count bigint,
+					filter_count bigint,
+					rollback_count bigint
+				)
+				""");
+		jdbcTemplate.execute("""
+				create table batch_step_execution_context (
+					step_execution_id bigint primary key,
+					short_context varchar(2500)
+				)
+				""");
+		jdbcTemplate.update("""
+				insert into batch_step_execution (
+					step_execution_id, job_execution_id, step_name, status, start_time, end_time,
+					read_count, write_count, filter_count, rollback_count
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				303L,
+				9701L,
+				"load-customers",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00"),
+				10L,
+				10L,
+				0L,
+				0L
+		);
+		jdbcTemplate.update(
+				"insert into batch_step_execution_context (step_execution_id, short_context) values (?, ?)",
+				303L,
+				"{\"rejectOutputPath\":\"output/rejects/customers.csv\",\"archivedSourcePath\":\"archive/customers.csv\"}"
+		);
+
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(run(9701L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+
+		List<RunArtifactRecordView> stepArtifacts = registry.listArtifactRecordsByStepRecordId("sr-9701-303", 10);
+		assertEquals(2, stepArtifacts.size());
+		List<String> roles = stepArtifacts.stream().map(RunArtifactRecordView::artifactRole).toList();
+		assertTrue(roles.contains("STEP_REJECT_OUTPUT"));
+		assertTrue(roles.contains("STEP_ARCHIVED_SOURCE"));
+
+		registry.upsert(run(9701L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+		Long count = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_artifact_record where step_record_id = ?",
+				Long.class,
+				"sr-9701-303"
+		);
+		assertEquals(2L, count);
+	}
+
 	private RunSummaryView run(Long id, String scenario, LocalDateTime start, String status) {
 		return new RunSummaryView(
 				scenario,

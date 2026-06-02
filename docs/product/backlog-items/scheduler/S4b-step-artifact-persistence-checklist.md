@@ -25,7 +25,7 @@ Use this checklist to execute the `S4b` slice under [`S4-control-plane-operation
 
 - [x] add projection/write path for retained step outcomes under retained run identity
 - [x] add projection/write path for run-level artifact evidence references
-- [ ] add projection/write path for step-level artifact evidence references
+- [x] add projection/write path for step-level artifact evidence references
 
 ## Read paths
 
