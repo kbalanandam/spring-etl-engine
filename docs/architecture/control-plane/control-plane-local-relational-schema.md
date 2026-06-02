@@ -92,7 +92,7 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 
 - It reflects what is shipped now in JDBC mode (`controlplane_schedule`, `controlplane_trigger_event`) plus the immediate retained-history direction.
 - Update this section when scheduler entity boundaries or relationships change; avoid editing it for non-schema code-only refactors.
-- First-slice S4 evolution may introduce internal numeric surrogate keys for relational efficiency, but should keep stable external schedule identity (`schedule_id`) to avoid breaking launch/audit contracts while migration is phased.
+- Internal numeric surrogate keys are now active for relational efficiency (`schedule_pk`, `trigger_event_pk`, `run_record_pk`) while stable external identities (`schedule_id`, `trigger_event_id`, `run_record_id`) remain unique operator/API-facing keys.
 - The current linkage contract is intentionally additive: new `controlplane_run_record.trigger_event_id` writes are populated only from exact `controlplane_trigger_event.launched_run_id` matches, while a conservative single-candidate time-window fallback is limited to startup backfill for legacy mixed data.
 - `controlplane_run_record.selected_job_key` is treated as an active relational key: new writes populate it from run context, legacy null/blank rows are backfilled at startup, and lookup-oriented indexes (`selected_job_key`, `run_status`, `started_at`, `trigger_event_id`) are part of the current local-read scaling baseline.
 - Internal numeric surrogates now follow one phased pattern across retained scheduler history: active control-plane surrogate/linkage `*_pk` columns (`schedule_pk`, `trigger_event_pk`, `launched_run_pk`, `run_record_pk`) are now provisioned as `bigint` for relational joins and future foreign-key hardening. PK-constraint cutover is now active across schedule, trigger-event, and run-record tables (`schedule_pk`, `trigger_event_pk`, `run_record_pk` as relational primary keys) while external `*_id` fields remain stable unique operator/API identities.
@@ -101,7 +101,8 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 ```mermaid
 erDiagram
     SCHEDULE {
-        string schedule_id PK
+        bigint schedule_pk PK
+        string schedule_id UK
         string schedule_key UK
         string selected_job_key
         string expression
@@ -114,18 +115,22 @@ erDiagram
     }
 
     TRIGGER_EVENT {
-        string trigger_event_id PK
+        bigint trigger_event_pk PK
+        string trigger_event_id UK
         string job_key
         string trigger_origin
-        string schedule_id FK
+        bigint schedule_pk FK
+        string schedule_id
         string decision_status
         string reason
         timestamp requested_at
     }
 
     RUN_RECORD {
-        string run_record_id PK
-        string trigger_event_id FK
+        bigint run_record_pk PK
+        string run_record_id UK
+        bigint trigger_event_pk FK
+        string trigger_event_id
         string selected_job_key
         string run_status
         timestamp started_at
