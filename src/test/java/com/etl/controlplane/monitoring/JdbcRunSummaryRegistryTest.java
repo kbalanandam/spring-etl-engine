@@ -544,6 +544,86 @@ class JdbcRunSummaryRegistryTest {
 		));
 	}
 
+	@Test
+	void writesRunLogArtifactDuringRunSummaryUpsert() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(run(9201L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+
+		String artifactRole = jdbcTemplate.queryForObject(
+				"select artifact_role from controlplane_artifact_record where artifact_record_id = ?",
+				String.class,
+				"ar-log-9201"
+		);
+		String artifactPath = jdbcTemplate.queryForObject(
+				"select artifact_path from controlplane_artifact_record where artifact_record_id = ?",
+				String.class,
+				"ar-log-9201"
+		);
+		assertEquals("RUN_LOG", artifactRole);
+		assertEquals("logs/2026-05-27/customer-load.log", artifactPath);
+	}
+
+	@Test
+	void projectsStepRecordsFromBatchStepMetadataWhenAvailable() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		jdbcTemplate.execute("""
+				create table batch_step_execution (
+					step_execution_id bigint primary key,
+					job_execution_id bigint not null,
+					step_name varchar(100) not null,
+					status varchar(20),
+					start_time timestamp,
+					end_time timestamp,
+					read_count bigint,
+					write_count bigint,
+					filter_count bigint,
+					rollback_count bigint
+				)
+				""");
+		jdbcTemplate.update("""
+				insert into batch_step_execution (
+					step_execution_id, job_execution_id, step_name, status, start_time, end_time,
+					read_count, write_count, filter_count, rollback_count
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				101L,
+				9301L,
+				"load-customers",
+				"COMPLETED",
+				Timestamp.valueOf("2026-05-27 09:00:00"),
+				Timestamp.valueOf("2026-05-27 09:01:00"),
+				10L,
+				10L,
+				0L,
+				0L
+		);
+
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(run(9301L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+
+		String stepStatus = jdbcTemplate.queryForObject(
+				"select step_status from controlplane_step_record where step_record_id = ?",
+				String.class,
+				"sr-9301-101"
+		);
+		Long readCount = jdbcTemplate.queryForObject(
+				"select read_count from controlplane_step_record where step_record_id = ?",
+				Long.class,
+				"sr-9301-101"
+		);
+		assertEquals("COMPLETED", stepStatus);
+		assertEquals(10L, readCount);
+
+		registry.upsert(run(9301L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+		Long count = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_step_record where step_record_id = ?",
+				Long.class,
+				"sr-9301-101"
+		);
+		assertEquals(1L, count);
+	}
+
 	private RunSummaryView run(Long id, String scenario, LocalDateTime start, String status) {
 		return new RunSummaryView(
 				scenario,

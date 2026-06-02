@@ -84,6 +84,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			);
 		}
 		upsertRunRecord(runSummary);
+		upsertStepAndArtifactRecords(runSummary);
 		pruneOverflow();
 	}
 
@@ -272,6 +273,249 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		backfillRunRecordTriggerEventPk();
 		backfillRunRecordSelectedJobKey();
 		backfillRunRecordTriggerEventLinkage();
+		backfillRunLogArtifactsFromRunSummary();
+		backfillStepRecordsFromBatchMetadata();
+	}
+
+	private void upsertStepAndArtifactRecords(RunSummaryView runSummary) {
+		Long jobExecutionId = runSummary.jobExecutionId();
+		if (jobExecutionId == null) {
+			return;
+		}
+		String runRecordId = resolveRunRecordId(jobExecutionId);
+		if (runRecordId == null || runRecordId.isBlank()) {
+			return;
+		}
+		upsertStepRecordsFromBatchMetadata(jobExecutionId, runRecordId);
+		upsertRunLogArtifact(jobExecutionId, runRecordId, runSummary.logPath());
+	}
+
+	private void backfillRunLogArtifactsFromRunSummary() {
+		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+		jdbcTemplate.update("""
+				insert into controlplane_artifact_record (
+					artifact_record_pk,
+					artifact_record_id,
+					run_record_id,
+					step_record_id,
+					artifact_role,
+					artifact_path,
+					created_at
+				)
+				select
+					null,
+					'ar-log-' || cast(rs.job_execution_id as text),
+					rr.run_record_id,
+					null,
+					'RUN_LOG',
+					rs.log_path,
+					?
+				from controlplane_run_summary rs
+				join controlplane_run_record rr on rr.job_execution_id = rs.job_execution_id
+				where rs.log_path is not null
+				  and trim(rs.log_path) <> ''
+				  and not exists (
+					select 1
+					from controlplane_artifact_record ar
+					where ar.artifact_record_id = 'ar-log-' || cast(rs.job_execution_id as text)
+				  )
+				""", now);
+		backfillArtifactRecordPk();
+	}
+
+	private void backfillStepRecordsFromBatchMetadata() {
+		List<Long> jobExecutionIds;
+		try {
+			jobExecutionIds = jdbcTemplate.queryForList(
+					"select job_execution_id from controlplane_run_record",
+					Long.class
+			);
+		} catch (DataAccessException ignored) {
+			return;
+		}
+		for (Long jobExecutionId : jobExecutionIds) {
+			if (jobExecutionId == null) {
+				continue;
+			}
+			String runRecordId = resolveRunRecordId(jobExecutionId);
+			if (runRecordId == null || runRecordId.isBlank()) {
+				continue;
+			}
+			upsertStepRecordsFromBatchMetadata(jobExecutionId, runRecordId);
+		}
+	}
+
+	private void upsertStepRecordsFromBatchMetadata(Long jobExecutionId, String runRecordId) {
+		if (jobExecutionId == null || runRecordId == null || runRecordId.isBlank()) {
+			return;
+		}
+		try {
+			List<BatchStepProjection> steps = jdbcTemplate.query("""
+					select
+						step_execution_id,
+						step_name,
+						status,
+						start_time,
+						end_time,
+						read_count,
+						write_count,
+						filter_count,
+						rollback_count
+					from batch_step_execution
+					where job_execution_id = ?
+					order by step_execution_id
+					""", (rs, rowNum) -> new BatchStepProjection(
+					rs.getLong("step_execution_id"),
+					rs.getString("step_name"),
+					rs.getString("status"),
+					toLocalDateTime(rs.getTimestamp("start_time")),
+					toLocalDateTime(rs.getTimestamp("end_time")),
+					nullableLong(rs, "read_count"),
+					nullableLong(rs, "write_count"),
+					nullableLong(rs, "filter_count"),
+					nullableLong(rs, "rollback_count")
+			), jobExecutionId);
+			for (BatchStepProjection step : steps) {
+				Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+				jdbcTemplate.update("""
+						insert into controlplane_step_record (
+							step_record_pk,
+							step_record_id,
+							run_record_id,
+							step_name,
+							step_status,
+							started_at,
+							finished_at,
+							duration_seconds,
+							read_count,
+							write_count,
+							filter_count,
+							skip_count,
+							rollback_count,
+							rejected_count,
+							created_at,
+							updated_at
+						) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+						on conflict(step_record_id) do update set
+							run_record_id = excluded.run_record_id,
+							step_name = excluded.step_name,
+							step_status = excluded.step_status,
+							started_at = excluded.started_at,
+							finished_at = excluded.finished_at,
+							duration_seconds = excluded.duration_seconds,
+							read_count = excluded.read_count,
+							write_count = excluded.write_count,
+							filter_count = excluded.filter_count,
+							rollback_count = excluded.rollback_count,
+							updated_at = excluded.updated_at
+						""",
+						nextStepRecordPk(),
+						"sr-" + jobExecutionId + "-" + step.stepExecutionId(),
+						runRecordId,
+						normalize(step.stepName()),
+						normalize(step.status()),
+						toTimestamp(step.startTime()),
+						toTimestamp(step.endTime()),
+						calculateDurationSeconds(step.startTime(), step.endTime()),
+						step.readCount(),
+						step.writeCount(),
+						step.filterCount(),
+						null,
+						step.rollbackCount(),
+						null,
+						now,
+						now
+				);
+			}
+			backfillStepRecordPk();
+		} catch (DataAccessException ignored) {
+			// Keep run-summary persistence available when batch step metadata is absent.
+		}
+	}
+
+	private void upsertRunLogArtifact(Long jobExecutionId, String runRecordId, String logPath) {
+		if (jobExecutionId == null || runRecordId == null || runRecordId.isBlank()) {
+			return;
+		}
+		String normalizedLogPath = normalize(logPath);
+		if (normalizedLogPath.isBlank()) {
+			return;
+		}
+		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+		jdbcTemplate.update("""
+				insert into controlplane_artifact_record (
+					artifact_record_pk,
+					artifact_record_id,
+					run_record_id,
+					step_record_id,
+					artifact_role,
+					artifact_path,
+					created_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				on conflict(artifact_record_id) do update set
+					run_record_id = excluded.run_record_id,
+					artifact_path = excluded.artifact_path
+				""",
+				nextArtifactRecordPk(),
+				"ar-log-" + jobExecutionId,
+				runRecordId,
+				null,
+				"RUN_LOG",
+				normalizedLogPath,
+				now
+		);
+		backfillArtifactRecordPk();
+	}
+
+	private void backfillStepRecordPk() {
+		jdbcTemplate.update("""
+				update controlplane_step_record
+				set step_record_pk = rowid
+				where step_record_pk is null
+				""");
+	}
+
+	private void backfillArtifactRecordPk() {
+		jdbcTemplate.update("""
+				update controlplane_artifact_record
+				set artifact_record_pk = rowid
+				where artifact_record_pk is null
+				""");
+	}
+
+	private Long nextStepRecordPk() {
+		Long value = jdbcTemplate.queryForObject(
+				"select coalesce(max(step_record_pk), 0) + 1 from controlplane_step_record",
+				Long.class
+		);
+		return value == null ? 1L : value;
+	}
+
+	private Long nextArtifactRecordPk() {
+		Long value = jdbcTemplate.queryForObject(
+				"select coalesce(max(artifact_record_pk), 0) + 1 from controlplane_artifact_record",
+				Long.class
+		);
+		return value == null ? 1L : value;
+	}
+
+	private String resolveRunRecordId(Long jobExecutionId) {
+		if (jobExecutionId == null) {
+			return null;
+		}
+		return jdbcTemplate.query(
+				"select run_record_id from controlplane_run_record where job_execution_id = ?",
+				rs -> rs.next() ? rs.getString(1) : null,
+				jobExecutionId
+		);
+	}
+
+	private Long calculateDurationSeconds(LocalDateTime startedAt, LocalDateTime finishedAt) {
+		if (startedAt == null || finishedAt == null) {
+			return null;
+		}
+		long seconds = java.time.Duration.between(startedAt, finishedAt).getSeconds();
+		return Math.max(0L, seconds);
 	}
 
 	private void createArtifactOwnershipTriggers() {
@@ -740,6 +984,19 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	}
 
 	private record RunRecordLinkCandidate(long jobExecutionId, String scenario, LocalDateTime startedAt) {
+	}
+
+	private record BatchStepProjection(
+			long stepExecutionId,
+			String stepName,
+			String status,
+			LocalDateTime startTime,
+			LocalDateTime endTime,
+			Long readCount,
+			Long writeCount,
+			Long filterCount,
+			Long rollbackCount
+	) {
 	}
 
 	private record TriggerEventLink(String triggerEventId, Long triggerEventPk) {
