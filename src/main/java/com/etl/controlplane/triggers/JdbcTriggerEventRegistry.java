@@ -183,8 +183,8 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 	private void initializeSchema() {
 		jdbcTemplate.execute("""
 				create table if not exists controlplane_trigger_event (
-					trigger_event_pk bigint,
-					trigger_event_id varchar(80) primary key,
+					trigger_event_pk bigint primary key,
+					trigger_event_id varchar(80) not null unique,
 					job_key varchar(200) not null,
 					decision_status varchar(50) not null,
 					reason varchar(200),
@@ -200,6 +200,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 					external_origin_key varchar(200)
 				)
 				""");
+		migrateLegacyPrimaryKeyIfRequired();
 		ensureColumnExists("controlplane_trigger_event", "trigger_event_pk", "bigint");
 		ensureColumnExists("controlplane_trigger_event", "launched_run_pk", "bigint");
 		ensureColumnExists("controlplane_trigger_event", "schedule_pk", "bigint");
@@ -234,6 +235,90 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				create index if not exists idx_trigger_event_launched_run_id
 				on controlplane_trigger_event (launched_run_id, requested_at)
 				""");
+	}
+
+	private void migrateLegacyPrimaryKeyIfRequired() {
+		List<String> primaryKeyColumns = jdbcTemplate.query(
+				"select lower(name) from pragma_table_info('controlplane_trigger_event') where pk > 0 order by pk",
+				(rs, rowNum) -> rs.getString(1)
+		);
+		if (primaryKeyColumns.size() == 1 && "trigger_event_pk".equals(primaryKeyColumns.get(0))) {
+			return;
+		}
+
+		jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection -> {
+			boolean originalAutoCommit = connection.getAutoCommit();
+			connection.setAutoCommit(false);
+			try (java.sql.Statement statement = connection.createStatement()) {
+				statement.execute("""
+						create table controlplane_trigger_event_new (
+							trigger_event_pk bigint primary key,
+							trigger_event_id varchar(80) not null unique,
+							job_key varchar(200) not null,
+							decision_status varchar(50) not null,
+							reason varchar(200),
+							requested_by varchar(200),
+							requested_at timestamp not null,
+							launched_run_pk bigint,
+							launched_run_id varchar(80),
+							message varchar(2000),
+							trigger_origin varchar(50),
+							schedule_id varchar(80),
+							schedule_pk bigint,
+							watcher_id varchar(80),
+							external_origin_key varchar(200)
+						)
+						""");
+				statement.execute("""
+						insert into controlplane_trigger_event_new (
+							trigger_event_pk,
+							trigger_event_id,
+							job_key,
+							decision_status,
+							reason,
+							requested_by,
+							requested_at,
+							launched_run_pk,
+							launched_run_id,
+							message,
+							trigger_origin,
+							schedule_id,
+							schedule_pk,
+							watcher_id,
+							external_origin_key
+						)
+						select
+							coalesce(trigger_event_pk, rowid),
+							trigger_event_id,
+							job_key,
+							decision_status,
+							reason,
+							requested_by,
+							requested_at,
+							launched_run_pk,
+							launched_run_id,
+							message,
+							trigger_origin,
+							schedule_id,
+							schedule_pk,
+							watcher_id,
+							external_origin_key
+						from controlplane_trigger_event
+						""");
+				statement.execute("drop table controlplane_trigger_event");
+				statement.execute("alter table controlplane_trigger_event_new rename to controlplane_trigger_event");
+				connection.commit();
+			} catch (java.sql.SQLException ex) {
+				connection.rollback();
+				throw ex;
+			} catch (RuntimeException ex) {
+				connection.rollback();
+				throw ex;
+			} finally {
+				connection.setAutoCommit(originalAutoCommit);
+			}
+			return null;
+		});
 	}
 
 	private void ensureColumnExists(String tableName, String columnName, String columnDefinition) {

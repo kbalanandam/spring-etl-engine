@@ -24,6 +24,7 @@ and this project adheres to **Semantic Versioning**.
 - Aligned local persistence to one SQLite file by pointing the shipped `controlplane` profile at `.etl-dev/etl-dev.db`, so Spring Batch metadata and control-plane retained-history tables now coexist in a single developer database file.
 - Updated retained-history surrogate/linkage typing so control-plane `*_pk` columns (`controlplane_schedule.schedule_pk`, `controlplane_trigger_event.trigger_event_pk|launched_run_pk|schedule_pk`, and `controlplane_run_record.run_record_pk|trigger_event_pk`) now provision as `bigint` for fresh local schema creation.
 - Started the S4 PK-constraint cutover by migrating `controlplane_schedule` to `schedule_pk` as the relational primary key while preserving `schedule_id` as a unique external business key.
+- Continued the S4 PK-constraint cutover by migrating `controlplane_trigger_event` and `controlplane_run_record` to `trigger_event_pk` / `run_record_pk` relational primary keys while preserving `trigger_event_id` / `run_record_id` as unique external business keys.
 
 ### Fixed
 - N/A

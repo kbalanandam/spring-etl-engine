@@ -174,8 +174,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				""");
 		jdbcTemplate.execute("""
 				create table if not exists controlplane_run_record (
-					run_record_pk bigint,
-					run_record_id varchar(80) primary key,
+					run_record_pk bigint primary key,
+					run_record_id varchar(80) not null unique,
 					job_execution_id bigint not null unique,
 					trigger_event_pk bigint,
 					trigger_event_id varchar(80),
@@ -192,6 +192,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					updated_at timestamp not null
 				)
 				""");
+		migrateLegacyRunRecordPrimaryKeyIfRequired();
 		ensureColumnExists("controlplane_run_record", "run_record_pk", "bigint");
 		ensureColumnExists("controlplane_run_record", "trigger_event_pk", "bigint");
 		backfillRunRecordPk();
@@ -223,6 +224,93 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		backfillRunRecordTriggerEventPk();
 		backfillRunRecordSelectedJobKey();
 		backfillRunRecordTriggerEventLinkage();
+	}
+
+	private void migrateLegacyRunRecordPrimaryKeyIfRequired() {
+		List<String> primaryKeyColumns = jdbcTemplate.query(
+				"select lower(name) from pragma_table_info('controlplane_run_record') where pk > 0 order by pk",
+				(rs, rowNum) -> rs.getString(1)
+		);
+		if (primaryKeyColumns.size() == 1 && "run_record_pk".equals(primaryKeyColumns.get(0))) {
+			return;
+		}
+
+		jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection -> {
+			boolean originalAutoCommit = connection.getAutoCommit();
+			connection.setAutoCommit(false);
+			try (java.sql.Statement statement = connection.createStatement()) {
+				statement.execute("""
+						create table controlplane_run_record_new (
+							run_record_pk bigint primary key,
+							run_record_id varchar(80) not null unique,
+							job_execution_id bigint not null unique,
+							trigger_event_pk bigint,
+							trigger_event_id varchar(80),
+							selected_job_key varchar(200),
+							scenario varchar(200) not null,
+							run_status varchar(50) not null,
+							started_at timestamp,
+							finished_at timestamp,
+							duration_seconds bigint,
+							source_count bigint,
+							written_count bigint,
+							rejected_count bigint,
+							created_at timestamp not null,
+							updated_at timestamp not null
+						)
+						""");
+				statement.execute("""
+						insert into controlplane_run_record_new (
+							run_record_pk,
+							run_record_id,
+							job_execution_id,
+							trigger_event_pk,
+							trigger_event_id,
+							selected_job_key,
+							scenario,
+							run_status,
+							started_at,
+							finished_at,
+							duration_seconds,
+							source_count,
+							written_count,
+							rejected_count,
+							created_at,
+							updated_at
+						)
+						select
+							coalesce(run_record_pk, rowid),
+							run_record_id,
+							job_execution_id,
+							trigger_event_pk,
+							trigger_event_id,
+							selected_job_key,
+							scenario,
+							run_status,
+							started_at,
+							finished_at,
+							duration_seconds,
+							source_count,
+							written_count,
+							rejected_count,
+							created_at,
+							updated_at
+						from controlplane_run_record
+						""");
+				statement.execute("drop table controlplane_run_record");
+				statement.execute("alter table controlplane_run_record_new rename to controlplane_run_record");
+				connection.commit();
+			} catch (java.sql.SQLException ex) {
+				connection.rollback();
+				throw ex;
+			} catch (RuntimeException ex) {
+				connection.rollback();
+				throw ex;
+			} finally {
+				connection.setAutoCommit(originalAutoCommit);
+			}
+			return null;
+		});
 	}
 
 	private void upsertRunRecord(RunSummaryView runSummary) {

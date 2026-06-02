@@ -11,6 +11,7 @@ import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -91,6 +92,79 @@ class JdbcRunSummaryRegistryTest {
 		);
 		assertEquals("bigint", runRecordPkType == null ? "" : runRecordPkType.toLowerCase());
 		assertEquals("bigint", triggerEventPkType == null ? "" : triggerEventPkType.toLowerCase());
+	}
+
+	@Test
+	void usesRunRecordPkAsPrimaryKeyAndKeepsRunRecordIdUnique() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+				"select lower(name) as name, pk from pragma_table_info('controlplane_run_record') where lower(name) in ('run_record_pk', 'run_record_id')"
+		);
+		Map<String, Integer> pkFlags = new java.util.HashMap<>();
+		for (Map<String, Object> row : rows) {
+			pkFlags.put(String.valueOf(row.get("name")), ((Number) row.get("pk")).intValue());
+		}
+
+		assertEquals(1, pkFlags.getOrDefault("run_record_pk", 0));
+		assertEquals(0, pkFlags.getOrDefault("run_record_id", 0));
+	}
+
+	@Test
+	void migratesLegacyRunRecordIdPrimaryKeyShape() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		jdbcTemplate.execute("""
+				create table controlplane_run_record (
+					run_record_pk bigint,
+					run_record_id varchar(80) primary key,
+					job_execution_id bigint not null unique,
+					trigger_event_pk bigint,
+					trigger_event_id varchar(80),
+					selected_job_key varchar(200),
+					scenario varchar(200) not null,
+					run_status varchar(50) not null,
+					started_at timestamp,
+					finished_at timestamp,
+					duration_seconds bigint,
+					source_count bigint,
+					written_count bigint,
+					rejected_count bigint,
+					created_at timestamp not null,
+					updated_at timestamp not null
+				)
+				""");
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_pk, run_record_id, job_execution_id, trigger_event_pk, trigger_event_id,
+					selected_job_key, scenario, run_status, started_at, finished_at,
+					duration_seconds, source_count, written_count, rejected_count, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				23L, "rr-legacy", 7001L, null, null,
+				"customer-load", "customer-load", "COMPLETED", java.sql.Timestamp.valueOf("2026-05-27 09:00:00"), java.sql.Timestamp.valueOf("2026-05-27 09:05:00"),
+				300L, 10L, 10L, 0L, java.sql.Timestamp.valueOf("2026-05-27 09:00:00"), java.sql.Timestamp.valueOf("2026-05-27 09:05:00")
+		);
+
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		Integer runRecordPkPkFlag = jdbcTemplate.queryForObject(
+				"select pk from pragma_table_info('controlplane_run_record') where lower(name) = 'run_record_pk'",
+				Integer.class
+		);
+		Integer runRecordIdPkFlag = jdbcTemplate.queryForObject(
+				"select pk from pragma_table_info('controlplane_run_record') where lower(name) = 'run_record_id'",
+				Integer.class
+		);
+		assertEquals(1, runRecordPkPkFlag == null ? 0 : runRecordPkPkFlag);
+		assertEquals(0, runRecordIdPkFlag == null ? 0 : runRecordIdPkFlag);
+
+		Long migratedPk = jdbcTemplate.queryForObject(
+				"select run_record_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				7001L
+		);
+		assertEquals(23L, migratedPk);
 	}
 
 	@Test

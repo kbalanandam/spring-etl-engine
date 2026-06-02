@@ -10,6 +10,7 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -66,6 +67,76 @@ class JdbcTriggerEventRegistryTest {
 		assertEquals("bigint", schedulePkType == null ? "" : schedulePkType.toLowerCase());
 		assertEquals("bigint", triggerEventPkType == null ? "" : triggerEventPkType.toLowerCase());
 		assertEquals("bigint", launchedRunPkType == null ? "" : launchedRunPkType.toLowerCase());
+	}
+
+	@Test
+	void usesTriggerEventPkAsPrimaryKeyAndKeepsTriggerEventIdUnique() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+
+		List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+				"select lower(name) as name, pk from pragma_table_info('controlplane_trigger_event') where lower(name) in ('trigger_event_pk', 'trigger_event_id')"
+		);
+		Map<String, Integer> pkFlags = new java.util.HashMap<>();
+		for (Map<String, Object> row : rows) {
+			pkFlags.put(String.valueOf(row.get("name")), ((Number) row.get("pk")).intValue());
+		}
+
+		assertEquals(1, pkFlags.getOrDefault("trigger_event_pk", 0));
+		assertEquals(0, pkFlags.getOrDefault("trigger_event_id", 0));
+	}
+
+	@Test
+	void migratesLegacyTriggerEventIdPrimaryKeyShape() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		jdbcTemplate.execute("""
+				create table controlplane_trigger_event (
+					trigger_event_pk bigint,
+					trigger_event_id varchar(80) primary key,
+					job_key varchar(200) not null,
+					decision_status varchar(50) not null,
+					reason varchar(200),
+					requested_by varchar(200),
+					requested_at timestamp not null,
+					launched_run_pk bigint,
+					launched_run_id varchar(80),
+					message varchar(2000),
+					trigger_origin varchar(50),
+					schedule_id varchar(80),
+					schedule_pk bigint,
+					watcher_id varchar(80),
+					external_origin_key varchar(200)
+				)
+				""");
+		jdbcTemplate.update("""
+				insert into controlplane_trigger_event (
+					trigger_event_pk, trigger_event_id, job_key, decision_status, reason, requested_by,
+					requested_at, launched_run_pk, launched_run_id, message, trigger_origin, schedule_id, schedule_pk, watcher_id, external_origin_key
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				17L, "te-legacy", "customer-load", "ACCEPTED", "manual_operator_request", "operator-ui",
+				java.sql.Timestamp.valueOf("2026-05-28 10:00:00"), null, null, "legacy", "MANUAL", null, null, null, null
+		);
+
+		new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+
+		Integer triggerEventPkPkFlag = jdbcTemplate.queryForObject(
+				"select pk from pragma_table_info('controlplane_trigger_event') where lower(name) = 'trigger_event_pk'",
+				Integer.class
+		);
+		Integer triggerEventIdPkFlag = jdbcTemplate.queryForObject(
+				"select pk from pragma_table_info('controlplane_trigger_event') where lower(name) = 'trigger_event_id'",
+				Integer.class
+		);
+		assertEquals(1, triggerEventPkPkFlag == null ? 0 : triggerEventPkPkFlag);
+		assertEquals(0, triggerEventIdPkFlag == null ? 0 : triggerEventIdPkFlag);
+
+		Long migratedPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				"te-legacy"
+		);
+		assertEquals(17L, migratedPk);
 	}
 
 	@Test
