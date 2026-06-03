@@ -1,0 +1,9 @@
+{
+  "name": "spring-etl-engine-operator-ui-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:operator-ui-smoke": "node --test scripts/tests/operator-ui-smoke/*.test.js"
+  }
+}
+

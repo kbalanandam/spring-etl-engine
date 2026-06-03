@@ -43,7 +43,7 @@ Use this checklist to execute the `S4b` slice under [`S4-control-plane-operation
 ## Docs and board alignment
 
 - [x] update architecture docs for shipped step/artifact persistence behavior
-- [ ] update `docs/product/product-backlog.md` notes to reflect S4b completion when done
+- [x] update `docs/product/product-backlog.md` notes to reflect S4b completion when done
 - [x] update changelog entry wording for the shipped S4b slice
 
 ## Verification

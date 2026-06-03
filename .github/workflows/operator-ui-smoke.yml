@@ -1,0 +1,44 @@
+name: Operator UI Smoke (Optional)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - src/main/resources/static/operator/**
+      - scripts/tests/operator-ui-smoke/**
+      - package.json
+      - .github/workflows/operator-ui-smoke.yml
+
+concurrency:
+  group: operator-ui-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  operator-ui-smoke:
+    name: Run optional operator UI smoke tests
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run operator UI smoke tests
+        run: npm run test:operator-ui-smoke
+

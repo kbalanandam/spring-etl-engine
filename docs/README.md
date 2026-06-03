@@ -171,6 +171,7 @@ These scaffolds are additive. Existing files stay in current paths for compatibi
 
 ### Operations docs
 - [`operations/README.md`](operations/README.md) - operations docs index (logging/evidence category scaffolding deferred; runtime logs stay under repo-root `logs/`)
+- [Optional operator UI smoke checks](../.github/workflows/operator-ui-smoke.yml) - non-blocking CI workflow for modular operator UI smoke tests; local run guidance lives in [`scripts/tests/operator-ui-smoke/README.md`](../scripts/tests/operator-ui-smoke/README.md)
 
 ### Product tracking
 - [`product/product-backlog.md`](product/product-backlog.md) - step-by-step product backlog plus execution-ready board-style tracking from current state to enterprise-grade target, including optional scheduler/control-plane capabilities that grow around the independently runnable ETL core without becoming mandatory for teams that use external orchestration

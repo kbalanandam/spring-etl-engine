@@ -1,5 +1,7 @@
 package com.etl.controlplane.monitoring;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
@@ -7,8 +9,13 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.sql.Timestamp;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -19,6 +26,7 @@ import java.util.Optional;
 public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	private static final java.time.Duration TRIGGER_LOOKBACK_WINDOW = java.time.Duration.ofMinutes(30);
 	private static final java.time.Duration TRIGGER_LOOKAHEAD_WINDOW = java.time.Duration.ofMinutes(5);
+	private static final ObjectMapper CONTEXT_OBJECT_MAPPER = new ObjectMapper();
 
 	private final JdbcTemplate jdbcTemplate;
 	private final int retention;
@@ -84,8 +92,140 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			);
 		}
 		upsertRunRecord(runSummary);
+		upsertAttemptAndCheckpointRecords(runSummary);
 		upsertStepAndArtifactRecords(runSummary);
 		pruneOverflow();
+	}
+
+	private void upsertAttemptAndCheckpointRecords(RunSummaryView runSummary) {
+		Long jobExecutionId = runSummary.jobExecutionId();
+		if (jobExecutionId == null) {
+			return;
+		}
+		String runRecordId = resolveRunRecordId(jobExecutionId);
+		if (runRecordId == null || runRecordId.isBlank()) {
+			return;
+		}
+
+		// Keep S4c writes best-effort so optional control-plane persistence does not block run projection writes.
+		try {
+			upsertAttemptLinkRecord(runSummary, runRecordId);
+			upsertCheckpointAnchorRecord(runSummary, runRecordId);
+		} catch (DataAccessException ignored) {
+			return;
+		}
+
+		backfillAttemptLinkPk();
+		backfillCheckpointAnchorPk();
+	}
+
+	private void upsertAttemptLinkRecord(RunSummaryView runSummary, String runRecordId) {
+		Long jobExecutionId = runSummary.jobExecutionId();
+		if (jobExecutionId == null || runRecordId == null || runRecordId.isBlank()) {
+			return;
+		}
+
+		String priorRunRecordId = resolvePriorRunRecordId(runSummary, runRecordId);
+		String linkKind = priorRunRecordId == null || priorRunRecordId.isBlank() ? "INITIAL" : "RERUN";
+
+		jdbcTemplate.update("""
+				insert into controlplane_attempt_link (
+					attempt_link_pk,
+					attempt_link_id,
+					run_record_id,
+					prior_run_record_id,
+					link_kind,
+					created_at
+				) values (?, ?, ?, ?, ?, ?)
+				on conflict(attempt_link_id) do update set
+					run_record_id = excluded.run_record_id,
+					prior_run_record_id = excluded.prior_run_record_id,
+					link_kind = excluded.link_kind
+				""",
+				nextAttemptLinkPk(),
+				"al-" + jobExecutionId,
+				runRecordId,
+				priorRunRecordId,
+				linkKind,
+				Timestamp.valueOf(LocalDateTime.now())
+		);
+	}
+
+	private void upsertCheckpointAnchorRecord(RunSummaryView runSummary, String runRecordId) {
+		Long jobExecutionId = runSummary.jobExecutionId();
+		if (jobExecutionId == null || runRecordId == null || runRecordId.isBlank()) {
+			return;
+		}
+
+		String anchorRef = normalize(runSummary.logPath());
+		if (anchorRef.isBlank()) {
+			return;
+		}
+
+		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+		jdbcTemplate.update("""
+				insert into controlplane_checkpoint_anchor (
+					checkpoint_anchor_pk,
+					checkpoint_anchor_id,
+					run_record_id,
+					step_record_id,
+					anchor_kind,
+					anchor_ref,
+					anchor_status,
+					created_at,
+					updated_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				on conflict(checkpoint_anchor_id) do update set
+					run_record_id = excluded.run_record_id,
+					step_record_id = excluded.step_record_id,
+					anchor_kind = excluded.anchor_kind,
+					anchor_ref = excluded.anchor_ref,
+					anchor_status = excluded.anchor_status,
+					updated_at = excluded.updated_at
+				""",
+				nextCheckpointAnchorPk(),
+				"ca-log-" + jobExecutionId,
+				runRecordId,
+				null,
+				"RUN_LOG",
+				anchorRef,
+				normalize(runSummary.status()),
+				now,
+				now
+		);
+	}
+
+	private String resolvePriorRunRecordId(RunSummaryView runSummary, String currentRunRecordId) {
+		Long jobExecutionId = runSummary.jobExecutionId();
+		if (jobExecutionId == null) {
+			return null;
+		}
+		String selectedJobKey = normalize(runSummary.scenario());
+		if (selectedJobKey.isBlank()) {
+			return null;
+		}
+		LocalDateTime startedAt = runSummary.startTime();
+		if (startedAt == null) {
+			startedAt = LocalDateTime.now();
+		}
+		Timestamp startedAtTs = Timestamp.valueOf(startedAt);
+
+		return jdbcTemplate.query("""
+				select run_record_id
+				from controlplane_run_record
+				where selected_job_key = ?
+				  and run_record_id <> ?
+				  and (started_at is null or started_at <= ?)
+				order by case when started_at is null then 1 else 0 end,
+				         started_at desc,
+				         job_execution_id desc
+				limit 1
+				""",
+				rs -> rs.next() ? rs.getString(1) : null,
+				selectedJobKey,
+				currentRunRecordId,
+				startedAtTs
+		);
 	}
 
 	@Override
@@ -93,13 +233,14 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (limit <= 0) {
 			return List.of();
 		}
-		List<RunSummaryView> runs = jdbcTemplate.query("""
+		return jdbcTemplate.query("""
 				select job_execution_id, scenario, status, start_time, end_time, duration_seconds,
 				       source_count, written_count, rejected_count, log_path
 				from controlplane_run_summary
 				order by case when start_time is null then 1 else 0 end,
 				         start_time desc,
 				         job_execution_id desc
+				limit ?
 				""", (rs, rowNum) -> new RunSummaryView(
 				rs.getString("scenario"),
 				rs.getLong("job_execution_id"),
@@ -111,8 +252,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				nullableLong(rs, "written_count"),
 				nullableLong(rs, "rejected_count"),
 				rs.getString("log_path")
-		));
-		return runs.size() <= limit ? runs : runs.subList(0, limit);
+		), limit);
 	}
 
 	@Override
@@ -146,7 +286,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (runRecordId == null || runRecordId.isBlank()) {
 			return List.of();
 		}
-		List<RunStepRecordView> steps = jdbcTemplate.query("""
+		return jdbcTemplate.query("""
 				select step_record_id, run_record_id, step_name, step_status,
 				       started_at, finished_at, duration_seconds,
 				       read_count, write_count, filter_count,
@@ -156,6 +296,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				order by case when started_at is null then 1 else 0 end,
 				         started_at asc,
 				         step_record_id asc
+				limit ?
 				""", (rs, rowNum) -> new RunStepRecordView(
 				rs.getString("step_record_id"),
 				rs.getString("run_record_id"),
@@ -170,8 +311,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				nullableLong(rs, "skip_count"),
 				nullableLong(rs, "rollback_count"),
 				nullableLong(rs, "rejected_count")
-		), runRecordId);
-		return steps.size() <= limit ? steps : steps.subList(0, limit);
+		), runRecordId, limit);
 	}
 
 	@Override
@@ -183,13 +323,14 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (runRecordId == null || runRecordId.isBlank()) {
 			return List.of();
 		}
-		List<RunArtifactRecordView> artifacts = jdbcTemplate.query("""
+		return jdbcTemplate.query("""
 				select artifact_record_id, run_record_id, step_record_id, artifact_role, artifact_path, created_at
 				from controlplane_artifact_record
 				where run_record_id = ?
 				order by case when created_at is null then 1 else 0 end,
 				         created_at desc,
 				         artifact_record_id desc
+				limit ?
 				""", (rs, rowNum) -> new RunArtifactRecordView(
 				rs.getString("artifact_record_id"),
 				rs.getString("run_record_id"),
@@ -197,8 +338,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				rs.getString("artifact_role"),
 				rs.getString("artifact_path"),
 				toLocalDateTime(rs.getTimestamp("created_at"))
-		), runRecordId);
-		return artifacts.size() <= limit ? artifacts : artifacts.subList(0, limit);
+		), runRecordId, limit);
 	}
 
 	@Override
@@ -210,13 +350,14 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (normalizedStepRecordId.isBlank()) {
 			return List.of();
 		}
-		List<RunArtifactRecordView> artifacts = jdbcTemplate.query("""
+		return jdbcTemplate.query("""
 				select artifact_record_id, run_record_id, step_record_id, artifact_role, artifact_path, created_at
 				from controlplane_artifact_record
 				where step_record_id = ?
 				order by case when created_at is null then 1 else 0 end,
 				         created_at desc,
 				         artifact_record_id desc
+				limit ?
 				""", (rs, rowNum) -> new RunArtifactRecordView(
 				rs.getString("artifact_record_id"),
 				rs.getString("run_record_id"),
@@ -224,8 +365,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				rs.getString("artifact_role"),
 				rs.getString("artifact_path"),
 				toLocalDateTime(rs.getTimestamp("created_at"))
-		), normalizedStepRecordId);
-		return artifacts.size() <= limit ? artifacts : artifacts.subList(0, limit);
+		), normalizedStepRecordId, limit);
 	}
 
 	private void pruneOverflow() {
@@ -240,8 +380,48 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			return;
 		}
 		for (Long id : ids.subList(retention, ids.size())) {
-			jdbcTemplate.update("delete from controlplane_run_summary where job_execution_id = ?", id);
+			deleteRunProjectionGraph(id);
 		}
+	}
+
+	private void deleteRunProjectionGraph(Long jobExecutionId) {
+		if (jobExecutionId == null) {
+			return;
+		}
+		jdbcTemplate.update("""
+				delete from controlplane_checkpoint_anchor
+				where run_record_id in (
+					select run_record_id
+					from controlplane_run_record
+					where job_execution_id = ?
+				)
+				""", jobExecutionId);
+		jdbcTemplate.update("""
+				delete from controlplane_attempt_link
+				where run_record_id in (
+					select run_record_id
+					from controlplane_run_record
+					where job_execution_id = ?
+				)
+				""", jobExecutionId);
+		jdbcTemplate.update("""
+				delete from controlplane_artifact_record
+				where run_record_id in (
+					select run_record_id
+					from controlplane_run_record
+					where job_execution_id = ?
+				)
+				""", jobExecutionId);
+		jdbcTemplate.update("""
+				delete from controlplane_step_record
+				where run_record_id in (
+					select run_record_id
+					from controlplane_run_record
+					where job_execution_id = ?
+				)
+				""", jobExecutionId);
+		jdbcTemplate.update("delete from controlplane_run_record where job_execution_id = ?", jobExecutionId);
+		jdbcTemplate.update("delete from controlplane_run_summary where job_execution_id = ?", jobExecutionId);
 	}
 
 	private void initializeSchema() {
@@ -359,6 +539,45 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				create index if not exists idx_artifact_record_step
 				on controlplane_artifact_record (step_record_id, created_at)
 				""");
+		jdbcTemplate.execute("""
+				create table if not exists controlplane_attempt_link (
+					attempt_link_pk bigint primary key,
+					attempt_link_id varchar(80) not null unique,
+					run_record_id varchar(80) not null,
+					prior_run_record_id varchar(80),
+					link_kind varchar(50) not null,
+					created_at timestamp not null
+				)
+				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_attempt_link_run
+				on controlplane_attempt_link (run_record_id, created_at)
+				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_attempt_link_prior
+				on controlplane_attempt_link (prior_run_record_id, created_at)
+				""");
+		jdbcTemplate.execute("""
+				create table if not exists controlplane_checkpoint_anchor (
+					checkpoint_anchor_pk bigint primary key,
+					checkpoint_anchor_id varchar(80) not null unique,
+					run_record_id varchar(80) not null,
+					step_record_id varchar(80),
+					anchor_kind varchar(80) not null,
+					anchor_ref varchar(2000),
+					anchor_status varchar(50),
+					created_at timestamp not null,
+					updated_at timestamp not null
+				)
+				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_checkpoint_anchor_run
+				on controlplane_checkpoint_anchor (run_record_id, created_at)
+				""");
+		jdbcTemplate.execute("""
+				create index if not exists idx_checkpoint_anchor_step
+				on controlplane_checkpoint_anchor (step_record_id, created_at)
+				""");
 		createArtifactOwnershipTriggers();
 		backfillRunRecordFromRunSummary();
 		backfillRunRecordTriggerEventPk();
@@ -366,6 +585,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		backfillRunRecordTriggerEventLinkage();
 		backfillRunLogArtifactsFromRunSummary();
 		backfillStepRecordsFromBatchMetadata();
+		backfillStepRecordsFromRunLogs();
 	}
 
 	private void upsertStepAndArtifactRecords(RunSummaryView runSummary) {
@@ -378,7 +598,191 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			return;
 		}
 		upsertStepRecordsFromBatchMetadata(jobExecutionId, runRecordId);
+		if (countStepRecordsByRunRecordId(runRecordId) == 0) {
+			upsertStepRecordsFromStructuredLog(runSummary, runRecordId);
+		}
 		upsertRunLogArtifact(jobExecutionId, runRecordId, runSummary.logPath());
+	}
+
+	private long countStepRecordsByRunRecordId(String runRecordId) {
+		if (runRecordId == null || runRecordId.isBlank()) {
+			return 0L;
+		}
+		Long value = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_step_record where run_record_id = ?",
+				Long.class,
+				runRecordId
+		);
+		return value == null ? 0L : value;
+	}
+
+	private void upsertStepRecordsFromStructuredLog(RunSummaryView runSummary, String runRecordId) {
+		Long jobExecutionId = runSummary.jobExecutionId();
+		if (jobExecutionId == null) {
+			return;
+		}
+		String logPathValue = normalize(runSummary.logPath());
+		if (logPathValue.isBlank()) {
+			return;
+		}
+		Path logPath = Path.of(logPathValue);
+		if (!Files.exists(logPath)) {
+			return;
+		}
+
+		StructuredLogEventParser parser = new StructuredLogEventParser();
+		Map<String, LogStepProjection> projections = new LinkedHashMap<>();
+		try (var lines = Files.lines(logPath)) {
+			lines.forEach(line -> parser.parse(line, logPath).ifPresent(event -> {
+				if (!"STEP_EVENT".equals(event.recordType()) && !"SUBFLOW_SUMMARY".equals(event.recordType())) {
+					return;
+				}
+				if (event.jobExecutionId() == null || !event.jobExecutionId().equals(jobExecutionId)) {
+					return;
+				}
+				Map<String, String> fields = event.fields();
+				if ("SUBFLOW_SUMMARY".equals(event.recordType())) {
+					for (String stepNameFromSummary : parseStepNames(fields.get("stepNames"))) {
+						String projectionKey = "name:" + stepNameFromSummary;
+						LogStepProjection projection = projections.computeIfAbsent(
+								projectionKey,
+								ignored -> new LogStepProjection(null, stepNameFromSummary)
+						);
+						projection.stepName = stepNameFromSummary;
+						projection.status = firstNonBlank(fields.get("status"), projection.status, "UNKNOWN");
+					}
+					return;
+				}
+				Long stepExecutionId = toLongSafe(fields.get("stepExecutionId"));
+				String stepName = normalize(firstNonBlank(fields.get("stepName"), event.mdcStepName()));
+				if (stepName.isBlank() && stepExecutionId == null) {
+					return;
+				}
+				String projectionKey = stepExecutionId == null ? "name:" + stepName : "id:" + stepExecutionId;
+				LogStepProjection projection = projections.computeIfAbsent(
+						projectionKey,
+						ignored -> new LogStepProjection(stepExecutionId, stepName)
+				);
+				projection.stepName = stepName.isBlank() ? projection.stepName : stepName;
+				String eventType = normalize(event.event());
+				if ("step_started".equalsIgnoreCase(eventType)) {
+					projection.startedAt = projection.startedAt == null ? event.loggedAt() : projection.startedAt;
+					projection.status = projection.status == null || projection.status.isBlank() ? "STARTED" : projection.status;
+				} else if ("step_finished".equalsIgnoreCase(eventType)) {
+					projection.finishedAt = projection.finishedAt == null ? event.loggedAt() : projection.finishedAt;
+					projection.status = firstNonBlank(fields.get("status"), projection.status, "UNKNOWN");
+					projection.readCount = toLongSafe(fields.get("readCount"));
+					projection.writeCount = toLongSafe(fields.get("writeCount"));
+					projection.filterCount = toLongSafe(fields.get("filterCount"));
+					projection.skipCount = toLongSafe(fields.get("skipCount"));
+					projection.rollbackCount = toLongSafe(fields.get("rollbackCount"));
+					projection.rejectedCount = toLongSafe(fields.get("rejectedCount"));
+					projection.rejectOutputPath = firstNonBlank(fields.get("rejectOutputPath"), projection.rejectOutputPath);
+					projection.archivedSourcePath = firstNonBlank(fields.get("archivedSourcePath"), projection.archivedSourcePath);
+				}
+			}));
+		} catch (IOException ignored) {
+			return;
+		}
+
+		int sequence = 1;
+		for (LogStepProjection projection : projections.values()) {
+			String stepRecordId = projection.stepExecutionId == null
+					? "sr-" + jobExecutionId + "-log-" + sequence
+					: "sr-" + jobExecutionId + "-" + projection.stepExecutionId;
+			Timestamp now = Timestamp.valueOf(LocalDateTime.now());
+			jdbcTemplate.update("""
+					insert into controlplane_step_record (
+						step_record_pk,
+						step_record_id,
+						run_record_id,
+						step_name,
+						step_status,
+						started_at,
+						finished_at,
+						duration_seconds,
+						read_count,
+						write_count,
+						filter_count,
+						skip_count,
+						rollback_count,
+						rejected_count,
+						created_at,
+						updated_at
+					) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					on conflict(step_record_id) do update set
+						run_record_id = excluded.run_record_id,
+						step_name = excluded.step_name,
+						step_status = excluded.step_status,
+						started_at = excluded.started_at,
+						finished_at = excluded.finished_at,
+						duration_seconds = excluded.duration_seconds,
+						read_count = excluded.read_count,
+						write_count = excluded.write_count,
+						filter_count = excluded.filter_count,
+						skip_count = excluded.skip_count,
+						rollback_count = excluded.rollback_count,
+						rejected_count = excluded.rejected_count,
+						updated_at = excluded.updated_at
+					""",
+					nextStepRecordPk(),
+					stepRecordId,
+					runRecordId,
+					normalize(projection.stepName),
+					normalize(firstNonBlank(projection.status, "UNKNOWN")),
+					toTimestamp(projection.startedAt),
+					toTimestamp(projection.finishedAt),
+					calculateDurationSeconds(projection.startedAt, projection.finishedAt),
+					projection.readCount,
+					projection.writeCount,
+					projection.filterCount,
+					projection.skipCount,
+					projection.rollbackCount,
+					projection.rejectedCount,
+					now,
+					now
+			);
+			upsertStepArtifact(runRecordId, stepRecordId, "STEP_REJECT_OUTPUT", "ar-step-reject-" + stepRecordId, projection.rejectOutputPath);
+			upsertStepArtifact(runRecordId, stepRecordId, "STEP_ARCHIVED_SOURCE", "ar-step-archive-" + stepRecordId, projection.archivedSourcePath);
+			sequence++;
+		}
+		backfillStepRecordPk();
+		backfillArtifactRecordPk();
+	}
+
+	private Long toLongSafe(String value) {
+		String normalized = normalize(value);
+		if (normalized.isBlank() || "n/a".equalsIgnoreCase(normalized) || "unknown".equalsIgnoreCase(normalized)) {
+			return null;
+		}
+		try {
+			return Long.parseLong(normalized);
+		} catch (NumberFormatException ignored) {
+			return null;
+		}
+	}
+
+	private String firstNonBlank(String... values) {
+		if (values == null) {
+			return "";
+		}
+		for (String value : values) {
+			if (value != null && !value.isBlank()) {
+				return value;
+			}
+		}
+		return "";
+	}
+
+	private List<String> parseStepNames(String rawStepNames) {
+		String normalized = normalize(rawStepNames);
+		if (normalized.isBlank() || "none".equalsIgnoreCase(normalized)) {
+			return List.of();
+		}
+		return java.util.Arrays.stream(normalized.split(","))
+				.map(String::trim)
+				.filter(value -> !value.isBlank())
+				.toList();
 	}
 
 	private void backfillRunLogArtifactsFromRunSummary() {
@@ -433,6 +837,53 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				continue;
 			}
 			upsertStepRecordsFromBatchMetadata(jobExecutionId, runRecordId);
+		}
+	}
+
+	private void backfillStepRecordsFromRunLogs() {
+		List<RunSummaryView> runSummaries;
+		try {
+			runSummaries = jdbcTemplate.query("""
+					select rs.job_execution_id,
+					       rs.scenario,
+					       rs.status,
+					       rs.start_time,
+					       rs.end_time,
+					       rs.duration_seconds,
+					       rs.source_count,
+					       rs.written_count,
+					       rs.rejected_count,
+					       rs.log_path
+					from controlplane_run_summary rs
+					order by rs.job_execution_id desc
+					""", (rs, rowNum) -> new RunSummaryView(
+					rs.getString("scenario"),
+					rs.getLong("job_execution_id"),
+					rs.getString("status"),
+					toLocalDateTime(rs.getTimestamp("start_time")),
+					toLocalDateTime(rs.getTimestamp("end_time")),
+					nullableLong(rs, "duration_seconds"),
+					nullableLong(rs, "source_count"),
+					nullableLong(rs, "written_count"),
+					nullableLong(rs, "rejected_count"),
+					rs.getString("log_path")
+			));
+		} catch (DataAccessException ignored) {
+			return;
+		}
+		for (RunSummaryView runSummary : runSummaries) {
+			Long jobExecutionId = runSummary.jobExecutionId();
+			if (jobExecutionId == null) {
+				continue;
+			}
+			String runRecordId = resolveRunRecordId(jobExecutionId);
+			if (runRecordId == null || runRecordId.isBlank()) {
+				continue;
+			}
+			if (countStepRecordsByRunRecordId(runRecordId) > 0) {
+				continue;
+			}
+			upsertStepRecordsFromStructuredLog(runSummary, runRecordId);
 		}
 	}
 
@@ -589,13 +1040,17 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (context == null || context.isBlank() || key == null || key.isBlank()) {
 			return "";
 		}
-		java.util.regex.Matcher matcher = java.util.regex.Pattern
-				.compile("\\\"" + java.util.regex.Pattern.quote(key) + "\\\"\\s*:\\s*\\\"([^\\\"]*)\\\"")
-				.matcher(context);
-		if (!matcher.find()) {
+		try {
+			JsonNode root = CONTEXT_OBJECT_MAPPER.readTree(context);
+			JsonNode node = root.path(key);
+			if (node.isMissingNode() || node.isNull()) {
+				return "";
+			}
+			return node.isTextual() ? node.asText() : String.valueOf(node);
+		} catch (Exception ignored) {
+			// Keep projection writes available when step context payloads are truncated or malformed.
 			return "";
 		}
-		return matcher.group(1);
 	}
 
 	private void upsertRunLogArtifact(Long jobExecutionId, String runRecordId, String logPath) {
@@ -659,6 +1114,38 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	private Long nextArtifactRecordPk() {
 		Long value = jdbcTemplate.queryForObject(
 				"select coalesce(max(artifact_record_pk), 0) + 1 from controlplane_artifact_record",
+				Long.class
+		);
+		return value == null ? 1L : value;
+	}
+
+	private void backfillAttemptLinkPk() {
+		jdbcTemplate.update("""
+				update controlplane_attempt_link
+				set attempt_link_pk = rowid
+				where attempt_link_pk is null
+				""");
+	}
+
+	private Long nextAttemptLinkPk() {
+		Long value = jdbcTemplate.queryForObject(
+				"select coalesce(max(attempt_link_pk), 0) + 1 from controlplane_attempt_link",
+				Long.class
+		);
+		return value == null ? 1L : value;
+	}
+
+	private void backfillCheckpointAnchorPk() {
+		jdbcTemplate.update("""
+				update controlplane_checkpoint_anchor
+				set checkpoint_anchor_pk = rowid
+				where checkpoint_anchor_pk is null
+				""");
+	}
+
+	private Long nextCheckpointAnchorPk() {
+		Long value = jdbcTemplate.queryForObject(
+				"select coalesce(max(checkpoint_anchor_pk), 0) + 1 from controlplane_checkpoint_anchor",
 				Long.class
 		);
 		return value == null ? 1L : value;
@@ -1162,6 +1649,27 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			Long filterCount,
 			Long rollbackCount
 	) {
+	}
+
+	private static final class LogStepProjection {
+		private final Long stepExecutionId;
+		private String stepName;
+		private String status;
+		private LocalDateTime startedAt;
+		private LocalDateTime finishedAt;
+		private Long readCount;
+		private Long writeCount;
+		private Long filterCount;
+		private Long skipCount;
+		private Long rollbackCount;
+		private Long rejectedCount;
+		private String rejectOutputPath;
+		private String archivedSourcePath;
+
+		private LogStepProjection(Long stepExecutionId, String stepName) {
+			this.stepExecutionId = stepExecutionId;
+			this.stepName = stepName;
+		}
 	}
 
 	private record TriggerEventLink(String triggerEventId, Long triggerEventPk) {

@@ -12,6 +12,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
 /**
@@ -27,21 +28,25 @@ public class RunSummaryReadModelService {
 	private final RunSummaryRegistry registry;
 	private final long maxLogFileSizeBytes;
 	private final int maxLogFilesPerRefresh;
+	private final long minReindexIntervalMs;
+	private volatile long lastReindexEpochMs = Long.MIN_VALUE;
+	private final AtomicBoolean reindexInProgress = new AtomicBoolean(false);
 
 	@Autowired
 	public RunSummaryReadModelService(@Value("${etl.logging.base-dir:logs}") String logBaseDir,
 	                                  RunSummaryRegistry registry,
 	                                  @Value("${controlplane.runs.max-log-file-size-bytes:5000000}") long maxLogFileSizeBytes,
-	                                  @Value("${controlplane.runs.max-log-files-per-refresh:500}") int maxLogFilesPerRefresh) {
-		this(Path.of(logBaseDir), new RunSummaryLogParser(), registry, maxLogFileSizeBytes, maxLogFilesPerRefresh);
+	                                  @Value("${controlplane.runs.max-log-files-per-refresh:500}") int maxLogFilesPerRefresh,
+	                                  @Value("${controlplane.runs.min-reindex-interval-ms:5000}") long minReindexIntervalMs) {
+		this(Path.of(logBaseDir), new RunSummaryLogParser(), registry, maxLogFileSizeBytes, maxLogFilesPerRefresh, minReindexIntervalMs);
 	}
 
 	RunSummaryReadModelService(Path logBaseDir, RunSummaryLogParser parser) {
-		this(logBaseDir, parser, new InMemoryRunSummaryRegistry(), DEFAULT_MAX_LOG_FILE_SIZE_BYTES, DEFAULT_MAX_LOG_FILES_PER_REFRESH);
+		this(logBaseDir, parser, new InMemoryRunSummaryRegistry(), DEFAULT_MAX_LOG_FILE_SIZE_BYTES, DEFAULT_MAX_LOG_FILES_PER_REFRESH, 0);
 	}
 
 	RunSummaryReadModelService(Path logBaseDir, RunSummaryLogParser parser, RunSummaryRegistry registry) {
-		this(logBaseDir, parser, registry, DEFAULT_MAX_LOG_FILE_SIZE_BYTES, DEFAULT_MAX_LOG_FILES_PER_REFRESH);
+		this(logBaseDir, parser, registry, DEFAULT_MAX_LOG_FILE_SIZE_BYTES, DEFAULT_MAX_LOG_FILES_PER_REFRESH, 0);
 	}
 
 	RunSummaryReadModelService(Path logBaseDir,
@@ -49,11 +54,21 @@ public class RunSummaryReadModelService {
 	                          RunSummaryRegistry registry,
 	                          long maxLogFileSizeBytes,
 	                          int maxLogFilesPerRefresh) {
+		this(logBaseDir, parser, registry, maxLogFileSizeBytes, maxLogFilesPerRefresh, 0);
+	}
+
+	RunSummaryReadModelService(Path logBaseDir,
+	                          RunSummaryLogParser parser,
+	                          RunSummaryRegistry registry,
+	                          long maxLogFileSizeBytes,
+	                          int maxLogFilesPerRefresh,
+	                          long minReindexIntervalMs) {
 		this.logBaseDir = logBaseDir;
 		this.parser = parser;
 		this.registry = registry;
 		this.maxLogFileSizeBytes = Math.max(1L, maxLogFileSizeBytes);
 		this.maxLogFilesPerRefresh = Math.max(1, maxLogFilesPerRefresh);
+		this.minReindexIntervalMs = Math.max(0L, minReindexIntervalMs);
 	}
 
 	public List<RunSummaryView> latestRuns(int limit) {
@@ -67,9 +82,12 @@ public class RunSummaryReadModelService {
 		if (limit <= 0) {
 			return List.of();
 		}
-		reindexFromLogs();
-		ZoneId effectiveZone = selectedZoneId == null ? ZoneId.systemDefault() : selectedZoneId;
+		refreshReadModel();
 		String normalizedJobFilter = normalizeToken(jobFilter);
+		if (normalizedJobFilter.isBlank() && startDate == null) {
+			return registry.latestRuns(limit);
+		}
+		ZoneId effectiveZone = selectedZoneId == null ? ZoneId.systemDefault() : selectedZoneId;
 		return registry.latestRuns(Integer.MAX_VALUE).stream()
 				.filter(run -> matchesJobFilter(run, normalizedJobFilter))
 				.filter(run -> matchesStartDate(run, startDate, effectiveZone))
@@ -78,7 +96,7 @@ public class RunSummaryReadModelService {
 	}
 
 	public Optional<RunSummaryView> findRunByJobExecutionId(long jobExecutionId) {
-		reindexFromLogs();
+		refreshReadModel();
 		return registry.findByJobExecutionId(jobExecutionId);
 	}
 
@@ -86,7 +104,7 @@ public class RunSummaryReadModelService {
 		if (limit <= 0) {
 			return List.of();
 		}
-		reindexFromLogs();
+		refreshReadModel();
 		String normalizedJobKey = normalize(jobKey);
 		String normalizedDisplayName = normalize(displayName);
 		return registry.latestRuns(Integer.MAX_VALUE).stream()
@@ -95,21 +113,66 @@ public class RunSummaryReadModelService {
 				.toList();
 	}
 
-	private void reindexFromLogs() {
-		if (!Files.exists(logBaseDir)) {
+	private void refreshReadModel() {
+		if (registry.latestRuns(1).isEmpty()) {
+			reindexFromLogsBlocking();
 			return;
 		}
-		try (Stream<Path> paths = Files.walk(logBaseDir)) {
-			paths
-					.filter(Files::isRegularFile)
-					.filter(path -> path.toString().endsWith(".log"))
-					.filter(this::isScenarioRunLog)
-					.filter(this::isWithinSizeLimit)
-					.limit(maxLogFilesPerRefresh)
-					.forEach(this::collectRunSummaries);
-		} catch (IOException ignored) {
-			// Read-model refresh is best-effort; stale cache is acceptable for this slice.
+		triggerAsyncReindexIfDue();
+	}
+
+	private void triggerAsyncReindexIfDue() {
+		long now = System.currentTimeMillis();
+		if (!shouldReindex(now) || !reindexInProgress.compareAndSet(false, true)) {
+			return;
 		}
+		Thread reindexThread = new Thread(() -> {
+			try {
+				reindexFromLogsBlocking();
+			} finally {
+				reindexInProgress.set(false);
+			}
+		}, "run-summary-reindex");
+		reindexThread.setDaemon(true);
+		reindexThread.start();
+	}
+
+	private void reindexFromLogsBlocking() {
+		long now = System.currentTimeMillis();
+		if (!shouldReindex(now)) {
+			return;
+		}
+		synchronized (this) {
+			now = System.currentTimeMillis();
+			if (!shouldReindex(now)) {
+				return;
+			}
+			try {
+				if (!Files.exists(logBaseDir)) {
+					return;
+				}
+				try (Stream<Path> paths = Files.walk(logBaseDir)) {
+					paths
+							.filter(Files::isRegularFile)
+							.filter(path -> path.toString().endsWith(".log"))
+							.filter(this::isScenarioRunLog)
+							.filter(this::isWithinSizeLimit)
+							.limit(maxLogFilesPerRefresh)
+							.forEach(this::collectRunSummaries);
+				}
+			} catch (IOException ignored) {
+				// Read-model refresh is best-effort; stale cache is acceptable for this slice.
+			} finally {
+				lastReindexEpochMs = System.currentTimeMillis();
+			}
+		}
+	}
+
+	private boolean shouldReindex(long nowEpochMs) {
+		if (lastReindexEpochMs == Long.MIN_VALUE) {
+			return true;
+		}
+		return nowEpochMs - lastReindexEpochMs >= minReindexIntervalMs;
 	}
 
 	private boolean isScenarioRunLog(Path path) {

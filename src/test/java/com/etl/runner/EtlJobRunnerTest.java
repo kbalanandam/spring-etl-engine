@@ -69,6 +69,7 @@ class EtlJobRunnerTest {
         assertEquals("default-subflow", jobParameters.getString("subFlow"));
         assertEquals("rerun-from-start", jobParameters.getString("recoveryPolicy"));
         assertEquals("explicit-job", jobParameters.getString("runMode"));
+        assertTrue(jobParameters.getString("runCorrelationId").matches("\\d{8}-\\d{6}-\\d{3}"));
         assertNull(MDC.get(RunLoggingContext.SCENARIO));
         assertNull(MDC.get(RunLoggingContext.SCENARIO_LOG_KEY));
         assertNull(MDC.get(RunLoggingContext.RUN_CORRELATION_ID));

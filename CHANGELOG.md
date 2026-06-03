@@ -10,22 +10,30 @@ and this project adheres to **Semantic Versioning**.
 - N/A
 
 ### Changed
-- Started `S1` first-slice contract freeze as a docs-first boundary baseline: scheduler launchers now explicitly align to one selected-job contract, trigger-origin/identity evidence expectations are clarified, and scheduler retry/restart ownership remains separated from ETL runtime recovery semantics.
-- Updated product execution planning docs to mark `S1` in progress for `1.8.0` and align near-term sequencing around contract freeze before `S2` implementation expansion.
-- Expanded current `1.8.0` scope to include a first `S4` retained-history slice for scheduler table-structure evolution, with phased migration guidance that preserves stable external schedule identity while relational internals evolve.
-- Started `S2` first implementation slice in the current `1.8.0` lane for time-based schedule definitions and pause/resume controls on the frozen selected-job launch boundary.
-- Started S4 code implementation with a non-breaking scheduler table evolution slice: `controlplane_schedule` now provisions/backfills an internal numeric surrogate key (`schedule_pk`) while preserving external string `schedule_id` contracts.
-- Continued S4 first implementation with trigger-event persistence readiness: `controlplane_trigger_event` now carries optional `schedule_pk` and resolves it from `controlplane_schedule` when schedule-origin events are recorded, while preserving existing `schedule_id` behavior.
-- Hardened schedule-origin trigger matching with case/whitespace-tolerant `schedule_id` normalization so `schedule_pk` resolution and `listByScheduleId` behavior remain consistent during phased migration.
-- Extended S4 retained-history implementation with a non-breaking `controlplane_run_record` foundation table that dual-writes from run-summary persistence and backfills from existing `controlplane_run_summary` rows at startup.
-- Hardened S4 relational-normalization behavior for run history: `controlplane_run_record.selected_job_key` is now populated/backfilled from persisted run context, direct upsert linkage remains deterministic through `launched_run_id`, and additional run-record indexes were added for scalable relational lookup paths.
-- Continued S4 retained-history normalization with additive internal surrogate keys for trigger and run records: `controlplane_trigger_event` now carries `trigger_event_pk` and `launched_run_pk`, `controlplane_run_record` now carries `run_record_pk` and `trigger_event_pk`, and startup backfills reconcile legacy rows while external string IDs remain stable.
-- Refined the same S4 slice to prefer PK-based linkage reads for run-trigger correlation (`launched_run_pk`/`trigger_event_pk`) before legacy string-ID fallback, and added mixed-phase lookup indexing for `launched_run_id` to keep transitional queries portable and scalable.
-- Aligned local persistence to one SQLite file by pointing the shipped `controlplane` profile at `.etl-dev/etl-dev.db`, so Spring Batch metadata and control-plane retained-history tables now coexist in a single developer database file.
-- Updated retained-history surrogate/linkage typing so control-plane `*_pk` columns (`controlplane_schedule.schedule_pk`, `controlplane_trigger_event.trigger_event_pk|launched_run_pk|schedule_pk`, and `controlplane_run_record.run_record_pk|trigger_event_pk`) now provision as `bigint` for fresh local schema creation.
-- Started the S4 PK-constraint cutover by migrating `controlplane_schedule` to `schedule_pk` as the relational primary key while preserving `schedule_id` as a unique external business key.
-- Continued the S4 PK-constraint cutover by migrating `controlplane_trigger_event` and `controlplane_run_record` to `trigger_event_pk` / `run_record_pk` relational primary keys while preserving `trigger_event_id` / `run_record_id` as unique external business keys.
-- Continued S4b retained-history delivery with durable `step_record` / `artifact_record` persistence, persisted run subresource APIs (`/api/v1/runs/{jobExecutionId}/step-records`, `/api/v1/runs/{jobExecutionId}/artifact-records`), and Operator UI run-detail consumption that prefers persisted step/artifact data with fallback to existing detail projections.
+- N/A
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
+## [1.8.0] - 2026-06-03
+
+### Added
+- Added the first scheduler/control-plane launch-contract baseline so schedule-triggered runs follow the same selected-job boundary as direct ETL execution.
+- Added the first time-based scheduling slice, including pause/resume controls on the same selected-job launch boundary.
+- Added retained-history schema foundations with relational surrogate keys for schedule, trigger, and run records (`schedule_pk`, `trigger_event_pk`, `run_record_pk`) while keeping stable external business IDs.
+- Added durable retained step/artifact history persistence (`step_record`, `artifact_record`) and persisted run subresource APIs for step/artifact lookup.
+- Added first attempt-lineage/checkpoint-anchor persistence baseline through best-effort optional writes to `controlplane_attempt_link` and `controlplane_checkpoint_anchor`.
+
+### Changed
+- Updated scheduler persistence migration behavior to preserve legacy external identifiers while moving internal joins to PK-backed linkage, including startup compatibility backfills.
+- Updated schedule-origin trigger matching to normalize `schedule_id` inputs (case/whitespace tolerant) so schedule lookups stay consistent during phased migration.
+- Updated retained run-history projection behavior to populate/backfill `selected_job_key`, prefer deterministic PK-based trigger/run correlation, and include transitional lookup indexing for mixed-phase data.
+- Updated local control-plane storage to use `.etl-dev/etl-dev.db`, colocating Spring Batch metadata and retained-history tables in one developer SQLite file.
+- Updated control-plane surrogate/linkage column typing to `bigint` for new-schema consistency.
+- Updated run-detail read-model projection to prefer persisted step/artifact records, with compatibility fallback to prior detail projections when needed.
 
 ### Fixed
 - N/A

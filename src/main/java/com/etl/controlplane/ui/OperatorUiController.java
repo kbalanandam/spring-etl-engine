@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 @Controller
 public class OperatorUiController {
 
-    private static final String UI_VERSION = "20260531-compact6";
+    private static final String UI_VERSION = "20260603-modsplit2";
 
     @GetMapping({"/operator", "/operator/"})
     public String operatorHome() {

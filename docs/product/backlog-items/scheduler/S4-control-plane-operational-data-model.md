@@ -8,7 +8,7 @@ Define the optional retained operational data model for the future OneFlow contr
 
 - Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **S1, C1, C2**
 
@@ -86,13 +86,13 @@ Expected impact when this item ships:
 
 ## Acceptance criteria
 
-- [ ] the retained control-plane entity set is documented clearly enough to distinguish schedules, watchers, trigger events, runs, steps, and artifacts
-- [ ] the model preserves the independently runnable ETL-core boundary and does not require persistence for direct worker execution
-- [ ] the retained model accommodates both OneFlow-native triggers and external-orchestrator trigger origins
-- [ ] run and step history fields are defined well enough to support later operator search, schedule-to-run traceability, and evidence drill-down
-- [ ] artifact lineage and config identity expectations are documented well enough for audit and diagnosis planning
-- [ ] restartability anchors are documented without prematurely claiming one final restart/resume behavior
-- [ ] local-first relational persistence direction is documented without locking the product to one permanent storage engine, while preserving later portability to PostgreSQL, SQL Server, and MySQL
+- [x] the retained control-plane entity set is documented clearly enough to distinguish schedules, watchers, trigger events, runs, steps, and artifacts
+- [x] the model preserves the independently runnable ETL-core boundary and does not require persistence for direct worker execution
+- [x] the retained model accommodates both OneFlow-native triggers and external-orchestrator trigger origins
+- [x] run and step history fields are defined well enough to support later operator search, schedule-to-run traceability, and evidence drill-down
+- [x] artifact lineage and config identity expectations are documented well enough for audit and diagnosis planning
+- [x] restartability anchors are documented without prematurely claiming one final restart/resume behavior
+- [x] local-first relational persistence direction is documented without locking the product to one permanent storage engine, while preserving later portability to PostgreSQL, SQL Server, and MySQL
 
 ## Related docs
 
@@ -123,10 +123,10 @@ Current release now includes phased S4 slices focused on scheduler table-structu
 S4 should continue as one phased track instead of reopening a new scheduler ID for each retained-history table:
 
 - **S4a (shipped)** - schedule/trigger/run retained-history foundations with PK-constraint cutover and mixed-phase linkage compatibility.
-- **S4b (next)** - durable `step_record` + `artifact_record` persistence with explicit ownership invariants and read-model proof.
-- **S4c (later)** - `attempt_link` + `checkpoint_anchor` after `F1` restart semantics are defined.
+- **S4b (shipped)** - durable `step_record` + `artifact_record` persistence with explicit ownership invariants and read-model proof.
+- **S4c (shipped first functional slice)** - `attempt_link` + `checkpoint_anchor` write/read persistence baseline is shipped; final restart/resume semantics remain owned by `F1` follow-on decisions.
 
-## Proposed next delivery chunk (S4b)
+## Delivered chunk (S4b)
 
 ### Scope
 
@@ -144,15 +144,15 @@ S4 should continue as one phased track instead of reopening a new scheduler ID f
 - `attempt_link` and `checkpoint_anchor` table implementation
 - broad operator UI redesign beyond additive read-model support
 
-### S4b acceptance criteria
+### S4b acceptance criteria (shipped)
 
-- [ ] `step_record` persistence is implemented and queryable under retained `run_record` identity
-- [ ] `artifact_record` persistence is implemented for both run-level and step-level evidence references
-- [ ] artifact ownership invariants are documented and test-covered
-- [ ] existing direct ETL worker execution remains independent from control-plane persistence
-- [ ] architecture/docs + backlog notes are aligned with the shipped S4b slice
+- [x] `step_record` persistence is implemented and queryable under retained `run_record` identity
+- [x] `artifact_record` persistence is implemented for both run-level and step-level evidence references
+- [x] artifact ownership invariants are documented and test-covered
+- [x] existing direct ETL worker execution remains independent from control-plane persistence
+- [x] architecture/docs + backlog notes are aligned with the shipped S4b slice
 
-## Proposed later delivery chunk (S4c)
+## Delivered chunk (S4c first functional slice)
 
 ### Scope
 
@@ -161,6 +161,7 @@ S4 should continue as one phased track instead of reopening a new scheduler ID f
 - define minimum retained fields needed to support `F1` restart semantics without overfitting early implementation details
 - add lookup/read paths required for recovery-oriented operator diagnosis
 - add focused JDBC tests for schema shape, linkage integrity, and recovery lookup behavior
+- track delivery tasks in [`S4c attempt-link/checkpoint-anchor checklist`](S4c-attempt-link-checkpoint-anchor-checklist.md)
 
 ### Out of scope for S4c
 
@@ -170,15 +171,15 @@ S4 should continue as one phased track instead of reopening a new scheduler ID f
 
 ### Delivery gate
 
-- start implementation only after `F1` restart semantics are explicit enough to anchor attempt/checkpoint meaning
+- keep future semantic expansion aligned to `F1` so retained anchors do not pre-commit one final restart/resume policy prematurely
 
-### S4c acceptance criteria
+### S4c acceptance criteria (shipped first functional slice)
 
-- [ ] `attempt_link` persistence is implemented with clear current/prior linkage semantics
-- [ ] `checkpoint_anchor` persistence is implemented with explicit anchor identity and lifecycle fields
-- [ ] retained lineage/checkpoint fields align with `F1` restart-semantics decisions
-- [ ] recovery-oriented lookup paths are documented and test-covered
-- [ ] direct ETL worker execution remains independent from control-plane persistence
+- [x] `attempt_link` persistence is implemented with clear current/prior linkage semantics
+- [x] `checkpoint_anchor` persistence is implemented with explicit anchor identity and lifecycle fields
+- [x] retained lineage/checkpoint fields are documented as restart anchors while final restart/resume semantics remain governed by `F1`
+- [x] recovery-oriented lookup paths are documented and test-covered
+- [x] direct ETL worker execution remains independent from control-plane persistence
 
 
 

@@ -10,6 +10,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -119,6 +120,23 @@ class RunSummaryReadModelServiceTest {
 	}
 
 	@Test
+	void usesRequestedLimitForUnfilteredRunsWithoutFullRegistryScan() throws IOException {
+		createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T09:00:00.000+00:00 INFO [main] [scenario:customer-load] [run:1] [job:2001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=2001 status=COMPLETED startTime=2026-05-27T09:00:00 endTime=2026-05-27T09:00:01 durationSeconds=1 sourceCount=1 writtenCount=1 rejectedCount=0",
+				"2026-05-27T09:10:00.000+00:00 INFO [main] [scenario:customer-load] [run:2] [job:2002] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=2002 status=COMPLETED startTime=2026-05-27T09:10:00 endTime=2026-05-27T09:10:02 durationSeconds=2 sourceCount=2 writtenCount=2 rejectedCount=0"
+		);
+
+		TrackingRunSummaryRegistry trackingRegistry = new TrackingRunSummaryRegistry();
+		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser(), trackingRegistry);
+
+		List<RunSummaryView> runs = service.latestRunsFiltered(1, null, null, ZoneId.of("UTC"));
+
+		assertEquals(1, runs.size());
+		assertEquals(1, trackingRegistry.lastLatestRunsLimit.get());
+	}
+
+	@Test
 	void skipsUnreadableLogFilesAndStillReturnsValidRuns() throws IOException {
 		createLog(
 				tempDir.resolve("2026-05-27/customer-load.log"),
@@ -182,6 +200,42 @@ class RunSummaryReadModelServiceTest {
 		Files.createDirectories(path.getParent());
 		Files.write(path, List.of(lines));
 		return path;
+	}
+
+	private static class TrackingRunSummaryRegistry implements RunSummaryRegistry {
+		private final InMemoryRunSummaryRegistry delegate = new InMemoryRunSummaryRegistry();
+		private final AtomicInteger lastLatestRunsLimit = new AtomicInteger(-1);
+
+		@Override
+		public void upsert(RunSummaryView runSummary) {
+			delegate.upsert(runSummary);
+		}
+
+		@Override
+		public List<RunSummaryView> latestRuns(int limit) {
+			lastLatestRunsLimit.set(limit);
+			return delegate.latestRuns(limit);
+		}
+
+		@Override
+		public Optional<RunSummaryView> findByJobExecutionId(long jobExecutionId) {
+			return delegate.findByJobExecutionId(jobExecutionId);
+		}
+
+		@Override
+		public List<RunStepRecordView> listStepRecordsByJobExecutionId(long jobExecutionId, int limit) {
+			return delegate.listStepRecordsByJobExecutionId(jobExecutionId, limit);
+		}
+
+		@Override
+		public List<RunArtifactRecordView> listArtifactRecordsByJobExecutionId(long jobExecutionId, int limit) {
+			return delegate.listArtifactRecordsByJobExecutionId(jobExecutionId, limit);
+		}
+
+		@Override
+		public List<RunArtifactRecordView> listArtifactRecordsByStepRecordId(String stepRecordId, int limit) {
+			return delegate.listArtifactRecordsByStepRecordId(stepRecordId, limit);
+		}
 	}
 }
 
