@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.lang.Nullable;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -48,9 +49,13 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 		// Seed the run-level MDC/logging context once so all later job and step events share the
 		// same scenario, run-correlation, and flow identifiers.
 		JobParameters jobParameters = jobExecution.getJobParameters();
-		RunLoggingContext.put(RunLoggingContext.SCENARIO, jobParameters.getString("scenario", "unknown-scenario"));
-		RunLoggingContext.put(RunLoggingContext.SCENARIO_LOG_KEY, jobParameters.getString("scenarioLogKey", ""));
-		RunLoggingContext.put(RunLoggingContext.RUN_CORRELATION_ID, jobParameters.getString("runCorrelationId", ""));
+		String scenario = RunLoggingContext.sanitizeScenarioName(jobParameters.getString("scenario", "unknown-scenario"));
+		LocalDate logDate = jobExecution.getStartTime() == null ? LocalDate.now() : jobExecution.getStartTime().toLocalDate();
+		String scenarioLogKey = RunLoggingContext.buildScenarioLogKey(scenario, logDate);
+		String runCorrelationId = RunLoggingContext.buildRunCorrelationId(LocalDateTime.now());
+		RunLoggingContext.put(RunLoggingContext.SCENARIO, scenario);
+		RunLoggingContext.put(RunLoggingContext.SCENARIO_LOG_KEY, scenarioLogKey);
+		RunLoggingContext.put(RunLoggingContext.RUN_CORRELATION_ID, runCorrelationId);
 		RunLoggingContext.put(RunLoggingContext.RUN_MODE, jobParameters.getString("runMode", ""));
 		RunLoggingContext.put(RunLoggingContext.JOB_CONFIG_PATH, jobParameters.getString("jobConfigPath", ""));
 		RunLoggingContext.put(RunLoggingContext.MAIN_FLOW, jobParameters.getString("mainFlow", ""));
@@ -60,7 +65,7 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 		RunLoggingContext.put(RunLoggingContext.JOB_EXECUTION_ID, String.valueOf(jobExecution.getId()));
 
 		logger.info("RUN_EVENT event=job_started scenario={} mainFlow={} subFlow={} recoveryPolicy={} jobName={} jobExecutionId={} startTime={} runMode={} jobConfigPath={}",
-				jobParameters.getString("scenario", "unknown-scenario"),
+				scenario,
 				jobParameters.getString("mainFlow", ""),
 				jobParameters.getString("subFlow", ""),
 				jobParameters.getString("recoveryPolicy", ""),

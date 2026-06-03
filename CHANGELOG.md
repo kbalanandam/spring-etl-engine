@@ -6,6 +6,41 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Added
+- N/A
+
+### Changed
+- N/A
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
+## [1.8.0] - 2026-06-03
+
+### Added
+- Added the first scheduler/control-plane launch-contract baseline so schedule-triggered runs follow the same selected-job boundary as direct ETL execution.
+- Added the first time-based scheduling slice, including pause/resume controls on the same selected-job launch boundary.
+- Added retained-history schema foundations with relational surrogate keys for schedule, trigger, and run records (`schedule_pk`, `trigger_event_pk`, `run_record_pk`) while keeping stable external business IDs.
+- Added durable retained step/artifact history persistence (`step_record`, `artifact_record`) and persisted run subresource APIs for step/artifact lookup.
+- Added first attempt-lineage/checkpoint-anchor persistence baseline through best-effort optional writes to `controlplane_attempt_link` and `controlplane_checkpoint_anchor`.
+
+### Changed
+- Updated scheduler persistence migration behavior to preserve legacy external identifiers while moving internal joins to PK-backed linkage, including startup compatibility backfills.
+- Updated schedule-origin trigger matching to normalize `schedule_id` inputs (case/whitespace tolerant) so schedule lookups stay consistent during phased migration.
+- Updated retained run-history projection behavior to populate/backfill `selected_job_key`, prefer deterministic PK-based trigger/run correlation, and include transitional lookup indexing for mixed-phase data.
+- Updated local control-plane storage to use `.etl-dev/etl-dev.db`, colocating Spring Batch metadata and retained-history tables in one developer SQLite file.
+- Updated control-plane surrogate/linkage column typing to `bigint` for new-schema consistency.
+- Updated run-detail read-model projection to prefer persisted step/artifact records, with compatibility fallback to prior detail projections when needed.
+
+### Fixed
+- N/A
+
+### Security
+- N/A
+
 ## [1.7.10] - 2026-05-31
 
 ### Changed

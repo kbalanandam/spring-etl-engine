@@ -18,10 +18,14 @@
       as successful.
 #>
 param(
-    [string]$RepoRoot = "C:\spring-etl-engine"
+    [string]$RepoRoot
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+}
 
 # Builds selected scenario-scoped generated classes for one explicit job config.
 function Invoke-ScenarioGeneration {
@@ -120,6 +124,20 @@ $positiveCapture = Join-Path $RepoRoot 'target\verify-customer-load.log'
 $negativeCapture = Join-Path $RepoRoot 'target\verify-csv-to-sqlserver.log'
 $customerOutputRoot = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output'
 $customerOutput = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output\customers.xml'
+$devDbDir = Join-Path $RepoRoot '.etl-dev'
+$devDbFile = Join-Path $devDbDir 'etl-dev.db'
+
+if (-not (Test-Path $devDbDir)) {
+    New-Item -ItemType Directory -Path $devDbDir | Out-Null
+}
+
+# Keep smoke runs deterministic by starting from a clean dev metadata DB.
+@($devDbFile, "$devDbFile-wal", "$devDbFile-shm", "$devDbFile-journal") |
+    ForEach-Object {
+        if (Test-Path $_) {
+            Remove-Item $_ -Force -ErrorAction SilentlyContinue
+        }
+    }
 
 Write-Host "[1/2] Verifying positive smoke run: customer-load"
 if (Test-Path (Join-Path $RepoRoot 'targetcustomers.xml')) {

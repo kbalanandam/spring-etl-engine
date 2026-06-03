@@ -15,7 +15,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Date;
 
@@ -34,8 +33,6 @@ import java.util.Date;
 public class EtlJobRunner implements CommandLineRunner {
 
 	private static final Logger logger = LoggerFactory.getLogger(EtlJobRunner.class);
-	private static final DateTimeFormatter LOG_FILE_DATE_FORMATTER = DateTimeFormatter.ISO_LOCAL_DATE;
-	private static final DateTimeFormatter RUN_ID_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS");
 
 	private final JobLauncher jobLauncher;
 	private final Job etlJob;
@@ -52,8 +49,8 @@ public class EtlJobRunner implements CommandLineRunner {
 		// Capture one run-level logging identity before launching Spring Batch so startup,
 		// step, and summary evidence all share the same scenario/run correlation fields.
 		String scenarioName = sanitizeForLogging(runConfigurationMetadata.scenarioName());
-		String scenarioLogKey = LOG_FILE_DATE_FORMATTER.format(LocalDate.now()) + "/" + scenarioName;
-		String runCorrelationId = RUN_ID_FORMATTER.format(LocalDateTime.now());
+		String scenarioLogKey = RunLoggingContext.buildScenarioLogKey(scenarioName, LocalDate.now());
+		String runCorrelationId = RunLoggingContext.buildRunCorrelationId(LocalDateTime.now());
 		String runMode = runConfigurationMetadata.demoFallbackMode() ? "demo-fallback" : "explicit-job";
 
 		JobParameters jobParameters = new JobParametersBuilder()

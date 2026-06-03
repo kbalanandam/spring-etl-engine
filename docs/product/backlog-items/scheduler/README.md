@@ -9,6 +9,10 @@ Current items:
 - `S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md`
 - `S4-control-plane-operational-data-model.md`
 
+Supporting implementation checklists:
+
+- `S4b-step-artifact-persistence-checklist.md`
+
 Status, priority, milestone, and dependency updates remain canonical in `docs/product/product-backlog.md`.
 
 

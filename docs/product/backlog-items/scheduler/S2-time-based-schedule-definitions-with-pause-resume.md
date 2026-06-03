@@ -8,7 +8,7 @@ Add the first practical built-in scheduling slice so jobs can be configured to r
 
 - Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
-- Status: **Deferred**
+- Status: **In Progress**
 - Milestone: **M2**
 - Dependency: **S1**
 
@@ -64,5 +64,5 @@ Do not let S2 redefine the worker contract; it should trigger the same selected-
 
 ## Status notes
 
-Deferred until S1 stabilizes the schedule model and trigger contract.
+Started as a current-release first slice after S1 boundary freeze, focused on time-based schedule definitions and pause/resume controls without changing the selected-job worker contract.
 

@@ -102,6 +102,19 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertEqual("opt-control-plane", option_id)
         self.assertEqual("Control Plane", resolved_name)
 
+    def test_resolve_single_select_option_uses_module_aliases_for_domain_values(self) -> None:
+        field = sync_project_board.ProjectField(
+            field_id="field-module",
+            name="Module",
+            data_type="SINGLE_SELECT",
+            options_by_name={"Scheduling": "opt-scheduling"},
+        )
+
+        option_id, resolved_name = sync_project_board.resolve_single_select_option(field, "scheduler")
+
+        self.assertEqual("opt-scheduling", option_id)
+        self.assertEqual("Scheduling", resolved_name)
+
     def test_resolve_single_select_option_reports_aliases_on_failure(self) -> None:
         field = sync_project_board.ProjectField(
             field_id="field-status",
@@ -243,6 +256,75 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertEqual(0, rendered.count("create a custom text or single-select field named 'Execution Milestone'"))
         self.assertIn("FIELD A1: Execution Milestone = M1", rendered)
         self.assertIn("FIELD A2: Execution Milestone = M1", rendered)
+
+    def test_sync_items_prefers_module_field_over_domain_when_both_exist(self) -> None:
+        item = self.make_item("A1")
+
+        class FakeClient:
+            def get_project(self) -> tuple[str, dict[str, object], dict[str, object]]:
+                fields = {
+                    "Status": sync_project_board.ProjectField(
+                        field_id="field-status",
+                        name="Status",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Priority": sync_project_board.ProjectField(
+                        field_id="field-priority",
+                        name="Priority",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Epic": sync_project_board.ProjectField(
+                        field_id="field-epic",
+                        name="Epic",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Module": sync_project_board.ProjectField(
+                        field_id="field-module",
+                        name="Module",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Domain": sync_project_board.ProjectField(
+                        field_id="field-domain",
+                        name="Domain",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Milestone": sync_project_board.ProjectField(
+                        field_id="field-milestone",
+                        name="Milestone",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Dependency": sync_project_board.ProjectField(
+                        field_id="field-dependency",
+                        name="Dependency",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                }
+                existing_items = {
+                    "A1": sync_project_board.ExistingProjectItem(
+                        item_id="item-a1",
+                        content_id="draft-a1",
+                        content_type="DraftIssue",
+                        title=item.project_title,
+                        body=sync_project_board.build_project_body(item, public_mode=False),
+                    )
+                }
+                return "project-1", fields, existing_items
+
+        output = io.StringIO()
+        with redirect_stdout(output):
+            actions = sync_project_board.sync_items(FakeClient(), [item], dry_run=True, public_mode=False)
+
+        rendered = output.getvalue()
+        self.assertEqual(6, actions)
+        self.assertIn("FIELD A1: Module = etl-core", rendered)
+        self.assertNotIn("FIELD A1: Domain =", rendered)
 
     def test_parse_backlog_items_reads_current_execution_board(self) -> None:
         markdown = textwrap.dedent(

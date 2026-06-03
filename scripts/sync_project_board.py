@@ -86,6 +86,11 @@ SINGLE_SELECT_OPTION_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
         "In Progress": ("In progress", "In-Progress", "InProgress"),
         "Done": ("Completed", "Complete"),
     },
+    "Module": {
+        "etl-core": ("ETL Core", "ETL", "ETL-Core"),
+        "scheduler": ("Scheduler", "Control Plane", "Scheduling"),
+        "operator-ui": ("Operator UI", "UI", "Operator-UI"),
+    },
     "Domain": {
         "etl-core": ("ETL Core", "ETL", "ETL-Core"),
         "scheduler": ("Scheduler", "Control Plane", "Scheduling"),
@@ -785,7 +790,7 @@ def sync_items(
         "Status": (("Status",), lambda item: item.status),
         "Priority": (("Priority",), lambda item: item.priority),
         "Epic": (("Epic",), lambda item: item.epic),
-        "Domain": (("Domain", "Category", "Track"), resolve_backlog_domain),
+        "Module": (("Module", "Domain", "Category", "Track"), resolve_backlog_domain),
         "Milestone": (("Milestone", "Execution Milestone"), lambda item: item.milestone),
         "Dependency": (("Dependency",), lambda item: item.dependency),
     }

@@ -19,12 +19,12 @@
     - Use `-SkipSmoke` when you only want unit/integration test reporting.
 
     Notes:
-    - Defaults assume this repository is located at `C:\spring-etl-engine`.
+    - Defaults resolve from this script location so the repository path is portable across environments.
     - This script is intended for local verification on Windows PowerShell.
 #>
 param(
-    [string]$RepoRoot = "C:\spring-etl-engine",
-    [string]$ReportPath = "C:\spring-etl-engine\target\verification-report.md",
+    [string]$RepoRoot,
+    [string]$ReportPath,
     [int]$KeepLatestCount = 5,
     [switch]$SkipSmoke,
     [ValidateSet('Markdown', 'Html', 'HtmlAndPdf')]
@@ -34,6 +34,14 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ([string]::IsNullOrWhiteSpace($RepoRoot)) {
+    $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+}
+
+if ([string]::IsNullOrWhiteSpace($ReportPath)) {
+    $ReportPath = Join-Path $RepoRoot 'target\verification-report.md'
+}
 
 # Runs the full Maven test suite and captures the complete console log.
 # Returns timing and exit-code metadata so the report can summarize both
@@ -1853,6 +1861,16 @@ $targetDir = Join-Path $RepoRoot 'target'
 $testLog = Join-Path $targetDir 'verification-mvn-test.log'
 $smokeCapture = Join-Path $targetDir 'verification-smoke.log'
 $surefireDir = Join-Path $targetDir 'surefire-reports'
+$reportDirectory = Split-Path -Path $ReportPath -Parent
+
+if (-not (Test-Path $targetDir)) {
+    New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+}
+
+if (-not [string]::IsNullOrWhiteSpace($reportDirectory) -and -not (Test-Path $reportDirectory)) {
+    New-Item -ItemType Directory -Path $reportDirectory -Force | Out-Null
+}
+
 $timestampedReportPath = Get-TimestampedReportPath -BaseReportPath $ReportPath
 $gitSummary = Get-GitSummary -WorkingDirectory $RepoRoot
 

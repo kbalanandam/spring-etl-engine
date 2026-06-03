@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -25,12 +26,116 @@ class JdbcScheduleRegistryTest {
 
 	@Test
 	void upsertsAndFindsByIdAndKey() {
-		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(new JdbcTemplate(inMemoryDataSource()));
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(jdbcTemplate);
 		ScheduleView schedule = schedule("sch-1", "daily-a", LocalDateTime.parse("2026-05-28T09:00:00"));
 		registry.upsert(schedule);
 
 		assertTrue(registry.findByScheduleId("sch-1").isPresent());
 		assertTrue(registry.findByScheduleKey("daily-a").isPresent());
+		Long schedulePk = jdbcTemplate.queryForObject(
+				"select schedule_pk from controlplane_schedule where schedule_id = ?",
+				Long.class,
+				"sch-1"
+		);
+		assertTrue(schedulePk != null && schedulePk > 0);
+	}
+
+	@Test
+	void assignsDistinctSchedulePkValuesForNewRows() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(jdbcTemplate);
+		registry.upsert(schedule("sch-1", "daily-a", LocalDateTime.parse("2026-05-28T09:00:00")));
+		registry.upsert(schedule("sch-2", "daily-b", LocalDateTime.parse("2026-05-28T10:00:00")));
+
+		List<Long> values = jdbcTemplate.queryForList(
+				"select schedule_pk from controlplane_schedule order by schedule_pk asc",
+				Long.class
+		);
+		assertEquals(2, values.size());
+		assertTrue(values.get(0) != null && values.get(1) != null);
+		assertTrue(values.get(1) > values.get(0));
+	}
+
+	@Test
+	void usesBigintTypeForSchedulePkColumn() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcScheduleRegistry(jdbcTemplate);
+
+		String columnType = jdbcTemplate.queryForObject(
+				"select type from pragma_table_info('controlplane_schedule') where lower(name) = 'schedule_pk'",
+				String.class
+		);
+		assertEquals("bigint", columnType == null ? "" : columnType.toLowerCase());
+	}
+
+	@Test
+	void usesSchedulePkAsPrimaryKeyAndKeepsScheduleIdUnique() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcScheduleRegistry(jdbcTemplate);
+
+		List<Map<String, Object>> rows = jdbcTemplate.queryForList(
+				"select lower(name) as name, pk from pragma_table_info('controlplane_schedule') where lower(name) in ('schedule_pk', 'schedule_id')"
+		);
+		Map<String, Integer> pkFlags = new java.util.HashMap<>();
+		for (Map<String, Object> row : rows) {
+			pkFlags.put(String.valueOf(row.get("name")), ((Number) row.get("pk")).intValue());
+		}
+
+		assertEquals(1, pkFlags.getOrDefault("schedule_pk", 0));
+		assertEquals(0, pkFlags.getOrDefault("schedule_id", 0));
+	}
+
+	@Test
+	void migratesLegacyScheduleIdPrimaryKeyShape() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		jdbcTemplate.execute("""
+				create table controlplane_schedule (
+					schedule_id varchar(80) primary key,
+					schedule_key varchar(200) not null unique,
+					selected_job_key varchar(200) not null,
+					expression varchar(200) not null,
+					timezone varchar(100) not null,
+					is_enabled boolean not null,
+					is_paused boolean not null,
+					description varchar(2000),
+					created_at timestamp not null,
+					updated_at timestamp not null,
+					watcher_key varchar(200),
+					last_accepted_due_at timestamp,
+					schedule_pk bigint
+				)
+				""");
+		jdbcTemplate.update("""
+				insert into controlplane_schedule (
+					schedule_id, schedule_key, selected_job_key, expression, timezone,
+					is_enabled, is_paused, description, created_at, updated_at, watcher_key, last_accepted_due_at, schedule_pk
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				"sch-legacy", "daily-legacy", "customer-load", "0 0 * * *", "UTC",
+				true, false, "legacy", java.sql.Timestamp.valueOf("2026-05-28 09:00:00"), java.sql.Timestamp.valueOf("2026-05-28 10:00:00"), null, null, 11L
+		);
+
+		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(jdbcTemplate);
+		assertTrue(registry.findByScheduleId("sch-legacy").isPresent());
+
+		Integer schedulePkPkFlag = jdbcTemplate.queryForObject(
+				"select pk from pragma_table_info('controlplane_schedule') where lower(name) = 'schedule_pk'",
+				Integer.class
+		);
+		Integer scheduleIdPkFlag = jdbcTemplate.queryForObject(
+				"select pk from pragma_table_info('controlplane_schedule') where lower(name) = 'schedule_id'",
+				Integer.class
+		);
+		assertEquals(1, schedulePkPkFlag == null ? 0 : schedulePkPkFlag);
+		assertEquals(0, scheduleIdPkFlag == null ? 0 : scheduleIdPkFlag);
+
+		Long migratedPk = jdbcTemplate.queryForObject(
+				"select schedule_pk from controlplane_schedule where schedule_id = ?",
+				Long.class,
+				"sch-legacy"
+		);
+		assertEquals(11L, migratedPk);
 	}
 
 	@Test

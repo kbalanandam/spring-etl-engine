@@ -43,6 +43,21 @@ public class InMemoryRunSummaryRegistry implements RunSummaryRegistry {
 	public Optional<RunSummaryView> findByJobExecutionId(long jobExecutionId) {
 		return Optional.ofNullable(runsByJobExecutionId.get(jobExecutionId));
 	}
+
+	@Override
+	public List<RunStepRecordView> listStepRecordsByJobExecutionId(long jobExecutionId, int limit) {
+		return List.of();
+	}
+
+	@Override
+	public List<RunArtifactRecordView> listArtifactRecordsByJobExecutionId(long jobExecutionId, int limit) {
+		return List.of();
+	}
+
+	@Override
+	public List<RunArtifactRecordView> listArtifactRecordsByStepRecordId(String stepRecordId, int limit) {
+		return List.of();
+	}
 }
 
 

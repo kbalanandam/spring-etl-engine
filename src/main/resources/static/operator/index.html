@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Operator UI - Monitoring First</title>
-  <link rel="stylesheet" href="/operator/styles.css?v=20260531-compact6">
+  <link rel="stylesheet" href="/operator/styles.css?v=20260603-modsplit2">
 </head>
 <body>
 <header class="topbar">
@@ -175,6 +175,7 @@
 
     <h3>Run log (selected instance)</h3>
     <p class="hint">Structured lines for this run only from <code>/api/v1/runs/{jobExecutionId}/log</code>.</p>
+    <p class="hint">Operator advantage: use <strong>Copy raw</strong> on any line to paste exact evidence into incident tickets, escalation notes, and handoff chats.</p>
     <div id="run-detail-log-controls" class="control-row" hidden>
       <label for="run-detail-log-search">Search</label>
       <input id="run-detail-log-search" type="text" placeholder="message, event, level">
@@ -186,6 +187,7 @@
         <input id="run-detail-log-compact" type="checkbox" checked>
         Compact
       </label>
+      <button id="run-detail-log-copy-visible" type="button" title="Copy all currently visible run-log lines for incident sharing">Copy visible logs</button>
     </div>
     <div id="run-detail-log-state" class="state" hidden></div>
     <div id="run-detail-log-empty" class="state" hidden>No run-scoped log lines available.</div>
@@ -200,6 +202,6 @@
   <p class="footnote-meta">&copy; 2026 OneFlow contributors. All rights reserved.</p>
 </footer>
 
-<script src="/operator/app.js?v=20260531-compact6"></script>
+<script type="module" src="/operator/app.js?v=20260603-modsplit2"></script>
 </body>
 </html>

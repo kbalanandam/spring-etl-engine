@@ -1,6 +1,7 @@
 package com.etl.controlplane.api;
 
 import java.time.LocalDateTime;
+import java.time.Instant;
 
 public record ScheduleViewResponse(
 		String scheduleId,
@@ -11,7 +12,8 @@ public record ScheduleViewResponse(
 		boolean enabled,
 		boolean paused,
 		String description,
-		LocalDateTime updatedAt
+		LocalDateTime updatedAt,
+		Instant nextDueAt
 ) {
 }
 

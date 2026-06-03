@@ -2,10 +2,15 @@ package com.etl.logging;
 
 import org.slf4j.MDC;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+
 /**
  * Central MDC keys and helpers for scenario/job-run aware logging.
  */
 public final class RunLoggingContext {
+	private static final DateTimeFormatter RUN_ID_FORMATTER = DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss-SSS");
 
 	public static final String SCENARIO = "scenario";
 	public static final String SCENARIO_LOG_KEY = "scenarioLogKey";
@@ -49,6 +54,24 @@ public final class RunLoggingContext {
 		MDC.remove(SUB_FLOW);
 		MDC.remove(RECOVERY_POLICY);
 		clearJobScope();
+	}
+
+	public static String sanitizeScenarioName(String value) {
+		String resolved = value == null ? "" : value.trim();
+		if (resolved.isBlank()) {
+			return "unknown-scenario";
+		}
+		return resolved.replaceAll("[^a-zA-Z0-9._-]", "_");
+	}
+
+	public static String buildScenarioLogKey(String scenario, LocalDate date) {
+		LocalDate resolvedDate = date == null ? LocalDate.now() : date;
+		return resolvedDate + "/" + sanitizeScenarioName(scenario);
+	}
+
+	public static String buildRunCorrelationId(LocalDateTime now) {
+		LocalDateTime resolvedNow = now == null ? LocalDateTime.now() : now;
+		return RUN_ID_FORMATTER.format(resolvedNow);
 	}
 }
 

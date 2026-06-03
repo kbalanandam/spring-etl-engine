@@ -10,7 +10,7 @@ That contract must also preserve first-class interoperability with external sche
 
 - Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **In Progress**
 - Milestone: **M2**
 - Dependency: **A1, C1**
 
@@ -89,6 +89,15 @@ The preferred direction is:
 | External scheduler/orchestrator | same selected job path | trigger origin marked external + external trigger reference when available | no OneFlow-only orchestration model required |
 | Operator ad hoc trigger (UI/API) | same selected job path | trigger origin marked operator ad hoc + trigger decision/event id | remains convenience launcher, not scheduler replacement |
 
+## First-slice contract freeze decisions
+
+The S1 first slice freezes these boundaries for downstream implementation PRs:
+
+1. all launchers (native scheduler, external orchestrator, operator ad hoc) target the same selected-job launch contract
+2. run evidence carries trigger origin plus trigger identity (`scheduleId` and/or external trigger reference) and trigger decision/event id when available
+3. schedule definitions do not redefine retry/restart semantics; recovery ownership stays on ETL runtime contracts
+4. native scheduling remains optional and must not block external-orchestrator launches of the same selected-job contract
+
 ## Operator / runtime impact
 
 Expected impact when this item ships:
@@ -129,7 +138,7 @@ For early local control-plane work, lightweight relational persistence such as S
 
 ## Status notes
 
-Ready for parallel planning with monitoring-first Operator UI work because `S1` defines the trigger/launch boundary that `U3` depends on.
+S1 contract-freeze slice is now in progress as a docs-first boundary baseline for follow-on backend/runtime/UI implementation PRs.
 
 Contract freeze checkpoint for cross-track work:
 

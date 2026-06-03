@@ -13,5 +13,11 @@ public interface RunSummaryRegistry {
 	List<RunSummaryView> latestRuns(int limit);
 
 	Optional<RunSummaryView> findByJobExecutionId(long jobExecutionId);
+
+	List<RunStepRecordView> listStepRecordsByJobExecutionId(long jobExecutionId, int limit);
+
+	List<RunArtifactRecordView> listArtifactRecordsByJobExecutionId(long jobExecutionId, int limit);
+
+	List<RunArtifactRecordView> listArtifactRecordsByStepRecordId(String stepRecordId, int limit);
 }
 

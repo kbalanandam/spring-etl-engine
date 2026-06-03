@@ -1,3 +1,7 @@
+import { createRunLogViewer } from "./run-log-viewer.js";
+import { createJobsListUi } from "./jobs-list-ui.js";
+import { createRunsListUi } from "./runs-list-ui.js";
+
 const routes = {
   jobs: {
     tab: document.getElementById("tab-jobs"),
@@ -45,15 +49,26 @@ const viewState = {
     sortKey: "startTime",
     sortDirection: "desc",
   },
-  runLog: {
-    currentRunId: null,
-    lines: [],
-    truncated: false,
-    searchText: "",
-    structuredOnly: false,
-    compact: true,
-  },
 };
+
+const runLogViewer = createRunLogViewer({
+  valueOrDash,
+  escapeHtml,
+});
+
+const jobsListUi = createJobsListUi({
+  getState: () => viewState.jobs,
+  syncRouteHash: syncListRouteHash,
+  escapeHtml,
+});
+
+const runsListUi = createRunsListUi({
+  getState: () => viewState.runs,
+  syncRouteHash: syncListRouteHash,
+  renderJobOptions: renderRunsJobOptions,
+  formatDateForInput,
+  escapeHtml,
+});
 
 const SORT_KEYS = {
   jobs: ["jobKey", "displayName", "readinessStatus"],
@@ -64,7 +79,7 @@ window.addEventListener("hashchange", renderRoute);
 window.addEventListener("DOMContentLoaded", () => {
   initializeRunsDefaults();
   initializeControls();
-  initializeRunLogControls();
+  runLogViewer.initializeControls();
   if (!location.hash) {
     location.hash = "#/jobs";
     return;
@@ -134,7 +149,7 @@ async function loadJobs() {
   const body = document.getElementById("jobs-body");
 
   if (viewState.jobs.loaded) {
-    renderJobsTable();
+    jobsListUi.renderTable();
     return;
   }
 
@@ -156,7 +171,7 @@ async function loadJobs() {
       state.textContent = "No job bundles found.";
       return;
     }
-    renderJobsTable();
+    jobsListUi.renderTable();
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load jobs: ${error.message}`;
@@ -294,7 +309,7 @@ async function loadRuns() {
   const loadKey = `${selectedJobKey || "__all__"}|${selectedStartDate || "__no_date__"}|${selectedTimezone}`;
 
   if (viewState.runs.loaded && viewState.runs.loadedForKey === loadKey) {
-    renderRunsTable();
+    runsListUi.renderTable();
     return;
   }
 
@@ -302,7 +317,7 @@ async function loadRuns() {
   state.textContent = "Loading runs...";
   table.hidden = true;
   body.innerHTML = "";
-  clearRunsInstanceOptions();
+  runsListUi.clearInstanceOptions();
 
   try {
     await ensureRunsJobOptions();
@@ -315,7 +330,7 @@ async function loadRuns() {
       state.textContent = "No runs found for the selected filters.";
       return;
     }
-    renderRunsTable();
+    runsListUi.renderTable();
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load runs: ${error.message}`;
@@ -340,152 +355,18 @@ function formatDateForInput(date) {
   return `${year}-${month}-${day}`;
 }
 
-function runFilterSummaryText(totalCount) {
-  const bits = [];
-  if (viewState.runs.startDate) {
-    bits.push(`startDate=${viewState.runs.startDate}`);
-  }
-  if (viewState.runs.timezone) {
-    bits.push(`timezone=${viewState.runs.timezone}`);
-  }
-  if (viewState.runs.selectedJobKey) {
-    bits.push(`job='${viewState.runs.selectedJobKey}'`);
-  }
-  if (bits.length === 0) {
-    return `${totalCount} run(s)`;
-  }
-  return `${totalCount} run(s) for ${bits.join(", ")}`;
-}
-
-function renderRunsTimezoneOptions() {
-  const select = document.getElementById("runs-timezone-select");
-  if (!select) {
-    return;
-  }
-
-  const browserTimezone = viewState.runs.browserTimezone || "UTC";
-  const preferred = [browserTimezone, "UTC", "America/New_York", "Europe/London", "Asia/Kolkata"];
-  const uniqueTimezones = Array.from(new Set(preferred.filter(Boolean)));
-
-  select.innerHTML = "";
-  uniqueTimezones.forEach((timezone) => {
-    const option = document.createElement("option");
-    option.value = timezone;
-    option.textContent = timezone === browserTimezone ? `${timezone} (browser)` : timezone;
-    select.appendChild(option);
-  });
-
-  if (!uniqueTimezones.includes(viewState.runs.timezone)) {
-    const option = document.createElement("option");
-    option.value = viewState.runs.timezone;
-    option.textContent = viewState.runs.timezone;
-    select.appendChild(option);
-  }
-
-  select.value = viewState.runs.timezone;
-}
-
 function initializeControls() {
-  const jobsFilter = document.getElementById("jobs-filter-input");
-  const jobsSort = document.getElementById("jobs-sort-select");
-  const jobsDirection = document.getElementById("jobs-sort-dir-btn");
-
-  jobsFilter.addEventListener("input", (event) => {
-    viewState.jobs.filterText = event.target.value || "";
-    syncListRouteHash("jobs");
-    renderJobsTable();
-  });
-  jobsSort.addEventListener("change", (event) => {
-    viewState.jobs.sortKey = event.target.value;
-    syncListRouteHash("jobs");
-    renderJobsTable();
-  });
-  jobsDirection.addEventListener("click", () => {
-    viewState.jobs.sortDirection = toggleDirection(viewState.jobs.sortDirection);
-    jobsDirection.textContent = labelDirection(viewState.jobs.sortDirection);
-    syncListRouteHash("jobs");
-    renderJobsTable();
-  });
-
-  const runsFilter = document.getElementById("runs-filter-input");
-  const runsStartDate = document.getElementById("runs-start-date-input");
-  const runsTimezone = document.getElementById("runs-timezone-select");
-  const runsJobSelect = document.getElementById("runs-job-select");
-  const runsInstanceSelect = document.getElementById("runs-instance-select");
-  const runsSort = document.getElementById("runs-sort-select");
-  const runsDirection = document.getElementById("runs-sort-dir-btn");
-
-  renderRunsTimezoneOptions();
-
-  runsStartDate.addEventListener("change", (event) => {
-    viewState.runs.startDate = event.target.value || "";
-    viewState.runs.loaded = false;
-    syncListRouteHash("runs");
-  });
-  runsTimezone.addEventListener("change", (event) => {
-    viewState.runs.timezone = event.target.value || viewState.runs.browserTimezone;
-    viewState.runs.loaded = false;
-    syncListRouteHash("runs");
-  });
-
-  runsJobSelect.addEventListener("change", (event) => {
-    viewState.runs.selectedJobKey = event.target.value || "";
-    viewState.runs.loaded = false;
-    syncListRouteHash("runs");
-  });
-  runsInstanceSelect.addEventListener("change", (event) => {
-    const runId = event.target.value || "";
-    if (!runId) {
-      return;
-    }
-    location.hash = `#/runs/${encodeURIComponent(runId)}`;
-  });
-  runsFilter.addEventListener("input", (event) => {
-    viewState.runs.filterText = event.target.value || "";
-    syncListRouteHash("runs");
-    renderRunsTable();
-  });
-  runsSort.addEventListener("change", (event) => {
-    viewState.runs.sortKey = event.target.value;
-    syncListRouteHash("runs");
-    renderRunsTable();
-  });
-  runsDirection.addEventListener("click", () => {
-    viewState.runs.sortDirection = toggleDirection(viewState.runs.sortDirection);
-    runsDirection.textContent = labelDirection(viewState.runs.sortDirection);
-    syncListRouteHash("runs");
-    renderRunsTable();
-  });
+  jobsListUi.initializeControls();
+  runsListUi.initializeControls();
 }
 
 function applyRouteStateToListView(routeState) {
   if (routeState.key === "jobs") {
-    viewState.jobs.filterText = routeState.filterText || "";
-    viewState.jobs.sortKey = routeState.sortKey || "jobKey";
-    viewState.jobs.sortDirection = routeState.sortDirection || "asc";
-
-    document.getElementById("jobs-filter-input").value = viewState.jobs.filterText;
-    document.getElementById("jobs-sort-select").value = viewState.jobs.sortKey;
-    document.getElementById("jobs-sort-dir-btn").textContent = labelDirection(viewState.jobs.sortDirection);
+    jobsListUi.applyRouteState(routeState);
     return;
   }
 
-  viewState.runs.filterText = routeState.filterText || "";
-  viewState.runs.selectedJobKey = routeState.selectedJobKey || "";
-  viewState.runs.startDate = routeState.startDate || viewState.runs.startDate || formatDateForInput(new Date());
-  viewState.runs.timezone = routeState.timezone || viewState.runs.timezone || viewState.runs.browserTimezone || "UTC";
-  viewState.runs.sortKey = routeState.sortKey || "startTime";
-  viewState.runs.sortDirection = routeState.sortDirection || "desc";
-
-  renderRunsTimezoneOptions();
-  renderRunsJobOptions();
-  document.getElementById("runs-start-date-input").value = viewState.runs.startDate;
-  document.getElementById("runs-timezone-select").value = viewState.runs.timezone;
-  document.getElementById("runs-job-select").value = viewState.runs.selectedJobKey;
-  document.getElementById("runs-filter-input").value = viewState.runs.filterText;
-  document.getElementById("runs-sort-select").value = viewState.runs.sortKey;
-  document.getElementById("runs-sort-dir-btn").textContent = labelDirection(viewState.runs.sortDirection);
-  clearRunsInstanceOptions();
+  runsListUi.applyRouteState(routeState);
 }
 
 function syncListRouteHash(routeKey) {
@@ -545,122 +426,6 @@ function normalizeDirection(value, fallback) {
     return value;
   }
   return fallback;
-}
-
-function renderJobsTable() {
-  const state = document.getElementById("jobs-state");
-  const table = document.getElementById("jobs-table");
-  const body = document.getElementById("jobs-body");
-
-  const filtered = viewState.jobs.items.filter((job) => {
-    const haystack = `${job.jobKey || ""} ${job.displayName || ""} ${job.readinessStatus || ""}`.toLowerCase();
-    return haystack.includes(viewState.jobs.filterText.trim().toLowerCase());
-  });
-  const sorted = sortItems(filtered, viewState.jobs.sortKey, viewState.jobs.sortDirection);
-
-  body.innerHTML = "";
-  if (sorted.length === 0) {
-    state.textContent = "No job bundles match the current filter.";
-    table.hidden = true;
-    return;
-  }
-
-  sorted.forEach((job) => {
-    const row = document.createElement("tr");
-    const jobKey = job.jobKey;
-    if (jobKey) {
-      row.className = "clickable-row";
-      row.title = "Open job detail placeholder";
-      row.addEventListener("click", () => {
-        location.hash = `#/jobs/${encodeURIComponent(jobKey)}`;
-      });
-    }
-    row.innerHTML = `
-      <td>${escapeHtml(job.jobKey || "-")}</td>
-      <td>${escapeHtml(job.displayName || "-")}</td>
-      <td>${escapeHtml(job.readinessStatus || "-")}</td>`;
-    body.appendChild(row);
-  });
-
-  state.textContent = `Showing ${sorted.length} of ${viewState.jobs.items.length} job bundle(s).`;
-  table.hidden = false;
-}
-
-function renderRunsTable() {
-  const state = document.getElementById("runs-state");
-  const table = document.getElementById("runs-table");
-  const body = document.getElementById("runs-body");
-
-  const filtered = viewState.runs.items.filter((run) => {
-    const haystack = `${run.scenario || ""} ${run.status || ""} ${run.jobExecutionId || ""}`.toLowerCase();
-    return haystack.includes(viewState.runs.filterText.trim().toLowerCase());
-  });
-  const sorted = sortItems(filtered, viewState.runs.sortKey, viewState.runs.sortDirection);
-  renderRunsInstanceOptions(sorted);
-
-  body.innerHTML = "";
-  if (sorted.length === 0) {
-    state.textContent = "No runs match the current filters.";
-    table.hidden = true;
-    return;
-  }
-
-  sorted.forEach((run) => {
-    const row = document.createElement("tr");
-    const runId = run.jobExecutionId;
-    if (runId !== null && runId !== undefined) {
-      row.className = "clickable-row";
-      row.title = "Open run detail placeholder";
-      row.addEventListener("click", () => {
-        location.hash = `#/runs/${runId}`;
-      });
-    }
-    row.innerHTML = `
-      <td>${escapeHtml(run.scenario || "-")}</td>
-      <td>${escapeHtml(run.status || "-")}</td>
-      <td>${escapeHtml(run.startTime || "-")}</td>
-      <td>${escapeHtml(String(run.durationSeconds ?? "-"))}</td>
-      <td>${escapeHtml(String(run.jobExecutionId ?? "-"))}</td>`;
-    body.appendChild(row);
-  });
-
-  state.textContent = `Showing ${sorted.length} of ${runFilterSummaryText(viewState.runs.items.length)}.`;
-  table.hidden = false;
-}
-
-function clearRunsInstanceOptions() {
-  const select = document.getElementById("runs-instance-select");
-  if (!select) {
-    return;
-  }
-  select.innerHTML = '<option value="">Select run instance</option>';
-  select.disabled = true;
-}
-
-function renderRunsInstanceOptions(runs) {
-  const select = document.getElementById("runs-instance-select");
-  if (!select) {
-    return;
-  }
-
-  const items = Array.isArray(runs)
-    ? runs.filter((run) => run && run.jobExecutionId !== null && run.jobExecutionId !== undefined)
-    : [];
-
-  select.innerHTML = '<option value="">Select run instance</option>';
-  if (items.length === 0) {
-    select.disabled = true;
-    return;
-  }
-
-  items.forEach((run) => {
-    const option = document.createElement("option");
-    option.value = String(run.jobExecutionId);
-    option.textContent = `${run.jobExecutionId} | ${run.status || "-"} | ${run.startTime || "-"}`;
-    select.appendChild(option);
-  });
-
-  select.disabled = false;
 }
 
 async function ensureRunsJobOptions() {
@@ -745,62 +510,13 @@ async function fetchRunsForFilters(selectedJobKey, startDate, timezone) {
 }
 
 
-function sortItems(items, key, direction) {
-  const factor = direction === "desc" ? -1 : 1;
-  return [...items].sort((a, b) => factor * compareValues(a[key], b[key]));
-}
-
-function compareValues(left, right) {
-  if (left === right) {
-    return 0;
-  }
-  if (left === null || left === undefined) {
-    return -1;
-  }
-  if (right === null || right === undefined) {
-    return 1;
-  }
-
-  const leftNumber = Number(left);
-  const rightNumber = Number(right);
-  const leftIsNumber = !Number.isNaN(leftNumber) && String(left).trim() !== "";
-  const rightIsNumber = !Number.isNaN(rightNumber) && String(right).trim() !== "";
-  if (leftIsNumber && rightIsNumber) {
-    return leftNumber - rightNumber;
-  }
-
-  const leftTime = Date.parse(String(left));
-  const rightTime = Date.parse(String(right));
-  if (!Number.isNaN(leftTime) && !Number.isNaN(rightTime)) {
-    return leftTime - rightTime;
-  }
-
-  return String(left).localeCompare(String(right));
-}
-
-function toggleDirection(direction) {
-  return direction === "asc" ? "desc" : "asc";
-}
-
-function labelDirection(direction) {
-  return direction === "asc" ? "Asc" : "Desc";
-}
-
 async function loadRunDetail(routeState) {
   const state = document.getElementById("run-detail-state");
   const summary = document.getElementById("run-detail-summary");
-  const logState = document.getElementById("run-detail-log-state");
-  const logList = document.getElementById("run-detail-log-list");
-  const logEmpty = document.getElementById("run-detail-log-empty");
-  const logControls = document.getElementById("run-detail-log-controls");
   const runIdValue = routeState && routeState.jobExecutionId ? routeState.jobExecutionId : null;
 
   state.className = "state";
   summary.hidden = true;
-  logState.hidden = true;
-  logList.hidden = true;
-  logEmpty.hidden = true;
-  logControls.hidden = true;
 
   if (!runIdValue) {
     state.className = "state error";
@@ -808,7 +524,7 @@ async function loadRunDetail(routeState) {
     return;
   }
 
-  resetRunLogContext(runIdValue);
+  runLogViewer.resetContext(runIdValue);
 
   state.textContent = `Loading run ${runIdValue}...`;
 
@@ -820,6 +536,9 @@ async function loadRunDetail(routeState) {
     const payload = await response.json();
     const run = payload.run || {};
 
+    const persistedStepRecords = await fetchPersistedRunStepRecords(runIdValue);
+    const persistedArtifactRecords = await fetchPersistedRunArtifactRecords(runIdValue);
+
     document.getElementById("run-detail-id").textContent = String(run.jobExecutionId ?? runIdValue);
     document.getElementById("run-detail-scenario").textContent = run.scenario || "-";
     document.getElementById("run-detail-status").textContent = run.status || "-";
@@ -828,11 +547,18 @@ async function loadRunDetail(routeState) {
     document.getElementById("run-detail-duration").textContent = String(run.durationSeconds ?? "-");
     document.getElementById("run-detail-counts").textContent = `${valueOrDash(run.sourceCount)} / ${valueOrDash(run.writtenCount)} / ${valueOrDash(run.rejectedCount)}`;
 
-    renderRunSteps(payload.steps);
+    const stepItems = Array.isArray(persistedStepRecords) && persistedStepRecords.length > 0
+      ? mapPersistedStepRecordsToDetailView(persistedStepRecords)
+      : payload.steps;
+    const artifactItems = Array.isArray(persistedArtifactRecords) && persistedArtifactRecords.length > 0
+      ? mapPersistedArtifactRecordsToDetailView(persistedArtifactRecords)
+      : payload.artifacts;
+
+    renderRunSteps(stepItems);
     renderRunFailureSummary(payload.failureSummary);
-    renderRunArtifacts(payload.artifacts);
+    renderRunArtifacts(artifactItems);
     renderRunEvidenceLinks(payload.evidenceLinks);
-    await loadRunScopedLog(runIdValue);
+    await runLogViewer.load(runIdValue);
 
     state.textContent = "Run detail loaded.";
     summary.hidden = false;
@@ -842,143 +568,56 @@ async function loadRunDetail(routeState) {
   }
 }
 
-function resetRunLogContext(runIdValue) {
-  const normalizedRunId = String(runIdValue || "");
-  if (viewState.runLog.currentRunId === normalizedRunId) {
-    return;
-  }
-
-  viewState.runLog.currentRunId = normalizedRunId;
-  viewState.runLog.lines = [];
-  viewState.runLog.truncated = false;
-  viewState.runLog.searchText = "";
-
-  const searchInput = document.getElementById("run-detail-log-search");
-  if (searchInput) {
-    searchInput.value = "";
-  }
-}
-
-async function loadRunScopedLog(runIdValue) {
-  const logState = document.getElementById("run-detail-log-state");
-  const logList = document.getElementById("run-detail-log-list");
-  const logEmpty = document.getElementById("run-detail-log-empty");
-  const logControls = document.getElementById("run-detail-log-controls");
-
-  logState.className = "state";
-  logState.textContent = "Loading run-scoped log lines...";
-  logState.hidden = false;
-  logList.hidden = true;
-  logEmpty.hidden = true;
-  logList.innerHTML = "";
-  logControls.hidden = true;
-
+async function fetchPersistedRunStepRecords(runIdValue) {
   try {
-    const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/log?limit=200`, {
+    const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/step-records?limit=200`, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) {
-      throw new Error(`Run log API returned ${response.status}`);
+      return null;
     }
     const payload = await response.json();
-    viewState.runLog.lines = Array.isArray(payload.lines) ? payload.lines : [];
-    viewState.runLog.truncated = Boolean(payload.truncated);
-    logControls.hidden = false;
-    renderRunLogLines();
+    return Array.isArray(payload.items) ? payload.items : [];
   } catch (error) {
-    logState.className = "state error";
-    logState.textContent = `Unable to load run-scoped logs: ${error.message}`;
+    return null;
   }
 }
 
-function renderRunLogLines() {
-  const logState = document.getElementById("run-detail-log-state");
-  const logList = document.getElementById("run-detail-log-list");
-  const logEmpty = document.getElementById("run-detail-log-empty");
-  const allLines = Array.isArray(viewState.runLog.lines) ? viewState.runLog.lines : [];
-  const searchTerm = (viewState.runLog.searchText || "").trim().toLowerCase();
-  const filtered = allLines.filter((line) => {
-    if (viewState.runLog.structuredOnly && !line.structured) {
-      return false;
+async function fetchPersistedRunArtifactRecords(runIdValue) {
+  try {
+    const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/artifact-records?limit=200`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      return null;
     }
-    if (!searchTerm) {
-      return true;
-    }
-    const haystack = `${valueOrDash(line.message)} ${valueOrDash(line.recordType)} ${valueOrDash(line.event)} ${valueOrDash(line.level)}`.toLowerCase();
-    return haystack.includes(searchTerm);
-  });
-  const list = filtered;
-
-  logList.innerHTML = "";
-  if (list.length === 0) {
-    logState.className = "state";
-    logState.hidden = false;
-    logState.textContent = allLines.length === 0 ? "No run-scoped log lines returned." : "No run-scoped log lines match the current filter.";
-    logList.hidden = true;
-    logEmpty.hidden = false;
-    return;
+    const payload = await response.json();
+    return Array.isArray(payload.items) ? payload.items : [];
+  } catch (error) {
+    return null;
   }
-
-  list.forEach((line) => {
-    const row = document.createElement("div");
-    row.className = `log-line ${line.structured ? "structured" : "raw"}`;
-
-    const level = (line.level || "").toUpperCase();
-    const recordType = valueOrDash(line.recordType);
-    const event = valueOrDash(line.event);
-    const lineNumber = valueOrDash(line.lineNumber);
-    const timestamp = valueOrDash(line.loggedAt);
-
-    const fullMessage = valueOrDash(line.message);
-    const renderedMessage = viewState.runLog.compact ? truncateForCompact(fullMessage, 240) : fullMessage;
-    row.innerHTML = `
-      <div class="log-line-meta">
-        <span class="log-chip level-${escapeHtml(level.toLowerCase())}">${escapeHtml(level || "RAW")}</span>
-        <span class="log-chip">L${escapeHtml(lineNumber)}</span>
-        <span class="log-chip">${escapeHtml(recordType)}</span>
-        <span class="log-chip">${escapeHtml(event)}</span>
-        <span class="log-time">${escapeHtml(timestamp)}</span>
-      </div>
-      <pre class="log-line-text ${viewState.runLog.compact ? "compact" : ""}" title="${escapeHtml(fullMessage)}">${escapeHtml(renderedMessage)}</pre>`;
-
-    logList.appendChild(row);
-  });
-
-  logEmpty.hidden = true;
-  logList.hidden = false;
-  logState.hidden = false;
-  logState.className = "state";
-  const baseMessage = viewState.runLog.truncated
-    ? `Showing ${list.length} of ${allLines.length} loaded line(s) (source truncated server-side).`
-    : `Showing ${list.length} of ${allLines.length} loaded line(s).`;
-  logState.textContent = baseMessage;
 }
 
-function initializeRunLogControls() {
-  const searchInput = document.getElementById("run-detail-log-search");
-  const structuredOnly = document.getElementById("run-detail-log-structured-only");
-  const compact = document.getElementById("run-detail-log-compact");
-
-  searchInput.addEventListener("input", (event) => {
-    viewState.runLog.searchText = event.target.value || "";
-    renderRunLogLines();
-  });
-  structuredOnly.addEventListener("change", (event) => {
-    viewState.runLog.structuredOnly = Boolean(event.target.checked);
-    renderRunLogLines();
-  });
-  compact.addEventListener("change", (event) => {
-    viewState.runLog.compact = Boolean(event.target.checked);
-    renderRunLogLines();
-  });
+function mapPersistedStepRecordsToDetailView(records) {
+  return records.map((record) => ({
+    stepName: record.stepName,
+    status: record.stepStatus,
+    readCount: record.readCount,
+    writeCount: record.writeCount,
+    rejectedCount: record.rejectedCount,
+  }));
 }
 
-function truncateForCompact(value, maxLength) {
-  const text = valueOrDash(value);
-  if (text.length <= maxLength) {
-    return text;
-  }
-  return `${text.substring(0, maxLength)}...`;
+function mapPersistedArtifactRecordsToDetailView(records) {
+  return records.map((record) => ({
+    role: record.artifactRole,
+    path: record.artifactPath,
+    recordCount: null,
+  }));
+}
+
+function focusRunScopedLogViewer() {
+  runLogViewer.focus();
 }
 
 function renderRunSteps(steps) {
@@ -1103,19 +742,6 @@ function renderRunEvidenceLinks(evidenceLinks) {
   listElement.hidden = false;
 }
 
-function focusRunScopedLogViewer() {
-  const controls = document.getElementById("run-detail-log-controls");
-  const search = document.getElementById("run-detail-log-search");
-  const list = document.getElementById("run-detail-log-list");
-  const target = controls.hidden ? list : controls;
-
-  if (target && typeof target.scrollIntoView === "function") {
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-  if (search && typeof search.focus === "function") {
-    search.focus();
-  }
-}
 
 function valueOrDash(value) {
   return value === null || value === undefined || value === "" ? "-" : String(value);

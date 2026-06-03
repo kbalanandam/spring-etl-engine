@@ -37,6 +37,8 @@ import java.util.Objects;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
@@ -84,9 +86,10 @@ class LoggingContextListenerTest {
 
         jobCompletionNotificationListener.beforeJob(jobExecution);
 
-        assertEquals("customer-load", MDC.get(RunLoggingContext.SCENARIO));
-        assertEquals("2026-04-23/customer-load", MDC.get(RunLoggingContext.SCENARIO_LOG_KEY));
-        assertEquals("20260423-123000-000", MDC.get(RunLoggingContext.RUN_CORRELATION_ID));
+            assertEquals("customer-load", MDC.get(RunLoggingContext.SCENARIO));
+            assertEquals(jobExecution.getStartTime().toLocalDate() + "/customer-load", MDC.get(RunLoggingContext.SCENARIO_LOG_KEY));
+            assertNotEquals("20260423-123000-000", MDC.get(RunLoggingContext.RUN_CORRELATION_ID));
+            assertNotNull(MDC.get(RunLoggingContext.RUN_CORRELATION_ID));
         assertEquals("customer-load-main-flow", MDC.get(RunLoggingContext.MAIN_FLOW));
         assertEquals("default-subflow", MDC.get(RunLoggingContext.SUB_FLOW));
         assertEquals("rerun-from-start", MDC.get(RunLoggingContext.RECOVERY_POLICY));
@@ -95,9 +98,9 @@ class LoggingContextListenerTest {
 
         jobCompletionNotificationListener.afterJob(jobExecution);
 
-        assertEquals("customer-load", MDC.get(RunLoggingContext.SCENARIO));
-        assertEquals("2026-04-23/customer-load", MDC.get(RunLoggingContext.SCENARIO_LOG_KEY));
-        assertEquals("20260423-123000-000", MDC.get(RunLoggingContext.RUN_CORRELATION_ID));
+            assertEquals("customer-load", MDC.get(RunLoggingContext.SCENARIO));
+            assertEquals(jobExecution.getStartTime().toLocalDate() + "/customer-load", MDC.get(RunLoggingContext.SCENARIO_LOG_KEY));
+            assertNotNull(MDC.get(RunLoggingContext.RUN_CORRELATION_ID));
         assertEquals("customer-load-main-flow", MDC.get(RunLoggingContext.MAIN_FLOW));
         assertEquals("default-subflow", MDC.get(RunLoggingContext.SUB_FLOW));
         assertEquals("rerun-from-start", MDC.get(RunLoggingContext.RECOVERY_POLICY));
@@ -174,8 +177,8 @@ class LoggingContextListenerTest {
         jobCompletionNotificationListener.beforeJob(jobExecution);
         jobCompletionNotificationListener.afterJob(jobExecution);
 
-        assertEquals("department-load", MDC.get(RunLoggingContext.SCENARIO));
-        assertEquals("2026-04-23/department-load", MDC.get(RunLoggingContext.SCENARIO_LOG_KEY));
+            assertEquals("department-load", MDC.get(RunLoggingContext.SCENARIO));
+            assertEquals(jobExecution.getStartTime().toLocalDate() + "/department-load", MDC.get(RunLoggingContext.SCENARIO_LOG_KEY));
         assertEquals("department-load-main-flow", MDC.get(RunLoggingContext.MAIN_FLOW));
         assertEquals("default-subflow", MDC.get(RunLoggingContext.SUB_FLOW));
         assertEquals("rerun-from-start", MDC.get(RunLoggingContext.RECOVERY_POLICY));
