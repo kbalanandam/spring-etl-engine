@@ -23,7 +23,7 @@ class RunSummaryReadModelServiceTest {
 	void readsAndSortsRunSummariesFromScenarioLogs() throws IOException {
 		Path logFileA = createLog(
 				tempDir.resolve("2026-05-27/customer-load.log"),
-				"2026-05-27T11:02:03.001+00:00 INFO [main] [scenario:customer-load] [run:20260527-110203-001] [job:1001] [step:n/a] com.etl.job.listener.JobCompletionNotificationListener - RUN_SUMMARY event=run_summary scenario=customer-load mainFlow=Main subFlow=Sub recoveryPolicy=none jobName=etlJob jobExecutionId=1001 status=COMPLETED startTime=2026-05-27T11:00:00 endTime=2026-05-27T11:02:03 durationSeconds=123 sourceCount=10 writtenCount=10 rejectedCount=0 handoffReadCount=0 handoffWriteCount=0 executedStepCount=1 rollupMode=STEP_SUM failureCount=0",
+				"2026-05-27T11:02:03.001+00:00 INFO [main] [scenario:customer-load] [run:20260527-110203-001] [job:1001] [step:n/a] com.etl.job.listener.JobCompletionNotificationListener - RUN_SUMMARY event=run_summary scenario=customer-load mainFlow=Main subFlow=Sub runMode=explicit-job recoveryPolicy=rerun-from-start jobName=etlJob jobExecutionId=1001 status=COMPLETED startTime=2026-05-27T11:00:00 endTime=2026-05-27T11:02:03 durationSeconds=123 sourceCount=10 writtenCount=10 rejectedCount=0 handoffReadCount=0 handoffWriteCount=0 executedStepCount=1 rollupMode=STEP_SUM failureCount=0",
 				"noise"
 		);
 		createLog(
@@ -38,6 +38,8 @@ class RunSummaryReadModelServiceTest {
 		assertEquals("customer-delta", runs.get(0).scenario());
 		assertEquals(1002L, runs.get(0).jobExecutionId());
 		assertEquals("FAILED", runs.get(0).status());
+		assertEquals("explicit-job", runs.get(1).runMode());
+		assertEquals("rerun-from-start", runs.get(1).recoveryPolicy());
 		assertEquals(20L, runs.get(0).sourceCount());
 		assertEquals(15L, runs.get(0).writtenCount());
 		assertEquals(5L, runs.get(0).rejectedCount());

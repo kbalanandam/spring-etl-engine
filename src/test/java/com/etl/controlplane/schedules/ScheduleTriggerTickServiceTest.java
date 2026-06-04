@@ -179,6 +179,41 @@ class ScheduleTriggerTickServiceTest {
 	}
 
 	@Test
+	void serializeOverlapPolicyAcceptsOnlyOneDueInstantPerTick() {
+		InMemoryScheduleRegistry registry = new InMemoryScheduleRegistry();
+		ScheduleService scheduleService = new ScheduleService(registry);
+		RecordingTriggerRegistry triggerRegistry = new RecordingTriggerRegistry();
+		ScheduleView schedule = scheduleService.createSchedule("every-minute", "customer-load", "* * * * *", "UTC", true, "minute tick");
+		scheduleService.markLastAcceptedDueAt(schedule.scheduleId(), Instant.parse("2026-05-28T09:58:00Z"));
+
+		Clock fixedClock = Clock.fixed(Instant.parse("2026-05-28T10:00:20Z"), ZoneOffset.UTC);
+		ScheduleTriggerTickService tickService = new ScheduleTriggerTickService(
+				scheduleService,
+				triggerRegistry,
+				30000,
+				"schedule_tick",
+				"scheduler",
+				fixedClock,
+				ScheduleTriggerTickService.MissedRunPolicy.CATCH_UP_ALL,
+				ScheduleTriggerTickService.OverlapPolicy.SERIALIZE,
+				2000
+		);
+
+		tickService.pollAndRecordDueSchedules(ZonedDateTime.ofInstant(fixedClock.instant(), ZoneOffset.UTC));
+		ScheduleView persisted = scheduleService.findByScheduleId(schedule.scheduleId()).orElseThrow();
+		assertEquals(Instant.parse("2026-05-28T09:59:00Z"), persisted.lastAcceptedDueAt());
+		assertEquals(1, triggerRegistry.recorded.size());
+	}
+
+	@Test
+	void overlapPolicyFromDefaultsToAllowForBlankAndUnknownValues() {
+		assertEquals(ScheduleTriggerTickService.OverlapPolicy.ALLOW, ScheduleTriggerTickService.OverlapPolicy.from(null));
+		assertEquals(ScheduleTriggerTickService.OverlapPolicy.ALLOW, ScheduleTriggerTickService.OverlapPolicy.from(" "));
+		assertEquals(ScheduleTriggerTickService.OverlapPolicy.ALLOW, ScheduleTriggerTickService.OverlapPolicy.from("unknown"));
+		assertEquals(ScheduleTriggerTickService.OverlapPolicy.SERIALIZE, ScheduleTriggerTickService.OverlapPolicy.from("serialize"));
+	}
+
+	@Test
 	void skipsPausedOrDisabledSchedules() {
 		ScheduleService scheduleService = new ScheduleService(new InMemoryScheduleRegistry());
 		RecordingTriggerRegistry triggerRegistry = new RecordingTriggerRegistry();

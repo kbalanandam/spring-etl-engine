@@ -441,6 +441,14 @@ components:
             - type: integer
               format: int64
             - type: 'null'
+        runMode:
+          oneOf:
+            - type: string
+            - type: 'null'
+        recoveryPolicy:
+          oneOf:
+            - type: string
+            - type: 'null'
         status:
           type: string
         startTime:
@@ -475,7 +483,7 @@ components:
             - type: 'null'
         logPath:
           type: string
-      required: [scenario, jobExecutionId, status, startTime, endTime, durationSeconds, sourceCount, writtenCount, rejectedCount, logPath]
+      required: [scenario, jobExecutionId, runMode, recoveryPolicy, status, startTime, endTime, durationSeconds, sourceCount, writtenCount, rejectedCount, logPath]
 
     RunSummaryListResponse:
       type: object
@@ -714,7 +722,17 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [scheduleId, scheduleKey, selectedJobKey, expression, timezone, enabled, paused, description, updatedAt]
+        lastAcceptedDueAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        nextDueAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+      required: [scheduleId, scheduleKey, selectedJobKey, expression, timezone, enabled, paused, description, updatedAt, lastAcceptedDueAt, nextDueAt]
 
     ScheduleListResponse:
       type: object
@@ -801,4 +819,10 @@ components:
           type: string
         profile:
           type: string
-      required: [service, javaVersion, profile]
+        schedulerEnabled:
+          type: boolean
+        schedulerMissedRunPolicy:
+          type: string
+        schedulerOverlapPolicy:
+          type: string
+      required: [service, javaVersion, profile, schedulerEnabled, schedulerMissedRunPolicy, schedulerOverlapPolicy]

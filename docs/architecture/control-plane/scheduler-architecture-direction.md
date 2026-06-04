@@ -128,11 +128,25 @@ Current dedup guardrail for concurrent pollers:
 After the core contract is frozen, grow into:
 
 - pause / resume controls
-- overlap policies
-- missed-run handling
+- richer run-state-aware overlap policies
+- richer missed-run handling
 - richer trigger audit trail
 - watcher-fed trigger integration
 - operator approval or environment-specific trigger controls where justified
+
+### Current S3 phase-1 governance baseline
+
+Current scheduler behavior now exposes explicit policy knobs with default-safe values:
+
+- `controlplane.scheduler.overlap-policy=ALLOW|SERIALIZE` (default `ALLOW`)
+  - `ALLOW`: process all due instants resolved for the tick
+  - `SERIALIZE`: process one due instant per schedule per tick (gradual backlog drain)
+- `controlplane.scheduler.missed-run-policy=SKIP|CATCH_UP_ONCE|CATCH_UP_ALL` (default `SKIP`)
+  - `SKIP`: evaluate only latest due instant in lookback window
+  - `CATCH_UP_ONCE`: evaluate one latest due instant since watermark
+  - `CATCH_UP_ALL`: evaluate all due instants since watermark within bounded catch-up iterations
+
+This baseline intentionally governs due-instant evaluation only. It does not yet enforce run-state overlap rules such as "skip when previous run is still active".
 
 ## Dependency guardrails
 

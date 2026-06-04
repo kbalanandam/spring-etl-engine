@@ -70,7 +70,8 @@ class JobBundleControllerTest {
 		));
 		when(runSummaryReadModelService.latestRunsForJob(eq("customer-load"), eq("Customer Load"), eq(10))).thenReturn(List.of(
 				new RunSummaryView("Customer Load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
-						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L, "logs/2026-05-27/customer-load.log")
+						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L,
+						"explicit-job", "rerun-from-start", "logs/2026-05-27/customer-load.log")
 		));
 		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(20))).thenReturn(List.of(
 				new TriggerEventView("te-123", "customer-load", "ACCEPTED", "manual_operator_request", "operator@example", Instant.parse("2026-05-27T10:15:30Z"), null, "accepted")
@@ -80,6 +81,8 @@ class JobBundleControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.job.jobKey").value("customer-load"))
 				.andExpect(jsonPath("$.recentRuns[0].jobExecutionId").value(101))
+				.andExpect(jsonPath("$.recentRuns[0].runMode").value("explicit-job"))
+				.andExpect(jsonPath("$.recentRuns[0].recoveryPolicy").value("rerun-from-start"))
 				.andExpect(jsonPath("$.recentTriggerEvents[0].triggerEventId").value("te-123"));
 
 		verify(jobBundleReadModelService).findBundle(eq("customer-load"));

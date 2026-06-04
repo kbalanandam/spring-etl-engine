@@ -283,6 +283,7 @@ class LoggingContextListenerTest {
     listener.afterJob(jobExecution);
 
     assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("RUN_SUMMARY event=run_summary")
+        && event.getFormattedMessage().contains("runMode=explicit-job")
         && event.getFormattedMessage().contains("sourceCount=100")
         && event.getFormattedMessage().contains("writtenCount=97")
         && event.getFormattedMessage().contains("rejectedCount=3")

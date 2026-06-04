@@ -138,7 +138,9 @@ class ControlPlaneApiLauncherIntegrationTest {
 		mockMvc.perform(get("/api/v1/runs").param("limit", "5"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.totalItems").value(1))
-				.andExpect(jsonPath("$.items[0].jobExecutionId").value(901));
+				.andExpect(jsonPath("$.items[0].jobExecutionId").value(901))
+				.andExpect(jsonPath("$.items[0].runMode").value("explicit-job"))
+				.andExpect(jsonPath("$.items[0].recoveryPolicy").value("rerun-from-start"));
 
 		mockMvc.perform(get("/api/v1/runs")
 				.param("job", "customer-load")
@@ -173,6 +175,12 @@ class ControlPlaneApiLauncherIntegrationTest {
 				.andExpect(jsonPath("$.lines[0].recordType").value("STEP_EVENT"))
 				.andExpect(jsonPath("$.lines[1].recordType").value("RUN_SUMMARY"));
 
+		mockMvc.perform(get("/api/v1/system/info"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.schedulerEnabled").value(false))
+				.andExpect(jsonPath("$.schedulerMissedRunPolicy").value("SKIP"))
+				.andExpect(jsonPath("$.schedulerOverlapPolicy").value("ALLOW"));
+
 		MvcResult createScheduleResult = mockMvc.perform(post("/api/v1/schedules")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"scheduleKey\":\"daily-customers\",\"selectedJobKey\":\"customer-load\",\"expression\":\"0 0 * * *\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"daily\"}"))
@@ -185,7 +193,9 @@ class ControlPlaneApiLauncherIntegrationTest {
 
 		mockMvc.perform(get("/api/v1/schedules/" + scheduleId))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.scheduleKey").value("daily-customers"));
+				.andExpect(jsonPath("$.scheduleKey").value("daily-customers"))
+				.andExpect(jsonPath("$.lastAcceptedDueAt").isEmpty())
+				.andExpect(jsonPath("$.nextDueAt").exists());
 
 		mockMvc.perform(get("/api/v1/schedules/" + scheduleId + "/trigger-events"))
 				.andExpect(status().isOk())
@@ -219,7 +229,7 @@ class ControlPlaneApiLauncherIntegrationTest {
 		Files.createDirectories(logFile.getParent());
 		Files.write(logFile, List.of(
 				"2026-05-27T10:00:01.000+00:00 INFO [main] [scenario:Customer Load] [run:run-901] [job:901] [step:load-customers] logger - STEP_EVENT event=step_finished stepName=load-customers stepExecutionId=5001 status=COMPLETED readCount=10 writeCount=10 filterCount=0 skipCount=0 rollbackCount=0 rejectedCount=0 rejectOutputPath= archivedSourcePath=",
-				"2026-05-27T10:00:02.000+00:00 INFO [main] [scenario:Customer Load] [run:run-901] [job:901] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=Customer Load jobExecutionId=901 status=COMPLETED startTime=2026-05-27T10:00:00 endTime=2026-05-27T10:00:02 durationSeconds=2 sourceCount=10 writtenCount=10 rejectedCount=0"
+				"2026-05-27T10:00:02.000+00:00 INFO [main] [scenario:Customer Load] [run:run-901] [job:901] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=Customer Load runMode=explicit-job recoveryPolicy=rerun-from-start jobExecutionId=901 status=COMPLETED startTime=2026-05-27T10:00:00 endTime=2026-05-27T10:00:02 durationSeconds=2 sourceCount=10 writtenCount=10 rejectedCount=0"
 		));
 	}
 }

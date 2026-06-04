@@ -60,13 +60,16 @@ class RunSummaryControllerTest {
 	void returnsRunsUsingDefaultLimit() throws Exception {
 		when(runSummaryReadModelService.latestRunsFiltered(eq(25), isNull(), isNull(), eq(ZoneId.systemDefault()))).thenReturn(List.of(
 				new RunSummaryView("customer-load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
-						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L, "logs/2026-05-27/customer-load.log")
+						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L,
+						"explicit-job", "rerun-from-start", "logs/2026-05-27/customer-load.log")
 		));
 
 		mockMvc.perform(get("/api/v1/runs"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items[0].scenario").value("customer-load"))
 				.andExpect(jsonPath("$.items[0].jobExecutionId").value(101))
+				.andExpect(jsonPath("$.items[0].runMode").value("explicit-job"))
+				.andExpect(jsonPath("$.items[0].recoveryPolicy").value("rerun-from-start"))
 				.andExpect(jsonPath("$.page").value(0))
 				.andExpect(jsonPath("$.size").value(25))
 				.andExpect(jsonPath("$.totalItems").value(1));

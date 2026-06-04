@@ -20,6 +20,10 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 - Scheduler dedup now persists the last accepted due instant per schedule so duplicate ticks are suppressed across control-plane restarts.
 - Watermark advancement is claimed atomically per schedule due instant, reducing duplicate schedule ticks when multiple control-plane pollers overlap.
 - Scheduler missed-run behavior is now policy-driven with `controlplane.scheduler.missed-run-policy` (`SKIP` default, optional `CATCH_UP_ONCE` or `CATCH_UP_ALL`) plus `controlplane.scheduler.max-catch-up-iterations` safety bounds.
+- Scheduler overlap behavior is now policy-driven with `controlplane.scheduler.overlap-policy` (`ALLOW` default, optional `SERIALIZE`).
+- `GET /api/v1/system/info` now exposes scheduler governance defaults (`schedulerEnabled`, `schedulerMissedRunPolicy`, `schedulerOverlapPolicy`).
+- `GET /api/v1/schedules*` responses now expose persisted scheduler watermark state through `lastAcceptedDueAt` alongside computed `nextDueAt`.
+- `GET /api/v1/runs*` responses now expose additive F1 restart-contract evidence fields (`runMode`, `recoveryPolicy`) when present in `RUN_SUMMARY` projections.
 
 ## Scope
 
@@ -258,6 +262,8 @@ Response body shape:
     {
       "scenario": "Customer Load",
       "jobExecutionId": 10421,
+      "runMode": "explicit-job",
+      "recoveryPolicy": "rerun-from-start",
       "status": "COMPLETED",
       "startTime": "2026-05-25T10:41:00",
       "endTime": "2026-05-25T10:42:00",
@@ -422,6 +428,11 @@ Returns schedule summaries for list and filtering.
 
 Returns one schedule detail.
 
+Current detail projection includes:
+
+- `lastAcceptedDueAt` (persisted watermark used for dedup and missed-run evaluation)
+- `nextDueAt` (computed preview based on expression/timezone/enabled/paused state)
+
 ### `POST /api/v1/schedules`
 
 Creates a schedule bound to one selected job bundle.
@@ -519,7 +530,10 @@ Suggested response:
 {
   "service": "spring-etl-engine-control-plane",
   "javaVersion": "21",
-  "profile": "controlplane"
+  "profile": "controlplane",
+  "schedulerEnabled": false,
+  "schedulerMissedRunPolicy": "SKIP",
+  "schedulerOverlapPolicy": "ALLOW"
 }
 ```
 

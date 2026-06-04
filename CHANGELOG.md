@@ -10,7 +10,10 @@ and this project adheres to **Semantic Versioning**.
 - N/A
 
 ### Changed
-- N/A
+- Started the scheduler `S3` phase-1 governance baseline by introducing explicit `controlplane.scheduler.overlap-policy` (`ALLOW` default, optional `SERIALIZE`) while preserving existing missed-run defaults (`SKIP`) and documenting the current due-instant governance boundary in scheduler architecture/backlog notes.
+- Extended control-plane scheduler visibility by exposing scheduler governance metadata (`schedulerEnabled`, `schedulerMissedRunPolicy`, `schedulerOverlapPolicy`) on `GET /api/v1/system/info`, exposing schedule watermark state (`lastAcceptedDueAt`) on schedule responses, and making `controlplane.scheduler.overlap-policy=ALLOW` explicit in control-plane profile defaults.
+- Started `F1` phase-1 contract baseline by documenting explicit restart semantics for shipped execution modes (`runMode` + `recoveryPolicy`) and surfacing `runMode` in `RUN_SUMMARY` run-level evidence while keeping resume/checkpoint behavior deferred.
+- Continued `F1` phase-1 baseline by projecting `runMode` and `recoveryPolicy` through run read models and control-plane APIs (`/api/v1/runs*` and job-detail recent runs), with JDBC projection persistence/backfill support for the additive fields.
 
 ### Fixed
 - N/A

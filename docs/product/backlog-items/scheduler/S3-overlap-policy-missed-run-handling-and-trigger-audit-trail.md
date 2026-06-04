@@ -40,6 +40,21 @@ Define overlap policy, missed-run handling, and basic trigger audit behavior for
 
 Treat S3 as the first scheduler-governance slice after S2, and keep it aligned with F1 restart semantics rather than inventing recovery behavior independently.
 
+### Phase-1 governance baseline (current)
+
+The first S3 baseline keeps existing scheduler behavior as the default while making policy choices explicit:
+
+- overlap policy is now explicit with `controlplane.scheduler.overlap-policy`
+  - `ALLOW` (default): process all resolved due instants for the tick (subject to missed-run policy)
+  - `SERIALIZE`: process only one due instant per schedule per tick to drain backlog gradually
+- missed-run policy remains explicit with `controlplane.scheduler.missed-run-policy`
+  - `SKIP` (default): evaluate only the latest due instant within the active lookback window
+  - `CATCH_UP_ONCE`: advance to one latest due instant after `lastAcceptedDueAt`
+  - `CATCH_UP_ALL`: drain all due instants after `lastAcceptedDueAt` within bounded iteration limits
+- trigger audit trail remains on the accepted-trigger path with schedule-origin metadata (`scheduleId`, `reason`, `requestedBy`) and dedup through `lastAcceptedDueAt`
+
+This baseline intentionally does not yet add run-state-aware overlap governance (for example, "skip if prior run still executing").
+
 ## Operator / runtime impact
 
 - operators gain clearer scheduling decisions and auditability
@@ -48,9 +63,9 @@ Treat S3 as the first scheduler-governance slice after S2, and keep it aligned w
 
 ## Acceptance criteria
 
-- [ ] overlap policy options are defined clearly
-- [ ] missed-run behavior is documented and observable
-- [ ] a basic trigger audit trail exists or is explicitly defined for the first native scheduler slice
+- [x] overlap policy options are defined clearly
+- [x] missed-run behavior is documented and observable
+- [x] a basic trigger audit trail exists or is explicitly defined for the first native scheduler slice
 
 ## Related docs
 
@@ -63,7 +78,9 @@ Treat S3 as the first scheduler-governance slice after S2, and keep it aligned w
 
 S3 should not outrun F1; overlap and missed-run behavior depend on clearer restart/recovery semantics.
 
+The phase-1 baseline keeps this guardrail by implementing tick-time due-instant governance only and deferring run-state semantics to follow-on S3/F1 work.
+
 ## Status notes
 
-Deferred until schedule basics and restart direction are clearer.
+Phase-1 baseline started: overlap and missed-run policies are now explicit with safe defaults that preserve prior behavior.
 

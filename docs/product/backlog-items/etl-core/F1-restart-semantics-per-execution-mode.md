@@ -8,7 +8,7 @@ Define what restartable execution should mean for the selected-job runtime so re
 
 - Epic: **[Epic F](../../epics/etl-core/epic-f-restartability-and-recovery-semantics.md)**
 - Priority: **P1**
-- Status: **Deferred**
+- Status: **In Progress**
 - Milestone: **M2**
 - Dependency: **A1, C1**
 
@@ -40,6 +40,17 @@ Document explicit restart semantics per execution mode before adding restart fea
 
 Start with a design/documentation slice that clarifies restart boundaries before changing the active runtime behavior.
 
+### Phase-1 contract baseline (current)
+
+The first F1 slice is contract-first and evidence-first:
+
+- define one explicit restart matrix for current execution modes (`runMode`, `recoveryPolicy`)
+- keep shipped behavior on `rerun-from-start` semantics for selected-job runs
+- treat checkpoint resume semantics as future work gated by follow-on F1 slices
+- keep scheduler overlap/run-state governance aligned to this contract rather than introducing implicit retry/restart behavior
+
+This baseline intentionally does not add new restart execution behavior yet.
+
 ## Operator / runtime impact
 
 - operators gain clearer expectations for rerun vs restart
@@ -48,9 +59,9 @@ Start with a design/documentation slice that clarifies restart boundaries before
 
 ## Acceptance criteria
 
-- [ ] one explicit restart-semantics model exists for the main execution modes
-- [ ] required state/artifact/evidence expectations are documented
-- [ ] future restart implementation work can reference one stable contract
+- [x] one explicit restart-semantics model exists for the main execution modes
+- [x] required state/artifact/evidence expectations are documented
+- [x] future restart implementation work can reference one stable contract
 
 ## Related docs
 
@@ -63,7 +74,9 @@ Start with a design/documentation slice that clarifies restart boundaries before
 
 Keep the first slice design-oriented; the product needs explicit restart semantics before code-level restart features.
 
+Current shipped baseline: selected-job runs continue to favor deterministic `rerun-from-start` behavior, with run evidence carrying `runMode` and `recoveryPolicy` context.
+
 ## Status notes
 
-Deferred until orchestration, evidence, and retained-state direction are clearer.
+Phase-1 contract baseline started: restart expectations are now explicit and scoped to current runtime behavior, with code-level resume semantics deferred.
 
