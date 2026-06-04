@@ -939,6 +939,7 @@ class BatchConfigStepOrchestrationTest {
         scenarioName,
         tempDir.resolve("job-config.yaml").toString(),
         JobRunMode.EXPLICIT_JOB,
+        JobRecoveryPolicy.RERUN_FROM_START,
         new JobConfigPaths("source-config.yaml", "target-config.yaml", "processor-config.yaml"),
         steps,
         sourceWrapper,

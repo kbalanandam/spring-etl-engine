@@ -1,5 +1,8 @@
 package com.etl.runtime.job;
 
+import java.util.Arrays;
+import java.util.Optional;
+
 /**
  * Recovery policy advertised by the selected scenario runtime descriptor.
  *
@@ -35,6 +38,16 @@ public enum JobRecoveryPolicy {
 	 */
 	public String summary() {
 		return summary;
+	}
+
+	public static Optional<JobRecoveryPolicy> fromLogValue(String value) {
+		if (value == null || value.isBlank()) {
+			return Optional.empty();
+		}
+		String normalized = value.trim();
+		return Arrays.stream(values())
+				.filter(policy -> policy.logValue.equalsIgnoreCase(normalized))
+				.findFirst();
 	}
 }
 

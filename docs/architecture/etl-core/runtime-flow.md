@@ -316,6 +316,7 @@ The current F1 baseline keeps restart behavior explicit and conservative for shi
 Current guardrails:
 
 - `runMode` and `recoveryPolicy` are treated as explicit runtime evidence, not hidden defaults
+- selected jobs may author `job-config.yaml -> recoveryPolicy`, but the shipped runtime path currently executes only `rerun-from-start`
 - checkpoint/resume semantics are intentionally deferred to follow-on F1 slices, and `resume-from-checkpoint` currently fails fast as unsupported
 - scheduler overlap/run-state governance should not imply restart/resume behavior that F1 has not explicitly shipped
 

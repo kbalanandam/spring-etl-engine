@@ -14,6 +14,7 @@ import com.etl.logging.RunLoggingContext;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import com.etl.runtime.job.JobConfigPaths;
 import com.etl.runtime.job.JobHierarchyLoggingSupport;
+import com.etl.runtime.job.JobRecoveryPolicy;
 import com.etl.runtime.job.JobRunMode;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.runtime.job.JobRuntimeDescriptorAssembler;
@@ -326,6 +327,7 @@ class LoggingContextListenerTest {
         "orders-flow",
         "C:/scenarios/orders/job-config.yaml",
         JobRunMode.EXPLICIT_JOB,
+        JobRecoveryPolicy.RERUN_FROM_START,
         new JobConfigPaths("source-config.yaml", "target-config.yaml", "processor-config.yaml"),
         List.of(
             step("normalize-orders", "OrdersIn", "OrdersValidated"),

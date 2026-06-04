@@ -15,6 +15,7 @@ and this project adheres to **Semantic Versioning**.
 - Started `F1` phase-1 contract baseline by documenting explicit restart semantics for shipped execution modes (`runMode` + `recoveryPolicy`) and surfacing `runMode` in `RUN_SUMMARY` run-level evidence while keeping resume/checkpoint behavior deferred.
 - Continued `F1` phase-1 baseline by projecting `runMode` and `recoveryPolicy` through run read models and control-plane APIs (`/api/v1/runs*` and job-detail recent runs), with JDBC projection persistence/backfill support for the additive fields.
 - Added `F1` phase-1.3 runtime guardrail so `JobRuntimeDescriptor` fails fast when `recoveryPolicy=resume-from-checkpoint` is selected, preserving the shipped `rerun-from-start` execution behavior.
+- Continued `F1` baseline by adding optional `job-config.yaml -> recoveryPolicy` contract wiring into selected-run descriptor/metadata assembly (`rerun-from-start` default) while keeping `resume-from-checkpoint` fail-fast guarded as unsupported.
 
 ### Fixed
 - N/A

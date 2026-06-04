@@ -25,6 +25,7 @@ import com.etl.config.target.TargetWrapper;
 import com.etl.config.target.XmlTargetConfig;
 import com.etl.exception.EtlErrorCategory;
 import com.etl.runtime.job.JobConfigPaths;
+import com.etl.runtime.job.JobRecoveryPolicy;
 import com.etl.runtime.job.JobRunMode;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.runtime.job.JobRuntimeDescriptorAssembler;
@@ -305,6 +306,7 @@ public class ConfigLoader {
 				runtimeConfig.scenarioName(),
 				runtimeConfig.jobConfigPath(),
 				runtimeConfig.demoFallbackMode() ? JobRunMode.DEMO_FALLBACK : JobRunMode.EXPLICIT_JOB,
+				runtimeConfig.recoveryPolicy(),
 				new JobConfigPaths(
 						runtimeConfig.sourceConfigPath(),
 						runtimeConfig.targetConfigPath(),
@@ -424,6 +426,7 @@ public class ConfigLoader {
 					"demo-fallback",
 					"",
 					true,
+					JobRecoveryPolicy.RERUN_FROM_START,
 					synthesizeDemoSteps(demoSourceWrapper, demoTargetWrapper, demoProcessorConfig)
 			);
 		}
@@ -441,6 +444,7 @@ public class ConfigLoader {
 		Path jobConfigDirectory = jobConfigFile.getAbsoluteFile().getParentFile().toPath();
 		String scenarioName = requireExplicitJobName(jobConfig, jobConfigFile.toPath());
 		requireActiveSelectedJob(jobConfig, scenarioName, jobConfigFile.toPath());
+		JobRecoveryPolicy recoveryPolicy = resolveRecoveryPolicy(jobConfig, scenarioName, jobConfigFile.toPath());
 		String resolvedSourceConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getSourceConfigPath(), "sourceConfigPath");
 		String resolvedTargetConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getTargetConfigPath(), "targetConfigPath");
 		String resolvedProcessorConfigPath = resolveReferencedPath(jobConfigDirectory, jobConfig.getProcessorConfigPath(), "processorConfigPath");
@@ -484,6 +488,7 @@ public class ConfigLoader {
 				scenarioName,
 				jobConfigFile.getAbsolutePath(),
 				false,
+				recoveryPolicy,
 				resolvedSteps
 		);
 	}
@@ -502,6 +507,19 @@ public class ConfigLoader {
 					+ jobConfigPath.toAbsolutePath().normalize()
 					+ ". Set 'isActive: true' or select a different job-config.yaml.");
 		}
+	}
+
+	private static JobRecoveryPolicy resolveRecoveryPolicy(JobConfig jobConfig, String scenarioName, Path jobConfigPath) {
+		if (jobConfig == null || jobConfig.getRecoveryPolicy() == null || jobConfig.getRecoveryPolicy().isBlank()) {
+			return JobRecoveryPolicy.RERUN_FROM_START;
+		}
+		String configuredValue = jobConfig.getRecoveryPolicy().trim();
+		return JobRecoveryPolicy.fromLogValue(configuredValue)
+				.orElseThrow(() -> new ConfigException("Selected job '" + defaultName(scenarioName)
+						+ "' in " + jobConfigPath.toAbsolutePath().normalize()
+						+ " configures unsupported recoveryPolicy='" + configuredValue
+						+ "'. Supported values: " + JobRecoveryPolicy.RERUN_FROM_START.logValue()
+						+ ", " + JobRecoveryPolicy.RESUME_FROM_CHECKPOINT.logValue() + "."));
 	}
 
 	private static String resolveSelectedJobConfigPath(String configuredJobConfigPath) {
@@ -1496,6 +1514,7 @@ public class ConfigLoader {
 			String scenarioName,
 			String jobConfigPath,
 			boolean demoFallbackMode,
+			JobRecoveryPolicy recoveryPolicy,
 			List<JobConfig.JobStepConfig> steps
 	) {
 	}

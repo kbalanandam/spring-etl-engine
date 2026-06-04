@@ -22,6 +22,7 @@ public class JobConfig {
 	private String sourceConfigPath;
 	private String targetConfigPath;
 	private String processorConfigPath;
+	private String recoveryPolicy;
 	private List<JobStepConfig> steps;
 
 	public String getName() {
@@ -62,6 +63,14 @@ public class JobConfig {
 
 	public void setProcessorConfigPath(String processorConfigPath) {
 		this.processorConfigPath = processorConfigPath;
+	}
+
+	public String getRecoveryPolicy() {
+		return recoveryPolicy;
+	}
+
+	public void setRecoveryPolicy(String recoveryPolicy) {
+		this.recoveryPolicy = recoveryPolicy;
 	}
 
 	public List<JobStepConfig> getSteps() {

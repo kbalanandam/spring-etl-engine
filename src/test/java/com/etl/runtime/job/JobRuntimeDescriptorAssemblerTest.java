@@ -14,6 +14,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JobRuntimeDescriptorAssemblerTest {
@@ -48,6 +49,7 @@ class JobRuntimeDescriptorAssemblerTest {
 				"orders-flow",
 				"C:/scenarios/orders/job-config.yaml",
 				JobRunMode.EXPLICIT_JOB,
+				JobRecoveryPolicy.RERUN_FROM_START,
 				new JobConfigPaths("source-config.yaml", "target-config.yaml", "processor-config.yaml"),
 				List.of(first, second),
 				sourceWrapper,
@@ -120,6 +122,34 @@ class JobRuntimeDescriptorAssemblerTest {
 		assertTrue(secondStep.executionHints().duplicateHandlingEnabled());
 		assertTrue(secondStep.executionHints().orderedDuplicateSelection());
 		assertNotNull(secondStep.executionHints().summary());
+	}
+
+	@Test
+	void failsFastWhenResumeFromCheckpointPolicyIsAssembled() {
+		SourceWrapper sourceWrapper = new SourceWrapper();
+		sourceWrapper.setSources(List.of(csvSource("OrdersIn", "com.etl.model.source.orders", "input/orders.csv")));
+
+		TargetWrapper targetWrapper = new TargetWrapper();
+		targetWrapper.setTargets(List.of(csvTarget("OrdersOut", "com.etl.model.target.orders", "target/orders.csv")));
+
+		ProcessorConfig processorConfig = new ProcessorConfig();
+		processorConfig.setType("default");
+		processorConfig.setMappings(List.of(mapping("OrdersIn", "OrdersOut", false)));
+
+		JobRuntimeDescriptorAssembler assembler = new JobRuntimeDescriptorAssembler();
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> assembler.assemble(
+				"orders-flow",
+				"C:/scenarios/orders/job-config.yaml",
+				JobRunMode.EXPLICIT_JOB,
+				JobRecoveryPolicy.RESUME_FROM_CHECKPOINT,
+				new JobConfigPaths("source-config.yaml", "target-config.yaml", "processor-config.yaml"),
+				List.of(step("orders-step", "OrdersIn", "OrdersOut")),
+				sourceWrapper,
+				targetWrapper,
+				processorConfig
+		));
+
+		assertTrue(exception.getMessage().contains("resume-from-checkpoint"));
 	}
 
 	private CsvSourceConfig csvSource(String sourceName, String packageName, String filePath) {
