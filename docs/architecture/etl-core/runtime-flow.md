@@ -316,7 +316,7 @@ The current F1 baseline keeps restart behavior explicit and conservative for shi
 Current guardrails:
 
 - `runMode` and `recoveryPolicy` are treated as explicit runtime evidence, not hidden defaults
-- checkpoint/resume semantics are intentionally deferred to follow-on F1 slices
+- checkpoint/resume semantics are intentionally deferred to follow-on F1 slices, and `resume-from-checkpoint` currently fails fast as unsupported
 - scheduler overlap/run-state governance should not imply restart/resume behavior that F1 has not explicitly shipped
 
 ### 1. Config resolution

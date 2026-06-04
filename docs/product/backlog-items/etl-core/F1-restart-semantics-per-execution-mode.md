@@ -80,3 +80,5 @@ Current shipped baseline: selected-job runs continue to favor deterministic `rer
 
 Phase-1 contract baseline started: restart expectations are now explicit and scoped to current runtime behavior, with code-level resume semantics deferred.
 
+Phase-1.3 guardrail started: descriptor assembly now fails fast when `resume-from-checkpoint` is selected, preserving the shipped `rerun-from-start` runtime boundary until checkpoint restart semantics are explicitly implemented.
+

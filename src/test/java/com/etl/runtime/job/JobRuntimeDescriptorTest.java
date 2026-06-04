@@ -105,6 +105,33 @@ class JobRuntimeDescriptorTest {
 		));
 	}
 
+	@Test
+	void failsFastWhenResumeFromCheckpointRecoveryPolicyIsSelected() {
+		JobStepDescriptor step = validStep("customers-step", 0);
+
+		IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, () -> new JobRuntimeDescriptor(
+				"customer-load",
+				null,
+				null,
+				null,
+				true,
+				JobRecoveryPolicy.RESUME_FROM_CHECKPOINT,
+				null,
+				null,
+				null,
+				"C:/tmp/job-config.yaml",
+				JobRunMode.EXPLICIT_JOB,
+				new JobConfigPaths("source-config.yaml", "target-config.yaml", "processor-config.yaml"),
+				List.of(step),
+				null,
+				List.of(),
+				new JobValidationSummary(true, true, true, true, List.of(), List.of(), null)
+		));
+
+		assertTrue(exception.getMessage().contains("resume-from-checkpoint"));
+		assertTrue(exception.getMessage().contains("rerun-from-start"));
+	}
+
 	private JobStepDescriptor validStep(String stepName, int order) {
 		return new JobStepDescriptor(
 				stepName,

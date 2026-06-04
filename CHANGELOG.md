@@ -14,6 +14,7 @@ and this project adheres to **Semantic Versioning**.
 - Extended control-plane scheduler visibility by exposing scheduler governance metadata (`schedulerEnabled`, `schedulerMissedRunPolicy`, `schedulerOverlapPolicy`) on `GET /api/v1/system/info`, exposing schedule watermark state (`lastAcceptedDueAt`) on schedule responses, and making `controlplane.scheduler.overlap-policy=ALLOW` explicit in control-plane profile defaults.
 - Started `F1` phase-1 contract baseline by documenting explicit restart semantics for shipped execution modes (`runMode` + `recoveryPolicy`) and surfacing `runMode` in `RUN_SUMMARY` run-level evidence while keeping resume/checkpoint behavior deferred.
 - Continued `F1` phase-1 baseline by projecting `runMode` and `recoveryPolicy` through run read models and control-plane APIs (`/api/v1/runs*` and job-detail recent runs), with JDBC projection persistence/backfill support for the additive fields.
+- Added `F1` phase-1.3 runtime guardrail so `JobRuntimeDescriptor` fails fast when `recoveryPolicy=resume-from-checkpoint` is selected, preserving the shipped `rerun-from-start` execution behavior.
 
 ### Fixed
 - N/A
