@@ -197,7 +197,7 @@ Use these links when you want to browse the backlog by capability area instead o
 - Epic browse index: [`docs/product/epics/README.md`](epics/README.md)
 - Near-term runtime and transformation work: [`Epic A`](epics/etl-core/epic-a-runtime-contract-and-model-governance.md), [`Epic B`](epics/etl-core/epic-b-runtime-hardening-and-file-behavior.md), [`Epic T`](epics/etl-core/epic-t-transformation-capability.md), [`Epic P`](epics/etl-core/epic-p-source-native-parser-maturity.md)
 - Portability and transport direction: [`Epic E`](epics/etl-core/epic-e-portability-and-packaged-run-guidance.md), [`Epic X`](epics/etl-core/epic-x-file-transport-and-sftp-boundary.md)
-- Scheduling and restart direction: [`Epic S`](epics/scheduler/epic-s-scheduling-and-control-plane.md), [`Epic F`](epics/etl-core/epic-f-restartability-and-recovery-semantics.md)
+- Scheduling and restart direction: [`Epic S`](epics/scheduler/epic-s-scheduling-and-control-plane.md), [`Epic R`](epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md), [`Epic F`](epics/etl-core/epic-f-restartability-and-recovery-semantics.md)
 - Evidence, security, and release readiness: [`Epic C`](epics/etl-core/epic-c-observability-and-run-evidence.md), [`Epic D`](epics/etl-core/epic-d-error-taxonomy-and-failure-categorization.md), [`Epic G`](epics/etl-core/epic-g-secret-injection-and-secure-configuration.md), [`Epic V`](epics/etl-core/epic-v-verification-evidence-and-reporting.md)
 
 ### Epic detail pages
@@ -265,7 +265,7 @@ This table is the day-to-day execution view for the current product stage.
 | [E1](backlog-items/etl-core/E1-cross-platform-defaults-and-path-handling.md) | Finalize cross-platform defaults and path handling rules | Epic E | P0 | Done | M1 | none | Portable defaults and test/runtime path cleanup completed |
 | [E2](backlog-items/etl-core/E2-packaged-run-guidance-for-jar-execution.md) | Add packaged-run guidance for jar execution with scenario configs | Epic E | P1 | Done | M1 | E1 | Packaged selected-job run guidance is now documented in core docs and preserved scenario READMEs with version-agnostic jar commands |
 | [E3](backlog-items/etl-core/E3-centralize-brand-naming-and-doc-refresh.md) | Centralize product-brand naming and doc refresh automation | Epic E | P2 | Deferred | M2 | none | Define one product-facing brand source of truth and a controlled refresh path for brand-facing docs/copy only, while keeping `spring-etl-engine` as the stable technical identity |
-| [F1](backlog-items/etl-core/F1-restart-semantics-per-execution-mode.md) | Define restart semantics per execution mode | Epic F | P1 | In Progress | M2 | A1, C1 | Phase-1 contract baseline started: explicit restart matrix and evidence contract are now documented while runtime resume semantics remain deferred |
+| [F1](backlog-items/etl-core/F1-restart-semantics-per-execution-mode.md) | Define restart semantics per execution mode | Epic F | P1 | In Progress | M2 | A1, C1 | Phase-1 baseline is shipped (`rerun-from-start` + advisory recovery evidence); Phase-2/Phase-3 docs-first gates now focus on resume-eligibility rules and idempotent rerun boundaries before any resume-execution design |
 | [X1](backlog-items/etl-core/X1-sftp-transport-contract-and-deployment-boundary.md) | Define SFTP transport contract and deployment boundary | Epic X | P1 | Ready | M2 | E1, C1, G1 | Define staged inbound scope, native-vs-MFT modes, and deployment boundaries before implementation |
 | [X2](backlog-items/etl-core/X2-first-inbound-sftp-staged-pull-capability.md) | Add first inbound SFTP staged pull capability | Epic X | P1 | Deferred | M2 | X1, B2, C2 | First slice should stage remote files locally and emit transfer evidence |
 | [X3](backlog-items/etl-core/X3-remote-post-success-file-handling-and-failure-categorization.md) | Add remote post-success file handling and failure categorization for SFTP | Epic X | P1 | Deferred | M2 | X2, D1 | Add remote move/rename/archive semantics only after the first inbound pull slice is stable |
@@ -274,6 +274,11 @@ This table is the day-to-day execution view for the current product stage.
 | [S2](backlog-items/scheduler/S2-time-based-schedule-definitions-with-pause-resume.md) | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | In Progress | M2 | S1 | Current-release first slice in progress: time-based definitions and pause/resume controls on the frozen selected-job launch boundary |
 | [S3](backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md) | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
 | [S4](backlog-items/scheduler/S4-control-plane-operational-data-model.md) | Define control-plane operational data model for schedules, watchers, trigger events, run and step history, artifact lineage, and restartability anchors | Epic S | P1 | Done | M2 | S1, C1, C2 | Current-release S4a slice is shipped (schedule/trigger/run PK-cutover foundations); S4b baseline is complete with durable `step_record` + `artifact_record` schema, lineage guardrails, step+artifact projection writes, persisted read-model APIs, and Operator UI run-detail consumption; S4c first functional slice is now shipped for `attempt_link`/`checkpoint_anchor` persistence and recovery lookups, with any future semantic expansion explicitly aligned to `F1` restart decisions (see [`S4c checklist`](backlog-items/scheduler/S4c-attempt-link-checkpoint-anchor-checklist.md)). |
+| [R1](backlog-items/scheduler/R1-freeze-jpa-hibernate-control-plane-persistence-boundary.md) | Freeze JPA/Hibernate control-plane persistence boundary | Epic R | P1 | Ready | M3 | S1, S4 | Freeze one optional control-plane persistence boundary around the selected-job runtime contract before implementation spreads |
+| [R2](backlog-items/scheduler/R2-multi-rdbms-datasource-and-dialect-profile-contract.md) | Define multi-RDBMS datasource and dialect profile contract | Epic R | P1 | Ready | M3 | R1 | Add deploy-time profile guidance for SQLite, PostgreSQL, SQL Server, MySQL, and Oracle without making control-plane DB mandatory |
+| [R3](backlog-items/scheduler/R3-jpa-hibernate-entities-and-repositories-for-control-plane-history.md) | Add JPA/Hibernate entities and repositories for control-plane history | Epic R | P1 | Ready | M3 | R1, R2, S4 | Implement portable mappings for retained control-plane history while preserving stable external IDs and read-model behavior |
+| [R4](backlog-items/scheduler/R4-cross-rdbms-schema-migration-baseline.md) | Introduce cross-RDBMS schema migration baseline | Epic R | P1 | Ready | M3 | R2, R3 | Establish migration/versioning rules with portable-first DDL and isolated vendor deltas where required |
+| [R5](backlog-items/scheduler/R5-multi-rdbms-parity-and-fallback-verification.md) | Prove multi-RDBMS parity and fallback behavior | Epic R | P2 | Ready | M3 | R3, R4 | Validate parity for supported engines and keep direct selected-job ETL runs functional when control-plane persistence is disabled |
 | [U1](backlog-items/operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md) | Stand up independent monitoring-first Operator UI shell with jobs and runs list views | Epic U | P1 | Done | M2 | C1 | Completed monitoring-first shell on `/operator` with read-only Jobs/Runs list views, placeholder deep links (`#/runs/{jobExecutionId}`, `#/jobs/{jobKey}`), client-side filter/sort controls, and hash-route state persistence; remains independent from ETL worker launch path |
 | [U2](backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md) | Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer | Epic U | P1 | Done | M2 | U1, C2 | Completed run-detail drill-down with step/failure/artifact evidence, independent/combined runs-list job + start-date filtering, and richer run-instance-scoped in-page log rendering (without widening scheduler/launch boundaries) |
 | [U3](backlog-items/operator-ui/U3-guarded-trigger-now-from-job-details.md) | Add guarded trigger-now action from job details without scheduler coupling | Epic U | P1 | Done | M2 | U1, S1 | Completed guarded trigger-now action on job detail with confirmation, traceable `triggerEventId`/decision feedback, categorized failure messages, and explicit selected-job boundary wording (no scheduler-management controls added) |
@@ -299,6 +304,7 @@ Use this section as the near-term sequencing view behind the execution board:
 11. Start Operator UI in parallel as a monitoring-first independent slice (`U1` -> `U2` -> `U3`) so users get centralized job/run visibility without coupling UI to ETL-core launch behavior.
 12. Run `S1` contract freeze as the active scheduler boundary and execute first `S2` + phased `S4` slices in the same release lane (`S4a`/`S4b` shipped and `S4c` first functional slice shipped), while keeping advanced `S3` overlap/missed-run policy deferred.
 13. Leave `V3` / `V4` and wider scheduler/restart work for the next operational maturity pass.
+14. Start persistence portability freeze and phased implementation under `R1` -> `R2` -> `R3` -> `R4` -> `R5` so major RDBMS deployment targets can be supported without changing the selected-job ETL runtime contract.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -605,6 +611,25 @@ That capability must remain optional from the ETL core point of view and must no
 
 These items move the product from "reliable ETL engine" to "enterprise-grade ETL product."
 
+## Epic R - Multi-RDBMS control-plane persistence via JPA/Hibernate
+
+### Goal
+Support deploy-time selectable relational persistence for optional control-plane history across major RDBMS engines while preserving the independently runnable selected-job ETL runtime contract.
+
+### Backlog
+- [ ] Freeze the JPA/Hibernate control-plane persistence boundary and non-goals before implementation expands
+- [ ] Define one deploy-time datasource/dialect profile contract for SQLite, PostgreSQL, SQL Server, MySQL, and Oracle
+- [ ] Implement JPA/Hibernate entity and repository mappings for retained scheduler/trigger/run/step/artifact history
+- [ ] Introduce schema migration/versioning rules that are portable-first with isolated vendor deltas where needed
+- [ ] Prove behavior parity and fallback across supported engines without making control-plane persistence mandatory for direct ETL runs
+
+### Done criteria
+- direct selected-job ETL runs remain valid when control-plane persistence is absent or disabled
+- supported persistence-mode and datasource configuration is documented as deploy-time behavior, not code-fork behavior
+- retained control-plane read-model semantics stay stable across supported engines
+- schema evolution path is deterministic and repeatable across supported relational targets
+- automated verification covers at least one local-first path and multiple major RDBMS paths
+
 ## Epic F - Restartability and idempotent re-run model
 
 ### Goal
@@ -771,6 +796,7 @@ Focus:
 Current state:
 - verification reporting direction is now established through `Epic V`, ADR-0005, categorized Markdown reporting, and a shared verification evidence model
 - HTML drill-down reporting, provenance hardening, retention rules, and release gating remain future M3 work
+- multi-RDBMS control-plane persistence portability is now frozen as an explicit `Epic R` planning and execution track for phased M3 delivery
 
 Exit signal:
 - product can be presented as enterprise-grade ETL foundation with known limits, not just a development framework
@@ -787,7 +813,8 @@ Use this as the condensed near-term priority order:
 4. `Epic P` - first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
 5. `X1` / `X2` - SFTP contract and first inbound slice
 6. `F1` / `S1` / `S2` / `S4` - restartability, scheduler baseline, and first retained-history table-structure evolution slice
-7. `V3` / `V4` / `G1` - reporting, release gating, and secure config
+7. `R1` / `R2` / `R3` / `R4` / `R5` - freeze and deliver deploy-time configurable multi-RDBMS control-plane persistence via JPA/Hibernate
+8. `V3` / `V4` / `G1` - reporting, release gating, and secure config
 
 ---
 

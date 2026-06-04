@@ -45,6 +45,11 @@ public class InMemoryRunSummaryRegistry implements RunSummaryRegistry {
 	}
 
 	@Override
+	public Optional<RunRecoveryView> findRecoveryByJobExecutionId(long jobExecutionId) {
+		return Optional.empty();
+	}
+
+	@Override
 	public List<RunStepRecordView> listStepRecordsByJobExecutionId(long jobExecutionId, int limit) {
 		return List.of();
 	}

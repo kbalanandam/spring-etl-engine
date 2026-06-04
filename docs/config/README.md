@@ -307,6 +307,31 @@ For selected relational source or target configs, startup now also validates tha
 
 This means the preserved SQL Server scenario bundles are safe to keep in the repository as templates, while still failing clearly if they are run without real environment-specific overrides.
 
+## Control-plane persistence DB profile matrix (R2 first pass)
+
+This section tracks the planned deploy-time contract for optional control-plane persistence portability.
+
+- It applies to control-plane retained-history persistence only.
+- It does not change the selected-job ETL execution contract.
+- Direct ETL runs remain valid when control-plane persistence is disabled.
+
+| Target DB | Intended usage lane | Profile / mode intent | Dialect intent | Notes |
+|---|---|---|---|---|
+| SQLite | local developer laptop and smoke lanes | local-first baseline | SQLite dialect | Keep lightweight local persistence path for fast setup and troubleshooting. |
+| PostgreSQL | primary enterprise shared DB lane | deploy-time selectable | PostgreSQL dialect | First parity target for CI-friendly multi-RDBMS validation. |
+| MySQL | primary enterprise shared DB lane | deploy-time selectable | MySQL dialect | First parity target paired with PostgreSQL for portability confidence. |
+| SQL Server | enterprise integration lane | deploy-time selectable | SQL Server dialect | Validate with documented lane ownership when always-on CI is not available. |
+| Oracle | enterprise integration lane | deploy-time selectable | Oracle dialect | Start with scheduled/manual validation lane, then automate as environment permits. |
+
+Planned configuration principles for `R2`:
+
+1. keep persistence-mode selection explicit and environment-driven
+2. fail fast for invalid datasource/dialect combinations
+3. avoid engine-specific runtime behavior changes in read-model semantics
+4. keep vendor-specific SQL as isolated migration deltas only when strictly required
+
+Implementation and rollout details are tracked under `Epic R` and backlog items `R1`-`R5` in `docs/product/product-backlog.md`.
+
 ## Documentation rule
 
 Whenever a new source or target type is added, or the shared default processor field contract changes:

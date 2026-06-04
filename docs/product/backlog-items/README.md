@@ -80,6 +80,14 @@ Use this page as the main browse index when you want to navigate backlog items b
 - [`S4 - Define control-plane operational data model`](scheduler/S4-control-plane-operational-data-model.md)
 - [`S4b checklist - Step/artifact persistence delivery tasks`](scheduler/S4b-step-artifact-persistence-checklist.md)
 
+### Epic R - Multi-RDBMS control-plane persistence via JPA/Hibernate
+
+- [`R1 - Freeze JPA/Hibernate control-plane persistence boundary`](scheduler/R1-freeze-jpa-hibernate-control-plane-persistence-boundary.md)
+- [`R2 - Define multi-RDBMS datasource and dialect profile contract`](scheduler/R2-multi-rdbms-datasource-and-dialect-profile-contract.md)
+- [`R3 - Add JPA/Hibernate entities and repositories for control-plane history`](scheduler/R3-jpa-hibernate-entities-and-repositories-for-control-plane-history.md)
+- [`R4 - Introduce cross-RDBMS schema migration baseline`](scheduler/R4-cross-rdbms-schema-migration-baseline.md)
+- [`R5 - Prove multi-RDBMS parity and fallback behavior`](scheduler/R5-multi-rdbms-parity-and-fallback-verification.md)
+
 ### Epic T - Transformation capability maturity
 
 - [`T1 - Add field-level validation and first reject-handling slice`](etl-core/T1-field-level-validation-and-first-reject-handling-slice.md)

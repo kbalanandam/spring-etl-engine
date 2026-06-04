@@ -92,6 +92,16 @@ public class RunSummaryController {
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
 
+	@GetMapping("/{jobExecutionId}/recovery")
+	public ResponseEntity<RunRecoveryResponse> recoveryByJobExecutionId(@PathVariable long jobExecutionId) {
+		if (runSummaryReadModelService.findRunByJobExecutionId(jobExecutionId).isEmpty()) {
+			return ResponseEntity.notFound().build();
+		}
+		return runSummaryRegistry.findRecoveryByJobExecutionId(jobExecutionId)
+				.map(recovery -> ResponseEntity.ok(new RunRecoveryResponse(recovery)))
+				.orElseGet(() -> ResponseEntity.ok(new RunRecoveryResponse(null)));
+	}
+
 	@GetMapping("/{jobExecutionId}/step-records")
 	public ResponseEntity<RunStepRecordListResponse> stepRecordsByJobExecutionId(@PathVariable long jobExecutionId,
 	                                                                            @RequestParam(name = "limit", required = false) Integer limit) {

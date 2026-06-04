@@ -32,6 +32,7 @@ This folder contains Architecture Decision Records (ADRs) that capture why signi
 
 - [`control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md`](control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md)
 - [`control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md`](control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md)
+- [`control-plane/0014-freeze-jpa-hibernate-control-plane-persistence-boundary.md`](control-plane/0014-freeze-jpa-hibernate-control-plane-persistence-boundary.md)
 
 ### Operator UI
 

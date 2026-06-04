@@ -244,6 +244,8 @@ It should preserve concepts such as:
 
 This note keeps `CheckpointAnchor` conceptual on purpose. It is an anchor for future restartability design, not a claim that restart/resume is already solved generically.
 
+Current shipped API semantics stay aligned to that boundary: recovery lineage may be exposed for operator diagnosis, but checkpoint-resume execution is still unsupported and reported as advisory (`resumeSupported=false`).
+
 ## Decisions
 
 - The retained operational data model belongs to the optional control plane, not the mandatory ETL worker.
