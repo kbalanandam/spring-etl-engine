@@ -46,7 +46,32 @@ public class InMemoryRunSummaryRegistry implements RunSummaryRegistry {
 
 	@Override
 	public Optional<RunRecoveryView> findRecoveryByJobExecutionId(long jobExecutionId) {
-		return Optional.empty();
+		RunSummaryView run = runsByJobExecutionId.get(jobExecutionId);
+		if (run == null) {
+			return Optional.empty();
+		}
+		List<RunCheckpointAnchorView> checkpointAnchors = List.of();
+		String logPath = run.logPath() == null ? "" : run.logPath().trim();
+		if (!logPath.isBlank()) {
+			checkpointAnchors = List.of(new RunCheckpointAnchorView(
+					"ca-log-" + jobExecutionId,
+					null,
+					"RUN_LOG",
+					logPath,
+					run.status(),
+					run.endTime() == null ? run.startTime() : run.endTime(),
+					run.endTime() == null ? run.startTime() : run.endTime()
+			));
+		}
+		return Optional.of(RunRecoveryView.advisoryResumeNotSupported(
+				run.jobExecutionId(),
+				"rr-" + jobExecutionId,
+				null,
+				null,
+				null,
+				null,
+				checkpointAnchors
+		));
 	}
 
 	@Override

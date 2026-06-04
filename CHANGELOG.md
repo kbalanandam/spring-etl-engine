@@ -11,6 +11,7 @@ and this project adheres to **Semantic Versioning**.
 
 ### Changed
 - Started `F1` phase-2 advisory recovery read-model support by adding `GET /api/v1/runs/{jobExecutionId}/recovery`, projecting retained `attempt_link` + `checkpoint_anchor` evidence with explicit `resumeSupported=false` semantics while preserving the current fail-fast checkpoint-resume runtime boundary.
+- Continued `F1` phase-2 recovery behavior by returning a deterministic advisory recovery payload when no retained recovery row exists (including memory-mode fallback), centralizing `resumeBlockedReason` semantics, and preserving `resumeSupported=false` with checkpoint-resume execution still unshipped.
 
 ### Fixed
 - N/A

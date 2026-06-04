@@ -305,15 +305,13 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				where al.run_record_id = ?
 				order by al.created_at desc, al.attempt_link_pk desc
 				limit 1
-				""", (rs, rowNum) -> new RunRecoveryView(
+				""", (rs, rowNum) -> RunRecoveryView.advisoryResumeNotSupported(
 				jobExecutionId,
 				runRecordId,
 				rs.getString("attempt_link_id"),
 				rs.getString("link_kind"),
 				rs.getString("prior_run_record_id"),
 				nullableLong(rs, "prior_job_execution_id"),
-				false,
-				"resume-from-checkpoint is not supported in the current shipped runtime; rerun-from-start remains the active execution boundary.",
 				checkpointAnchors
 		), runRecordId);
 
@@ -321,15 +319,13 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			return matches.stream().findFirst();
 		}
 
-		return Optional.of(new RunRecoveryView(
+		return Optional.of(RunRecoveryView.advisoryResumeNotSupported(
 				jobExecutionId,
 				runRecordId,
 				null,
 				null,
 				null,
 				null,
-				false,
-				"resume-from-checkpoint is not supported in the current shipped runtime; rerun-from-start remains the active execution boundary.",
 				checkpointAnchors
 		));
 	}

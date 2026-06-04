@@ -2,6 +2,8 @@ package com.etl.controlplane.api;
 
 import com.etl.controlplane.monitoring.RunDetailReadModelService;
 import com.etl.controlplane.monitoring.RunDetailView;
+import com.etl.controlplane.monitoring.RunCheckpointAnchorView;
+import com.etl.controlplane.monitoring.RunRecoveryView;
 import com.etl.controlplane.monitoring.RunSummaryRegistry;
 import com.etl.controlplane.monitoring.RunScopedLogReadModelService;
 import com.etl.controlplane.monitoring.RunScopedLogView;
@@ -17,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 
@@ -94,12 +97,39 @@ public class RunSummaryController {
 
 	@GetMapping("/{jobExecutionId}/recovery")
 	public ResponseEntity<RunRecoveryResponse> recoveryByJobExecutionId(@PathVariable long jobExecutionId) {
-		if (runSummaryReadModelService.findRunByJobExecutionId(jobExecutionId).isEmpty()) {
+		var run = runSummaryReadModelService.findRunByJobExecutionId(jobExecutionId);
+		if (run.isEmpty()) {
 			return ResponseEntity.notFound().build();
 		}
+		RunSummaryView runSummary = run.orElseThrow();
 		return runSummaryRegistry.findRecoveryByJobExecutionId(jobExecutionId)
 				.map(recovery -> ResponseEntity.ok(new RunRecoveryResponse(recovery)))
-				.orElseGet(() -> ResponseEntity.ok(new RunRecoveryResponse(null)));
+				.orElseGet(() -> ResponseEntity.ok(new RunRecoveryResponse(defaultAdvisoryRecovery(runSummary))));
+	}
+
+	private RunRecoveryView defaultAdvisoryRecovery(RunSummaryView runSummary) {
+		String normalizedLogPath = runSummary.logPath() == null ? "" : runSummary.logPath().trim();
+		List<RunCheckpointAnchorView> checkpointAnchors = List.of();
+		if (!normalizedLogPath.isBlank()) {
+			checkpointAnchors = List.of(new RunCheckpointAnchorView(
+					"ca-log-" + runSummary.jobExecutionId(),
+					null,
+					"RUN_LOG",
+					normalizedLogPath,
+					runSummary.status(),
+					runSummary.endTime() == null ? runSummary.startTime() : runSummary.endTime(),
+					runSummary.endTime() == null ? runSummary.startTime() : runSummary.endTime()
+			));
+		}
+		return RunRecoveryView.advisoryResumeNotSupported(
+				runSummary.jobExecutionId(),
+				"rr-" + runSummary.jobExecutionId(),
+				null,
+				null,
+				null,
+				null,
+				checkpointAnchors
+		);
 	}
 
 	@GetMapping("/{jobExecutionId}/step-records")
