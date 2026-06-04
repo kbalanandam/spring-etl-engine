@@ -88,3 +88,7 @@ Preserved-bundle alignment continued: executable `config-jobs/*/job-config.yaml`
 
 Phase-1.5 operator filtering started: `/api/v1/runs` now accepts optional `runMode` and `recoveryPolicy` filters, and Operator Runs UI passes those filters through route state and API requests for evidence-focused run triage.
 
+Phase-1.3 guardrail coverage expanded: selected-run config metadata and runtime-descriptor assembly paths now have explicit fail-fast regression coverage for unsupported `resume-from-checkpoint`.
+
+Phase-1 contract ergonomics continued: selected `job-config.yaml` now accepts short `recoveryPolicy` aliases (`rerun`, `restart`) that normalize to canonical runtime evidence tokens while preserving the current fail-fast guardrail for unsupported checkpoint resume execution.
+

@@ -1329,6 +1329,123 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void resolvesShortRerunAliasFromSelectedJobConfig() throws IOException {
+    Path scenarioDir = tempDir.resolve("recovery-policy-rerun-alias");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.createDirectories(scenarioDir.resolve("output"));
+    Files.writeString(scenarioDir.resolve("input/customers.csv"), "id,name\n1,Alice\n");
+
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+            sources:
+              - format: csv
+                sourceName: Customers
+                filePath: input/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+            targets:
+              - format: csv
+                targetName: CustomersOut
+                filePath: output/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+            type: default
+            mappings:
+              - source: Customers
+                target: CustomersOut
+                fields:
+                  - from: id
+                    to: id
+            """);
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+            name: recovery-policy-rerun-alias
+            sourceConfigPath: source-config.yaml
+            targetConfigPath: target-config.yaml
+            processorConfigPath: processor-config.yaml
+            recoveryPolicy: rerun
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ensureSelectedJobFlatModels("recovery-policy-rerun-alias", List.of("Customers"), List.of("CustomersOut"));
+
+    RunConfigurationMetadata metadata = loader.buildRunConfigurationMetadata();
+    assertEquals(JobRecoveryPolicy.RERUN_FROM_START, metadata.recoveryPolicy());
+  }
+
+  @Test
+  void failsFastWhenSelectedJobConfigUsesRestartAliasRecoveryPolicy() throws IOException {
+    Path scenarioDir = tempDir.resolve("recovery-policy-restart-alias");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.createDirectories(scenarioDir.resolve("output"));
+    Files.writeString(scenarioDir.resolve("input/customers.csv"), "id,name\n1,Alice\n");
+
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+            sources:
+              - format: csv
+                sourceName: Customers
+                filePath: input/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+            targets:
+              - format: csv
+                targetName: CustomersOut
+                filePath: output/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+            type: default
+            mappings:
+              - source: Customers
+                target: CustomersOut
+                fields:
+                  - from: id
+                    to: id
+            """);
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+            name: recovery-policy-restart-alias
+            sourceConfigPath: source-config.yaml
+            targetConfigPath: target-config.yaml
+            processorConfigPath: processor-config.yaml
+            recoveryPolicy: restart
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ensureSelectedJobFlatModels("recovery-policy-restart-alias", List.of("Customers"), List.of("CustomersOut"));
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
+    assertTrue(messageChain(exception).contains("resume-from-checkpoint"));
+    assertTrue(messageChain(exception).contains("rerun-from-start"));
+  }
+
+  @Test
   void failsFastWhenSelectedJobRuntimeDescriptorUsesResumeFromCheckpointRecoveryPolicy() throws IOException {
     Path scenarioDir = tempDir.resolve("recovery-policy-resume-runtime");
     Files.createDirectories(scenarioDir.resolve("input"));

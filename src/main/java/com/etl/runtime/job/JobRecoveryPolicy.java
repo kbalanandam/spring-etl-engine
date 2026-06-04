@@ -45,9 +45,19 @@ public enum JobRecoveryPolicy {
 			return Optional.empty();
 		}
 		String normalized = value.trim();
-		return Arrays.stream(values())
+		Optional<JobRecoveryPolicy> canonicalMatch = Arrays.stream(values())
 				.filter(policy -> policy.logValue.equalsIgnoreCase(normalized))
 				.findFirst();
+		if (canonicalMatch.isPresent()) {
+			return canonicalMatch;
+		}
+		if ("rerun".equalsIgnoreCase(normalized)) {
+			return Optional.of(RERUN_FROM_START);
+		}
+		if ("restart".equalsIgnoreCase(normalized)) {
+			return Optional.of(RESUME_FROM_CHECKPOINT);
+		}
+		return Optional.empty();
 	}
 }
 
