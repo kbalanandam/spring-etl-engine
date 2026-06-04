@@ -302,6 +302,22 @@ th {
   padding: 10px;
 }
 
+#job-config-summary {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 10px;
+}
+
+#job-config-raw {
+  margin-top: 10px;
+  max-height: 420px;
+  overflow: auto;
+  white-space: pre;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 11px;
+}
+
 #view-run-detail h3 {
   margin: 14px 0 8px;
   font-size: 14px;

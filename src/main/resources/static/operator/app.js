@@ -13,6 +13,11 @@ const routes = {
     view: document.getElementById("view-job-detail"),
     load: loadJobDetailPlaceholder,
   },
+  jobConfig: {
+    tab: document.getElementById("tab-jobs"),
+    view: document.getElementById("view-job-config"),
+    load: loadJobConfig,
+  },
   runs: {
     tab: document.getElementById("tab-runs"),
     view: document.getElementById("view-runs"),
@@ -94,7 +99,12 @@ function currentRouteState() {
   const path = parsed.path;
   const normalized = path.toLowerCase();
   const runDetailMatch = path.match(/^runs\/(\d+)$/i);
+  const jobConfigMatch = path.match(/^jobs\/([^/]+)\/config$/i);
   const jobDetailMatch = path.match(/^jobs\/([^/]+)$/i);
+
+  if (jobConfigMatch) {
+    return { key: "jobConfig", jobExecutionId: null, jobKey: decodeURIComponent(jobConfigMatch[1]), query: parsed.query };
+  }
 
   if (jobDetailMatch) {
     return { key: "jobDetail", jobExecutionId: null, jobKey: decodeURIComponent(jobDetailMatch[1]), query: parsed.query };
@@ -187,6 +197,7 @@ async function loadJobDetailPlaceholder(routeState) {
   const summary = document.getElementById("job-detail-summary");
   const triggerButton = document.getElementById("job-detail-trigger-now-btn");
   const triggerFeedback = document.getElementById("job-detail-trigger-feedback");
+  const viewConfigLink = document.getElementById("job-detail-view-config-link");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
 
   state.className = "state";
@@ -195,6 +206,9 @@ async function loadJobDetailPlaceholder(routeState) {
   triggerFeedback.className = "state";
   triggerFeedback.textContent = "";
   triggerButton.disabled = true;
+  if (viewConfigLink) {
+    viewConfigLink.setAttribute("href", "#/jobs");
+  }
 
   if (!jobKeyValue) {
     state.className = "state error";
@@ -217,6 +231,9 @@ async function loadJobDetailPlaceholder(routeState) {
     document.getElementById("job-detail-readiness").textContent = job.readinessStatus || "-";
     document.getElementById("job-detail-recent-run-count").textContent = String(Array.isArray(payload.recentRuns) ? payload.recentRuns.length : 0);
     document.getElementById("job-detail-trigger-count").textContent = String(Array.isArray(payload.triggerEvents) ? payload.triggerEvents.length : 0);
+    if (viewConfigLink) {
+      viewConfigLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}/config`);
+    }
 
     triggerButton.disabled = false;
     triggerButton.onclick = () => requestTriggerNow(jobKeyValue);
@@ -226,6 +243,54 @@ async function loadJobDetailPlaceholder(routeState) {
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load job detail placeholder: ${error.message}`;
+  }
+}
+
+async function loadJobConfig(routeState) {
+  const state = document.getElementById("job-config-state");
+  const summary = document.getElementById("job-config-summary");
+  const raw = document.getElementById("job-config-raw");
+  const backLink = document.getElementById("job-config-back-link");
+  const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
+
+  state.className = "state";
+  summary.hidden = true;
+  raw.hidden = true;
+  raw.textContent = "";
+  if (backLink) {
+    backLink.setAttribute("href", "#/jobs");
+  }
+
+  if (!jobKeyValue) {
+    state.className = "state error";
+    state.textContent = "Missing job key in route. Use a job detail link.";
+    return;
+  }
+
+  state.textContent = `Loading config for ${jobKeyValue}...`;
+
+  try {
+    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(jobKeyValue)}/config`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Job config API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    document.getElementById("job-config-key").textContent = payload.jobKey || jobKeyValue;
+    document.getElementById("job-config-name").textContent = payload.displayName || "-";
+    document.getElementById("job-config-path").textContent = payload.jobConfigPath || "-";
+    raw.textContent = payload.rawYaml || "";
+    if (backLink) {
+      backLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}`);
+    }
+
+    summary.hidden = false;
+    raw.hidden = false;
+    state.textContent = "Job config loaded.";
+  } catch (error) {
+    state.className = "state error";
+    state.textContent = `Unable to load job config: ${error.message}`;
   }
 }
 

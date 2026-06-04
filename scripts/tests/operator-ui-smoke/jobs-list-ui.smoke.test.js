@@ -55,8 +55,7 @@ test("jobs list applies route state and renders rows", () => {
     assert.equal(elements.get("jobs-table").hidden, false);
 
     const row = elements.get("jobs-body").children[0];
-    row.dispatch("click");
-    assert.equal(globalThis.location.hash, "#/jobs/customer-load");
+    assert.match(row.innerHTML, /href="#\/jobs\/customer-load"/);
   } finally {
     restore();
   }

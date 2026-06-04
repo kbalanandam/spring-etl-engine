@@ -64,6 +64,23 @@ public class JobBundleReadModelService {
 				.findFirst();
 	}
 
+	public Optional<JobBundleConfigView> findBundleConfig(String jobKey) {
+		return findBundle(jobKey)
+				.flatMap(bundle -> {
+					try {
+						String rawYaml = Files.readString(Path.of(bundle.jobConfigPath()));
+						return Optional.of(new JobBundleConfigView(
+								bundle.jobKey(),
+								bundle.displayName(),
+								bundle.jobConfigPath(),
+								rawYaml
+						));
+					} catch (Exception ignored) {
+						return Optional.empty();
+					}
+				});
+	}
+
 	private JobBundleSummaryView readBundle(Path jobConfigPath) {
 		String key = jobConfigPath.getParent() == null ? "unknown" : jobConfigPath.getParent().getFileName().toString();
 		List<String> messages = new ArrayList<>();

@@ -21,6 +21,7 @@ and this project adheres to **Semantic Versioning**.
 - Backfilled preserved `config-jobs/*/job-config.yaml` bundles to declare `recoveryPolicy: rerun-from-start` explicitly and added contract tests so executable examples remain aligned with the shipped F1 baseline.
 - Extended Operator Runs visibility by showing `runMode` and `recoveryPolicy` in the runs list and run-detail summary, with matching API regression coverage on `GET /api/v1/runs/{jobExecutionId}`.
 - Extended `/api/v1/runs` with optional `runMode` and `recoveryPolicy` filters and updated Operator Runs controls to pass those filters through route state and API requests.
+- Extended Operator Jobs drill-down with a dedicated read-only job-config page (`#/jobs/{jobKey}/config`) and added `GET /api/v1/jobs/{jobKey}/config` so large YAML content stays off the default Job Detail view until explicitly requested.
 
 ### Fixed
 - N/A

@@ -10,7 +10,7 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 
 - Classification: **Future direction**
 - This note still carries future-direction design intent, but the monitoring-first subset below is now implemented by the optional `com.etl.controlplane.ControlPlaneApiApplication` starter.
-- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/runs/{jobExecutionId}/log`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/schedules/{scheduleId}/trigger-events`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
+- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `GET /api/v1/jobs/{jobKey}/config`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/runs/{jobExecutionId}/log`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/schedules/{scheduleId}/trigger-events`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
 - Trigger-event history now persists in the control-plane JDBC store when `controlplane.triggers.persistence.mode=jdbc` (control-plane profile default), with memory mode still available as a fallback.
 - Trigger-event persistence mode switches are startup-guarded: when the prior marker mode differs from the current configured mode (`jdbc` <-> `memory`), startup fails fast unless `controlplane.triggers.persistence.allow-mode-switch=true` is set intentionally.
 - Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default), while `/runs/{jobExecutionId}/detail` remains log-projected.
@@ -85,6 +85,7 @@ Suggested resource groups:
 ```text
 GET    /api/v1/jobs
 GET    /api/v1/jobs/{jobKey}
+GET    /api/v1/jobs/{jobKey}/config
 POST   /api/v1/jobs/{jobKey}:trigger-now
 GET    /api/v1/jobs/{jobKey}/trigger-events
 
@@ -179,6 +180,26 @@ Response body:
   ]
 }
 ```
+
+### `GET /api/v1/jobs/{jobKey}/config`
+
+Returns one read-only `job-config.yaml` payload for drill-down viewing.
+
+Response body:
+
+```json
+{
+  "jobKey": "customer-load",
+  "displayName": "Customer Load",
+  "jobConfigPath": "src/main/resources/config-jobs/customer-load/job-config.yaml",
+  "rawYaml": "name: customer-load\nsourceConfigPath: source-config.yaml\n..."
+}
+```
+
+Current behavior:
+
+- returns `404` when the `jobKey` is unknown
+- returns read-only raw YAML content; this endpoint does not mutate bundle files
 
 ### `POST /api/v1/jobs/{jobKey}:trigger-now`
 

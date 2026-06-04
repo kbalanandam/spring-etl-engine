@@ -1,6 +1,7 @@
 package com.etl.controlplane.api;
 
 import com.etl.controlplane.jobs.JobBundleReadModelService;
+import com.etl.controlplane.jobs.JobBundleConfigView;
 import com.etl.controlplane.jobs.JobBundleSummaryView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryView;
@@ -98,6 +99,36 @@ class JobBundleControllerTest {
 				.andExpect(status().isNotFound());
 
 		verify(jobBundleReadModelService).findBundle(eq("missing-job"));
+	}
+
+	@Test
+	void returnsJobConfigForKnownJob() throws Exception {
+		when(jobBundleReadModelService.findBundleConfig(eq("customer-load"))).thenReturn(Optional.of(
+				new JobBundleConfigView(
+						"customer-load",
+						"Customer Load",
+						"src/main/resources/config-jobs/customer-load/job-config.yaml",
+						"name: customer-load\nsteps:\n  - name: customers-step\n"
+				)
+		));
+
+		mockMvc.perform(get("/api/v1/jobs/customer-load/config"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.jobKey").value("customer-load"))
+				.andExpect(jsonPath("$.jobConfigPath").value("src/main/resources/config-jobs/customer-load/job-config.yaml"))
+				.andExpect(jsonPath("$.rawYaml").value("name: customer-load\nsteps:\n  - name: customers-step\n"));
+
+		verify(jobBundleReadModelService).findBundleConfig(eq("customer-load"));
+	}
+
+	@Test
+	void returnsNotFoundWhenJobConfigDoesNotExist() throws Exception {
+		when(jobBundleReadModelService.findBundleConfig(eq("missing-job"))).thenReturn(Optional.empty());
+
+		mockMvc.perform(get("/api/v1/jobs/missing-job/config"))
+				.andExpect(status().isNotFound());
+
+		verify(jobBundleReadModelService).findBundleConfig(eq("missing-job"));
 	}
 
 	@Test

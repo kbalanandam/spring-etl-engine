@@ -46,6 +46,23 @@ paths:
         '404':
           description: Job bundle not found
 
+  /jobs/{jobKey}/config:
+    get:
+      tags: [Jobs]
+      operationId: getJobConfigByKey
+      summary: Get one read-only job-config.yaml payload
+      parameters:
+        - $ref: '#/components/parameters/jobKey'
+      responses:
+        '200':
+          description: Read-only job-config payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobBundleConfigResponse'
+        '404':
+          description: Job bundle not found
+
   /jobs/{jobKey}:trigger-now:
     post:
       tags: [Jobs]
@@ -456,6 +473,19 @@ components:
           items:
             $ref: '#/components/schemas/TriggerEventView'
       required: [job, recentRuns, recentTriggerEvents]
+
+    JobBundleConfigResponse:
+      type: object
+      properties:
+        jobKey:
+          type: string
+        displayName:
+          type: string
+        jobConfigPath:
+          type: string
+        rawYaml:
+          type: string
+      required: [jobKey, displayName, jobConfigPath, rawYaml]
 
     RunSummaryView:
       type: object

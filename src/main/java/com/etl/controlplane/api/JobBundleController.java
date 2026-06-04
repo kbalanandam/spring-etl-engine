@@ -1,7 +1,6 @@
 package com.etl.controlplane.api;
 
 import com.etl.controlplane.jobs.JobBundleReadModelService;
-import com.etl.controlplane.jobs.JobBundleSummaryView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.triggers.TriggerEventRegistry;
 import org.springframework.http.HttpStatus;
@@ -46,6 +45,18 @@ public class JobBundleController {
 						job,
 						runSummaryReadModelService.latestRunsForJob(job.jobKey(), job.displayName(), DEFAULT_RECENT_RUN_LIMIT),
 						triggerEventRegistry.listByJobKey(job.jobKey(), DEFAULT_TRIGGER_EVENT_LIMIT)
+				)))
+				.orElseGet(() -> ResponseEntity.notFound().build());
+	}
+
+	@GetMapping("/{jobKey}/config")
+	public ResponseEntity<JobBundleConfigResponse> jobConfig(@PathVariable String jobKey) {
+		return jobBundleReadModelService.findBundleConfig(jobKey)
+				.map(config -> ResponseEntity.ok(new JobBundleConfigResponse(
+						config.jobKey(),
+						config.displayName(),
+						config.jobConfigPath(),
+						config.rawYaml()
 				)))
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
