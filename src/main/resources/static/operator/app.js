@@ -72,7 +72,7 @@ const runsListUi = createRunsListUi({
 
 const SORT_KEYS = {
   jobs: ["jobKey", "displayName", "readinessStatus"],
-  runs: ["startTime", "jobExecutionId", "scenario", "status"],
+  runs: ["startTime", "jobExecutionId", "scenario", "status", "runMode", "recoveryPolicy"],
 };
 
 window.addEventListener("hashchange", renderRoute);
@@ -542,6 +542,8 @@ async function loadRunDetail(routeState) {
     document.getElementById("run-detail-id").textContent = String(run.jobExecutionId ?? runIdValue);
     document.getElementById("run-detail-scenario").textContent = run.scenario || "-";
     document.getElementById("run-detail-status").textContent = run.status || "-";
+    document.getElementById("run-detail-run-mode").textContent = valueOrDash(run.runMode);
+    document.getElementById("run-detail-recovery-policy").textContent = valueOrDash(run.recoveryPolicy);
     document.getElementById("run-detail-start-time").textContent = valueOrDash(run.startTime);
     document.getElementById("run-detail-end-time").textContent = valueOrDash(run.endTime);
     document.getElementById("run-detail-duration").textContent = String(run.durationSeconds ?? "-");

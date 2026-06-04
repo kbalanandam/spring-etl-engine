@@ -17,6 +17,7 @@ and this project adheres to **Semantic Versioning**.
 - Added `F1` phase-1.3 runtime guardrail so `JobRuntimeDescriptor` fails fast when `recoveryPolicy=resume-from-checkpoint` is selected, preserving the shipped `rerun-from-start` execution behavior.
 - Continued `F1` baseline by adding optional `job-config.yaml -> recoveryPolicy` contract wiring into selected-run descriptor/metadata assembly (`rerun-from-start` default) while keeping `resume-from-checkpoint` fail-fast guarded as unsupported.
 - Backfilled preserved `config-jobs/*/job-config.yaml` bundles to declare `recoveryPolicy: rerun-from-start` explicitly and added contract tests so executable examples remain aligned with the shipped F1 baseline.
+- Extended Operator Runs visibility by showing `runMode` and `recoveryPolicy` in the runs list and run-detail summary, with matching API regression coverage on `GET /api/v1/runs/{jobExecutionId}`.
 
 ### Fixed
 - N/A
