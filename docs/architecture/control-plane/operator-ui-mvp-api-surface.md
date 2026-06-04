@@ -251,6 +251,8 @@ Current query support:
 
 - `limit` (optional)
 - `job` (optional selected-job filter)
+- `runMode` (optional execution-mode filter, for example `explicit-job`)
+- `recoveryPolicy` (optional recovery-policy filter, for example `rerun-from-start`)
 - `startDate` (optional inclusive start date in `yyyy-MM-dd`)
 - `timezone` (optional IANA timezone used with `startDate`, defaults to server timezone)
 

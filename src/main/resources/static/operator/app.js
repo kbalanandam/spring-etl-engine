@@ -42,6 +42,8 @@ const viewState = {
     },
     jobOptions: [],
     selectedJobKey: "",
+    runModeFilter: "",
+    recoveryPolicyFilter: "",
     startDate: "",
     timezone: "",
     browserTimezone: "UTC",
@@ -108,6 +110,8 @@ function currentRouteState() {
       jobKey: null,
       query: parsed.query,
       selectedJobKey: parsed.query.job || "",
+      runModeFilter: parsed.query.runMode || "",
+      recoveryPolicyFilter: parsed.query.recoveryPolicy || "",
       startDate: parsed.query.startDate || "",
       timezone: parsed.query.timezone || "",
       filterText: parsed.query.f || "",
@@ -304,9 +308,11 @@ async function loadRuns() {
   const table = document.getElementById("runs-table");
   const body = document.getElementById("runs-body");
   const selectedJobKey = viewState.runs.selectedJobKey || "";
+  const selectedRunMode = viewState.runs.runModeFilter || "";
+  const selectedRecoveryPolicy = viewState.runs.recoveryPolicyFilter || "";
   const selectedStartDate = viewState.runs.startDate || "";
   const selectedTimezone = viewState.runs.timezone || viewState.runs.browserTimezone || "UTC";
-  const loadKey = `${selectedJobKey || "__all__"}|${selectedStartDate || "__no_date__"}|${selectedTimezone}`;
+  const loadKey = `${selectedJobKey || "__all__"}|${selectedRunMode || "__all_mode__"}|${selectedRecoveryPolicy || "__all_policy__"}|${selectedStartDate || "__no_date__"}|${selectedTimezone}`;
 
   if (viewState.runs.loaded && viewState.runs.loadedForKey === loadKey) {
     runsListUi.renderTable();
@@ -321,7 +327,7 @@ async function loadRuns() {
 
   try {
     await ensureRunsJobOptions();
-    const runs = await fetchRunsForFilters(selectedJobKey, selectedStartDate, selectedTimezone);
+    const runs = await fetchRunsForFilters(selectedJobKey, selectedRunMode, selectedRecoveryPolicy, selectedStartDate, selectedTimezone);
     viewState.runs.items = runs;
     viewState.runs.loaded = true;
     viewState.runs.loadedForKey = loadKey;
@@ -378,6 +384,14 @@ function syncListRouteHash(routeKey) {
   }
   if (source.selectedJobKey && source.selectedJobKey.trim() !== "") {
     params.set("job", source.selectedJobKey.trim());
+  }
+  if (routeKey === "runs") {
+    if (source.runModeFilter && source.runModeFilter.trim() !== "") {
+      params.set("runMode", source.runModeFilter.trim());
+    }
+    if (source.recoveryPolicyFilter && source.recoveryPolicyFilter.trim() !== "") {
+      params.set("recoveryPolicy", source.recoveryPolicyFilter.trim());
+    }
   }
   if (routeKey === "runs") {
     if (source.startDate && source.startDate.trim() !== "") {
@@ -481,8 +495,8 @@ async function fetchJobsForRunsScope() {
   return jobs;
 }
 
-async function fetchRunsForFilters(selectedJobKey, startDate, timezone) {
-  const cacheKey = `${selectedJobKey || ""}|${startDate || ""}|${timezone || ""}`;
+async function fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, startDate, timezone) {
+  const cacheKey = `${selectedJobKey || ""}|${runMode || ""}|${recoveryPolicy || ""}|${startDate || ""}|${timezone || ""}`;
   if (Array.isArray(viewState.runs.cache.byFilter[cacheKey])) {
     return viewState.runs.cache.byFilter[cacheKey];
   }
@@ -491,6 +505,12 @@ async function fetchRunsForFilters(selectedJobKey, startDate, timezone) {
   params.set("limit", "200");
   if (selectedJobKey) {
     params.set("job", selectedJobKey);
+  }
+  if (runMode) {
+    params.set("runMode", runMode);
+  }
+  if (recoveryPolicy) {
+    params.set("recoveryPolicy", recoveryPolicy);
   }
   if (startDate) {
     params.set("startDate", startDate);

@@ -86,3 +86,5 @@ Phase-1.4 contract wiring started: selected `job-config.yaml` now carries option
 
 Preserved-bundle alignment continued: executable `config-jobs/*/job-config.yaml` examples now declare `recoveryPolicy: rerun-from-start` explicitly so shipped references match the active F1 baseline contract.
 
+Phase-1.5 operator filtering started: `/api/v1/runs` now accepts optional `runMode` and `recoveryPolicy` filters, and Operator Runs UI passes those filters through route state and API requests for evidence-focused run triage.
+

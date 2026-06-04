@@ -112,6 +112,32 @@ paths:
             minimum: 1
             maximum: 200
             default: 25
+        - in: query
+          name: job
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: runMode
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: recoveryPolicy
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: startDate
+          required: false
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: timezone
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: Run summary projections

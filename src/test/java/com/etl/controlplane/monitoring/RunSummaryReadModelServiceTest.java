@@ -109,16 +109,38 @@ class RunSummaryReadModelServiceTest {
 
 		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser());
 
-		List<RunSummaryView> dateOnly = service.latestRunsFiltered(10, null, LocalDate.parse("2026-05-28"), ZoneId.of("UTC"));
+		List<RunSummaryView> dateOnly = service.latestRunsFiltered(10, null, null, null, LocalDate.parse("2026-05-28"), ZoneId.of("UTC"));
 		assertEquals(1, dateOnly.size());
 		assertEquals(2002L, dateOnly.get(0).jobExecutionId());
 
-		List<RunSummaryView> jobOnly = service.latestRunsFiltered(10, "customer-load", null, ZoneId.of("UTC"));
+		List<RunSummaryView> jobOnly = service.latestRunsFiltered(10, "customer-load", null, null, null, ZoneId.of("UTC"));
 		assertEquals(1, jobOnly.size());
 		assertEquals(2001L, jobOnly.get(0).jobExecutionId());
 
-		List<RunSummaryView> combined = service.latestRunsFiltered(10, "customer-load", LocalDate.parse("2026-05-28"), ZoneId.of("UTC"));
+		List<RunSummaryView> combined = service.latestRunsFiltered(10, "customer-load", null, null, LocalDate.parse("2026-05-28"), ZoneId.of("UTC"));
 		assertEquals(0, combined.size());
+	}
+
+	@Test
+	void appliesRunModeAndRecoveryPolicyFilters() throws IOException {
+		createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T09:00:00.000+00:00 INFO [main] [scenario:customer-load] [run:1] [job:2001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load runMode=explicit-job recoveryPolicy=rerun-from-start jobExecutionId=2001 status=COMPLETED startTime=2026-05-27T09:00:00 endTime=2026-05-27T09:00:01 durationSeconds=1 sourceCount=1 writtenCount=1 rejectedCount=0",
+				"2026-05-27T09:10:00.000+00:00 INFO [main] [scenario:customer-load] [run:2] [job:2002] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load runMode=demo-fallback recoveryPolicy=rerun-from-start jobExecutionId=2002 status=COMPLETED startTime=2026-05-27T09:10:00 endTime=2026-05-27T09:10:02 durationSeconds=2 sourceCount=2 writtenCount=2 rejectedCount=0"
+		);
+
+		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser());
+
+		List<RunSummaryView> modeOnly = service.latestRunsFiltered(10, null, "explicit-job", null, null, ZoneId.of("UTC"));
+		assertEquals(1, modeOnly.size());
+		assertEquals(2001L, modeOnly.get(0).jobExecutionId());
+
+		List<RunSummaryView> modeAndPolicy = service.latestRunsFiltered(10, null, "demo fallback", "rerun from start", null, ZoneId.of("UTC"));
+		assertEquals(1, modeAndPolicy.size());
+		assertEquals(2002L, modeAndPolicy.get(0).jobExecutionId());
+
+		List<RunSummaryView> noMatch = service.latestRunsFiltered(10, null, "explicit-job", "resume-from-checkpoint", null, ZoneId.of("UTC"));
+		assertEquals(0, noMatch.size());
 	}
 
 	@Test
@@ -132,7 +154,7 @@ class RunSummaryReadModelServiceTest {
 		TrackingRunSummaryRegistry trackingRegistry = new TrackingRunSummaryRegistry();
 		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser(), trackingRegistry);
 
-		List<RunSummaryView> runs = service.latestRunsFiltered(1, null, null, ZoneId.of("UTC"));
+		List<RunSummaryView> runs = service.latestRunsFiltered(1, null, null, null, null, ZoneId.of("UTC"));
 
 		assertEquals(1, runs.size());
 		assertEquals(1, trackingRegistry.lastLatestRunsLimit.get());

@@ -72,11 +72,13 @@ public class RunSummaryReadModelService {
 	}
 
 	public List<RunSummaryView> latestRuns(int limit) {
-		return latestRunsFiltered(limit, null, null, ZoneId.systemDefault());
+		return latestRunsFiltered(limit, null, null, null, null, ZoneId.systemDefault());
 	}
 
 	public List<RunSummaryView> latestRunsFiltered(int limit,
 	                                              String jobFilter,
+	                                              String runModeFilter,
+	                                              String recoveryPolicyFilter,
 	                                              LocalDate startDate,
 	                                              ZoneId selectedZoneId) {
 		if (limit <= 0) {
@@ -84,12 +86,19 @@ public class RunSummaryReadModelService {
 		}
 		refreshReadModel();
 		String normalizedJobFilter = normalizeToken(jobFilter);
-		if (normalizedJobFilter.isBlank() && startDate == null) {
+		String normalizedRunModeFilter = normalizeToken(runModeFilter);
+		String normalizedRecoveryPolicyFilter = normalizeToken(recoveryPolicyFilter);
+		if (normalizedJobFilter.isBlank()
+				&& normalizedRunModeFilter.isBlank()
+				&& normalizedRecoveryPolicyFilter.isBlank()
+				&& startDate == null) {
 			return registry.latestRuns(limit);
 		}
 		ZoneId effectiveZone = selectedZoneId == null ? ZoneId.systemDefault() : selectedZoneId;
 		return registry.latestRuns(Integer.MAX_VALUE).stream()
 				.filter(run -> matchesJobFilter(run, normalizedJobFilter))
+				.filter(run -> matchesRunModeFilter(run, normalizedRunModeFilter))
+				.filter(run -> matchesRecoveryPolicyFilter(run, normalizedRecoveryPolicyFilter))
 				.filter(run -> matchesStartDate(run, startDate, effectiveZone))
 				.limit(limit)
 				.toList();
@@ -232,6 +241,20 @@ public class RunSummaryReadModelService {
 				.withZoneSameInstant(selectedZoneId)
 				.toLocalDate();
 		return !runDateInSelectedZone.isBefore(startDate);
+	}
+
+	private boolean matchesRunModeFilter(RunSummaryView run, String normalizedRunModeFilter) {
+		if (normalizedRunModeFilter.isBlank()) {
+			return true;
+		}
+		return normalizeToken(run.runMode()).equals(normalizedRunModeFilter);
+	}
+
+	private boolean matchesRecoveryPolicyFilter(RunSummaryView run, String normalizedRecoveryPolicyFilter) {
+		if (normalizedRecoveryPolicyFilter.isBlank()) {
+			return true;
+		}
+		return normalizeToken(run.recoveryPolicy()).equals(normalizedRecoveryPolicyFilter);
 	}
 
 	private String normalizeToken(String value) {

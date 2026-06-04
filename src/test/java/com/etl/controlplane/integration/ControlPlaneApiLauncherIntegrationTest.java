@@ -144,6 +144,8 @@ class ControlPlaneApiLauncherIntegrationTest {
 
 		mockMvc.perform(get("/api/v1/runs")
 				.param("job", "customer-load")
+				.param("runMode", "explicit-job")
+				.param("recoveryPolicy", "rerun-from-start")
 				.param("startDate", "2026-05-27")
 				.param("timezone", "UTC"))
 				.andExpect(status().isOk())

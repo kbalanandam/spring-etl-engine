@@ -9,6 +9,8 @@ const IDS = [
   "runs-start-date-input",
   "runs-timezone-select",
   "runs-job-select",
+  "runs-run-mode-select",
+  "runs-recovery-policy-select",
   "runs-instance-select",
   "runs-sort-select",
   "runs-sort-dir-btn",
@@ -53,6 +55,8 @@ test("runs list applies route state and renders sorted table", () => {
       loaded: true,
       filterText: "",
       selectedJobKey: "",
+      runModeFilter: "",
+      recoveryPolicyFilter: "",
       startDate: "",
       timezone: "",
       browserTimezone: "UTC",
@@ -71,6 +75,8 @@ test("runs list applies route state and renders sorted table", () => {
     ui.applyRouteState({
       filterText: "load",
       selectedJobKey: "customer-load",
+      runModeFilter: "explicit-job",
+      recoveryPolicyFilter: "rerun-from-start",
       startDate: "2026-06-03",
       timezone: "UTC",
       sortKey: "jobExecutionId",
@@ -103,6 +109,8 @@ test("runs controls update state and request route sync", () => {
       loaded: true,
       filterText: "",
       selectedJobKey: "",
+      runModeFilter: "",
+      recoveryPolicyFilter: "",
       startDate: "2026-06-03",
       timezone: "UTC",
       browserTimezone: "UTC",
@@ -124,6 +132,8 @@ test("runs controls update state and request route sync", () => {
     const startDate = elements.get("runs-start-date-input");
     const timezone = elements.get("runs-timezone-select");
     const filter = elements.get("runs-filter-input");
+    const runMode = elements.get("runs-run-mode-select");
+    const recoveryPolicy = elements.get("runs-recovery-policy-select");
     const sort = elements.get("runs-sort-select");
     const direction = elements.get("runs-sort-dir-btn");
     const instance = elements.get("runs-instance-select");
@@ -134,6 +144,10 @@ test("runs controls update state and request route sync", () => {
     timezone.dispatch("change");
     filter.value = "customer";
     filter.dispatch("input");
+    runMode.value = "explicit-job";
+    runMode.dispatch("change");
+    recoveryPolicy.value = "rerun-from-start";
+    recoveryPolicy.dispatch("change");
     sort.value = "status";
     sort.dispatch("change");
     direction.dispatch("click");
@@ -143,10 +157,12 @@ test("runs controls update state and request route sync", () => {
     assert.equal(state.startDate, "2026-06-01");
     assert.equal(state.timezone, "Europe/London");
     assert.equal(state.filterText, "customer");
+    assert.equal(state.runModeFilter, "explicit-job");
+    assert.equal(state.recoveryPolicyFilter, "rerun-from-start");
     assert.equal(state.sortKey, "status");
     assert.equal(state.sortDirection, "asc");
     assert.equal(globalThis.location.hash, "#/runs/11");
-    assert.deepEqual(syncCalls, ["runs", "runs", "runs", "runs", "runs"]);
+    assert.deepEqual(syncCalls, ["runs", "runs", "runs", "runs", "runs", "runs", "runs"]);
 
     filter.value = "explicit-job";
     filter.dispatch("input");

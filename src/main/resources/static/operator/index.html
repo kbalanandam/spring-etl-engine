@@ -99,6 +99,22 @@
         <label for="runs-filter-input">Filter</label>
         <input id="runs-filter-input" type="text" placeholder="scenario or status">
       </div>
+      <div class="control-field">
+        <label for="runs-run-mode-select">Run mode</label>
+        <select id="runs-run-mode-select">
+          <option value="">All modes</option>
+          <option value="explicit-job">explicit-job</option>
+          <option value="demo-fallback">demo-fallback</option>
+        </select>
+      </div>
+      <div class="control-field">
+        <label for="runs-recovery-policy-select">Recovery policy</label>
+        <select id="runs-recovery-policy-select">
+          <option value="">All policies</option>
+          <option value="rerun-from-start">rerun-from-start</option>
+          <option value="resume-from-checkpoint">resume-from-checkpoint</option>
+        </select>
+      </div>
       <div class="control-field control-field-sort">
         <label for="runs-sort-select">Sort</label>
         <div class="control-field-row">
