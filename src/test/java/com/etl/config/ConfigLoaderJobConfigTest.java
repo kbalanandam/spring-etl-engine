@@ -1329,6 +1329,77 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void failsFastWhenSelectedJobRuntimeDescriptorUsesResumeFromCheckpointRecoveryPolicy() throws IOException {
+    Path scenarioDir = tempDir.resolve("recovery-policy-resume-runtime");
+    Files.createDirectories(scenarioDir.resolve("input"));
+    Files.createDirectories(scenarioDir.resolve("output"));
+    Files.writeString(scenarioDir.resolve("input/customers.csv"), "id,name\n1,Alice\n");
+
+    Files.writeString(scenarioDir.resolve("source-config.yaml"), """
+            sources:
+              - format: csv
+                sourceName: Customers
+                filePath: input/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(scenarioDir.resolve("target-config.yaml"), """
+            targets:
+              - format: csv
+                targetName: CustomersOut
+                filePath: output/customers.csv
+                delimiter: ","
+                fields:
+                  - name: id
+                    type: int
+            """);
+    Files.writeString(scenarioDir.resolve("processor-config.yaml"), """
+            type: default
+            mappings:
+              - source: Customers
+                target: CustomersOut
+                fields:
+                  - from: id
+                    to: id
+            """);
+    Files.writeString(scenarioDir.resolve("job-config.yaml"), """
+            name: recovery-policy-resume-runtime
+            sourceConfigPath: source-config.yaml
+            targetConfigPath: target-config.yaml
+            processorConfigPath: processor-config.yaml
+            recoveryPolicy: resume-from-checkpoint
+            steps:
+              - name: customers-step
+                source: Customers
+                target: CustomersOut
+            """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", scenarioDir.resolve("job-config.yaml").toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ensureSelectedJobFlatModels("recovery-policy-resume-runtime", List.of("Customers"), List.of("CustomersOut"));
+
+    SourceWrapper sourceWrapper = loader.sourceWrapper();
+    TargetWrapper targetWrapper = loader.targetWrapper();
+    ProcessorConfig processorConfig = loader.processorConfig();
+
+    ConfigException exception = assertThrows(
+        ConfigException.class,
+        () -> loader.jobRuntimeDescriptor(
+            sourceWrapper,
+            targetWrapper,
+            processorConfig,
+            loader.createJobRuntimeDescriptorAssembler()));
+
+    assertTrue(messageChain(exception).contains("Invalid runtime descriptor configuration for scenario"));
+    assertTrue(messageChain(exception).contains("resume-from-checkpoint"));
+    assertTrue(messageChain(exception).contains("rerun-from-start"));
+  }
+
+  @Test
   void loadsJobConfigWhenLegacyConfigScenariosAliasPointsAtCanonicalConfigJobsBundle() throws IOException {
     Path canonicalScenarioDir = tempDir.resolve("src/main/resources/config-jobs/customer-load");
     Files.createDirectories(canonicalScenarioDir.resolve("input"));
