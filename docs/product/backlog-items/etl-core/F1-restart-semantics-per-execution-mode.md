@@ -84,3 +84,5 @@ Phase-1.3 guardrail started: descriptor assembly now fails fast when `resume-fro
 
 Phase-1.4 contract wiring started: selected `job-config.yaml` now carries optional `recoveryPolicy` into runtime descriptor/readiness metadata so operator evidence reflects authored intent while unsupported resume behavior remains fail-fast guarded.
 
+Preserved-bundle alignment continued: executable `config-jobs/*/job-config.yaml` examples now declare `recoveryPolicy: rerun-from-start` explicitly so shipped references match the active F1 baseline contract.
+

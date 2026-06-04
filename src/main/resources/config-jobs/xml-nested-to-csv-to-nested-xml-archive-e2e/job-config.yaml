@@ -2,6 +2,7 @@ name: xml-nested-to-csv-to-nested-xml-archive-e2e
 sourceConfigPath: source-config.yaml
 targetConfigPath: target-config.yaml
 processorConfigPath: processor-config.yaml
+recoveryPolicy: rerun-from-start
 steps:
   - name: nested-xml-to-csv-step
     source: TagValidationSource
