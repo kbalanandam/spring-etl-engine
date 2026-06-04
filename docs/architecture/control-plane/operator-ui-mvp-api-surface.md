@@ -10,7 +10,7 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 
 - Classification: **Future direction**
 - This note still carries future-direction design intent, but the monitoring-first subset below is now implemented by the optional `com.etl.controlplane.ControlPlaneApiApplication` starter.
-- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `GET /api/v1/jobs/{jobKey}/config`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/runs/{jobExecutionId}/log`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/schedules/{scheduleId}/trigger-events`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
+- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `GET /api/v1/jobs/{jobKey}/config`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/recovery`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/runs/{jobExecutionId}/log`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/schedules/{scheduleId}/trigger-events`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
 - Trigger-event history now persists in the control-plane JDBC store when `controlplane.triggers.persistence.mode=jdbc` (control-plane profile default), with memory mode still available as a fallback.
 - Trigger-event persistence mode switches are startup-guarded: when the prior marker mode differs from the current configured mode (`jdbc` <-> `memory`), startup fails fast unless `controlplane.triggers.persistence.allow-mode-switch=true` is set intentionally.
 - Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default), while `/runs/{jobExecutionId}/detail` remains log-projected.
@@ -24,6 +24,8 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 - `GET /api/v1/system/info` now exposes scheduler governance defaults (`schedulerEnabled`, `schedulerMissedRunPolicy`, `schedulerOverlapPolicy`).
 - `GET /api/v1/schedules*` responses now expose persisted scheduler watermark state through `lastAcceptedDueAt` alongside computed `nextDueAt`.
 - `GET /api/v1/runs*` responses now expose additive F1 restart-contract evidence fields (`runMode`, `recoveryPolicy`) when present in `RUN_SUMMARY` projections.
+- `GET /api/v1/runs/{jobExecutionId}/recovery` now exposes retained `attempt_link` and `checkpoint_anchor` data as advisory recovery evidence, while explicitly reporting `resumeSupported=false` while checkpoint-resume execution is not shipped.
+- F1 continuity rule: recovery endpoint payloads remain diagnostic-only until resume-eligibility and idempotent-rerun boundaries are frozen in Epic F docs.
 
 ## Scope
 
@@ -91,6 +93,7 @@ GET    /api/v1/jobs/{jobKey}/trigger-events
 
 GET    /api/v1/runs
 GET    /api/v1/runs/{jobExecutionId}
+GET    /api/v1/runs/{jobExecutionId}/recovery
 GET    /api/v1/runs/{jobExecutionId}/detail
 GET    /api/v1/runs/{jobExecutionId}/log
 
@@ -305,6 +308,45 @@ Response body shape:
 ### `GET /api/v1/runs/{jobExecutionId}`
 
 Returns one projected `RUN_SUMMARY` view by job execution id.
+
+### `GET /api/v1/runs/{jobExecutionId}/recovery`
+
+Returns one advisory retained recovery view for the selected run instance.
+
+Current shape:
+
+```json
+{
+  "recovery": {
+    "jobExecutionId": 101,
+    "runRecordId": "rr-101",
+    "attemptLinkId": "al-101",
+    "linkKind": "INITIAL",
+    "priorRunRecordId": null,
+    "priorJobExecutionId": null,
+    "resumeSupported": false,
+    "resumeBlockedReason": "resume-from-checkpoint is not supported in the current shipped runtime; rerun-from-start remains the active execution boundary.",
+    "checkpointAnchors": [
+      {
+        "checkpointAnchorId": "ca-log-101",
+        "stepRecordId": null,
+        "anchorKind": "RUN_LOG",
+        "anchorRef": "logs/2026-05-27/customer-load.log",
+        "anchorStatus": "COMPLETED",
+        "createdAt": "2026-05-27T10:00:10",
+        "updatedAt": "2026-05-27T10:00:10"
+      }
+    ]
+  }
+}
+```
+
+Current semantics:
+
+- exposes retained `attempt_link` lineage when available
+- exposes retained `checkpoint_anchor` rows for the run when available
+- is advisory only for now; it does not imply executable checkpoint-resume support
+- always reports `resumeSupported=false` in the current shipped runtime while checkpoint-resume execution is not shipped
 
 ### `GET /api/v1/runs/{jobExecutionId}/detail`
 

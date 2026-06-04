@@ -31,6 +31,7 @@ Epic pages should also link back to the matching backlog item pages so the navig
 - [`Epic F - Restartability and recovery semantics`](etl-core/epic-f-restartability-and-recovery-semantics.md)
 - [`Epic G - Secret injection and secure configuration`](etl-core/epic-g-secret-injection-and-secure-configuration.md)
 - [`Epic S - Scheduling and control plane`](scheduler/epic-s-scheduling-and-control-plane.md)
+- [`Epic R - Multi-RDBMS control-plane persistence via JPA/Hibernate`](scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)
 - [`Epic U - Operator UI monitoring-first MVP`](operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)
 - [`Epic V - Verification evidence and reporting`](etl-core/epic-v-verification-evidence-and-reporting.md)
 - [`Epic X - File transport and SFTP boundary`](etl-core/epic-x-file-transport-and-sftp-boundary.md)

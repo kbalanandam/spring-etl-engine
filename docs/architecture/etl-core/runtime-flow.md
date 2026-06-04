@@ -320,6 +320,18 @@ Current guardrails:
 - checkpoint/resume semantics are intentionally deferred to follow-on F1 slices, and `resume-from-checkpoint` currently fails fast as unsupported
 - scheduler overlap/run-state governance should not imply restart/resume behavior that F1 has not explicitly shipped
 
+Current advisory recovery semantics:
+
+- `/api/v1/runs/{jobExecutionId}/recovery` is evidence-first and advisory-only in the current shipped runtime
+- retained `attempt_link` and `checkpoint_anchor` rows support operator diagnosis but do not enable checkpoint-resume execution
+- `resumeSupported` remains `false` while checkpoint-resume execution is not shipped
+
+Follow-on F1 gates before any resume-execution proposal:
+
+1. freeze resume-eligibility rules per execution mode
+2. freeze idempotent rerun boundary by target behavior
+3. prove portability-safe evidence parity for recovery fields across run-summary and control-plane views
+
 ### 1. Config resolution
 `ConfigLoader` resolves configuration in this order:
 

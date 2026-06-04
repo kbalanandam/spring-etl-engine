@@ -15,7 +15,9 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -190,6 +192,43 @@ class JdbcRunSummaryRegistryTest {
 
 		assertEquals("RERUN", linkKind);
 		assertEquals("rr-2201", priorRunRecordId);
+	}
+
+	@Test
+	void readsAdvisoryRecoveryViewFromAttemptLinksAndCheckpointAnchors() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(run(2401L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "FAILED"));
+		registry.upsert(run(2402L, "customer-load", LocalDateTime.parse("2026-05-27T10:00:00"), "COMPLETED"));
+
+		RunRecoveryView recovery = registry.findRecoveryByJobExecutionId(2402L).orElseThrow();
+
+		assertEquals(2402L, recovery.jobExecutionId());
+		assertEquals("rr-2402", recovery.runRecordId());
+		assertEquals("al-2402", recovery.attemptLinkId());
+		assertEquals("RERUN", recovery.linkKind());
+		assertEquals("rr-2401", recovery.priorRunRecordId());
+		assertEquals(2401L, recovery.priorJobExecutionId());
+		assertFalse(recovery.resumeSupported());
+		assertNotNull(recovery.resumeBlockedReason());
+		assertEquals(1, recovery.checkpointAnchors().size());
+		assertEquals("ca-log-2402", recovery.checkpointAnchors().get(0).checkpointAnchorId());
+		assertEquals("RUN_LOG", recovery.checkpointAnchors().get(0).anchorKind());
+	}
+
+	@Test
+	void returnsRecoveryViewWithoutAttemptLinkWhenRunRecordExists() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(run(2403L, "customer-load", LocalDateTime.parse("2026-05-27T11:00:00"), "COMPLETED"));
+		jdbcTemplate.update("delete from controlplane_attempt_link where run_record_id = ?", "rr-2403");
+
+		RunRecoveryView recovery = registry.findRecoveryByJobExecutionId(2403L).orElseThrow();
+
+		assertEquals("rr-2403", recovery.runRecordId());
+		assertNull(recovery.attemptLinkId());
+		assertFalse(recovery.resumeSupported());
+		assertEquals(1, recovery.checkpointAnchors().size());
 	}
 
 	@Test

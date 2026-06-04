@@ -11,6 +11,7 @@ It exists to translate the conceptual retained operational data model into a pra
 - Classification: **Future direction**
 - The Mermaid diagrams in this document describe the preferred future direction; trigger-event persistence, run-summary persistence, internal schedule/trigger/run surrogate-key foundations, and initial run-record linkage are now shipped behind the optional control-plane API when JDBC mode is enabled.
 - The shipped `controlplane` profile now defaults to the shared SQLite file under `.etl-dev/etl-dev.db` so control-plane retained-history tables and Spring Batch metadata can coexist in one local developer/single-node database file, while stronger relational targets remain open for later deployment profiles.
+- Persisted `attempt_link` and `checkpoint_anchor` records are currently advisory recovery lineage only; they support operator evidence and correlation while F1 still keeps resume execution unsupported.
 
 ## Scope
 

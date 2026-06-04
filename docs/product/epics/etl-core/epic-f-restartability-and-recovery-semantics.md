@@ -14,6 +14,12 @@ This epic is the home for work that:
 
 This epic is **not** the place for broader control-plane persistence design by itself, though it depends on that direction becoming clearer.
 
+## Current phased direction
+
+- **Phase-1 (active baseline)** - rerun-from-start remains the shipped execution boundary with explicit `runMode`/`recoveryPolicy` evidence
+- **Phase-2 (docs-first hardening)** - freeze advisory recovery semantics and resume-eligibility rules without changing execution behavior
+- **Phase-3 (gated later)** - define idempotent rerun boundaries and release-gate requirements before any resume execution design is proposed
+
 ## Related backlog items
 
 - [`F1 - Define restart semantics per execution mode`](../../backlog-items/etl-core/F1-restart-semantics-per-execution-mode.md)
@@ -23,6 +29,8 @@ This epic is **not** the place for broader control-plane persistence design by i
 - [`../../architecture/etl-core/runtime-flow.md`](../../../architecture/etl-core/runtime-flow.md)
 - [`../../architecture/control-plane/job-history-and-operational-observability.md`](../../../architecture/control-plane/job-history-and-operational-observability.md)
 - [`../../architecture/control-plane/control-plane-operational-data-model.md`](../../../architecture/control-plane/control-plane-operational-data-model.md)
+- [`../../architecture/control-plane/control-plane-local-relational-schema.md`](../../../architecture/control-plane/control-plane-local-relational-schema.md)
+- [`../../architecture/control-plane/operator-ui-mvp-api-surface.md`](../../../architecture/control-plane/operator-ui-mvp-api-surface.md)
 
 ## Maintenance note
 

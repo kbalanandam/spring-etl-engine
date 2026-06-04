@@ -39,7 +39,7 @@ The sync uses an internal marker comment in each draft item body so reruns updat
 
 When a backlog `ID` cell links to a detail page such as `backlog-items/etl-core/A6-retire-internal-generated-model-package-bridge.md`, the sync now resolves that relative path against the backlog file and emits the final repository URL in the draft-item body. In GitHub Actions this is derived automatically from the workflow repository context; for local/manual sync runs you can also provide an explicit repository URL/ref.
 
-When the execution-board `Epic` value matches one of the maintained epic labels (for example `Epic A`, `Epic P`, `Epic T`, or `Epic S`), the sync also renders a separate `Epic page` entry plus the final repository URL that points to the matching page under `docs/product/epics/`.
+When the execution-board `Epic` value matches one of the maintained epic labels (for example `Epic A`, `Epic P`, `Epic T`, `Epic S`, or `Epic R`), the sync also renders a separate `Epic page` entry plus the final repository URL that points to the matching page under `docs/product/epics/`.
 
 ## Supported project-field shapes
 

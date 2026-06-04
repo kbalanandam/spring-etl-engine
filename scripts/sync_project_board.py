@@ -26,6 +26,7 @@ EPIC_PAGE_BY_LABEL = {
     "Epic G": ("Epic G — Secret injection and secure configuration", "docs/product/epics/etl-core/epic-g-secret-injection-and-secure-configuration.md"),
     "Epic P": ("Epic P — Source-native parser maturity", "docs/product/epics/etl-core/epic-p-source-native-parser-maturity.md"),
     "Epic S": ("Epic S — Scheduling and control plane", "docs/product/epics/scheduler/epic-s-scheduling-and-control-plane.md"),
+    "Epic R": ("Epic R — Multi-RDBMS control-plane persistence via JPA/Hibernate", "docs/product/epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md"),
     "Epic U": ("Epic U — Operator UI monitoring-first MVP", "docs/product/epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md"),
     "Epic T": ("Epic T — Transformation capability", "docs/product/epics/etl-core/epic-t-transformation-capability.md"),
     "Epic V": ("Epic V — Verification evidence and reporting", "docs/product/epics/etl-core/epic-v-verification-evidence-and-reporting.md"),
@@ -109,6 +110,7 @@ SINGLE_SELECT_OPTION_ALIASES: dict[str, dict[str, tuple[str, ...]]] = {
 }
 
 EPIC_DOMAIN_FALLBACK = {
+    "Epic R": "scheduler",
     "Epic S": "scheduler",
     "Epic U": "operator-ui",
 }

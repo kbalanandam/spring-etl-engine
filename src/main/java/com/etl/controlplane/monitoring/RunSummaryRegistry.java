@@ -14,6 +14,8 @@ public interface RunSummaryRegistry {
 
 	Optional<RunSummaryView> findByJobExecutionId(long jobExecutionId);
 
+	Optional<RunRecoveryView> findRecoveryByJobExecutionId(long jobExecutionId);
+
 	List<RunStepRecordView> listStepRecordsByJobExecutionId(long jobExecutionId, int limit);
 
 	List<RunArtifactRecordView> listArtifactRecordsByJobExecutionId(long jobExecutionId, int limit);

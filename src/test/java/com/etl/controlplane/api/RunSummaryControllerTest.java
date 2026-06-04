@@ -13,6 +13,8 @@ import com.etl.controlplane.monitoring.RunSummaryRegistry;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunStepRecordView;
 import com.etl.controlplane.monitoring.RunArtifactRecordView;
+import com.etl.controlplane.monitoring.RunCheckpointAnchorView;
+import com.etl.controlplane.monitoring.RunRecoveryView;
 import com.etl.controlplane.monitoring.RunSummaryView;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -152,10 +154,83 @@ class RunSummaryControllerTest {
 	}
 
 	@Test
+	void returnsAdvisoryRecoveryViewByJobExecutionId() throws Exception {
+		when(runSummaryReadModelService.findRunByJobExecutionId(eq(101L))).thenReturn(Optional.of(
+				new RunSummaryView("customer-load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
+						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L,
+						"explicit-job", "rerun-from-start", "logs/2026-05-27/customer-load.log")
+		));
+		when(runSummaryRegistry.findRecoveryByJobExecutionId(eq(101L))).thenReturn(Optional.of(
+				new RunRecoveryView(
+						101L,
+						"rr-101",
+						"al-101",
+						"INITIAL",
+						null,
+						null,
+						false,
+						"resume-from-checkpoint is not supported in the current shipped runtime; rerun-from-start remains the active execution boundary.",
+						List.of(new RunCheckpointAnchorView(
+								"ca-log-101",
+								null,
+								"RUN_LOG",
+								"logs/2026-05-27/customer-load.log",
+								"COMPLETED",
+								LocalDateTime.parse("2026-05-27T10:00:10"),
+								LocalDateTime.parse("2026-05-27T10:00:10")
+						))
+				)
+		));
+
+		mockMvc.perform(get("/api/v1/runs/101/recovery"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.recovery.jobExecutionId").value(101))
+				.andExpect(jsonPath("$.recovery.runRecordId").value("rr-101"))
+				.andExpect(jsonPath("$.recovery.resumeSupported").value(false))
+				.andExpect(jsonPath("$.recovery.resumeBlockedReason").value(RunRecoveryView.RESUME_BLOCKED_REASON_CHECKPOINT_NOT_SHIPPED))
+				.andExpect(jsonPath("$.recovery.checkpointAnchors[0].checkpointAnchorId").value("ca-log-101"))
+				.andExpect(jsonPath("$.recovery.checkpointAnchors[0].anchorKind").value("RUN_LOG"));
+
+		verify(runSummaryReadModelService).findRunByJobExecutionId(eq(101L));
+		verify(runSummaryRegistry).findRecoveryByJobExecutionId(eq(101L));
+	}
+
+	@Test
+	void returnsDefaultAdvisoryRecoveryWhenRegistryHasNoRecoveryRow() throws Exception {
+		when(runSummaryReadModelService.findRunByJobExecutionId(eq(102L))).thenReturn(Optional.of(
+				new RunSummaryView("customer-load", 102L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
+						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L,
+						"explicit-job", "rerun-from-start", "logs/2026-05-27/customer-load.log")
+		));
+		when(runSummaryRegistry.findRecoveryByJobExecutionId(eq(102L))).thenReturn(Optional.empty());
+
+		mockMvc.perform(get("/api/v1/runs/102/recovery"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.recovery.jobExecutionId").value(102))
+				.andExpect(jsonPath("$.recovery.runRecordId").value("rr-102"))
+				.andExpect(jsonPath("$.recovery.resumeSupported").value(false))
+				.andExpect(jsonPath("$.recovery.resumeBlockedReason").value(RunRecoveryView.RESUME_BLOCKED_REASON_CHECKPOINT_NOT_SHIPPED))
+				.andExpect(jsonPath("$.recovery.checkpointAnchors[0].checkpointAnchorId").value("ca-log-102"));
+
+		verify(runSummaryReadModelService).findRunByJobExecutionId(eq(102L));
+		verify(runSummaryRegistry).findRecoveryByJobExecutionId(eq(102L));
+	}
+
+	@Test
 	void returnsNotFoundWhenRunIdDoesNotExist() throws Exception {
 		when(runSummaryReadModelService.findRunByJobExecutionId(eq(999L))).thenReturn(Optional.empty());
 
 		mockMvc.perform(get("/api/v1/runs/999"))
+				.andExpect(status().isNotFound());
+
+		verify(runSummaryReadModelService).findRunByJobExecutionId(eq(999L));
+	}
+
+	@Test
+	void returnsNotFoundWhenRecoveryRunIdDoesNotExist() throws Exception {
+		when(runSummaryReadModelService.findRunByJobExecutionId(eq(999L))).thenReturn(Optional.empty());
+
+		mockMvc.perform(get("/api/v1/runs/999/recovery"))
 				.andExpect(status().isNotFound());
 
 		verify(runSummaryReadModelService).findRunByJobExecutionId(eq(999L));

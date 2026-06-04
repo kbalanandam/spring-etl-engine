@@ -180,6 +180,23 @@ paths:
         '404':
           description: Run summary not found
 
+  /runs/{jobExecutionId}/recovery:
+    get:
+      tags: [Runs]
+      operationId: getRunRecoveryByJobExecutionId
+      summary: Get one advisory retained recovery view by job execution id
+      parameters:
+        - $ref: '#/components/parameters/jobExecutionId'
+      responses:
+        '200':
+          description: Advisory recovery projection
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunRecoveryResponse'
+        '404':
+          description: Run recovery not found
+
   /runs/{jobExecutionId}/detail:
     get:
       tags: [Runs]
@@ -556,6 +573,77 @@ components:
           type: integer
           format: int64
       required: [items, page, size, totalItems]
+
+    RunCheckpointAnchorView:
+      type: object
+      properties:
+        checkpointAnchorId:
+          type: string
+        stepRecordId:
+          oneOf:
+            - type: string
+            - type: 'null'
+        anchorKind:
+          type: string
+        anchorRef:
+          type: string
+        anchorStatus:
+          oneOf:
+            - type: string
+            - type: 'null'
+        createdAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        updatedAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+      required: [checkpointAnchorId, stepRecordId, anchorKind, anchorRef, anchorStatus, createdAt, updatedAt]
+
+    RunRecoveryView:
+      type: object
+      properties:
+        jobExecutionId:
+          type: integer
+          format: int64
+        runRecordId:
+          type: string
+        attemptLinkId:
+          oneOf:
+            - type: string
+            - type: 'null'
+        linkKind:
+          oneOf:
+            - type: string
+            - type: 'null'
+        priorRunRecordId:
+          oneOf:
+            - type: string
+            - type: 'null'
+        priorJobExecutionId:
+          oneOf:
+            - type: integer
+              format: int64
+            - type: 'null'
+        resumeSupported:
+          type: boolean
+        resumeBlockedReason:
+          type: string
+        checkpointAnchors:
+          type: array
+          items:
+            $ref: '#/components/schemas/RunCheckpointAnchorView'
+      required: [jobExecutionId, runRecordId, attemptLinkId, linkKind, priorRunRecordId, priorJobExecutionId, resumeSupported, resumeBlockedReason, checkpointAnchors]
+
+    RunRecoveryResponse:
+      type: object
+      properties:
+        recovery:
+          $ref: '#/components/schemas/RunRecoveryView'
+      required: [recovery]
 
     StepRecordView:
       type: object

@@ -51,6 +51,28 @@ The first F1 slice is contract-first and evidence-first:
 
 This baseline intentionally does not add new restart execution behavior yet.
 
+### Phase-2 contract hardening (next)
+
+Phase-2 stays docs-first and evidence-first while retaining shipped execution behavior:
+
+- define advisory recovery semantics for retained `attempt_link` and `checkpoint_anchor` evidence
+- define explicit resume-eligibility rules and why the current shipped runtime still reports `resumeSupported=false`
+- define one portability-safe parity checklist for `runMode`/`recoveryPolicy` evidence across local and control-plane views
+
+### Phase-3 execution readiness boundary (later)
+
+Phase-3 remains gated and should only start after Phase-2 semantics are frozen:
+
+- define idempotent rerun boundary by target type and step behavior
+- define execution-mode-specific preconditions before any checkpoint-resume implementation is considered
+- define release-gate evidence requirements for any future transition away from rerun-only behavior
+
+### Top F1 continuation deliverables
+
+- [ ] **D1 advisory recovery semantics freeze** - one explicit semantics note for advisory recovery evidence (`attempt_link`, `checkpoint_anchor`, `resumeSupported=false`)
+- [ ] **D2 resume eligibility rules freeze** - one explicit rule set that explains when resume is ineligible vs future-eligible without changing shipped runtime behavior
+- [ ] **D3 idempotent rerun boundary freeze** - one explicit rerun safety boundary per target pattern before any resume execution work is proposed
+
 ## Operator / runtime impact
 
 - operators gain clearer expectations for rerun vs restart
@@ -62,6 +84,9 @@ This baseline intentionally does not add new restart execution behavior yet.
 - [x] one explicit restart-semantics model exists for the main execution modes
 - [x] required state/artifact/evidence expectations are documented
 - [x] future restart implementation work can reference one stable contract
+- [ ] advisory recovery semantics are documented consistently across F1, runtime flow, and control-plane API docs
+- [ ] explicit resume-eligibility rules are documented with no implied shipped checkpoint-resume execution
+- [ ] idempotent rerun boundary guidance is documented for follow-on Epic F planning
 
 ## Related docs
 
@@ -91,4 +116,6 @@ Phase-1.5 operator filtering started: `/api/v1/runs` now accepts optional `runMo
 Phase-1.3 guardrail coverage expanded: selected-run config metadata and runtime-descriptor assembly paths now have explicit fail-fast regression coverage for unsupported `resume-from-checkpoint`.
 
 Phase-1 contract ergonomics continued: selected `job-config.yaml` now accepts short `recoveryPolicy` aliases (`rerun`, `restart`) that normalize to canonical runtime evidence tokens while preserving the current fail-fast guardrail for unsupported checkpoint resume execution.
+
+Phase-2 advisory recovery view started: `/api/v1/runs/{jobExecutionId}/recovery` now exposes retained `attempt_link` and `checkpoint_anchor` evidence as advisory-only diagnostics; `resumeSupported=false` remains explicit while checkpoint-resume execution is not shipped.
 

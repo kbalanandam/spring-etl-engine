@@ -247,6 +247,11 @@ class RunSummaryReadModelServiceTest {
 		}
 
 		@Override
+		public Optional<RunRecoveryView> findRecoveryByJobExecutionId(long jobExecutionId) {
+			return delegate.findRecoveryByJobExecutionId(jobExecutionId);
+		}
+
+		@Override
 		public List<RunStepRecordView> listStepRecordsByJobExecutionId(long jobExecutionId, int limit) {
 			return delegate.listStepRecordsByJobExecutionId(jobExecutionId, limit);
 		}

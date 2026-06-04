@@ -288,6 +288,49 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	}
 
 	@Override
+	public Optional<RunRecoveryView> findRecoveryByJobExecutionId(long jobExecutionId) {
+		String runRecordId = resolveRunRecordId(jobExecutionId);
+		if (runRecordId == null || runRecordId.isBlank()) {
+			return Optional.empty();
+		}
+		List<RunCheckpointAnchorView> checkpointAnchors = listCheckpointAnchorsByRunRecordId(runRecordId);
+
+		List<RunRecoveryView> matches = jdbcTemplate.query("""
+				select al.attempt_link_id,
+				       al.link_kind,
+				       al.prior_run_record_id,
+				       rr_prior.job_execution_id as prior_job_execution_id
+				from controlplane_attempt_link al
+				left join controlplane_run_record rr_prior on rr_prior.run_record_id = al.prior_run_record_id
+				where al.run_record_id = ?
+				order by al.created_at desc, al.attempt_link_pk desc
+				limit 1
+				""", (rs, rowNum) -> RunRecoveryView.advisoryResumeNotSupported(
+				jobExecutionId,
+				runRecordId,
+				rs.getString("attempt_link_id"),
+				rs.getString("link_kind"),
+				rs.getString("prior_run_record_id"),
+				nullableLong(rs, "prior_job_execution_id"),
+				checkpointAnchors
+		), runRecordId);
+
+		if (!matches.isEmpty()) {
+			return matches.stream().findFirst();
+		}
+
+		return Optional.of(RunRecoveryView.advisoryResumeNotSupported(
+				jobExecutionId,
+				runRecordId,
+				null,
+				null,
+				null,
+				null,
+				checkpointAnchors
+		));
+	}
+
+	@Override
 	public List<RunStepRecordView> listStepRecordsByJobExecutionId(long jobExecutionId, int limit) {
 		if (limit <= 0) {
 			return List.of();
@@ -376,6 +419,34 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				rs.getString("artifact_path"),
 				toLocalDateTime(rs.getTimestamp("created_at"))
 		), normalizedStepRecordId, limit);
+	}
+
+	private List<RunCheckpointAnchorView> listCheckpointAnchorsByRunRecordId(String runRecordId) {
+		if (runRecordId == null || runRecordId.isBlank()) {
+			return List.of();
+		}
+		return jdbcTemplate.query("""
+				select checkpoint_anchor_id,
+				       step_record_id,
+				       anchor_kind,
+				       anchor_ref,
+				       anchor_status,
+				       created_at,
+				       updated_at
+				from controlplane_checkpoint_anchor
+				where run_record_id = ?
+				order by case when created_at is null then 1 else 0 end,
+				         created_at desc,
+				         checkpoint_anchor_pk desc
+				""", (rs, rowNum) -> new RunCheckpointAnchorView(
+				rs.getString("checkpoint_anchor_id"),
+				rs.getString("step_record_id"),
+				rs.getString("anchor_kind"),
+				rs.getString("anchor_ref"),
+				rs.getString("anchor_status"),
+				toLocalDateTime(rs.getTimestamp("created_at")),
+				toLocalDateTime(rs.getTimestamp("updated_at"))
+		), runRecordId);
 	}
 
 	private void pruneOverflow() {
