@@ -46,6 +46,23 @@ paths:
         '404':
           description: Job bundle not found
 
+  /jobs/{jobKey}/config:
+    get:
+      tags: [Jobs]
+      operationId: getJobConfigByKey
+      summary: Get one read-only job-config.yaml payload
+      parameters:
+        - $ref: '#/components/parameters/jobKey'
+      responses:
+        '200':
+          description: Read-only job-config payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JobBundleConfigResponse'
+        '404':
+          description: Job bundle not found
+
   /jobs/{jobKey}:trigger-now:
     post:
       tags: [Jobs]
@@ -112,6 +129,32 @@ paths:
             minimum: 1
             maximum: 200
             default: 25
+        - in: query
+          name: job
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: runMode
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: recoveryPolicy
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: startDate
+          required: false
+          schema:
+            type: string
+            format: date
+        - in: query
+          name: timezone
+          required: false
+          schema:
+            type: string
       responses:
         '200':
           description: Run summary projections
@@ -431,6 +474,19 @@ components:
             $ref: '#/components/schemas/TriggerEventView'
       required: [job, recentRuns, recentTriggerEvents]
 
+    JobBundleConfigResponse:
+      type: object
+      properties:
+        jobKey:
+          type: string
+        displayName:
+          type: string
+        jobConfigPath:
+          type: string
+        rawYaml:
+          type: string
+      required: [jobKey, displayName, jobConfigPath, rawYaml]
+
     RunSummaryView:
       type: object
       properties:
@@ -440,6 +496,14 @@ components:
           oneOf:
             - type: integer
               format: int64
+            - type: 'null'
+        runMode:
+          oneOf:
+            - type: string
+            - type: 'null'
+        recoveryPolicy:
+          oneOf:
+            - type: string
             - type: 'null'
         status:
           type: string
@@ -475,7 +539,7 @@ components:
             - type: 'null'
         logPath:
           type: string
-      required: [scenario, jobExecutionId, status, startTime, endTime, durationSeconds, sourceCount, writtenCount, rejectedCount, logPath]
+      required: [scenario, jobExecutionId, runMode, recoveryPolicy, status, startTime, endTime, durationSeconds, sourceCount, writtenCount, rejectedCount, logPath]
 
     RunSummaryListResponse:
       type: object
@@ -714,7 +778,17 @@ components:
         updatedAt:
           type: string
           format: date-time
-      required: [scheduleId, scheduleKey, selectedJobKey, expression, timezone, enabled, paused, description, updatedAt]
+        lastAcceptedDueAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+        nextDueAt:
+          oneOf:
+            - type: string
+              format: date-time
+            - type: 'null'
+      required: [scheduleId, scheduleKey, selectedJobKey, expression, timezone, enabled, paused, description, updatedAt, lastAcceptedDueAt, nextDueAt]
 
     ScheduleListResponse:
       type: object
@@ -801,4 +875,10 @@ components:
           type: string
         profile:
           type: string
-      required: [service, javaVersion, profile]
+        schedulerEnabled:
+          type: boolean
+        schedulerMissedRunPolicy:
+          type: string
+        schedulerOverlapPolicy:
+          type: string
+      required: [service, javaVersion, profile, schedulerEnabled, schedulerMissedRunPolicy, schedulerOverlapPolicy]

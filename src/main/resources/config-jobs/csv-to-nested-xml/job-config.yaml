@@ -2,6 +2,7 @@ name: csv-to-nested-xml
 sourceConfigPath: source-config.yaml
 targetConfigPath: target-config.yaml
 processorConfigPath: processor-config.yaml
+recoveryPolicy: rerun-from-start
 steps:
   - name: customers-to-nested-xml-step
     source: CustomersCsv

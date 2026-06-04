@@ -37,6 +37,7 @@ public class JobRuntimeDescriptorAssembler {
 	public JobRuntimeDescriptor assemble(String scenarioName,
 	                                        String jobConfigPath,
 	                                        JobRunMode runMode,
+	                                        JobRecoveryPolicy recoveryPolicy,
 	                                        JobConfigPaths configPaths,
 	                                        List<JobConfig.JobStepConfig> configuredSteps,
 	                                        SourceWrapper sourceWrapper,
@@ -44,6 +45,7 @@ public class JobRuntimeDescriptorAssembler {
 	                                        ProcessorConfig processorConfig) {
 		String resolvedScenarioName = requireNonBlank(scenarioName, "scenarioName");
 		Objects.requireNonNull(runMode, "runMode must not be null.");
+		Objects.requireNonNull(recoveryPolicy, "recoveryPolicy must not be null.");
 		Objects.requireNonNull(configPaths, "configPaths must not be null.");
 		Objects.requireNonNull(sourceWrapper, "sourceWrapper must not be null.");
 		Objects.requireNonNull(targetWrapper, "targetWrapper must not be null.");
@@ -144,7 +146,7 @@ public class JobRuntimeDescriptorAssembler {
 				defaultMainFlowName(resolvedScenarioName),
 				"default-subflow",
 				true,
-				JobRecoveryPolicy.RERUN_FROM_START,
+				recoveryPolicy,
 				subFlowDescriptors,
 				null,
 				null,

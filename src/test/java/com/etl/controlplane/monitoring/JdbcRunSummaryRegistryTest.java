@@ -80,6 +80,52 @@ class JdbcRunSummaryRegistryTest {
 	}
 
 	@Test
+	void persistsRunModeAndRecoveryPolicyInRunSummaryAndRunRecord() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(new RunSummaryView(
+				"customer-load",
+				2450L,
+				"COMPLETED",
+				LocalDateTime.parse("2026-05-27T09:00:00"),
+				LocalDateTime.parse("2026-05-27T09:01:00"),
+				60L,
+				10L,
+				10L,
+				0L,
+				"explicit-job",
+				"rerun-from-start",
+				"logs/2026-05-27/customer-load.log"
+		));
+
+		String summaryRunMode = jdbcTemplate.queryForObject(
+				"select run_mode from controlplane_run_summary where job_execution_id = ?",
+				String.class,
+				2450L
+		);
+		String summaryRecoveryPolicy = jdbcTemplate.queryForObject(
+				"select recovery_policy from controlplane_run_summary where job_execution_id = ?",
+				String.class,
+				2450L
+		);
+		String recordRunMode = jdbcTemplate.queryForObject(
+				"select run_mode from controlplane_run_record where job_execution_id = ?",
+				String.class,
+				2450L
+		);
+		String recordRecoveryPolicy = jdbcTemplate.queryForObject(
+				"select recovery_policy from controlplane_run_record where job_execution_id = ?",
+				String.class,
+				2450L
+		);
+
+		assertEquals("explicit-job", summaryRunMode);
+		assertEquals("rerun-from-start", summaryRecoveryPolicy);
+		assertEquals("explicit-job", recordRunMode);
+		assertEquals("rerun-from-start", recordRecoveryPolicy);
+	}
+
+	@Test
 	void writesMinimalS4cAttemptLinkAndCheckpointAnchorRows() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);

@@ -116,6 +116,27 @@ class ScenarioConfigReferenceTest {
     }
   }
 
+  @Test
+  void allPreservedJobConfigsDeclareRerunFromStartRecoveryPolicy() throws IOException {
+    ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+    try (Stream<Path> files = Files.walk(SCENARIO_ROOT)) {
+      List<Path> jobConfigs = files
+          .filter(Files::isRegularFile)
+          .filter(path -> "job-config.yaml".equals(path.getFileName().toString()))
+          .toList();
+
+      assertFalse(jobConfigs.isEmpty(), "No preserved job-config.yaml files found under config-jobs.");
+      for (Path jobConfigPath : jobConfigs) {
+        JobConfig jobConfig = mapper.readValue(jobConfigPath.toFile(), JobConfig.class);
+        assertEquals(
+            "rerun-from-start",
+            jobConfig.getRecoveryPolicy() == null ? null : jobConfig.getRecoveryPolicy().trim(),
+            () -> "Preserved bundle job config must declare recoveryPolicy: rerun-from-start -> " + jobConfigPath
+        );
+      }
+    }
+  }
+
     private static Path scenarioRootPath() {
         Path canonicalScenarioRoot = Path.of("src", "main", "resources", "config-jobs")
                 .toAbsolutePath()

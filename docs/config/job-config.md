@@ -26,6 +26,7 @@ Backed by:
 | `sourceConfigPath` | yes | string | Relative or absolute path to the selected source config file |
 | `targetConfigPath` | yes | string | Relative or absolute path to the selected target config file |
 | `processorConfigPath` | yes | string | Relative or absolute path to the selected processor config file |
+| `recoveryPolicy` | no | string | Optional selected-run restart policy evidence (`rerun-from-start` default). Short aliases are accepted in authored YAML (`rerun` -> `rerun-from-start`, `restart` -> `resume-from-checkpoint`), while runtime evidence remains canonical. `resume-from-checkpoint` is recognized but currently fails fast as unsupported in the shipped runtime |
 | `steps` | yes | list | Explicit ordered ETL steps for this run |
 | `steps[].name` | yes | string | Step name used for plan/logging/runtime identity |
 | `steps[].source` | yes | string | Must match a configured `sourceName` from the selected source config |
@@ -50,6 +51,7 @@ isActive: true
 sourceConfigPath: source-config.yaml
 targetConfigPath: target-config.yaml
 processorConfigPath: processor-config.yaml
+recoveryPolicy: rerun-from-start
 steps:
   - name: customers-to-sql-step
     source: Customers
@@ -64,6 +66,7 @@ steps:
 - `sourceConfigPath` points to the source bundle for this run and is resolved relative to the `job-config.yaml` folder when written as a relative path.
 - `targetConfigPath` points to the target bundle selected for this run.
 - `processorConfigPath` points to the processor bundle that contains the mapping for the step below.
+- `recoveryPolicy` is optional; omit it for default `rerun-from-start`, or set it explicitly for operator-evidence clarity. Authored YAML can use short aliases (`rerun`, `restart`) that normalize to canonical evidence tokens. `resume-from-checkpoint` currently fails fast until a later F1 implementation slice ships checkpoint resume runtime behavior.
 - `steps` is the explicit ordered execution plan.
 - `steps[].name` is the operator-visible step identity used in plan and run logs.
 - `steps[].source` must match one `sourceName` from the selected source config.
@@ -215,6 +218,7 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - The runtime does not scan scenario folders automatically; one run explicitly chooses one `job-config.yaml`.
 - Explicit `etl.config.job` runs now also require a non-blank `name` so generated-model naming stays deterministic and does not fall back to the job folder name.
 - The optional top-level `isActive` flag defaults to `true`; when it is explicitly `false`, `ConfigLoader` now stops before referenced source/target/processor configs are resolved or steps are wired.
+- The optional top-level `recoveryPolicy` defaults to `rerun-from-start`; authored aliases (`rerun`, `restart`) are normalized to canonical values in runtime evidence, and `resume-from-checkpoint` is currently a guarded future token that fails fast as unsupported.
 - `name` is the selected bundle identity shown in logs and metadata. Explicit job runs derive source and target packages as `com.etl.generated.job.<normalized-job-name>.source` and `com.etl.generated.job.<normalized-job-name>.target`.
 - If a selected source or target config still authors `packageName`, runtime/build-time startup now fails fast with the selected job name, config path, logical config name, and the derived package the selected job would have used.
 - During explicit startup, the selected source and target configs are validated first, then the selected processor config is validated before generated-model class checks run.

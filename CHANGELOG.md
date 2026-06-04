@@ -10,7 +10,18 @@ and this project adheres to **Semantic Versioning**.
 - N/A
 
 ### Changed
-- N/A
+- Started the scheduler `S3` phase-1 governance baseline by introducing explicit `controlplane.scheduler.overlap-policy` (`ALLOW` default, optional `SERIALIZE`) while preserving existing missed-run defaults (`SKIP`) and documenting the current due-instant governance boundary in scheduler architecture/backlog notes.
+- Extended control-plane scheduler visibility by exposing scheduler governance metadata (`schedulerEnabled`, `schedulerMissedRunPolicy`, `schedulerOverlapPolicy`) on `GET /api/v1/system/info`, exposing schedule watermark state (`lastAcceptedDueAt`) on schedule responses, and making `controlplane.scheduler.overlap-policy=ALLOW` explicit in control-plane profile defaults.
+- Started `F1` phase-1 contract baseline by documenting explicit restart semantics for shipped execution modes (`runMode` + `recoveryPolicy`) and surfacing `runMode` in `RUN_SUMMARY` run-level evidence while keeping resume/checkpoint behavior deferred.
+- Continued `F1` phase-1 baseline by projecting `runMode` and `recoveryPolicy` through run read models and control-plane APIs (`/api/v1/runs*` and job-detail recent runs), with JDBC projection persistence/backfill support for the additive fields.
+- Added `F1` phase-1.3 runtime guardrail so `JobRuntimeDescriptor` fails fast when `recoveryPolicy=resume-from-checkpoint` is selected, preserving the shipped `rerun-from-start` execution behavior.
+- Expanded `F1` phase-1.3 guardrail coverage with explicit selected-run runtime-descriptor fail-fast regression tests for `recoveryPolicy=resume-from-checkpoint`, preserving the shipped `rerun-from-start` execution behavior.
+- Continued `F1` baseline by adding optional `job-config.yaml -> recoveryPolicy` contract wiring into selected-run descriptor/metadata assembly (`rerun-from-start` default) while keeping `resume-from-checkpoint` fail-fast guarded as unsupported.
+- Extended `F1` recovery-policy input ergonomics by accepting short authored `job-config.yaml` aliases (`rerun` -> `rerun-from-start`, `restart` -> `resume-from-checkpoint`) while keeping runtime evidence/log tokens canonical and preserving fail-fast guardrails for unsupported checkpoint resume execution.
+- Backfilled preserved `config-jobs/*/job-config.yaml` bundles to declare `recoveryPolicy: rerun-from-start` explicitly and added contract tests so executable examples remain aligned with the shipped F1 baseline.
+- Extended Operator Runs visibility by showing `runMode` and `recoveryPolicy` in the runs list and run-detail summary, with matching API regression coverage on `GET /api/v1/runs/{jobExecutionId}`.
+- Extended `/api/v1/runs` with optional `runMode` and `recoveryPolicy` filters and updated Operator Runs controls to pass those filters through route state and API requests.
+- Extended Operator Jobs drill-down with a dedicated read-only job-config page (`#/jobs/{jobKey}/config`) and added `GET /api/v1/jobs/{jobKey}/config` so large YAML content stays off the default Job Detail view until explicitly requested.
 
 ### Fixed
 - N/A

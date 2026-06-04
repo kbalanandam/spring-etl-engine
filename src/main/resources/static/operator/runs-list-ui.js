@@ -12,6 +12,8 @@ export function createRunsListUi(options) {
     const runsStartDate = document.getElementById("runs-start-date-input");
     const runsTimezone = document.getElementById("runs-timezone-select");
     const runsJobSelect = document.getElementById("runs-job-select");
+    const runsRunModeSelect = document.getElementById("runs-run-mode-select");
+    const runsRecoveryPolicySelect = document.getElementById("runs-recovery-policy-select");
     const runsInstanceSelect = document.getElementById("runs-instance-select");
     const runsSort = document.getElementById("runs-sort-select");
     const runsDirection = document.getElementById("runs-sort-dir-btn");
@@ -39,6 +41,22 @@ export function createRunsListUi(options) {
       runsJobSelect.addEventListener("change", (event) => {
         const state = getState();
         state.selectedJobKey = event.target.value || "";
+        state.loaded = false;
+        syncRouteHash("runs");
+      });
+    }
+    if (runsRunModeSelect) {
+      runsRunModeSelect.addEventListener("change", (event) => {
+        const state = getState();
+        state.runModeFilter = event.target.value || "";
+        state.loaded = false;
+        syncRouteHash("runs");
+      });
+    }
+    if (runsRecoveryPolicySelect) {
+      runsRecoveryPolicySelect.addEventListener("change", (event) => {
+        const state = getState();
+        state.recoveryPolicyFilter = event.target.value || "";
         state.loaded = false;
         syncRouteHash("runs");
       });
@@ -81,6 +99,8 @@ export function createRunsListUi(options) {
     const state = getState();
     state.filterText = routeState.filterText || "";
     state.selectedJobKey = routeState.selectedJobKey || "";
+    state.runModeFilter = routeState.runModeFilter || "";
+    state.recoveryPolicyFilter = routeState.recoveryPolicyFilter || "";
     state.startDate = routeState.startDate || state.startDate || formatDateForInput(new Date());
     state.timezone = routeState.timezone || state.timezone || state.browserTimezone || "UTC";
     state.sortKey = routeState.sortKey || "startTime";
@@ -92,6 +112,8 @@ export function createRunsListUi(options) {
     const startDate = document.getElementById("runs-start-date-input");
     const timezone = document.getElementById("runs-timezone-select");
     const jobSelect = document.getElementById("runs-job-select");
+    const runModeSelect = document.getElementById("runs-run-mode-select");
+    const recoveryPolicySelect = document.getElementById("runs-recovery-policy-select");
     const filter = document.getElementById("runs-filter-input");
     const sort = document.getElementById("runs-sort-select");
     const direction = document.getElementById("runs-sort-dir-btn");
@@ -104,6 +126,12 @@ export function createRunsListUi(options) {
     }
     if (jobSelect) {
       jobSelect.value = state.selectedJobKey;
+    }
+    if (runModeSelect) {
+      runModeSelect.value = state.runModeFilter;
+    }
+    if (recoveryPolicySelect) {
+      recoveryPolicySelect.value = state.recoveryPolicyFilter;
     }
     if (filter) {
       filter.value = state.filterText;
@@ -174,7 +202,7 @@ export function createRunsListUi(options) {
 
     const state = getState();
     const filtered = state.items.filter((run) => {
-      const haystack = `${run.scenario || ""} ${run.status || ""} ${run.jobExecutionId || ""}`.toLowerCase();
+      const haystack = `${run.scenario || ""} ${run.status || ""} ${run.runMode || ""} ${run.recoveryPolicy || ""} ${run.jobExecutionId || ""}`.toLowerCase();
       return haystack.includes(state.filterText.trim().toLowerCase());
     });
     const sorted = sortItems(filtered, state.sortKey, state.sortDirection);
@@ -200,6 +228,8 @@ export function createRunsListUi(options) {
       row.innerHTML = `
         <td>${escapeHtml(run.scenario || "-")}</td>
         <td>${escapeHtml(run.status || "-")}</td>
+        <td>${escapeHtml(run.runMode || "-")}</td>
+        <td>${escapeHtml(run.recoveryPolicy || "-")}</td>
         <td>${escapeHtml(run.startTime || "-")}</td>
         <td>${escapeHtml(String(run.durationSeconds ?? "-"))}</td>
         <td>${escapeHtml(String(run.jobExecutionId ?? "-"))}</td>`;

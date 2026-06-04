@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 @Controller
 public class OperatorUiController {
 
-    private static final String UI_VERSION = "20260603-modsplit2";
+      private static final String UI_VERSION = "20260604-job-config-view";
 
     @GetMapping({"/operator", "/operator/"})
     public String operatorHome() {
@@ -26,6 +26,11 @@ public class OperatorUiController {
     public String jobDetailPlaceholder(@PathVariable String jobKey) {
         return "redirect:/operator/index.html?v=" + UI_VERSION + "#/jobs/" + jobKey;
     }
+
+      @GetMapping("/operator/jobs/{jobKey}/config")
+      public String jobConfigPlaceholder(@PathVariable String jobKey) {
+        return "redirect:/operator/index.html?v=" + UI_VERSION + "#/jobs/" + jobKey + "/config";
+      }
 }
 
 

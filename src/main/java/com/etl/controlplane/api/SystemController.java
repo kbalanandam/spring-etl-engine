@@ -15,11 +15,20 @@ public class SystemController {
 
 	private final String serviceName;
 	private final Environment environment;
+	private final boolean schedulerEnabled;
+	private final String schedulerMissedRunPolicy;
+	private final String schedulerOverlapPolicy;
 
 	public SystemController(@Value("${spring.application.name:spring-etl-engine-control-plane}") String serviceName,
-	                        Environment environment) {
+	                        Environment environment,
+	                        @Value("${controlplane.scheduler.enabled:false}") boolean schedulerEnabled,
+	                        @Value("${controlplane.scheduler.missed-run-policy:SKIP}") String schedulerMissedRunPolicy,
+	                        @Value("${controlplane.scheduler.overlap-policy:ALLOW}") String schedulerOverlapPolicy) {
 		this.serviceName = serviceName;
 		this.environment = environment;
+		this.schedulerEnabled = schedulerEnabled;
+		this.schedulerMissedRunPolicy = schedulerMissedRunPolicy;
+		this.schedulerOverlapPolicy = schedulerOverlapPolicy;
 	}
 
 	@GetMapping("/health")
@@ -30,7 +39,14 @@ public class SystemController {
 	@GetMapping("/info")
 	public SystemInfoResponse info() {
 		String profile = Arrays.stream(environment.getActiveProfiles()).findFirst().orElse("default");
-		return new SystemInfoResponse(serviceName, System.getProperty("java.version"), profile);
+		return new SystemInfoResponse(
+				serviceName,
+				System.getProperty("java.version"),
+				profile,
+				schedulerEnabled,
+				schedulerMissedRunPolicy,
+				schedulerOverlapPolicy
+		);
 	}
 }
 

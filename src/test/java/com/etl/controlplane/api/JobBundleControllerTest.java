@@ -1,6 +1,7 @@
 package com.etl.controlplane.api;
 
 import com.etl.controlplane.jobs.JobBundleReadModelService;
+import com.etl.controlplane.jobs.JobBundleConfigView;
 import com.etl.controlplane.jobs.JobBundleSummaryView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryView;
@@ -70,7 +71,8 @@ class JobBundleControllerTest {
 		));
 		when(runSummaryReadModelService.latestRunsForJob(eq("customer-load"), eq("Customer Load"), eq(10))).thenReturn(List.of(
 				new RunSummaryView("Customer Load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
-						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L, "logs/2026-05-27/customer-load.log")
+						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L,
+						"explicit-job", "rerun-from-start", "logs/2026-05-27/customer-load.log")
 		));
 		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(20))).thenReturn(List.of(
 				new TriggerEventView("te-123", "customer-load", "ACCEPTED", "manual_operator_request", "operator@example", Instant.parse("2026-05-27T10:15:30Z"), null, "accepted")
@@ -80,6 +82,8 @@ class JobBundleControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.job.jobKey").value("customer-load"))
 				.andExpect(jsonPath("$.recentRuns[0].jobExecutionId").value(101))
+				.andExpect(jsonPath("$.recentRuns[0].runMode").value("explicit-job"))
+				.andExpect(jsonPath("$.recentRuns[0].recoveryPolicy").value("rerun-from-start"))
 				.andExpect(jsonPath("$.recentTriggerEvents[0].triggerEventId").value("te-123"));
 
 		verify(jobBundleReadModelService).findBundle(eq("customer-load"));
@@ -95,6 +99,36 @@ class JobBundleControllerTest {
 				.andExpect(status().isNotFound());
 
 		verify(jobBundleReadModelService).findBundle(eq("missing-job"));
+	}
+
+	@Test
+	void returnsJobConfigForKnownJob() throws Exception {
+		when(jobBundleReadModelService.findBundleConfig(eq("customer-load"))).thenReturn(Optional.of(
+				new JobBundleConfigView(
+						"customer-load",
+						"Customer Load",
+						"src/main/resources/config-jobs/customer-load/job-config.yaml",
+						"name: customer-load\nsteps:\n  - name: customers-step\n"
+				)
+		));
+
+		mockMvc.perform(get("/api/v1/jobs/customer-load/config"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.jobKey").value("customer-load"))
+				.andExpect(jsonPath("$.jobConfigPath").value("src/main/resources/config-jobs/customer-load/job-config.yaml"))
+				.andExpect(jsonPath("$.rawYaml").value("name: customer-load\nsteps:\n  - name: customers-step\n"));
+
+		verify(jobBundleReadModelService).findBundleConfig(eq("customer-load"));
+	}
+
+	@Test
+	void returnsNotFoundWhenJobConfigDoesNotExist() throws Exception {
+		when(jobBundleReadModelService.findBundleConfig(eq("missing-job"))).thenReturn(Optional.empty());
+
+		mockMvc.perform(get("/api/v1/jobs/missing-job/config"))
+				.andExpect(status().isNotFound());
+
+		verify(jobBundleReadModelService).findBundleConfig(eq("missing-job"));
 	}
 
 	@Test

@@ -45,12 +45,21 @@ public class RunSummaryController {
 	@GetMapping
 	public RunSummaryListResponse latestRuns(@RequestParam(name = "limit", required = false) Integer limit,
 	                                        @RequestParam(name = "job", required = false) String job,
+	                                        @RequestParam(name = "runMode", required = false) String runMode,
+	                                        @RequestParam(name = "recoveryPolicy", required = false) String recoveryPolicy,
 	                                        @RequestParam(name = "startDate", required = false) String startDate,
 	                                        @RequestParam(name = "timezone", required = false) String timezone) {
 		int effectiveLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
 		LocalDate effectiveStartDate = parseStartDate(startDate);
 		ZoneId effectiveZoneId = parseTimezone(timezone);
-		var runs = runSummaryReadModelService.latestRunsFiltered(effectiveLimit, job, effectiveStartDate, effectiveZoneId);
+		var runs = runSummaryReadModelService.latestRunsFiltered(
+				effectiveLimit,
+				job,
+				runMode,
+				recoveryPolicy,
+				effectiveStartDate,
+				effectiveZoneId
+		);
 		return new RunSummaryListResponse(runs, 0, effectiveLimit, runs.size());
 	}
 

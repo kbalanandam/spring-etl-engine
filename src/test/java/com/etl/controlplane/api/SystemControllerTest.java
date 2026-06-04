@@ -35,7 +35,10 @@ class SystemControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.service").value("spring-etl-engine-control-plane"))
 				.andExpect(jsonPath("$.profile").value("testcp"))
-				.andExpect(jsonPath("$.javaVersion").exists());
+				.andExpect(jsonPath("$.javaVersion").exists())
+				.andExpect(jsonPath("$.schedulerEnabled").value(false))
+				.andExpect(jsonPath("$.schedulerMissedRunPolicy").value("SKIP"))
+				.andExpect(jsonPath("$.schedulerOverlapPolicy").value("ALLOW"));
 	}
 }
 

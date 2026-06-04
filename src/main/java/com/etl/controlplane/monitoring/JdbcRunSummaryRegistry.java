@@ -47,7 +47,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		int updated = jdbcTemplate.update("""
 				update controlplane_run_summary
 				set scenario = ?, status = ?, start_time = ?, end_time = ?, duration_seconds = ?,
-				    source_count = ?, written_count = ?, rejected_count = ?, log_path = ?, last_seen_at = ?
+				    source_count = ?, written_count = ?, rejected_count = ?, run_mode = ?, recovery_policy = ?, log_path = ?, last_seen_at = ?
 				where job_execution_id = ?
 				""",
 				runSummary.scenario(),
@@ -58,6 +58,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				runSummary.sourceCount(),
 				runSummary.writtenCount(),
 				runSummary.rejectedCount(),
+				runSummary.runMode(),
+				runSummary.recoveryPolicy(),
 				runSummary.logPath(),
 				Timestamp.valueOf(LocalDateTime.now()),
 				jobExecutionId
@@ -74,9 +76,11 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 						source_count,
 						written_count,
 						rejected_count,
+						run_mode,
+						recovery_policy,
 						log_path,
 						last_seen_at
-					) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+					) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""",
 					jobExecutionId,
 					runSummary.scenario(),
@@ -87,6 +91,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					runSummary.sourceCount(),
 					runSummary.writtenCount(),
 					runSummary.rejectedCount(),
+					runSummary.runMode(),
+					runSummary.recoveryPolicy(),
 					runSummary.logPath(),
 					Timestamp.valueOf(LocalDateTime.now())
 			);
@@ -235,7 +241,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		}
 		return jdbcTemplate.query("""
 				select job_execution_id, scenario, status, start_time, end_time, duration_seconds,
-				       source_count, written_count, rejected_count, log_path
+				       source_count, written_count, rejected_count, run_mode, recovery_policy, log_path
 				from controlplane_run_summary
 				order by case when start_time is null then 1 else 0 end,
 				         start_time desc,
@@ -251,6 +257,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				nullableLong(rs, "source_count"),
 				nullableLong(rs, "written_count"),
 				nullableLong(rs, "rejected_count"),
+				rs.getString("run_mode"),
+				rs.getString("recovery_policy"),
 				rs.getString("log_path")
 		), limit);
 	}
@@ -259,7 +267,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	public Optional<RunSummaryView> findByJobExecutionId(long jobExecutionId) {
 		List<RunSummaryView> matches = jdbcTemplate.query("""
 				select job_execution_id, scenario, status, start_time, end_time, duration_seconds,
-				       source_count, written_count, rejected_count, log_path
+				       source_count, written_count, rejected_count, run_mode, recovery_policy, log_path
 				from controlplane_run_summary
 				where job_execution_id = ?
 				""", (rs, rowNum) -> new RunSummaryView(
@@ -272,6 +280,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				nullableLong(rs, "source_count"),
 				nullableLong(rs, "written_count"),
 				nullableLong(rs, "rejected_count"),
+				rs.getString("run_mode"),
+				rs.getString("recovery_policy"),
 				rs.getString("log_path")
 		), jobExecutionId);
 		return matches.stream().findFirst();
@@ -436,10 +446,14 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					source_count bigint,
 					written_count bigint,
 					rejected_count bigint,
+					run_mode varchar(80),
+					recovery_policy varchar(120),
 					log_path varchar(2000),
 					last_seen_at timestamp not null
 				)
 				""");
+		ensureColumnExists("controlplane_run_summary", "run_mode", "varchar(80)");
+		ensureColumnExists("controlplane_run_summary", "recovery_policy", "varchar(120)");
 		jdbcTemplate.execute("""
 				create index if not exists idx_run_summary_start_time
 				on controlplane_run_summary (start_time, job_execution_id)
@@ -460,6 +474,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					source_count bigint,
 					written_count bigint,
 					rejected_count bigint,
+					run_mode varchar(80),
+					recovery_policy varchar(120),
 					created_at timestamp not null,
 					updated_at timestamp not null
 				)
@@ -467,6 +483,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		migrateLegacyRunRecordPrimaryKeyIfRequired();
 		ensureColumnExists("controlplane_run_record", "run_record_pk", "bigint");
 		ensureColumnExists("controlplane_run_record", "trigger_event_pk", "bigint");
+		ensureColumnExists("controlplane_run_record", "run_mode", "varchar(80)");
+		ensureColumnExists("controlplane_run_record", "recovery_policy", "varchar(120)");
 		backfillRunRecordPk();
 		jdbcTemplate.execute("""
 				create index if not exists idx_run_record_started_at
@@ -853,6 +871,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					       rs.source_count,
 					       rs.written_count,
 					       rs.rejected_count,
+					       rs.run_mode,
+					       rs.recovery_policy,
 					       rs.log_path
 					from controlplane_run_summary rs
 					order by rs.job_execution_id desc
@@ -866,6 +886,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					nullableLong(rs, "source_count"),
 					nullableLong(rs, "written_count"),
 					nullableLong(rs, "rejected_count"),
+					rs.getString("run_mode"),
+					rs.getString("recovery_policy"),
 					rs.getString("log_path")
 			));
 		} catch (DataAccessException ignored) {
@@ -1230,6 +1252,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 							source_count bigint,
 							written_count bigint,
 							rejected_count bigint,
+							run_mode varchar(80),
+							recovery_policy varchar(120),
 							created_at timestamp not null,
 							updated_at timestamp not null
 						)
@@ -1250,6 +1274,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 							source_count,
 							written_count,
 							rejected_count,
+							run_mode,
+							recovery_policy,
 							created_at,
 							updated_at
 						)
@@ -1268,6 +1294,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 							source_count,
 							written_count,
 							rejected_count,
+							null,
+							null,
 							created_at,
 							updated_at
 						from controlplane_run_record
@@ -1312,9 +1340,11 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					source_count,
 					written_count,
 					rejected_count,
+					run_mode,
+					recovery_policy,
 					created_at,
 					updated_at
-				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				on conflict(job_execution_id) do update set
 					run_record_pk = coalesce(controlplane_run_record.run_record_pk, excluded.run_record_pk),
 					trigger_event_pk = coalesce(controlplane_run_record.trigger_event_pk, excluded.trigger_event_pk),
@@ -1328,6 +1358,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					source_count = excluded.source_count,
 					written_count = excluded.written_count,
 					rejected_count = excluded.rejected_count,
+					run_mode = excluded.run_mode,
+					recovery_policy = excluded.recovery_policy,
 					updated_at = excluded.updated_at
 				""",
 				nextRunRecordPk(),
@@ -1344,6 +1376,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				runSummary.sourceCount(),
 				runSummary.writtenCount(),
 				runSummary.rejectedCount(),
+				runSummary.runMode(),
+				runSummary.recoveryPolicy(),
 				now,
 				now
 		);
@@ -1368,6 +1402,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					source_count,
 					written_count,
 					rejected_count,
+					run_mode,
+					recovery_policy,
 					created_at,
 					updated_at
 				)
@@ -1386,6 +1422,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					rs.source_count,
 					rs.written_count,
 					rs.rejected_count,
+					rs.run_mode,
+					rs.recovery_policy,
 					?,
 					?
 				from controlplane_run_summary rs

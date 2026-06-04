@@ -88,10 +88,11 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 					? Duration.between(startTime, endTime).getSeconds()
 					: null;
 			JobRunCountRollup countRollup = JobRunCountRollup.calculate(jobExecution, jobRuntimeDescriptor);
-			logger.info("RUN_SUMMARY event=run_summary scenario={} mainFlow={} subFlow={} recoveryPolicy={} jobName={} jobExecutionId={} status={} startTime={} endTime={} durationSeconds={} sourceCount={} writtenCount={} rejectedCount={} handoffReadCount={} handoffWriteCount={} executedStepCount={} rollupMode={} failureCount={}",
+			logger.info("RUN_SUMMARY event=run_summary scenario={} mainFlow={} subFlow={} runMode={} recoveryPolicy={} jobName={} jobExecutionId={} status={} startTime={} endTime={} durationSeconds={} sourceCount={} writtenCount={} rejectedCount={} handoffReadCount={} handoffWriteCount={} executedStepCount={} rollupMode={} failureCount={}",
 					mdcValueOrDefault(RunLoggingContext.SCENARIO, "unknown-scenario"),
 					mdcValueOrDefault(RunLoggingContext.MAIN_FLOW, ""),
 					mdcValueOrDefault(RunLoggingContext.SUB_FLOW, ""),
+					mdcValueOrDefault(RunLoggingContext.RUN_MODE, ""),
 					mdcValueOrDefault(RunLoggingContext.RECOVERY_POLICY, ""),
 					jobExecution.getJobInstance().getJobName(),
 					jobExecution.getId(),

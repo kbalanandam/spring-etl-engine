@@ -304,6 +304,22 @@ For the target direction where scenario descriptors and step links become the st
 
 ## Important runtime decisions
 
+### F1 restart semantics baseline
+
+The current F1 baseline keeps restart behavior explicit and conservative for shipped execution modes:
+
+| Execution mode (`runMode`) | Current recovery policy (`recoveryPolicy`) | Shipped behavior |
+| --- | --- | --- |
+| `explicit-job` | `rerun-from-start` | Full selected-job rerun from the beginning of the ordered step plan |
+| `demo-fallback` | `rerun-from-start` | Full rerun from start for local/demo compatibility runs |
+
+Current guardrails:
+
+- `runMode` and `recoveryPolicy` are treated as explicit runtime evidence, not hidden defaults
+- selected jobs may author `job-config.yaml -> recoveryPolicy`, but the shipped runtime path currently executes only `rerun-from-start`
+- checkpoint/resume semantics are intentionally deferred to follow-on F1 slices, and `resume-from-checkpoint` currently fails fast as unsupported
+- scheduler overlap/run-state governance should not imply restart/resume behavior that F1 has not explicitly shipped
+
 ### 1. Config resolution
 `ConfigLoader` resolves configuration in this order:
 

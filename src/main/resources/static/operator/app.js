@@ -13,6 +13,11 @@ const routes = {
     view: document.getElementById("view-job-detail"),
     load: loadJobDetailPlaceholder,
   },
+  jobConfig: {
+    tab: document.getElementById("tab-jobs"),
+    view: document.getElementById("view-job-config"),
+    load: loadJobConfig,
+  },
   runs: {
     tab: document.getElementById("tab-runs"),
     view: document.getElementById("view-runs"),
@@ -42,6 +47,8 @@ const viewState = {
     },
     jobOptions: [],
     selectedJobKey: "",
+    runModeFilter: "",
+    recoveryPolicyFilter: "",
     startDate: "",
     timezone: "",
     browserTimezone: "UTC",
@@ -72,7 +79,7 @@ const runsListUi = createRunsListUi({
 
 const SORT_KEYS = {
   jobs: ["jobKey", "displayName", "readinessStatus"],
-  runs: ["startTime", "jobExecutionId", "scenario", "status"],
+  runs: ["startTime", "jobExecutionId", "scenario", "status", "runMode", "recoveryPolicy"],
 };
 
 window.addEventListener("hashchange", renderRoute);
@@ -92,7 +99,12 @@ function currentRouteState() {
   const path = parsed.path;
   const normalized = path.toLowerCase();
   const runDetailMatch = path.match(/^runs\/(\d+)$/i);
+  const jobConfigMatch = path.match(/^jobs\/([^/]+)\/config$/i);
   const jobDetailMatch = path.match(/^jobs\/([^/]+)$/i);
+
+  if (jobConfigMatch) {
+    return { key: "jobConfig", jobExecutionId: null, jobKey: decodeURIComponent(jobConfigMatch[1]), query: parsed.query };
+  }
 
   if (jobDetailMatch) {
     return { key: "jobDetail", jobExecutionId: null, jobKey: decodeURIComponent(jobDetailMatch[1]), query: parsed.query };
@@ -108,6 +120,8 @@ function currentRouteState() {
       jobKey: null,
       query: parsed.query,
       selectedJobKey: parsed.query.job || "",
+      runModeFilter: parsed.query.runMode || "",
+      recoveryPolicyFilter: parsed.query.recoveryPolicy || "",
       startDate: parsed.query.startDate || "",
       timezone: parsed.query.timezone || "",
       filterText: parsed.query.f || "",
@@ -183,6 +197,7 @@ async function loadJobDetailPlaceholder(routeState) {
   const summary = document.getElementById("job-detail-summary");
   const triggerButton = document.getElementById("job-detail-trigger-now-btn");
   const triggerFeedback = document.getElementById("job-detail-trigger-feedback");
+  const viewConfigLink = document.getElementById("job-detail-view-config-link");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
 
   state.className = "state";
@@ -191,6 +206,9 @@ async function loadJobDetailPlaceholder(routeState) {
   triggerFeedback.className = "state";
   triggerFeedback.textContent = "";
   triggerButton.disabled = true;
+  if (viewConfigLink) {
+    viewConfigLink.setAttribute("href", "#/jobs");
+  }
 
   if (!jobKeyValue) {
     state.className = "state error";
@@ -213,6 +231,9 @@ async function loadJobDetailPlaceholder(routeState) {
     document.getElementById("job-detail-readiness").textContent = job.readinessStatus || "-";
     document.getElementById("job-detail-recent-run-count").textContent = String(Array.isArray(payload.recentRuns) ? payload.recentRuns.length : 0);
     document.getElementById("job-detail-trigger-count").textContent = String(Array.isArray(payload.triggerEvents) ? payload.triggerEvents.length : 0);
+    if (viewConfigLink) {
+      viewConfigLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}/config`);
+    }
 
     triggerButton.disabled = false;
     triggerButton.onclick = () => requestTriggerNow(jobKeyValue);
@@ -222,6 +243,54 @@ async function loadJobDetailPlaceholder(routeState) {
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load job detail placeholder: ${error.message}`;
+  }
+}
+
+async function loadJobConfig(routeState) {
+  const state = document.getElementById("job-config-state");
+  const summary = document.getElementById("job-config-summary");
+  const raw = document.getElementById("job-config-raw");
+  const backLink = document.getElementById("job-config-back-link");
+  const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
+
+  state.className = "state";
+  summary.hidden = true;
+  raw.hidden = true;
+  raw.textContent = "";
+  if (backLink) {
+    backLink.setAttribute("href", "#/jobs");
+  }
+
+  if (!jobKeyValue) {
+    state.className = "state error";
+    state.textContent = "Missing job key in route. Use a job detail link.";
+    return;
+  }
+
+  state.textContent = `Loading config for ${jobKeyValue}...`;
+
+  try {
+    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(jobKeyValue)}/config`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Job config API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    document.getElementById("job-config-key").textContent = payload.jobKey || jobKeyValue;
+    document.getElementById("job-config-name").textContent = payload.displayName || "-";
+    document.getElementById("job-config-path").textContent = payload.jobConfigPath || "-";
+    raw.textContent = payload.rawYaml || "";
+    if (backLink) {
+      backLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}`);
+    }
+
+    summary.hidden = false;
+    raw.hidden = false;
+    state.textContent = "Job config loaded.";
+  } catch (error) {
+    state.className = "state error";
+    state.textContent = `Unable to load job config: ${error.message}`;
   }
 }
 
@@ -304,9 +373,11 @@ async function loadRuns() {
   const table = document.getElementById("runs-table");
   const body = document.getElementById("runs-body");
   const selectedJobKey = viewState.runs.selectedJobKey || "";
+  const selectedRunMode = viewState.runs.runModeFilter || "";
+  const selectedRecoveryPolicy = viewState.runs.recoveryPolicyFilter || "";
   const selectedStartDate = viewState.runs.startDate || "";
   const selectedTimezone = viewState.runs.timezone || viewState.runs.browserTimezone || "UTC";
-  const loadKey = `${selectedJobKey || "__all__"}|${selectedStartDate || "__no_date__"}|${selectedTimezone}`;
+  const loadKey = `${selectedJobKey || "__all__"}|${selectedRunMode || "__all_mode__"}|${selectedRecoveryPolicy || "__all_policy__"}|${selectedStartDate || "__no_date__"}|${selectedTimezone}`;
 
   if (viewState.runs.loaded && viewState.runs.loadedForKey === loadKey) {
     runsListUi.renderTable();
@@ -321,7 +392,7 @@ async function loadRuns() {
 
   try {
     await ensureRunsJobOptions();
-    const runs = await fetchRunsForFilters(selectedJobKey, selectedStartDate, selectedTimezone);
+    const runs = await fetchRunsForFilters(selectedJobKey, selectedRunMode, selectedRecoveryPolicy, selectedStartDate, selectedTimezone);
     viewState.runs.items = runs;
     viewState.runs.loaded = true;
     viewState.runs.loadedForKey = loadKey;
@@ -378,6 +449,14 @@ function syncListRouteHash(routeKey) {
   }
   if (source.selectedJobKey && source.selectedJobKey.trim() !== "") {
     params.set("job", source.selectedJobKey.trim());
+  }
+  if (routeKey === "runs") {
+    if (source.runModeFilter && source.runModeFilter.trim() !== "") {
+      params.set("runMode", source.runModeFilter.trim());
+    }
+    if (source.recoveryPolicyFilter && source.recoveryPolicyFilter.trim() !== "") {
+      params.set("recoveryPolicy", source.recoveryPolicyFilter.trim());
+    }
   }
   if (routeKey === "runs") {
     if (source.startDate && source.startDate.trim() !== "") {
@@ -481,8 +560,8 @@ async function fetchJobsForRunsScope() {
   return jobs;
 }
 
-async function fetchRunsForFilters(selectedJobKey, startDate, timezone) {
-  const cacheKey = `${selectedJobKey || ""}|${startDate || ""}|${timezone || ""}`;
+async function fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, startDate, timezone) {
+  const cacheKey = `${selectedJobKey || ""}|${runMode || ""}|${recoveryPolicy || ""}|${startDate || ""}|${timezone || ""}`;
   if (Array.isArray(viewState.runs.cache.byFilter[cacheKey])) {
     return viewState.runs.cache.byFilter[cacheKey];
   }
@@ -491,6 +570,12 @@ async function fetchRunsForFilters(selectedJobKey, startDate, timezone) {
   params.set("limit", "200");
   if (selectedJobKey) {
     params.set("job", selectedJobKey);
+  }
+  if (runMode) {
+    params.set("runMode", runMode);
+  }
+  if (recoveryPolicy) {
+    params.set("recoveryPolicy", recoveryPolicy);
   }
   if (startDate) {
     params.set("startDate", startDate);
@@ -542,6 +627,8 @@ async function loadRunDetail(routeState) {
     document.getElementById("run-detail-id").textContent = String(run.jobExecutionId ?? runIdValue);
     document.getElementById("run-detail-scenario").textContent = run.scenario || "-";
     document.getElementById("run-detail-status").textContent = run.status || "-";
+    document.getElementById("run-detail-run-mode").textContent = valueOrDash(run.runMode);
+    document.getElementById("run-detail-recovery-policy").textContent = valueOrDash(run.recoveryPolicy);
     document.getElementById("run-detail-start-time").textContent = valueOrDash(run.startTime);
     document.getElementById("run-detail-end-time").textContent = valueOrDash(run.endTime);
     document.getElementById("run-detail-duration").textContent = String(run.durationSeconds ?? "-");

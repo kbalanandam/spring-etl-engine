@@ -79,15 +79,11 @@ export function createJobsListUi(options) {
     sorted.forEach((job) => {
       const row = document.createElement("tr");
       const jobKey = job.jobKey;
-      if (jobKey) {
-        row.className = "clickable-row";
-        row.title = "Open job detail placeholder";
-        row.addEventListener("click", () => {
-          location.hash = `#/jobs/${encodeURIComponent(jobKey)}`;
-        });
-      }
+      const jobKeyCell = jobKey
+        ? `<a href="#/jobs/${encodeURIComponent(jobKey)}">${escapeHtml(jobKey)}</a>`
+        : "-";
       row.innerHTML = `
-        <td>${escapeHtml(job.jobKey || "-")}</td>
+        <td>${jobKeyCell}</td>
         <td>${escapeHtml(job.displayName || "-")}</td>
         <td>${escapeHtml(job.readinessStatus || "-")}</td>`;
       body.appendChild(row);

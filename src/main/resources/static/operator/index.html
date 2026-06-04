@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Operator UI - Monitoring First</title>
-  <link rel="stylesheet" href="/operator/styles.css?v=20260603-modsplit2">
+  <link rel="stylesheet" href="/operator/styles.css?v=20260604-job-config-view">
 </head>
 <body>
 <header class="topbar">
@@ -59,6 +59,7 @@
       <p><strong>Readiness:</strong> <span id="job-detail-readiness"></span></p>
       <p><strong>Recent runs shown:</strong> <span id="job-detail-recent-run-count"></span></p>
       <p><strong>Trigger events shown:</strong> <span id="job-detail-trigger-count"></span></p>
+      <p><strong>Config:</strong> <a id="job-detail-view-config-link" href="#">View read-only config</a></p>
     </div>
 
     <h3>Ad hoc trigger</h3>
@@ -70,6 +71,19 @@
     <div id="job-detail-trigger-feedback" class="state" hidden></div>
 
     <p><a href="#/jobs">Back to jobs list</a></p>
+  </section>
+
+  <section id="view-job-config" class="panel" hidden>
+    <h2>Job Config</h2>
+    <p class="hint">Read-only projection from <code>/api/v1/jobs/{jobKey}/config</code>.</p>
+    <div id="job-config-state" class="state"></div>
+    <div id="job-config-summary" hidden>
+      <p><strong>Job key:</strong> <span id="job-config-key"></span></p>
+      <p><strong>Display name:</strong> <span id="job-config-name"></span></p>
+      <p><strong>Config path:</strong> <span id="job-config-path"></span></p>
+    </div>
+    <pre id="job-config-raw" class="detail-box" hidden></pre>
+    <p><a id="job-config-back-link" href="#/jobs">Back</a></p>
   </section>
 
   <section id="view-runs" class="panel" hidden>
@@ -99,6 +113,22 @@
         <label for="runs-filter-input">Filter</label>
         <input id="runs-filter-input" type="text" placeholder="scenario or status">
       </div>
+      <div class="control-field">
+        <label for="runs-run-mode-select">Run mode</label>
+        <select id="runs-run-mode-select">
+          <option value="">All modes</option>
+          <option value="explicit-job">explicit-job</option>
+          <option value="demo-fallback">demo-fallback</option>
+        </select>
+      </div>
+      <div class="control-field">
+        <label for="runs-recovery-policy-select">Recovery policy</label>
+        <select id="runs-recovery-policy-select">
+          <option value="">All policies</option>
+          <option value="rerun-from-start">rerun-from-start</option>
+          <option value="resume-from-checkpoint">resume-from-checkpoint</option>
+        </select>
+      </div>
       <div class="control-field control-field-sort">
         <label for="runs-sort-select">Sort</label>
         <div class="control-field-row">
@@ -107,6 +137,8 @@
             <option value="jobExecutionId">Job execution</option>
             <option value="scenario">Scenario</option>
             <option value="status">Status</option>
+            <option value="runMode">Run mode</option>
+            <option value="recoveryPolicy">Recovery policy</option>
           </select>
           <button id="runs-sort-dir-btn" type="button">Desc</button>
         </div>
@@ -118,6 +150,8 @@
       <tr>
         <th>Scenario</th>
         <th>Status</th>
+        <th>Run mode</th>
+        <th>Recovery policy</th>
         <th>Start time</th>
         <th>Duration (s)</th>
         <th>Job execution</th>
@@ -135,6 +169,8 @@
       <p><strong>Job execution:</strong> <span id="run-detail-id"></span></p>
       <p><strong>Scenario:</strong> <span id="run-detail-scenario"></span></p>
       <p><strong>Status:</strong> <span id="run-detail-status"></span></p>
+      <p><strong>Run mode:</strong> <span id="run-detail-run-mode"></span></p>
+      <p><strong>Recovery policy:</strong> <span id="run-detail-recovery-policy"></span></p>
       <p><strong>Start time:</strong> <span id="run-detail-start-time"></span></p>
       <p><strong>End time:</strong> <span id="run-detail-end-time"></span></p>
       <p><strong>Duration (s):</strong> <span id="run-detail-duration"></span></p>
@@ -202,6 +238,6 @@
   <p class="footnote-meta">&copy; 2026 OneFlow contributors. All rights reserved.</p>
 </footer>
 
-<script type="module" src="/operator/app.js?v=20260603-modsplit2"></script>
+<script type="module" src="/operator/app.js?v=20260604-job-config-view"></script>
 </body>
 </html>

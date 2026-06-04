@@ -10,7 +10,7 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 
 - Classification: **Future direction**
 - This note still carries future-direction design intent, but the monitoring-first subset below is now implemented by the optional `com.etl.controlplane.ControlPlaneApiApplication` starter.
-- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/runs/{jobExecutionId}/log`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/schedules/{scheduleId}/trigger-events`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
+- Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `GET /api/v1/jobs/{jobKey}/config`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/runs/{jobExecutionId}/log`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/schedules/{scheduleId}/trigger-events`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
 - Trigger-event history now persists in the control-plane JDBC store when `controlplane.triggers.persistence.mode=jdbc` (control-plane profile default), with memory mode still available as a fallback.
 - Trigger-event persistence mode switches are startup-guarded: when the prior marker mode differs from the current configured mode (`jdbc` <-> `memory`), startup fails fast unless `controlplane.triggers.persistence.allow-mode-switch=true` is set intentionally.
 - Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default), while `/runs/{jobExecutionId}/detail` remains log-projected.
@@ -20,6 +20,10 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 - Scheduler dedup now persists the last accepted due instant per schedule so duplicate ticks are suppressed across control-plane restarts.
 - Watermark advancement is claimed atomically per schedule due instant, reducing duplicate schedule ticks when multiple control-plane pollers overlap.
 - Scheduler missed-run behavior is now policy-driven with `controlplane.scheduler.missed-run-policy` (`SKIP` default, optional `CATCH_UP_ONCE` or `CATCH_UP_ALL`) plus `controlplane.scheduler.max-catch-up-iterations` safety bounds.
+- Scheduler overlap behavior is now policy-driven with `controlplane.scheduler.overlap-policy` (`ALLOW` default, optional `SERIALIZE`).
+- `GET /api/v1/system/info` now exposes scheduler governance defaults (`schedulerEnabled`, `schedulerMissedRunPolicy`, `schedulerOverlapPolicy`).
+- `GET /api/v1/schedules*` responses now expose persisted scheduler watermark state through `lastAcceptedDueAt` alongside computed `nextDueAt`.
+- `GET /api/v1/runs*` responses now expose additive F1 restart-contract evidence fields (`runMode`, `recoveryPolicy`) when present in `RUN_SUMMARY` projections.
 
 ## Scope
 
@@ -81,6 +85,7 @@ Suggested resource groups:
 ```text
 GET    /api/v1/jobs
 GET    /api/v1/jobs/{jobKey}
+GET    /api/v1/jobs/{jobKey}/config
 POST   /api/v1/jobs/{jobKey}:trigger-now
 GET    /api/v1/jobs/{jobKey}/trigger-events
 
@@ -176,6 +181,26 @@ Response body:
 }
 ```
 
+### `GET /api/v1/jobs/{jobKey}/config`
+
+Returns one read-only `job-config.yaml` payload for drill-down viewing.
+
+Response body:
+
+```json
+{
+  "jobKey": "customer-load",
+  "displayName": "Customer Load",
+  "jobConfigPath": "src/main/resources/config-jobs/customer-load/job-config.yaml",
+  "rawYaml": "name: customer-load\nsourceConfigPath: source-config.yaml\n..."
+}
+```
+
+Current behavior:
+
+- returns `404` when the `jobKey` is unknown
+- returns read-only raw YAML content; this endpoint does not mutate bundle files
+
 ### `POST /api/v1/jobs/{jobKey}:trigger-now`
 
 Requests an immediate run for an already-registered bundle.
@@ -247,6 +272,8 @@ Current query support:
 
 - `limit` (optional)
 - `job` (optional selected-job filter)
+- `runMode` (optional execution-mode filter, for example `explicit-job`)
+- `recoveryPolicy` (optional recovery-policy filter, for example `rerun-from-start`)
 - `startDate` (optional inclusive start date in `yyyy-MM-dd`)
 - `timezone` (optional IANA timezone used with `startDate`, defaults to server timezone)
 
@@ -258,6 +285,8 @@ Response body shape:
     {
       "scenario": "Customer Load",
       "jobExecutionId": 10421,
+      "runMode": "explicit-job",
+      "recoveryPolicy": "rerun-from-start",
       "status": "COMPLETED",
       "startTime": "2026-05-25T10:41:00",
       "endTime": "2026-05-25T10:42:00",
@@ -422,6 +451,11 @@ Returns schedule summaries for list and filtering.
 
 Returns one schedule detail.
 
+Current detail projection includes:
+
+- `lastAcceptedDueAt` (persisted watermark used for dedup and missed-run evaluation)
+- `nextDueAt` (computed preview based on expression/timezone/enabled/paused state)
+
 ### `POST /api/v1/schedules`
 
 Creates a schedule bound to one selected job bundle.
@@ -519,7 +553,10 @@ Suggested response:
 {
   "service": "spring-etl-engine-control-plane",
   "javaVersion": "21",
-  "profile": "controlplane"
+  "profile": "controlplane",
+  "schedulerEnabled": false,
+  "schedulerMissedRunPolicy": "SKIP",
+  "schedulerOverlapPolicy": "ALLOW"
 }
 ```
 

@@ -8,7 +8,7 @@ Define what restartable execution should mean for the selected-job runtime so re
 
 - Epic: **[Epic F](../../epics/etl-core/epic-f-restartability-and-recovery-semantics.md)**
 - Priority: **P1**
-- Status: **Deferred**
+- Status: **In Progress**
 - Milestone: **M2**
 - Dependency: **A1, C1**
 
@@ -40,6 +40,17 @@ Document explicit restart semantics per execution mode before adding restart fea
 
 Start with a design/documentation slice that clarifies restart boundaries before changing the active runtime behavior.
 
+### Phase-1 contract baseline (current)
+
+The first F1 slice is contract-first and evidence-first:
+
+- define one explicit restart matrix for current execution modes (`runMode`, `recoveryPolicy`)
+- keep shipped behavior on `rerun-from-start` semantics for selected-job runs
+- treat checkpoint resume semantics as future work gated by follow-on F1 slices
+- keep scheduler overlap/run-state governance aligned to this contract rather than introducing implicit retry/restart behavior
+
+This baseline intentionally does not add new restart execution behavior yet.
+
 ## Operator / runtime impact
 
 - operators gain clearer expectations for rerun vs restart
@@ -48,9 +59,9 @@ Start with a design/documentation slice that clarifies restart boundaries before
 
 ## Acceptance criteria
 
-- [ ] one explicit restart-semantics model exists for the main execution modes
-- [ ] required state/artifact/evidence expectations are documented
-- [ ] future restart implementation work can reference one stable contract
+- [x] one explicit restart-semantics model exists for the main execution modes
+- [x] required state/artifact/evidence expectations are documented
+- [x] future restart implementation work can reference one stable contract
 
 ## Related docs
 
@@ -63,7 +74,21 @@ Start with a design/documentation slice that clarifies restart boundaries before
 
 Keep the first slice design-oriented; the product needs explicit restart semantics before code-level restart features.
 
+Current shipped baseline: selected-job runs continue to favor deterministic `rerun-from-start` behavior, with run evidence carrying `runMode` and `recoveryPolicy` context.
+
 ## Status notes
 
-Deferred until orchestration, evidence, and retained-state direction are clearer.
+Phase-1 contract baseline started: restart expectations are now explicit and scoped to current runtime behavior, with code-level resume semantics deferred.
+
+Phase-1.3 guardrail started: descriptor assembly now fails fast when `resume-from-checkpoint` is selected, preserving the shipped `rerun-from-start` runtime boundary until checkpoint restart semantics are explicitly implemented.
+
+Phase-1.4 contract wiring started: selected `job-config.yaml` now carries optional `recoveryPolicy` into runtime descriptor/readiness metadata so operator evidence reflects authored intent while unsupported resume behavior remains fail-fast guarded.
+
+Preserved-bundle alignment continued: executable `config-jobs/*/job-config.yaml` examples now declare `recoveryPolicy: rerun-from-start` explicitly so shipped references match the active F1 baseline contract.
+
+Phase-1.5 operator filtering started: `/api/v1/runs` now accepts optional `runMode` and `recoveryPolicy` filters, and Operator Runs UI passes those filters through route state and API requests for evidence-focused run triage.
+
+Phase-1.3 guardrail coverage expanded: selected-run config metadata and runtime-descriptor assembly paths now have explicit fail-fast regression coverage for unsupported `resume-from-checkpoint`.
+
+Phase-1 contract ergonomics continued: selected `job-config.yaml` now accepts short `recoveryPolicy` aliases (`rerun`, `restart`) that normalize to canonical runtime evidence tokens while preserving the current fail-fast guardrail for unsupported checkpoint resume execution.
 

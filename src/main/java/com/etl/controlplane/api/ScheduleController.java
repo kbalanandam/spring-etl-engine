@@ -162,6 +162,7 @@ public class ScheduleController {
 				schedule.paused(),
 				schedule.description(),
 				schedule.updatedAt(),
+				schedule.lastAcceptedDueAt(),
 				nextDueAt
 		);
 	}

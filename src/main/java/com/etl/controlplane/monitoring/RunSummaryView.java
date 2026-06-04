@@ -15,7 +15,23 @@ public record RunSummaryView(
 		Long sourceCount,
 		Long writtenCount,
 		Long rejectedCount,
+		String runMode,
+		String recoveryPolicy,
 		String logPath
 ) {
+	public RunSummaryView(
+			String scenario,
+			Long jobExecutionId,
+			String status,
+			LocalDateTime startTime,
+			LocalDateTime endTime,
+			Long durationSeconds,
+			Long sourceCount,
+			Long writtenCount,
+			Long rejectedCount,
+			String logPath
+	) {
+		this(scenario, jobExecutionId, status, startTime, endTime, durationSeconds, sourceCount, writtenCount, rejectedCount, null, null, logPath);
+	}
 }
 

@@ -2,6 +2,7 @@ name: xml-to-json-events
 sourceConfigPath: source-config.yaml
 targetConfigPath: target-config.yaml
 processorConfigPath: processor-config.yaml
+recoveryPolicy: rerun-from-start
 steps:
   - name: events-xml-to-json-step
     source: Events

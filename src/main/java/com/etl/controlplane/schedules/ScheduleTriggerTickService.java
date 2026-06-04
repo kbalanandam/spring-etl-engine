@@ -31,6 +31,7 @@ public class ScheduleTriggerTickService {
 	private final String reason;
 	private final String requestedBy;
 	private final MissedRunPolicy missedRunPolicy;
+	private final OverlapPolicy overlapPolicy;
 	private final int maxCatchUpIterations;
 
 	public ScheduleTriggerTickService(
@@ -38,6 +39,7 @@ public class ScheduleTriggerTickService {
 			TriggerEventRegistry triggerEventRegistry,
 			@Value("${controlplane.scheduler.poll-interval-ms:30000}") long pollIntervalMs,
 			@Value("${controlplane.scheduler.missed-run-policy:SKIP}") String missedRunPolicy,
+			@Value("${controlplane.scheduler.overlap-policy:ALLOW}") String overlapPolicy,
 			@Value("${controlplane.scheduler.max-catch-up-iterations:2000}") int maxCatchUpIterations,
 			@Value("${controlplane.scheduler.trigger-reason:schedule_tick}") String reason,
 			@Value("${controlplane.scheduler.requested-by:scheduler}") String requestedBy) {
@@ -48,6 +50,7 @@ public class ScheduleTriggerTickService {
 				requestedBy,
 				Clock.systemUTC(),
 				MissedRunPolicy.from(missedRunPolicy),
+				OverlapPolicy.from(overlapPolicy),
 				Math.max(1, maxCatchUpIterations));
 	}
 
@@ -64,6 +67,7 @@ public class ScheduleTriggerTickService {
 				requestedBy,
 				clock,
 				MissedRunPolicy.SKIP,
+				OverlapPolicy.ALLOW,
 				2000);
 	}
 
@@ -75,6 +79,26 @@ public class ScheduleTriggerTickService {
 	                           Clock clock,
 	                           MissedRunPolicy missedRunPolicy,
 	                           int maxCatchUpIterations) {
+		this(scheduleService,
+				triggerEventRegistry,
+				pollIntervalMs,
+				reason,
+				requestedBy,
+				clock,
+				missedRunPolicy,
+				OverlapPolicy.ALLOW,
+				maxCatchUpIterations);
+	}
+
+	ScheduleTriggerTickService(ScheduleService scheduleService,
+	                           TriggerEventRegistry triggerEventRegistry,
+	                           long pollIntervalMs,
+	                           String reason,
+	                           String requestedBy,
+	                           Clock clock,
+	                           MissedRunPolicy missedRunPolicy,
+	                           OverlapPolicy overlapPolicy,
+	                           int maxCatchUpIterations) {
 		this.scheduleService = scheduleService;
 		this.triggerEventRegistry = triggerEventRegistry;
 		this.lookbackSeconds = Math.max(1L, (pollIntervalMs / 1000L) + 1L);
@@ -82,6 +106,7 @@ public class ScheduleTriggerTickService {
 		this.requestedBy = normalize(requestedBy);
 		this.clock = clock;
 		this.missedRunPolicy = missedRunPolicy == null ? MissedRunPolicy.SKIP : missedRunPolicy;
+		this.overlapPolicy = overlapPolicy == null ? OverlapPolicy.ALLOW : overlapPolicy;
 		this.maxCatchUpIterations = Math.max(1, maxCatchUpIterations);
 	}
 
@@ -121,7 +146,7 @@ public class ScheduleTriggerTickService {
 
 		ZonedDateTime now = nowUtc.withZoneSameInstant(zoneId);
 		Instant lastAccepted = schedule.lastAcceptedDueAt();
-		List<ZonedDateTime> dueAts = resolveDueAts(cron, now, lastAccepted, zoneId);
+		List<ZonedDateTime> dueAts = applyOverlapPolicy(resolveDueAts(cron, now, lastAccepted, zoneId));
 		if (dueAts.isEmpty()) {
 			return;
 		}
@@ -142,6 +167,17 @@ public class ScheduleTriggerTickService {
 					schedule.scheduleId(), schedule.selectedJobKey(), dueAt);
 			lastAccepted = dueInstant;
 		}
+	}
+
+	private List<ZonedDateTime> applyOverlapPolicy(List<ZonedDateTime> dueAts) {
+		if (dueAts == null || dueAts.isEmpty()) {
+			return List.of();
+		}
+		if (overlapPolicy != OverlapPolicy.SERIALIZE || dueAts.size() == 1) {
+			return dueAts;
+		}
+		// SERIALIZE mode intentionally drains backlog one due instant at a time.
+		return List.of(dueAts.get(0));
 	}
 
 	private List<ZonedDateTime> resolveDueAts(CronExpression cron,
@@ -240,6 +276,22 @@ public class ScheduleTriggerTickService {
 				return MissedRunPolicy.valueOf(raw.trim().toUpperCase());
 			} catch (IllegalArgumentException ex) {
 				return SKIP;
+			}
+		}
+	}
+
+	enum OverlapPolicy {
+		ALLOW,
+		SERIALIZE;
+
+		static OverlapPolicy from(String raw) {
+			if (raw == null || raw.isBlank()) {
+				return ALLOW;
+			}
+			try {
+				return OverlapPolicy.valueOf(raw.trim().toUpperCase());
+			} catch (IllegalArgumentException ex) {
+				return ALLOW;
 			}
 		}
 	}

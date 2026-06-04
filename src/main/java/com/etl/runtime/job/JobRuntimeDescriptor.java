@@ -39,6 +39,7 @@ public record JobRuntimeDescriptor(
 		mainFlowName = mainFlowName == null || mainFlowName.isBlank() ? defaultMainFlowName(scenarioName) : mainFlowName.trim();
 		subFlowName = subFlowName == null || subFlowName.isBlank() ? "default-subflow" : subFlowName.trim();
 		recoveryPolicy = recoveryPolicy == null ? JobRecoveryPolicy.RERUN_FROM_START : recoveryPolicy;
+		requireSupportedRecoveryPolicy(recoveryPolicy, scenarioName);
 		jobConfigPath = jobConfigPath == null ? "" : jobConfigPath.trim();
 		Objects.requireNonNull(runMode, "runMode must not be null.");
 		Objects.requireNonNull(configPaths, "configPaths must not be null.");
@@ -163,6 +164,18 @@ public record JobRuntimeDescriptor(
 		return scenarioName.endsWith("-flow") || scenarioName.endsWith("Flow")
 				? scenarioName
 				: scenarioName + "-main-flow";
+	}
+
+	private static void requireSupportedRecoveryPolicy(JobRecoveryPolicy recoveryPolicy, String scenarioName) {
+		if (recoveryPolicy == JobRecoveryPolicy.RESUME_FROM_CHECKPOINT) {
+			throw new IllegalArgumentException("Unsupported recovery policy '"
+					+ recoveryPolicy.logValue()
+					+ "' for selected scenario '"
+					+ scenarioName
+					+ "'. The shipped runtime currently supports only '"
+					+ JobRecoveryPolicy.RERUN_FROM_START.logValue()
+					+ "'.");
+		}
 	}
 
 	private static String requireNonBlank(String value, String field) {

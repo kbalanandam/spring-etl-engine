@@ -48,6 +48,7 @@ class ScheduleControllerTest {
 		mockMvc.perform(get("/api/v1/schedules"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items[0].scheduleId").value("sch-1"))
+				.andExpect(jsonPath("$.items[0].lastAcceptedDueAt").isEmpty())
 				.andExpect(jsonPath("$.items[0].nextDueAt").exists())
 				.andExpect(jsonPath("$.page").value(0))
 				.andExpect(jsonPath("$.size").value(25));
@@ -62,6 +63,7 @@ class ScheduleControllerTest {
 		mockMvc.perform(get("/api/v1/schedules/sch-1"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.scheduleKey").value("daily-customers"))
+				.andExpect(jsonPath("$.lastAcceptedDueAt").isEmpty())
 				.andExpect(jsonPath("$.nextDueAt").exists());
 	}
 

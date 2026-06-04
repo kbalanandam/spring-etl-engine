@@ -35,3 +35,5 @@ mvn --no-transfer-progress -DskipTests "-Dspring-boot.run.jvmArguments=-Detl.con
 
 This bundle intentionally omits authored `packageName` values. During explicit job runs, the runtime derives the generated model packages from `job-config.yaml -> name`, so generation and runtime stay aligned on the same selected scenario identity.
 
+The preserved `job-config.yaml` now also sets `recoveryPolicy: rerun-from-start` explicitly so run evidence reflects the shipped F1 baseline contract. Short aliases (`rerun`, `restart`) are accepted in authored YAML, but preserved bundles keep canonical tokens for executable-reference clarity.
+

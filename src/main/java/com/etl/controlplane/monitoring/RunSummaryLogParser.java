@@ -34,8 +34,17 @@ final class RunSummaryLogParser {
 				toLong(fields.get("sourceCount")),
 				toLong(fields.get("writtenCount")),
 				toLong(fields.get("rejectedCount")),
+				nullIfBlank(fields.get("runMode")),
+				nullIfBlank(fields.get("recoveryPolicy")),
 				logPath.toString()
 		));
+	}
+
+	private static String nullIfBlank(String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		return value;
 	}
 
 	private static String field(Map<String, String> fields, String key, String defaultValue) {

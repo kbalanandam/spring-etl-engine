@@ -13,6 +13,7 @@ public record ScheduleViewResponse(
 		boolean paused,
 		String description,
 		LocalDateTime updatedAt,
+		Instant lastAcceptedDueAt,
 		Instant nextDueAt
 ) {
 }
