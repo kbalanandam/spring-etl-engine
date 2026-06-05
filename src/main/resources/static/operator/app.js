@@ -1,6 +1,7 @@
 import { createRunLogViewer } from "./run-log-viewer.js";
 import { createJobsListUi } from "./jobs-list-ui.js";
 import { createRunsListUi } from "./runs-list-ui.js";
+import { createRunRecoveryPanel } from "./run-recovery-panel.js";
 
 const routes = {
   jobs: {
@@ -61,6 +62,10 @@ const viewState = {
 const runLogViewer = createRunLogViewer({
   valueOrDash,
   escapeHtml,
+});
+
+const runRecoveryPanel = createRunRecoveryPanel({
+  valueOrDash,
 });
 
 const jobsListUi = createJobsListUi({
@@ -620,6 +625,7 @@ async function loadRunDetail(routeState) {
     }
     const payload = await response.json();
     const run = payload.run || {};
+    const recovery = await fetchRunRecovery(runIdValue);
 
     const persistedStepRecords = await fetchPersistedRunStepRecords(runIdValue);
     const persistedArtifactRecords = await fetchPersistedRunArtifactRecords(runIdValue);
@@ -645,6 +651,7 @@ async function loadRunDetail(routeState) {
     renderRunFailureSummary(payload.failureSummary);
     renderRunArtifacts(artifactItems);
     renderRunEvidenceLinks(payload.evidenceLinks);
+    runRecoveryPanel.render(recovery);
     await runLogViewer.load(runIdValue);
 
     state.textContent = "Run detail loaded.";
@@ -653,6 +660,17 @@ async function loadRunDetail(routeState) {
     state.className = "state error";
     state.textContent = `Unable to load run detail: ${error.message}`;
   }
+}
+
+async function fetchRunRecovery(runIdValue) {
+  const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/recovery`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error(`Run recovery API returned ${response.status}`);
+  }
+  const payload = await response.json();
+  return payload.recovery || null;
 }
 
 async function fetchPersistedRunStepRecords(runIdValue) {

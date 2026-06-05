@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Operator UI - Monitoring First</title>
-  <link rel="stylesheet" href="/operator/styles.css?v=20260604-job-config-view">
+  <link rel="stylesheet" href="/operator/styles.css?v=20260605-run-recovery-panel">
 </head>
 <body>
 <header class="topbar">
@@ -177,6 +177,23 @@
       <p><strong>Counts (source/written/rejected):</strong> <span id="run-detail-counts"></span></p>
     </div>
 
+    <h3>Advisory recovery</h3>
+    <p class="hint">Diagnostic-only recovery lineage from <code>/api/v1/runs/{jobExecutionId}/recovery</code>. This does not enable checkpoint resume in the current shipped runtime.</p>
+    <div id="run-detail-recovery-state" class="state" hidden></div>
+    <div id="run-detail-recovery-box" class="detail-box" hidden>
+      <p><strong>Run record:</strong> <span id="run-detail-recovery-run-record-id"></span></p>
+      <p><strong>Attempt link:</strong> <span id="run-detail-recovery-attempt-link-id"></span></p>
+      <p><strong>Link kind:</strong> <span id="run-detail-recovery-link-kind"></span></p>
+      <p><strong>Prior run record:</strong> <span id="run-detail-recovery-prior-run-record-id"></span></p>
+      <p><strong>Prior job execution:</strong> <span id="run-detail-recovery-prior-job-execution-id"></span></p>
+      <p><strong>Resume supported:</strong> <span id="run-detail-recovery-resume-supported"></span></p>
+      <p><strong>Blocked reason:</strong> <span id="run-detail-recovery-blocked-reason"></span></p>
+
+      <h4 class="detail-subheading">Checkpoint anchors</h4>
+      <ul id="run-detail-recovery-anchors-list" class="detail-list" hidden></ul>
+      <div id="run-detail-recovery-anchors-empty" class="state" hidden>No advisory checkpoint anchors available.</div>
+    </div>
+
     <h3>Steps</h3>
     <div id="run-detail-steps-empty" class="state" hidden>No step records available.</div>
     <table id="run-detail-steps-table" hidden>
@@ -238,6 +255,6 @@
   <p class="footnote-meta">&copy; 2026 OneFlow contributors. All rights reserved.</p>
 </footer>
 
-<script type="module" src="/operator/app.js?v=20260604-job-config-view"></script>
+<script type="module" src="/operator/app.js?v=20260605-run-recovery-panel"></script>
 </body>
 </html>

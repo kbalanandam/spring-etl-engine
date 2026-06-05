@@ -323,6 +323,12 @@ th {
   font-size: 14px;
 }
 
+.detail-subheading {
+  margin: 12px 0 8px;
+  font-size: 13px;
+  color: #0f172a;
+}
+
 .detail-box {
   border: 1px solid #cbd5e1;
   border-radius: 6px;
