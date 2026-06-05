@@ -1,7 +1,8 @@
 # ADR-0014: freeze JPA/Hibernate control-plane persistence boundary
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-06-04
+- Accepted: 2026-06-05
 
 ## Context
 
@@ -23,6 +24,13 @@ Adopt a boundary-first approach for Epic R and require portability implementatio
 3. Preserve public read-model behavior for run summary, recovery, step records, and artifact records while persistence internals evolve.
 4. Move toward JPA/Hibernate-backed persistence for retained control-plane history, with deploy-time datasource/dialect selection.
 5. Treat schema evolution as migration-governed, portable-first, and explicit about vendor-specific deltas.
+
+## Boundary invariants
+
+- `etl.config.job` selected-job execution semantics remain unchanged for ETL worker launches.
+- Control-plane persistence remains optional; direct ETL execution stays valid without a configured control-plane datasource.
+- Public run read-model semantics remain stable for run summary, advisory recovery, step records, and artifact records.
+- Portability work is delivered in phased slices (`R2`-`R5`) behind this boundary and must not bypass it.
 
 ## Consequences
 

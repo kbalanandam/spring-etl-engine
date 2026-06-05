@@ -16,6 +16,7 @@ Use it when you want to understand:
 ## Current anchor notes
 
 - [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md) - mandatory worker versus optional control-plane boundary
+- [`control-plane-persistence-boundary-contract.md`](control-plane-persistence-boundary-contract.md) - Epic R boundary contract for optional persistence portability work
 - [`control-plane-operational-data-model.md`](control-plane-operational-data-model.md) - retained conceptual model for trigger, run, step, and artifact history
 - [`control-plane-local-relational-schema.md`](control-plane-local-relational-schema.md) - SQLite-first local persistence direction
 - [`./scheduler-architecture-direction.md`](./scheduler-architecture-direction.md) - first scheduler-specific design direction under the control-plane layer

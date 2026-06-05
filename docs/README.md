@@ -161,6 +161,7 @@ These scaffolds are additive. Existing files stay in current paths for compatibi
 ### Configuration references
 - [`config/README.md`](config/README.md) - config documentation strategy, support matrix, and scenario usage
 - [`config/job-config.md`](config/job-config.md) - selected-job entry contract and ordered `steps` orchestration
+- [`config/control-plane-persistence-profiles.md`](config/control-plane-persistence-profiles.md) - deploy-time control-plane persistence mode, datasource, and dialect contract for Epic R `R2`
 - [`config/source/csv-source.md`](config/source/csv-source.md) - CSV source fields supported today
 - [`config/source/xml-source.md`](config/source/xml-source.md) - XML source fields supported today
 - [`config/source/relational-source.md`](config/source/relational-source.md) - relational source fields and current phase-1 limitations

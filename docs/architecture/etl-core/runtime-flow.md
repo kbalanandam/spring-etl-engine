@@ -313,6 +313,20 @@ The current F1 baseline keeps restart behavior explicit and conservative for shi
 | `explicit-job` | `rerun-from-start` | Full selected-job rerun from the beginning of the ordered step plan |
 | `demo-fallback` | `rerun-from-start` | Full rerun from start for local/demo compatibility runs |
 
+Interpret these fields conservatively:
+
+- `runMode` is resolved observability metadata about how the runtime contract was selected, not a restart strategy switch.
+- `recoveryPolicy` is authored/defaulted restart intent evidence, not proof that checkpoint resume is executable.
+
+Current resume-eligibility matrix:
+
+| Resolved `runMode` | Authored/defaulted `recoveryPolicy` | Current shipped outcome | Resume eligibility now |
+| --- | --- | --- | --- |
+| `explicit-job` | `rerun-from-start` | allowed, full rerun from the beginning of the selected ordered plan | ineligible for checkpoint resume |
+| `explicit-job` | `resume-from-checkpoint` (or alias `restart`) | fail fast as unsupported before execution starts | ineligible |
+| `demo-fallback` | `rerun-from-start` | allowed, full rerun from the beginning for local/demo compatibility runs | ineligible for checkpoint resume |
+| `demo-fallback` | `resume-from-checkpoint` | no shipped execution lane beyond rerun-only behavior | ineligible |
+
 Current guardrails:
 
 - `runMode` and `recoveryPolicy` are treated as explicit runtime evidence, not hidden defaults
@@ -323,14 +337,32 @@ Current guardrails:
 Current advisory recovery semantics:
 
 - `/api/v1/runs/{jobExecutionId}/recovery` is evidence-first and advisory-only in the current shipped runtime
-- retained `attempt_link` and `checkpoint_anchor` rows support operator diagnosis but do not enable checkpoint-resume execution
+- retained `attempt_link` rows explain stored run lineage when available; they do not imply executable resume eligibility
+- retained `checkpoint_anchor` rows identify recovery-oriented evidence anchors (for example `RUN_LOG`) when available; they do not represent a shipped resumable checkpoint contract
 - `resumeSupported` remains `false` while checkpoint-resume execution is not shipped
+- `resumeBlockedReason` is intentionally explicit and operator-facing: `resume-from-checkpoint is not supported in the current shipped runtime; rerun-from-start remains the active execution boundary.`
+- when no retained recovery row exists but the run exists, the endpoint still returns a deterministic advisory payload with `runRecordId=rr-<jobExecutionId>`, null attempt-lineage fields, and either one fallback `RUN_LOG` anchor (when `RUN_SUMMARY.logPath` is available) or an empty `checkpointAnchors` list
 
 Follow-on F1 gates before any resume-execution proposal:
 
 1. freeze resume-eligibility rules per execution mode
 2. freeze idempotent rerun boundary by target behavior
 3. prove portability-safe evidence parity for recovery fields across run-summary and control-plane views
+4. replace the current fail-fast guardrail for `resume-from-checkpoint` with an explicitly shipped runtime path and release-gate evidence
+
+Current rerun boundary by target pattern:
+
+| Target pattern | Current shipped rerun boundary | Why it is classified this way |
+| --- | --- | --- |
+| File target only (`csv` / `json` / `xml`) | conditionally rerun-safe | staged `.part` publication means final file promotion happens only after successful step completion, but path overwrite/versioning policy is still scenario-owned rather than globally guaranteed by F1 |
+| Relational target (`format: relational`, insert-first baseline) | not assumed idempotent by default | repeated reruns can duplicate writes unless a later target-specific contract adds protections beyond the current shipped insert-oriented baseline |
+| Mixed handoff (intermediate artifact between ordered steps) | rerun-safe only at whole-scenario scope | the shipped runtime reruns the full selected ordered plan from the beginning; it does not resume from a downstream handoff or intermediate artifact |
+
+Use this matrix conservatively:
+
+- reject/archive evidence improves diagnosis, not idempotency by itself
+- handoff artifacts remain reproducible flow outputs and diagnostics, not resumable checkpoints
+- scheduler/control-plane follow-on work must continue to treat rerun-from-start as the active boundary until later target-specific guarantees are explicitly shipped
 
 ### 1. Config resolution
 `ConfigLoader` resolves configuration in this order:

@@ -244,7 +244,7 @@ It should preserve concepts such as:
 
 This note keeps `CheckpointAnchor` conceptual on purpose. It is an anchor for future restartability design, not a claim that restart/resume is already solved generically.
 
-Current shipped API semantics stay aligned to that boundary: recovery lineage may be exposed for operator diagnosis, but checkpoint-resume execution is still unsupported and reported as advisory (`resumeSupported=false`).
+Current shipped API semantics stay aligned to that boundary: recovery lineage may be exposed for operator diagnosis, but checkpoint-resume execution is still unsupported and reported as advisory (`resumeSupported=false`). Future scheduler/control-plane recovery workflows remain downstream of Epic F rerun-boundary classifications and must not imply that relational or mixed-handoff targets are already resumable or idempotent.
 
 ## Decisions
 
