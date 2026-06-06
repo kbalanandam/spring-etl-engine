@@ -3,6 +3,12 @@ import { createJobsListUi } from "./jobs-list-ui.js";
 import { createRunsListUi } from "./runs-list-ui.js";
 import { createRunRecoveryPanel } from "./run-recovery-panel.js";
 import { coalesceRunSteps } from "./run-step-dedupe.js";
+import {
+  buildJobConfigDocuments,
+  buildMissingCompanionWarning,
+  normalizeDocumentKey,
+  pickJobConfigDocument,
+} from "./job-config-files.js";
 
 const routes = {
   jobs: {
@@ -335,6 +341,9 @@ async function loadJobDetailPlaceholder(routeState) {
 async function loadJobConfig(routeState) {
   const state = document.getElementById("job-config-state");
   const summary = document.getElementById("job-config-summary");
+  const fileState = document.getElementById("job-config-file-state");
+  const fileLinks = document.getElementById("job-config-file-links");
+  const selectedFile = document.getElementById("job-config-selected-file");
   const raw = document.getElementById("job-config-raw");
   const backLink = document.getElementById("job-config-back-link");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
@@ -342,6 +351,19 @@ async function loadJobConfig(routeState) {
 
   state.className = "state";
   summary.hidden = true;
+  if (fileState) {
+    fileState.hidden = true;
+    fileState.className = "state";
+    fileState.textContent = "";
+  }
+  if (fileLinks) {
+    fileLinks.hidden = true;
+    fileLinks.innerHTML = "";
+  }
+  if (selectedFile) {
+    selectedFile.hidden = true;
+    selectedFile.textContent = "";
+  }
   raw.hidden = true;
   raw.textContent = "";
   if (backLink) {
@@ -367,7 +389,7 @@ async function loadJobConfig(routeState) {
     document.getElementById("job-config-key").textContent = payload.jobKey || jobKeyValue;
     document.getElementById("job-config-name").textContent = payload.displayName || "-";
     document.getElementById("job-config-path").textContent = payload.jobConfigPath || "-";
-    raw.textContent = payload.rawYaml || "";
+    renderJobConfigFileNavigator(payload, routeState);
     if (backLink) {
       backLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}${jobsRouteQuerySuffix}`);
     }
@@ -378,6 +400,93 @@ async function loadJobConfig(routeState) {
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load job config: ${error.message}`;
+  }
+}
+
+function renderJobConfigFileNavigator(payload, routeState) {
+  const fileState = document.getElementById("job-config-file-state");
+  const fileLinks = document.getElementById("job-config-file-links");
+  const selectedFile = document.getElementById("job-config-selected-file");
+  const raw = document.getElementById("job-config-raw");
+  if (!fileState || !fileLinks || !selectedFile || !raw) {
+    return;
+  }
+
+  const { documents: docs, missingCompanionDocuments: missingCompanionDocs } = buildJobConfigDocuments(payload);
+  const requestedFileKey = normalizeDocumentKey(routeState?.query?.file);
+  const selectedDocument = pickJobConfigDocument(docs, requestedFileKey);
+
+  fileState.hidden = true;
+  fileState.className = "state";
+  fileState.textContent = "";
+
+  const buttons = [];
+  const renderDocument = (doc) => {
+    buttons.forEach((button) => button.classList.toggle("active", button.dataset.docKey === doc.key));
+    selectedFile.textContent = `${doc.label} | ${doc.path}`;
+    selectedFile.hidden = false;
+    if (String(doc.content || "").trim() === "") {
+      raw.textContent = `No read-only payload was returned for ${doc.label}.`;
+    } else {
+      raw.textContent = doc.content;
+    }
+    const warningMessage = buildMissingCompanionWarning(doc, missingCompanionDocs);
+    if (warningMessage) {
+      fileState.hidden = false;
+      fileState.textContent = warningMessage;
+    } else {
+      fileState.hidden = true;
+      fileState.textContent = "";
+    }
+    raw.hidden = false;
+    syncJobConfigFileRouteSelection(routeState?.jobKey, routeState?.query, doc.key);
+  };
+
+  fileLinks.innerHTML = "";
+  docs.forEach((doc) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "job-config-file-btn";
+    button.dataset.docKey = doc.key;
+    button.textContent = doc.label;
+    button.title = doc.path;
+    button.addEventListener("click", () => renderDocument(doc));
+    fileLinks.appendChild(button);
+    buttons.push(button);
+  });
+
+  fileLinks.hidden = false;
+  if (selectedDocument) {
+    renderDocument(selectedDocument);
+  }
+}
+
+function syncJobConfigFileRouteSelection(jobKey, currentQuery, selectedFileKey) {
+  const normalizedJobKey = String(jobKey || "").trim();
+  if (normalizedJobKey === "") {
+    return;
+  }
+
+  const params = new URLSearchParams();
+  Object.entries(currentQuery || {}).forEach(([key, value]) => {
+    if (key === "file") {
+      return;
+    }
+    if (value !== null && value !== undefined && String(value) !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  const normalizedFileKey = normalizeDocumentKey(selectedFileKey);
+  if (normalizedFileKey !== "job") {
+    params.set("file", normalizedFileKey);
+  }
+
+  const nextHash = params.toString()
+    ? `#/jobs/${encodeURIComponent(normalizedJobKey)}/config?${params.toString()}`
+    : `#/jobs/${encodeURIComponent(normalizedJobKey)}/config`;
+  if (location.hash !== nextHash) {
+    location.hash = nextHash;
   }
 }
 

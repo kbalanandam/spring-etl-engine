@@ -11,6 +11,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JobBundleReadModelServiceTest {
@@ -67,6 +68,37 @@ class JobBundleReadModelServiceTest {
 		JobBundleReadModelService service = new JobBundleReadModelService(tempDir, new ObjectMapper(new YAMLFactory()));
 		assertTrue(service.findBundle("CUSTOMER-LOAD").isPresent());
 		assertEquals("Customer Load", service.findBundle("customer-load").orElseThrow().displayName());
+	}
+
+	@Test
+	void findBundleConfigIncludesCompanionYamlPayloads() throws IOException {
+		Path bundleDir = tempDir.resolve("csv-to-nested-xml");
+		writeJobConfig(bundleDir.resolve("job-config.yaml"), """
+				name: csv-to-nested-xml
+				sourceConfigPath: source-config.yaml
+				targetConfigPath: target-config.yaml
+				processorConfigPath: processor-config.yaml
+				steps:
+				  - name: customers-step
+				    source: CustomersCsv
+				    target: CustomersNestedXml
+				""");
+		Files.writeString(bundleDir.resolve("source-config.yaml"), "sources:\n  - sourceName: CustomersCsv\n");
+		Files.writeString(bundleDir.resolve("target-config.yaml"), "targets:\n  - targetName: CustomersNestedXml\n");
+		Files.writeString(bundleDir.resolve("processor-config.yaml"), "mappings:\n  - source: CustomersCsv\n    target: CustomersNestedXml\n");
+
+		JobBundleReadModelService service = new JobBundleReadModelService(tempDir, new ObjectMapper(new YAMLFactory()));
+		JobBundleConfigView config = service.findBundleConfig("csv-to-nested-xml").orElseThrow();
+
+		assertNotNull(config.sourceConfigPath());
+		assertNotNull(config.targetConfigPath());
+		assertNotNull(config.processorConfigPath());
+		assertTrue(config.sourceConfigPath().endsWith("source-config.yaml"));
+		assertTrue(config.targetConfigPath().endsWith("target-config.yaml"));
+		assertTrue(config.processorConfigPath().endsWith("processor-config.yaml"));
+		assertTrue(config.sourceRawYaml().contains("CustomersCsv"));
+		assertTrue(config.targetRawYaml().contains("CustomersNestedXml"));
+		assertTrue(config.processorRawYaml().contains("mappings"));
 	}
 
 	private void writeJobConfig(Path path, String content) throws IOException {

@@ -10,26 +10,24 @@ import org.springframework.web.bind.annotation.PathVariable;
 @Controller
 public class OperatorUiController {
 
-      private static final String UI_VERSION = "20260606-jobs-step-no-heading";
-
     @GetMapping({"/operator", "/operator/"})
     public String operatorHome() {
-        return "redirect:/operator/index.html?v=" + UI_VERSION;
+        return "redirect:/operator/index.html";
     }
 
     @GetMapping("/operator/runs/{jobExecutionId}")
     public String runDetailPlaceholder(@PathVariable long jobExecutionId) {
-        return "redirect:/operator/index.html?v=" + UI_VERSION + "#/runs/" + jobExecutionId;
+        return "redirect:/operator/index.html#/runs/" + jobExecutionId;
     }
 
     @GetMapping("/operator/jobs/{jobKey}")
     public String jobDetailPlaceholder(@PathVariable String jobKey) {
-        return "redirect:/operator/index.html?v=" + UI_VERSION + "#/jobs/" + jobKey;
+        return "redirect:/operator/index.html#/jobs/" + jobKey;
     }
 
       @GetMapping("/operator/jobs/{jobKey}/config")
       public String jobConfigPlaceholder(@PathVariable String jobKey) {
-        return "redirect:/operator/index.html?v=" + UI_VERSION + "#/jobs/" + jobKey + "/config";
+        return "redirect:/operator/index.html#/jobs/" + jobKey + "/config";
       }
 }
 

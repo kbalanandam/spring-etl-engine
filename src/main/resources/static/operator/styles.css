@@ -168,11 +168,6 @@ body {
   padding: 8px 12px;
 }
 
-.jobs-step-preview-title {
-  font-weight: 600;
-  color: #0f172a;
-  margin-bottom: 4px;
-}
 
 .jobs-step-preview-list {
   margin: 0 0 0 16px;
@@ -399,6 +394,39 @@ th {
   white-space: pre;
   font-family: Consolas, "Courier New", monospace;
   font-size: 11px;
+}
+
+.job-config-file-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.job-config-file-btn {
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.job-config-file-btn:hover {
+  background: #eff6ff;
+}
+
+.job-config-file-btn.active {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.job-config-selected-file {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #334155;
 }
 
 #view-run-detail h3 {

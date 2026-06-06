@@ -229,7 +229,7 @@ export function createJobsListUi(options) {
       return '<div class="jobs-step-preview-state">No steps declared in job config.</div>';
     }
     const items = info.steps.map((stepName) => `<li>${escapeHtml(stepName)}</li>`).join("");
-    return `<div class="jobs-step-preview-title">Steps</div><ol class="jobs-step-preview-list">${items}</ol>`;
+    return `<ol class="jobs-step-preview-list">${items}</ol>`;
   }
 
   async function toggleJobSteps(jobKey) {

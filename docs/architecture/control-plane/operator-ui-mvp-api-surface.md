@@ -186,7 +186,7 @@ Response body:
 
 ### `GET /api/v1/jobs/{jobKey}/config`
 
-Returns one read-only `job-config.yaml` payload for drill-down viewing.
+Returns one read-only bundle config payload for drill-down viewing.
 
 Response body:
 
@@ -195,14 +195,21 @@ Response body:
   "jobKey": "customer-load",
   "displayName": "Customer Load",
   "jobConfigPath": "src/main/resources/config-jobs/customer-load/job-config.yaml",
-  "rawYaml": "name: customer-load\nsourceConfigPath: source-config.yaml\n..."
+  "rawYaml": "name: customer-load\nsourceConfigPath: source-config.yaml\n...",
+  "sourceConfigPath": "src/main/resources/config-jobs/customer-load/source-config.yaml",
+  "sourceRawYaml": "sources:\n  - sourceName: Customers\n    filePath: input/customers.csv\n...",
+  "targetConfigPath": "src/main/resources/config-jobs/customer-load/target-config.yaml",
+  "targetRawYaml": "targets:\n  - targetName: Customers\n    filePath: output/customers.xml\n...",
+  "processorConfigPath": "src/main/resources/config-jobs/customer-load/processor-config.yaml",
+  "processorRawYaml": "mappings:\n  - source: Customers\n    target: Customers\n..."
 }
 ```
 
 Current behavior:
 
 - returns `404` when the `jobKey` is unknown
-- returns read-only raw YAML content; this endpoint does not mutate bundle files
+- returns read-only YAML content only; this endpoint does not mutate bundle files
+- companion config payload fields are best-effort (`null` when a configured file path is missing or unreadable)
 
 ### `POST /api/v1/jobs/{jobKey}:trigger-now`
 

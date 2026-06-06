@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Operator UI - Monitoring First</title>
-  <link rel="stylesheet" href="/operator/styles.css?v=20260606-jobs-step-no-heading">
+  <link rel="stylesheet" href="/operator/styles.css">
 </head>
 <body>
 <header class="topbar">
@@ -94,6 +94,11 @@
       <p><strong>Display name:</strong> <span id="job-config-name"></span></p>
       <p><strong>Config path:</strong> <span id="job-config-path"></span></p>
     </div>
+    <h3>Read-only config files</h3>
+    <p class="hint">Starts with <code>job-config.yaml</code>. Click each file to inspect raw YAML without editing.</p>
+    <div id="job-config-file-state" class="state" hidden></div>
+    <div id="job-config-file-links" class="job-config-file-links" hidden></div>
+    <p id="job-config-selected-file" class="job-config-selected-file" hidden></p>
     <pre id="job-config-raw" class="detail-box" hidden></pre>
     <p><a id="job-config-back-link" href="#/jobs">Back</a></p>
   </section>
@@ -206,7 +211,6 @@
       <div id="run-detail-recovery-anchors-empty" class="state" hidden>No advisory checkpoint anchors available.</div>
     </div>
 
-    <h3>Steps</h3>
     <div id="run-detail-steps-empty" class="state" hidden>No step records available.</div>
     <table id="run-detail-steps-table" hidden>
       <thead>
@@ -267,6 +271,6 @@
   <p class="footnote-meta">&copy; 2026 OneFlow contributors. All rights reserved.</p>
 </footer>
 
-<script type="module" src="/operator/app.js?v=20260606-jobs-step-no-heading"></script>
+<script type="module" src="/operator/app.js"></script>
 </body>
 </html>

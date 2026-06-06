@@ -56,7 +56,13 @@ public class JobBundleController {
 						config.jobKey(),
 						config.displayName(),
 						config.jobConfigPath(),
-						config.rawYaml()
+						config.rawYaml(),
+						config.sourceConfigPath(),
+						config.sourceRawYaml(),
+						config.targetConfigPath(),
+						config.targetRawYaml(),
+						config.processorConfigPath(),
+						config.processorRawYaml()
 				)))
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}

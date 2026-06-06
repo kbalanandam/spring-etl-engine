@@ -108,7 +108,13 @@ class JobBundleControllerTest {
 						"customer-load",
 						"Customer Load",
 						"src/main/resources/config-jobs/customer-load/job-config.yaml",
-						"name: customer-load\nsteps:\n  - name: customers-step\n"
+						"name: customer-load\nsteps:\n  - name: customers-step\n",
+						"src/main/resources/config-jobs/customer-load/source-config.yaml",
+						"sources:\n  - sourceName: Customers\n",
+						"src/main/resources/config-jobs/customer-load/target-config.yaml",
+						"targets:\n  - targetName: Customers\n",
+						"src/main/resources/config-jobs/customer-load/processor-config.yaml",
+						"mappings:\n  - source: Customers\n    target: Customers\n"
 				)
 		));
 
@@ -116,7 +122,10 @@ class JobBundleControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.jobKey").value("customer-load"))
 				.andExpect(jsonPath("$.jobConfigPath").value("src/main/resources/config-jobs/customer-load/job-config.yaml"))
-				.andExpect(jsonPath("$.rawYaml").value("name: customer-load\nsteps:\n  - name: customers-step\n"));
+				.andExpect(jsonPath("$.rawYaml").value("name: customer-load\nsteps:\n  - name: customers-step\n"))
+				.andExpect(jsonPath("$.sourceConfigPath").value("src/main/resources/config-jobs/customer-load/source-config.yaml"))
+				.andExpect(jsonPath("$.targetConfigPath").value("src/main/resources/config-jobs/customer-load/target-config.yaml"))
+				.andExpect(jsonPath("$.processorConfigPath").value("src/main/resources/config-jobs/customer-load/processor-config.yaml"));
 
 		verify(jobBundleReadModelService).findBundleConfig(eq("customer-load"));
 	}

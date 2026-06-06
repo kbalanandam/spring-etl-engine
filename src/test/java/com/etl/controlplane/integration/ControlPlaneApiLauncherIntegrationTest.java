@@ -125,6 +125,16 @@ class ControlPlaneApiLauncherIntegrationTest {
 				.andExpect(jsonPath("$.totalItems").value(1))
 				.andExpect(jsonPath("$.items[0].jobKey").value("customer-load"));
 
+		mockMvc.perform(get("/api/v1/jobs/customer-load/config"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.jobKey").value("customer-load"))
+				.andExpect(jsonPath("$.sourceConfigPath").value(JOBS_ROOT.resolve("customer-load/source-config.yaml").toString()))
+				.andExpect(jsonPath("$.targetConfigPath").value(JOBS_ROOT.resolve("customer-load/target-config.yaml").toString()))
+				.andExpect(jsonPath("$.processorConfigPath").value(JOBS_ROOT.resolve("customer-load/processor-config.yaml").toString()))
+				.andExpect(jsonPath("$.sourceRawYaml").isNotEmpty())
+				.andExpect(jsonPath("$.targetRawYaml").isNotEmpty())
+				.andExpect(jsonPath("$.processorRawYaml").isNotEmpty());
+
 		mockMvc.perform(post("/api/v1/jobs/customer-load:trigger-now")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"reason\":\"manual_operator_request\",\"requestedBy\":\"integration-test\"}"))
@@ -213,7 +223,7 @@ class ControlPlaneApiLauncherIntegrationTest {
 
 		mockMvc.perform(get("/operator"))
 				.andExpect(status().is3xxRedirection())
-				.andExpect(result -> assertTrue(result.getResponse().getRedirectedUrl().startsWith("/operator/index.html?v=")));
+				.andExpect(result -> assertEquals("/operator/index.html", result.getResponse().getRedirectedUrl()));
 	}
 
 	private String readScheduleId(MvcResult result) throws IOException {
@@ -227,10 +237,34 @@ class ControlPlaneApiLauncherIntegrationTest {
 		Files.createDirectories(bundleDir);
 		Files.write(bundleDir.resolve("job-config.yaml"), List.of(
 				"name: Customer Load",
+				"sourceConfigPath: source-config.yaml",
+				"targetConfigPath: target-config.yaml",
+				"processorConfigPath: processor-config.yaml",
 				"steps:",
 				"  - name: load-customers",
 				"    source: customer-source",
 				"    target: customer-target"
+		));
+		Files.write(bundleDir.resolve("source-config.yaml"), List.of(
+				"sources:",
+				"  - sourceName: customer-source",
+				"    format: csv",
+				"    filePath: input/customers.csv"
+		));
+		Files.write(bundleDir.resolve("target-config.yaml"), List.of(
+				"targets:",
+				"  - targetName: customer-target",
+				"    format: xml",
+				"    filePath: output/customers.xml"
+		));
+		Files.write(bundleDir.resolve("processor-config.yaml"), List.of(
+				"type: default",
+				"mappings:",
+				"  - source: customer-source",
+				"    target: customer-target",
+				"    fields:",
+				"      - from: id",
+				"        to: id"
 		));
 	}
 

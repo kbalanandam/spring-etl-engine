@@ -7,7 +7,13 @@ public record JobBundleConfigResponse(
         String jobKey,
         String displayName,
         String jobConfigPath,
-        String rawYaml
+        String rawYaml,
+        String sourceConfigPath,
+        String sourceRawYaml,
+        String targetConfigPath,
+        String targetRawYaml,
+        String processorConfigPath,
+        String processorRawYaml
 ) {
 }
 
