@@ -127,6 +127,58 @@ body {
   white-space: nowrap;
 }
 
+.jobs-step-toggle-cell {
+  width: 90px;
+  text-align: center;
+}
+
+.jobs-step-toggle-btn {
+  min-width: 28px;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.jobs-step-toggle-btn:hover {
+  background: #eff6ff;
+}
+
+.jobs-step-detail-row {
+  background: #f8fafc;
+}
+
+.jobs-step-detail-cell {
+  padding: 8px 12px;
+}
+
+.jobs-step-preview-title {
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.jobs-step-preview-list {
+  margin: 0 0 0 16px;
+  padding: 0;
+}
+
+.jobs-step-preview-list li {
+  margin: 2px 0;
+}
+
+.jobs-step-preview-state {
+  color: #475569;
+}
+
+.jobs-step-preview-state.error {
+  color: #b91c1c;
+}
+
 .runs-controls {
   align-items: flex-start;
   gap: 10px 12px;

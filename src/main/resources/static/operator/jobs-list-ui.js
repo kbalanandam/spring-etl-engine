@@ -4,6 +4,9 @@ export function createJobsListUi(options) {
   const getState = options.getState;
   const syncRouteHash = options.syncRouteHash;
   const escapeHtml = options.escapeHtml;
+  const loadJobStepNames = typeof options.loadJobStepNames === "function"
+    ? options.loadJobStepNames
+    : async () => [];
   const getRouteSuffix = typeof options.getRouteSuffix === "function"
     ? options.getRouteSuffix
     : () => "";
@@ -23,6 +26,7 @@ export function createJobsListUi(options) {
       const state = getState();
       state.filterText = event.target.value || "";
       state.page = 1;
+      state.expandedJobKey = "";
       syncRouteHash("jobs");
       renderTable();
     });
@@ -31,6 +35,7 @@ export function createJobsListUi(options) {
       const state = getState();
       state.sortKey = event.target.value;
       state.page = 1;
+      state.expandedJobKey = "";
       syncRouteHash("jobs");
       renderTable();
     });
@@ -39,6 +44,7 @@ export function createJobsListUi(options) {
       const state = getState();
       state.sortDirection = toggleDirection(state.sortDirection);
       state.page = 1;
+      state.expandedJobKey = "";
       jobsDirection.textContent = labelDirection(state.sortDirection);
       syncRouteHash("jobs");
       renderTable();
@@ -49,6 +55,7 @@ export function createJobsListUi(options) {
       const nextPageSize = Number(event.target.value);
       state.pageSize = Number.isFinite(nextPageSize) && nextPageSize > 0 ? nextPageSize : state.pageSize;
       state.page = 1;
+      state.expandedJobKey = "";
       syncRouteHash("jobs");
       renderTable();
     });
@@ -59,6 +66,7 @@ export function createJobsListUi(options) {
         return;
       }
       state.page -= 1;
+      state.expandedJobKey = "";
       syncRouteHash("jobs");
       renderTable();
     });
@@ -66,6 +74,7 @@ export function createJobsListUi(options) {
     jobsNext.addEventListener("click", () => {
       const state = getState();
       state.page += 1;
+      state.expandedJobKey = "";
       syncRouteHash("jobs");
       renderTable();
     });
@@ -78,6 +87,7 @@ export function createJobsListUi(options) {
     state.sortDirection = routeState.sortDirection || "asc";
     state.page = routeState.page || 1;
     state.pageSize = routeState.pageSize || state.pageSize || 10;
+    state.expandedJobKey = "";
 
     const filter = document.getElementById("jobs-filter-input");
     const sort = document.getElementById("jobs-sort-select");
@@ -110,6 +120,9 @@ export function createJobsListUi(options) {
     }
 
     const state = getState();
+    if (!state.jobStepPreviewByJobKey || typeof state.jobStepPreviewByJobKey !== "object") {
+      state.jobStepPreviewByJobKey = {};
+    }
     const filtered = state.items.filter((job) => {
       const haystack = `${job.jobKey || ""} ${job.displayName || ""} ${job.readinessStatus || ""}`.toLowerCase();
       return haystack.includes(state.filterText.trim().toLowerCase());
@@ -135,16 +148,54 @@ export function createJobsListUi(options) {
     }
 
     visible.forEach((job) => {
+      const jobKey = String(job.jobKey || "").trim();
       const row = document.createElement("tr");
-      const jobKey = job.jobKey;
       const jobKeyCell = jobKey
         ? `<a href="#/jobs/${encodeURIComponent(jobKey)}${routeSuffix}">${escapeHtml(jobKey)}</a>`
         : "-";
-      row.innerHTML = `
-        <td>${jobKeyCell}</td>
-        <td>${escapeHtml(job.displayName || "-")}</td>
-        <td>${escapeHtml(job.readinessStatus || "-")}</td>`;
+
+      const keyCell = document.createElement("td");
+      keyCell.innerHTML = jobKeyCell;
+      row.appendChild(keyCell);
+
+      const displayNameCell = document.createElement("td");
+      displayNameCell.textContent = job.displayName || "-";
+      row.appendChild(displayNameCell);
+
+      const readinessCell = document.createElement("td");
+      readinessCell.textContent = job.readinessStatus || "-";
+      row.appendChild(readinessCell);
+
+      const toggleCell = document.createElement("td");
+      toggleCell.className = "jobs-step-toggle-cell";
+      if (!jobKey) {
+        toggleCell.textContent = "-";
+      } else {
+        const toggleButton = document.createElement("button");
+        toggleButton.type = "button";
+        toggleButton.className = "jobs-step-toggle-btn";
+        const expanded = state.expandedJobKey === jobKey;
+        toggleButton.textContent = expanded ? "-" : "+";
+        toggleButton.title = expanded ? "Hide steps" : "Show steps";
+        toggleButton.addEventListener("click", () => {
+          toggleJobSteps(jobKey);
+        });
+        toggleCell.appendChild(toggleButton);
+      }
+      row.appendChild(toggleCell);
+
       body.appendChild(row);
+
+      if (jobKey && state.expandedJobKey === jobKey) {
+        const detailRow = document.createElement("tr");
+        detailRow.className = "jobs-step-detail-row";
+        const detailCell = document.createElement("td");
+        detailCell.colSpan = 4;
+        detailCell.className = "jobs-step-detail-cell";
+        detailCell.innerHTML = renderStepPreviewMarkup(state.jobStepPreviewByJobKey[jobKey]);
+        detailRow.appendChild(detailCell);
+        body.appendChild(detailRow);
+      }
     });
 
     pageSize.value = String(effectivePageSize);
@@ -153,6 +204,64 @@ export function createJobsListUi(options) {
     nextButton.disabled = state.page >= totalPages;
     stateElement.textContent = `Showing ${visible.length} of ${sorted.length} matching job bundle(s) (${state.items.length} total).`;
     table.hidden = false;
+  }
+
+  function renderStepPreviewMarkup(preview) {
+    const info = preview || { status: "idle", steps: [] };
+    if (info.status === "loading") {
+      return '<div class="jobs-step-preview-state">Loading steps...</div>';
+    }
+    if (info.status === "error") {
+      return `<div class="jobs-step-preview-state error">${escapeHtml(info.message || "Unable to load steps.")}</div>`;
+    }
+    if (!Array.isArray(info.steps) || info.steps.length === 0) {
+      return '<div class="jobs-step-preview-state">No steps declared in job config.</div>';
+    }
+    const items = info.steps.map((stepName) => `<li>${escapeHtml(stepName)}</li>`).join("");
+    return `<div class="jobs-step-preview-title">Steps</div><ol class="jobs-step-preview-list">${items}</ol>`;
+  }
+
+  async function toggleJobSteps(jobKey) {
+    const state = getState();
+    if (!jobKey) {
+      return;
+    }
+    if (state.expandedJobKey === jobKey) {
+      state.expandedJobKey = "";
+      renderTable();
+      return;
+    }
+
+    state.expandedJobKey = jobKey;
+    if (!state.jobStepPreviewByJobKey || typeof state.jobStepPreviewByJobKey !== "object") {
+      state.jobStepPreviewByJobKey = {};
+    }
+    const existing = state.jobStepPreviewByJobKey[jobKey];
+    if (existing && (existing.status === "ready" || existing.status === "error")) {
+      renderTable();
+      return;
+    }
+
+    state.jobStepPreviewByJobKey[jobKey] = { status: "loading", steps: [] };
+    renderTable();
+
+    try {
+      const steps = await loadJobStepNames(jobKey);
+      state.jobStepPreviewByJobKey[jobKey] = {
+        status: "ready",
+        steps: Array.isArray(steps) ? steps : [],
+      };
+    } catch (error) {
+      state.jobStepPreviewByJobKey[jobKey] = {
+        status: "error",
+        message: error && error.message ? error.message : "Unable to load steps.",
+        steps: [],
+      };
+    }
+
+    if (state.expandedJobKey === jobKey) {
+      renderTable();
+    }
   }
 
   return {

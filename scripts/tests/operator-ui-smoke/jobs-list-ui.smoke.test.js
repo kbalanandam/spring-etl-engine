@@ -45,6 +45,7 @@ test("jobs list applies route state and renders rows", () => {
       getState: () => state,
       syncRouteHash: () => {},
       getRouteSuffix: () => "?f=customer&page=1&pageSize=10&sort=displayName&dir=desc",
+      loadJobStepNames: async () => [],
       escapeHtml,
     });
 
@@ -66,7 +67,9 @@ test("jobs list applies route state and renders rows", () => {
     assert.equal(elements.get("jobs-table").hidden, false);
 
     const row = elements.get("jobs-body").children[0];
-    assert.match(row.innerHTML, /href="#\/jobs\/customer-load\?f=customer&page=1&pageSize=10&sort=displayName&dir=desc"/);
+    assert.equal(row.children.length, 4);
+    assert.match(row.children[0].innerHTML, /href="#\/jobs\/customer-load\?f=customer&page=1&pageSize=10&sort=displayName&dir=desc"/);
+    assert.equal(row.children[3].children[0].textContent, "+");
   } finally {
     restore();
   }
@@ -89,6 +92,7 @@ test("jobs controls update state, sync route, and re-render", () => {
       getState: () => state,
       syncRouteHash: (routeKey) => syncCalls.push(routeKey),
       getRouteSuffix: () => "",
+      loadJobStepNames: async () => [],
       escapeHtml,
     });
 
@@ -140,6 +144,7 @@ test("jobs pagination limits visible rows and navigates pages", () => {
       getState: () => state,
       syncRouteHash: (routeKey) => syncCalls.push(routeKey),
       getRouteSuffix: () => "?page=1&pageSize=2&sort=jobKey&dir=asc",
+      loadJobStepNames: async () => [],
       escapeHtml,
     });
 
@@ -159,6 +164,52 @@ test("jobs pagination limits visible rows and navigates pages", () => {
     assert.equal(elements.get("jobs-page-prev-btn").disabled, false);
     assert.equal(elements.get("jobs-page-next-btn").disabled, true);
     assert.deepEqual(syncCalls, ["jobs"]);
+  } finally {
+    restore();
+  }
+});
+
+test("jobs row drill-down loads step preview and toggles inline detail", async () => {
+  const { elements, restore } = installDom(IDS);
+  try {
+    const state = {
+      items: [{ jobKey: "customer-load", displayName: "Customer Load", readinessStatus: "READY" }],
+      filterText: "",
+      page: 1,
+      pageSize: 10,
+      sortKey: "jobKey",
+      sortDirection: "asc",
+      expandedJobKey: "",
+      jobStepPreviewByJobKey: {},
+    };
+    let loadCalls = 0;
+
+    const ui = createJobsListUi({
+      getState: () => state,
+      syncRouteHash: () => {},
+      getRouteSuffix: () => "",
+      loadJobStepNames: async () => {
+        loadCalls += 1;
+        return ["customers-step", "archive-step"];
+      },
+      escapeHtml,
+    });
+
+    ui.renderTable();
+    const firstRow = elements.get("jobs-body").children[0];
+    const toggle = firstRow.children[3].children[0];
+    toggle.dispatch("click");
+    await Promise.resolve();
+
+    assert.equal(loadCalls, 1);
+    assert.equal(state.expandedJobKey, "customer-load");
+    assert.equal(elements.get("jobs-body").children.length, 2);
+    assert.match(elements.get("jobs-body").children[1].children[0].innerHTML, /customers-step/);
+
+    const expandedRow = elements.get("jobs-body").children[0];
+    expandedRow.children[3].children[0].dispatch("click");
+    assert.equal(state.expandedJobKey, "");
+    assert.equal(elements.get("jobs-body").children.length, 1);
   } finally {
     restore();
   }

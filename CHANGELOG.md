@@ -17,6 +17,7 @@ and this project adheres to **Semantic Versioning**.
 - Updated structured-log step projection identity merge behavior in `JdbcRunSummaryRegistry` so mixed name-only and id-based `STEP_EVENT` records converge to one canonical step record per logical step.
 - Updated control-plane run projection writes to emit explicit warning evidence when duplicate step-name groups are detected for a run (`RUN_EVENT event=duplicate_step_groups_detected`).
 - Updated the Operator Jobs tab to keep client-side search/sort state while adding screen-friendly pagination controls, configurable rows-per-page, and route-preserving navigation back from job detail/config views.
+- Updated the Operator Jobs tab with an inline prototype drill-down (`+`) per job row that lazily previews configured job step names from job-config YAML without introducing step-level navigation.
 
 ### Fixed
 - Fixed duplicate logical step rows shown in Operator Run Detail by deduplicating rendered step entries and preferring the most complete counts/status projection.
