@@ -23,35 +23,35 @@ class OperatorUiControllerTest {
     void redirectsOperatorRootToStaticShell() throws Exception {
         mockMvc.perform(get("/operator"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/operator/index.html?v=20260606-jobs-step-inline-toggle"));
+                .andExpect(redirectedUrl("/operator/index.html?v=20260606-jobs-step-smart-badge"));
     }
 
     @Test
     void redirectsOperatorRootWithTrailingSlashToStaticShell() throws Exception {
         mockMvc.perform(get("/operator/"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/operator/index.html?v=20260606-jobs-step-inline-toggle"));
+                .andExpect(redirectedUrl("/operator/index.html?v=20260606-jobs-step-smart-badge"));
     }
 
     @Test
     void redirectsRunDeepLinkToHashRoutePlaceholder() throws Exception {
         mockMvc.perform(get("/operator/runs/901"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/operator/index.html?v=20260606-jobs-step-inline-toggle#/runs/901"));
+                .andExpect(redirectedUrl("/operator/index.html?v=20260606-jobs-step-smart-badge#/runs/901"));
     }
 
     @Test
     void redirectsJobDeepLinkToHashRoutePlaceholder() throws Exception {
         mockMvc.perform(get("/operator/jobs/customer-load"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/operator/index.html?v=20260606-jobs-step-inline-toggle#/jobs/customer-load"));
+                .andExpect(redirectedUrl("/operator/index.html?v=20260606-jobs-step-smart-badge#/jobs/customer-load"));
     }
 
     @Test
     void redirectsJobConfigDeepLinkToHashRoutePlaceholder() throws Exception {
         mockMvc.perform(get("/operator/jobs/customer-load/config"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/operator/index.html?v=20260606-jobs-step-inline-toggle#/jobs/customer-load/config"));
+                .andExpect(redirectedUrl("/operator/index.html?v=20260606-jobs-step-smart-badge#/jobs/customer-load/config"));
     }
 }
 

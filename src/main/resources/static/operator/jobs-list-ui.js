@@ -172,6 +172,18 @@ export function createJobsListUi(options) {
       const keyLinkWrapper = document.createElement("span");
       keyLinkWrapper.innerHTML = jobKeyCell;
       keyCellContent.appendChild(keyLinkWrapper);
+      if (jobKey) {
+        const preview = state.jobStepPreviewByJobKey[jobKey];
+        const stepCount = preview && preview.status === "ready" && Array.isArray(preview.steps)
+          ? preview.steps.length
+          : null;
+        const badge = document.createElement("span");
+        badge.className = "jobs-step-badge";
+        badge.textContent = stepCount === null
+          ? "1+ steps"
+          : `${stepCount} step${stepCount === 1 ? "" : "s"}`;
+        keyCellContent.appendChild(badge);
+      }
       keyCell.appendChild(keyCellContent);
       row.appendChild(keyCell);
 

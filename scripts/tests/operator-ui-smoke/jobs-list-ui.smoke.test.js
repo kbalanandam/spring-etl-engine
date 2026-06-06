@@ -70,6 +70,7 @@ test("jobs list applies route state and renders rows", () => {
     assert.equal(row.children.length, 3);
     assert.match(row.children[0].children[0].children[1].innerHTML, /href="#\/jobs\/customer-load\?f=customer&page=1&pageSize=10&sort=displayName&dir=desc"/);
     assert.equal(row.children[0].children[0].children[0].textContent, "+");
+    assert.equal(row.children[0].children[0].children[2].textContent, "1+ steps");
   } finally {
     restore();
   }
@@ -205,6 +206,7 @@ test("jobs row drill-down loads step preview and toggles inline detail", async (
     assert.equal(state.expandedJobKey, "customer-load");
     assert.equal(elements.get("jobs-body").children.length, 2);
     assert.match(elements.get("jobs-body").children[1].children[0].innerHTML, /customers-step/);
+    assert.equal(elements.get("jobs-body").children[0].children[0].children[0].children[2].textContent, "2 steps");
 
     const expandedRow = elements.get("jobs-body").children[0];
     expandedRow.children[0].children[0].children[0].dispatch("click");

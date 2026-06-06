@@ -133,6 +133,17 @@ body {
   gap: 6px;
 }
 
+.jobs-step-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #475569;
+  background: #f8fafc;
+}
+
 .jobs-step-toggle-btn {
   min-width: 22px;
   min-height: 22px;
