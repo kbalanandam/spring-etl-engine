@@ -5,25 +5,25 @@ export function buildJobConfigDocuments(payload) {
   const documents = [
     {
       key: "job",
-      label: "job-config.yaml",
+      label: "Job config",
       path: payload?.jobConfigPath || "job-config.yaml",
       content: payload?.rawYaml || "",
     },
     {
       key: "source",
-      label: "source-config.yaml",
+      label: "Source config",
       path: payload?.sourceConfigPath || pathHints.sourceConfigPath || "source-config.yaml",
       content: payload?.sourceRawYaml || "",
     },
     {
       key: "target",
-      label: "target-config.yaml",
+      label: "Target config",
       path: payload?.targetConfigPath || pathHints.targetConfigPath || "target-config.yaml",
       content: payload?.targetRawYaml || "",
     },
     {
       key: "processor",
-      label: "processor-config.yaml",
+      label: "Processor config",
       path: payload?.processorConfigPath || pathHints.processorConfigPath || "processor-config.yaml",
       content: payload?.processorRawYaml || "",
     },

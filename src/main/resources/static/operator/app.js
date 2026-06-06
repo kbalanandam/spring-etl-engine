@@ -486,7 +486,7 @@ function syncJobConfigFileRouteSelection(jobKey, currentQuery, selectedFileKey) 
     ? `#/jobs/${encodeURIComponent(normalizedJobKey)}/config?${params.toString()}`
     : `#/jobs/${encodeURIComponent(normalizedJobKey)}/config`;
   if (location.hash !== nextHash) {
-    location.hash = nextHash;
+    history.replaceState(null, "", nextHash);
   }
 }
 

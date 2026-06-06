@@ -34,12 +34,15 @@ test("buildJobConfigDocuments returns read-only config files and missing compani
   });
 
   assert.equal(model.documents.length, 4);
-  assert.equal(model.documents[0].label, "job-config.yaml");
+  assert.equal(model.documents[0].label, "Job config");
   assert.equal(model.documents[0].path, "job-config.yaml");
+  assert.equal(model.documents[1].label, "Source config");
   assert.equal(model.documents[1].path, "source-config.yaml");
+  assert.equal(model.documents[2].label, "Target config");
   assert.equal(model.documents[2].path, "target-config.yaml");
+  assert.equal(model.documents[3].label, "Processor config");
   assert.equal(model.documents[3].path, "processor-config.yaml");
-  assert.deepEqual(model.missingCompanionDocuments, ["processor-config.yaml"]);
+  assert.deepEqual(model.missingCompanionDocuments, ["Processor config"]);
 });
 
 test("buildJobConfigDocuments reports no missing companion payloads when all files are present", () => {
