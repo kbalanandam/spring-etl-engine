@@ -13,8 +13,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 
@@ -721,6 +723,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 
 		StructuredLogEventParser parser = new StructuredLogEventParser();
 		Map<String, LogStepProjection> projections = new LinkedHashMap<>();
+		Map<String, String> projectionKeyByStepName = new HashMap<>();
 		try (var lines = Files.lines(logPath)) {
 			lines.forEach(line -> parser.parse(line, logPath).ifPresent(event -> {
 				if (!"STEP_EVENT".equals(event.recordType()) && !"SUBFLOW_SUMMARY".equals(event.recordType())) {
@@ -732,11 +735,15 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				Map<String, String> fields = event.fields();
 				if ("SUBFLOW_SUMMARY".equals(event.recordType())) {
 					for (String stepNameFromSummary : parseStepNames(fields.get("stepNames"))) {
-						String projectionKey = "name:" + stepNameFromSummary;
+						String normalizedStepName = normalizeStepNameKey(stepNameFromSummary);
+						String projectionKey = projectionKeyByStepName.getOrDefault(normalizedStepName, "name:" + normalizedStepName);
 						LogStepProjection projection = projections.computeIfAbsent(
 								projectionKey,
 								ignored -> new LogStepProjection(null, stepNameFromSummary)
 						);
+						if (!normalizedStepName.isBlank()) {
+							projectionKeyByStepName.putIfAbsent(normalizedStepName, projectionKey);
+						}
 						projection.stepName = stepNameFromSummary;
 						projection.status = firstNonBlank(fields.get("status"), projection.status, "UNKNOWN");
 					}
@@ -747,7 +754,32 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				if (stepName.isBlank() && stepExecutionId == null) {
 					return;
 				}
-				String projectionKey = stepExecutionId == null ? "name:" + stepName : "id:" + stepExecutionId;
+				String normalizedStepName = normalizeStepNameKey(stepName);
+				String projectionKey;
+				if (stepExecutionId != null) {
+					projectionKey = "id:" + stepExecutionId;
+					LogStepProjection projection = projections.get(projectionKey);
+					String existingNameKey = normalizedStepName.isBlank()
+							? ""
+							: projectionKeyByStepName.getOrDefault(normalizedStepName, "");
+					if (projection == null && !existingNameKey.isBlank()) {
+						projection = projections.remove(existingNameKey);
+					}
+					if (projection == null) {
+						projection = new LogStepProjection(stepExecutionId, stepName);
+					}
+					projection.stepExecutionId = stepExecutionId;
+					projections.put(projectionKey, projection);
+					if (!normalizedStepName.isBlank()) {
+						projectionKeyByStepName.put(normalizedStepName, projectionKey);
+					}
+				} else {
+					projectionKey = projectionKeyByStepName.getOrDefault(normalizedStepName, "name:" + normalizedStepName);
+					projections.computeIfAbsent(projectionKey, ignored -> new LogStepProjection(null, stepName));
+					if (!normalizedStepName.isBlank()) {
+						projectionKeyByStepName.putIfAbsent(normalizedStepName, projectionKey);
+					}
+				}
 				LogStepProjection projection = projections.computeIfAbsent(
 						projectionKey,
 						ignored -> new LogStepProjection(stepExecutionId, stepName)
@@ -872,6 +904,14 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				.map(String::trim)
 				.filter(value -> !value.isBlank())
 				.toList();
+	}
+
+	private String normalizeStepNameKey(String stepName) {
+		String normalized = normalize(stepName);
+		if (normalized.isBlank()) {
+			return "";
+		}
+		return normalized.toLowerCase(Locale.ROOT);
 	}
 
 	private void backfillRunLogArtifactsFromRunSummary() {
@@ -1761,7 +1801,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	}
 
 	private static final class LogStepProjection {
-		private final Long stepExecutionId;
+		private Long stepExecutionId;
 		private String stepName;
 		private String status;
 		private LocalDateTime startedAt;
