@@ -7,6 +7,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.sql.Timestamp;
 import java.io.IOException;
@@ -26,6 +28,7 @@ import java.util.Optional;
 @Component
 @ConditionalOnProperty(name = "controlplane.runs.persistence.mode", havingValue = "jdbc")
 public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
+	private static final Logger logger = LoggerFactory.getLogger(JdbcRunSummaryRegistry.class);
 	private static final java.time.Duration TRIGGER_LOOKBACK_WINDOW = java.time.Duration.ofMinutes(30);
 	private static final java.time.Duration TRIGGER_LOOKAHEAD_WINDOW = java.time.Duration.ofMinutes(5);
 	private static final ObjectMapper CONTEXT_OBJECT_MAPPER = new ObjectMapper();
@@ -693,6 +696,32 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			upsertStepRecordsFromStructuredLog(runSummary, runRecordId);
 		}
 		upsertRunLogArtifact(jobExecutionId, runRecordId, runSummary.logPath());
+		logDuplicateStepNameGroupsIfPresent(runRecordId, jobExecutionId);
+	}
+
+	private void logDuplicateStepNameGroupsIfPresent(String runRecordId, Long jobExecutionId) {
+		if (runRecordId == null || runRecordId.isBlank()) {
+			return;
+		}
+		Long duplicateStepNameGroupCount = jdbcTemplate.queryForObject("""
+				select count(*)
+				from (
+					select lower(trim(step_name)) as step_name_key
+					from controlplane_step_record
+					where run_record_id = ?
+					  and trim(coalesce(step_name, '')) <> ''
+					group by lower(trim(step_name))
+					having count(*) > 1
+				) duplicate_groups
+				""", Long.class, runRecordId);
+		if (duplicateStepNameGroupCount != null && duplicateStepNameGroupCount > 0) {
+			logger.warn(
+					"RUN_EVENT event=duplicate_step_groups_detected jobExecutionId={} runRecordId={} duplicateStepNameGroupCount={}",
+					jobExecutionId,
+					runRecordId,
+					duplicateStepNameGroupCount
+			);
+		}
 	}
 
 	private long countStepRecordsByRunRecordId(String runRecordId) {
