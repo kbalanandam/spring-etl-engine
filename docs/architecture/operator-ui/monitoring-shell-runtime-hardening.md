@@ -11,6 +11,8 @@ This note describes the current client-side hardening applied in `src/main/resou
 - route-aware async response guards
 - in-flight request deduplication for job step previews
 - cache reconciliation for jobs-scoped preview state
+- bounded and expiring runs-filter response caching
+- route-safe sequencing for run-scoped log loading
 
 It does not redefine control-plane API contracts or scheduler semantics.
 
@@ -38,6 +40,15 @@ flowchart TD
 
     P[Jobs payload refresh] --> Q[Reconcile jobs-scoped caches]
     Q --> R[Prune stale preview/step-name/in-flight keys]
+
+    S[Runs filter request] --> T{Fresh cache hit?}
+    T -- Yes --> U[Use cached response]
+    T -- No --> V[Fetch runs API and cache with TTL]
+    V --> W[Bound cache size and evict oldest]
+
+    X[Run detail async fan-out settled] --> Y{Route still active?}
+    Y -- Yes --> Z[Load run-scoped log viewer]
+    Y -- No --> AA[Skip log load]
 ```
 
 ## Shipped behavior
@@ -46,6 +57,8 @@ flowchart TD
 - Step preview dedup: repeated expansion requests for one job reuse one in-flight call rather than fan-out duplicate `/api/v1/jobs/{jobKey}/config` requests.
 - Step preview caching: parsed step names are cached per `jobKey` to reduce repeated YAML fetch/parse work.
 - Cache reconciliation: when a new jobs payload arrives, stale per-job preview and step-name entries are pruned so removed jobs do not leave stale UI state.
+- Runs filter cache hardening: runs responses are now cached with TTL and bounded entry count to reduce repeated fetches while preventing unbounded in-memory growth during long operator sessions.
+- Run log sequencing hardening: run-scoped log loading now starts only after other run-detail async updates settle and only when the same run route is still active.
 
 ## Guardrails
 
@@ -59,4 +72,3 @@ flowchart TD
 - [`angular-ui-mvp-structure.md`](angular-ui-mvp-structure.md)
 - [`../control-plane/operator-ui-mvp-api-surface.md`](../control-plane/operator-ui-mvp-api-surface.md)
 - [`../control-plane/job-history-and-operational-observability.md`](../control-plane/job-history-and-operational-observability.md)
-

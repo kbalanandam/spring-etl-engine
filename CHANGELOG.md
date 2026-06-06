@@ -19,6 +19,7 @@ and this project adheres to **Semantic Versioning**.
 - Updated the Operator Jobs tab to keep client-side search/sort state while adding screen-friendly pagination controls, configurable rows-per-page, and route-preserving navigation back from job detail/config views.
 - Updated the Operator Jobs tab with an inline prototype drill-down (`+`) per job row that lazily previews configured job step names from job-config YAML without introducing step-level navigation.
 - Hardened Operator UI monitoring route behavior to ignore stale async responses, deduplicate in-flight job step-name requests, and reconcile per-job preview/step-name caches against the latest jobs payload.
+- Hardened Operator Runs filtering with bounded/expiring per-filter cache entries and improved route-safe run-detail sequencing so run-scoped log loading is skipped when the active route changes.
 
 ### Fixed
 - Fixed duplicate logical step rows shown in Operator Run Detail by deduplicating rendered step entries and preferring the most complete counts/status projection.

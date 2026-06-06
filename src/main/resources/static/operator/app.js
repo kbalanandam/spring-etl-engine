@@ -59,6 +59,7 @@ const viewState = {
     items: [],
     cache: {
       byFilter: {},
+      order: [],
     },
     jobOptions: [],
     selectedJobKey: "",
@@ -102,6 +103,9 @@ const SORT_KEYS = {
   jobs: ["jobKey", "displayName", "readinessStatus"],
   runs: ["startTime", "jobExecutionId", "scenario", "status", "runMode", "recoveryPolicy"],
 };
+
+const RUNS_FILTER_CACHE_MAX_ENTRIES = 30;
+const RUNS_FILTER_CACHE_TTL_MS = 5 * 60 * 1000;
 
 const loadRequestTracker = {
   jobs: 0,
@@ -212,7 +216,7 @@ async function loadJobs() {
       throw new Error(`Jobs API returned ${response.status}`);
     }
     const payload = await response.json();
-    if (!isLatestRequest("jobs", requestId) || !isActiveRoute("jobs")) {
+    if (!shouldApplyRouteScopedUpdate("jobs", requestId)) {
       return;
     }
 
@@ -226,7 +230,7 @@ async function loadJobs() {
     }
     jobsListUi.renderTable();
   } catch (error) {
-    if (!isLatestRequest("jobs", requestId) || !isActiveRoute("jobs")) {
+    if (!shouldApplyRouteScopedUpdate("jobs", requestId)) {
       return;
     }
     state.className = "state error";
@@ -358,7 +362,7 @@ async function loadJobDetailPlaceholder(routeState) {
       throw new Error(`Job detail API returned ${response.status}`);
     }
     const payload = await response.json();
-    if (!isLatestRequest("jobDetail", requestId) || !isActiveRoute("jobDetail", jobKeyValue)) {
+    if (!shouldApplyRouteScopedUpdate("jobDetail", requestId, jobKeyValue)) {
       return;
     }
 
@@ -379,7 +383,7 @@ async function loadJobDetailPlaceholder(routeState) {
     state.textContent = "Job detail loaded.";
     summary.hidden = false;
   } catch (error) {
-    if (!isLatestRequest("jobDetail", requestId) || !isActiveRoute("jobDetail", jobKeyValue)) {
+    if (!shouldApplyRouteScopedUpdate("jobDetail", requestId, jobKeyValue)) {
       return;
     }
     state.className = "state error";
@@ -436,7 +440,7 @@ async function loadJobConfig(routeState) {
       throw new Error(`Job config API returned ${response.status}`);
     }
     const payload = await response.json();
-    if (!isLatestRequest("jobConfig", requestId) || !isActiveRoute("jobConfig", jobKeyValue)) {
+    if (!shouldApplyRouteScopedUpdate("jobConfig", requestId, jobKeyValue)) {
       return;
     }
 
@@ -452,7 +456,7 @@ async function loadJobConfig(routeState) {
     raw.hidden = false;
     state.textContent = "Job config loaded.";
   } catch (error) {
-    if (!isLatestRequest("jobConfig", requestId) || !isActiveRoute("jobConfig", jobKeyValue)) {
+    if (!shouldApplyRouteScopedUpdate("jobConfig", requestId, jobKeyValue)) {
       return;
     }
     state.className = "state error";
@@ -647,7 +651,7 @@ async function loadRuns() {
   try {
     await ensureRunsJobOptions();
     const runs = await fetchRunsForFilters(selectedJobKey, selectedRunMode, selectedRecoveryPolicy, selectedStartDate, selectedTimezone);
-    if (!isLatestRequest("runs", requestId) || !isActiveRoute("runs")) {
+    if (!shouldApplyRouteScopedUpdate("runs", requestId)) {
       return;
     }
 
@@ -661,7 +665,7 @@ async function loadRuns() {
     }
     runsListUi.renderTable();
   } catch (error) {
-    if (!isLatestRequest("runs", requestId) || !isActiveRoute("runs")) {
+    if (!shouldApplyRouteScopedUpdate("runs", requestId)) {
       return;
     }
     state.className = "state error";
@@ -783,6 +787,10 @@ function parseHashRoute() {
 
 function isLatestRequest(scope, requestId) {
   return loadRequestTracker[scope] === requestId;
+}
+
+function shouldApplyRouteScopedUpdate(routeKey, requestId, routeValue) {
+  return isLatestRequest(routeKey, requestId) && isActiveRoute(routeKey, routeValue);
 }
 
 function isActiveRoute(routeKey, routeValue) {
@@ -941,8 +949,9 @@ function pruneObjectKeys(source, validKeys) {
 
 async function fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, startDate, timezone) {
   const cacheKey = `${selectedJobKey || ""}|${runMode || ""}|${recoveryPolicy || ""}|${startDate || ""}|${timezone || ""}`;
-  if (Array.isArray(viewState.runs.cache.byFilter[cacheKey])) {
-    return viewState.runs.cache.byFilter[cacheKey];
+  const cached = getCachedRunsByFilter(cacheKey);
+  if (cached) {
+    return cached;
   }
 
   const params = new URLSearchParams();
@@ -969,10 +978,55 @@ async function fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, star
   }
   const payload = await response.json();
   const items = Array.isArray(payload.items) ? payload.items : [];
-  viewState.runs.cache.byFilter[cacheKey] = items;
+  setCachedRunsByFilter(cacheKey, items);
   return items;
 }
 
+function getCachedRunsByFilter(cacheKey) {
+  const cache = viewState.runs.cache;
+  const entry = cache.byFilter[cacheKey];
+  if (!entry) {
+    return null;
+  }
+
+  if (Array.isArray(entry)) {
+    return entry;
+  }
+
+  if (!Array.isArray(entry.items) || !Number.isFinite(entry.cachedAt)) {
+    delete cache.byFilter[cacheKey];
+    cache.order = cache.order.filter((key) => key !== cacheKey);
+    return null;
+  }
+
+  if (Date.now() - entry.cachedAt > RUNS_FILTER_CACHE_TTL_MS) {
+    delete cache.byFilter[cacheKey];
+    cache.order = cache.order.filter((key) => key !== cacheKey);
+    return null;
+  }
+
+  cache.order = cache.order.filter((key) => key !== cacheKey);
+  cache.order.push(cacheKey);
+  return entry.items;
+}
+
+function setCachedRunsByFilter(cacheKey, items) {
+  const cache = viewState.runs.cache;
+  cache.byFilter[cacheKey] = {
+    items,
+    cachedAt: Date.now(),
+  };
+
+  cache.order = cache.order.filter((key) => key !== cacheKey);
+  cache.order.push(cacheKey);
+
+  while (cache.order.length > RUNS_FILTER_CACHE_MAX_ENTRIES) {
+    const staleKey = cache.order.shift();
+    if (staleKey) {
+      delete cache.byFilter[staleKey];
+    }
+  }
+}
 
 async function loadRunDetail(routeState) {
   const requestId = ++loadRequestTracker.runDetail;
@@ -999,7 +1053,7 @@ async function loadRunDetail(routeState) {
       throw new Error(`Run detail API returned ${response.status}`);
     }
     const payload = await response.json();
-    if (!isLatestRequest("runDetail", requestId) || !isActiveRoute("runDetail", runIdValue)) {
+    if (!shouldApplyRouteScopedUpdate("runDetail", requestId, runIdValue)) {
       return;
     }
 
@@ -1025,13 +1079,13 @@ async function loadRunDetail(routeState) {
 
     const recoveryPromise = fetchRunRecovery(runIdValue)
       .then((recovery) => {
-        if (!isLatestRequest("runDetail", requestId) || !isActiveRoute("runDetail", runIdValue)) {
+        if (!shouldApplyRouteScopedUpdate("runDetail", requestId, runIdValue)) {
           return;
         }
         runRecoveryPanel.render(recovery);
       })
       .catch(() => {
-        if (!isLatestRequest("runDetail", requestId) || !isActiveRoute("runDetail", runIdValue)) {
+        if (!shouldApplyRouteScopedUpdate("runDetail", requestId, runIdValue)) {
           return;
         }
         runRecoveryPanel.render(null);
@@ -1041,7 +1095,7 @@ async function loadRunDetail(routeState) {
       fetchPersistedRunStepRecords(runIdValue),
       fetchPersistedRunArtifactRecords(runIdValue),
     ]).then(([persistedStepRecords, persistedArtifactRecords]) => {
-      if (!isLatestRequest("runDetail", requestId) || !isActiveRoute("runDetail", runIdValue)) {
+      if (!shouldApplyRouteScopedUpdate("runDetail", requestId, runIdValue)) {
         return;
       }
 
@@ -1059,10 +1113,15 @@ async function loadRunDetail(routeState) {
     await Promise.all([
       recoveryPromise,
       persistedRecordsPromise,
-      runLogViewer.load(runIdValue),
     ]);
+
+    if (!shouldApplyRouteScopedUpdate("runDetail", requestId, runIdValue)) {
+      return;
+    }
+
+    await runLogViewer.load(runIdValue);
   } catch (error) {
-    if (!isLatestRequest("runDetail", requestId) || !isActiveRoute("runDetail", runIdValue)) {
+    if (!shouldApplyRouteScopedUpdate("runDetail", requestId, runIdValue)) {
       return;
     }
     state.className = "state error";
