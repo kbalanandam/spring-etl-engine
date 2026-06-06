@@ -127,15 +127,16 @@ body {
   white-space: nowrap;
 }
 
-.jobs-step-toggle-cell {
-  width: 90px;
-  text-align: center;
+.jobs-key-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .jobs-step-toggle-btn {
-  min-width: 28px;
-  min-height: 26px;
-  padding: 0 8px;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 5px;
   border: 1px solid #94a3b8;
   border-radius: 6px;
   background: #ffffff;

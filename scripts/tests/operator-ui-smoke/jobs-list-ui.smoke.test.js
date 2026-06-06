@@ -67,9 +67,9 @@ test("jobs list applies route state and renders rows", () => {
     assert.equal(elements.get("jobs-table").hidden, false);
 
     const row = elements.get("jobs-body").children[0];
-    assert.equal(row.children.length, 4);
-    assert.match(row.children[0].innerHTML, /href="#\/jobs\/customer-load\?f=customer&page=1&pageSize=10&sort=displayName&dir=desc"/);
-    assert.equal(row.children[3].children[0].textContent, "+");
+    assert.equal(row.children.length, 3);
+    assert.match(row.children[0].children[0].children[1].innerHTML, /href="#\/jobs\/customer-load\?f=customer&page=1&pageSize=10&sort=displayName&dir=desc"/);
+    assert.equal(row.children[0].children[0].children[0].textContent, "+");
   } finally {
     restore();
   }
@@ -197,7 +197,7 @@ test("jobs row drill-down loads step preview and toggles inline detail", async (
 
     ui.renderTable();
     const firstRow = elements.get("jobs-body").children[0];
-    const toggle = firstRow.children[3].children[0];
+    const toggle = firstRow.children[0].children[0].children[0];
     toggle.dispatch("click");
     await Promise.resolve();
 
@@ -207,7 +207,7 @@ test("jobs row drill-down loads step preview and toggles inline detail", async (
     assert.match(elements.get("jobs-body").children[1].children[0].innerHTML, /customers-step/);
 
     const expandedRow = elements.get("jobs-body").children[0];
-    expandedRow.children[3].children[0].dispatch("click");
+    expandedRow.children[0].children[0].children[0].dispatch("click");
     assert.equal(state.expandedJobKey, "");
     assert.equal(elements.get("jobs-body").children.length, 1);
   } finally {

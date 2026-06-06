@@ -155,7 +155,24 @@ export function createJobsListUi(options) {
         : "-";
 
       const keyCell = document.createElement("td");
-      keyCell.innerHTML = jobKeyCell;
+      const keyCellContent = document.createElement("div");
+      keyCellContent.className = "jobs-key-cell";
+      if (jobKey) {
+        const toggleButton = document.createElement("button");
+        toggleButton.type = "button";
+        toggleButton.className = "jobs-step-toggle-btn";
+        const expanded = state.expandedJobKey === jobKey;
+        toggleButton.textContent = expanded ? "-" : "+";
+        toggleButton.title = expanded ? "Hide steps" : "Show steps";
+        toggleButton.addEventListener("click", () => {
+          toggleJobSteps(jobKey);
+        });
+        keyCellContent.appendChild(toggleButton);
+      }
+      const keyLinkWrapper = document.createElement("span");
+      keyLinkWrapper.innerHTML = jobKeyCell;
+      keyCellContent.appendChild(keyLinkWrapper);
+      keyCell.appendChild(keyCellContent);
       row.appendChild(keyCell);
 
       const displayNameCell = document.createElement("td");
@@ -166,31 +183,13 @@ export function createJobsListUi(options) {
       readinessCell.textContent = job.readinessStatus || "-";
       row.appendChild(readinessCell);
 
-      const toggleCell = document.createElement("td");
-      toggleCell.className = "jobs-step-toggle-cell";
-      if (!jobKey) {
-        toggleCell.textContent = "-";
-      } else {
-        const toggleButton = document.createElement("button");
-        toggleButton.type = "button";
-        toggleButton.className = "jobs-step-toggle-btn";
-        const expanded = state.expandedJobKey === jobKey;
-        toggleButton.textContent = expanded ? "-" : "+";
-        toggleButton.title = expanded ? "Hide steps" : "Show steps";
-        toggleButton.addEventListener("click", () => {
-          toggleJobSteps(jobKey);
-        });
-        toggleCell.appendChild(toggleButton);
-      }
-      row.appendChild(toggleCell);
-
       body.appendChild(row);
 
       if (jobKey && state.expandedJobKey === jobKey) {
         const detailRow = document.createElement("tr");
         detailRow.className = "jobs-step-detail-row";
         const detailCell = document.createElement("td");
-        detailCell.colSpan = 4;
+        detailCell.colSpan = 3;
         detailCell.className = "jobs-step-detail-cell";
         detailCell.innerHTML = renderStepPreviewMarkup(state.jobStepPreviewByJobKey[jobKey]);
         detailRow.appendChild(detailCell);
