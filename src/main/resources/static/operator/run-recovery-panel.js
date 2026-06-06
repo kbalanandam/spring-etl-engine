@@ -16,8 +16,8 @@ export function createRunRecoveryPanel(options) {
     anchorsList.innerHTML = "";
 
     if (!recovery) {
-      state.className = "state error";
-      state.textContent = "Recovery diagnostics unavailable.";
+      state.className = "state";
+      state.textContent = "No advisory recovery diagnostics found for this run.";
       state.hidden = false;
       box.hidden = true;
       anchorsList.hidden = true;

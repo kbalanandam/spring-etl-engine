@@ -2,6 +2,7 @@ import { createRunLogViewer } from "./run-log-viewer.js";
 import { createJobsListUi } from "./jobs-list-ui.js";
 import { createRunsListUi } from "./runs-list-ui.js";
 import { createRunRecoveryPanel } from "./run-recovery-panel.js";
+import { coalesceRunSteps } from "./run-step-dedupe.js";
 
 const routes = {
   jobs: {
@@ -625,10 +626,6 @@ async function loadRunDetail(routeState) {
     }
     const payload = await response.json();
     const run = payload.run || {};
-    const recovery = await fetchRunRecovery(runIdValue);
-
-    const persistedStepRecords = await fetchPersistedRunStepRecords(runIdValue);
-    const persistedArtifactRecords = await fetchPersistedRunArtifactRecords(runIdValue);
 
     document.getElementById("run-detail-id").textContent = String(run.jobExecutionId ?? runIdValue);
     document.getElementById("run-detail-scenario").textContent = run.scenario || "-";
@@ -640,22 +637,42 @@ async function loadRunDetail(routeState) {
     document.getElementById("run-detail-duration").textContent = String(run.durationSeconds ?? "-");
     document.getElementById("run-detail-counts").textContent = `${valueOrDash(run.sourceCount)} / ${valueOrDash(run.writtenCount)} / ${valueOrDash(run.rejectedCount)}`;
 
-    const stepItems = Array.isArray(persistedStepRecords) && persistedStepRecords.length > 0
-      ? mapPersistedStepRecordsToDetailView(persistedStepRecords)
-      : payload.steps;
-    const artifactItems = Array.isArray(persistedArtifactRecords) && persistedArtifactRecords.length > 0
-      ? mapPersistedArtifactRecordsToDetailView(persistedArtifactRecords)
-      : payload.artifacts;
-
-    renderRunSteps(stepItems);
+    renderRunSteps(payload.steps);
     renderRunFailureSummary(payload.failureSummary);
-    renderRunArtifacts(artifactItems);
+    renderRunArtifacts(payload.artifacts);
     renderRunEvidenceLinks(payload.evidenceLinks);
-    runRecoveryPanel.render(recovery);
-    await runLogViewer.load(runIdValue);
 
     state.textContent = "Run detail loaded.";
     summary.hidden = false;
+
+    const recoveryPromise = fetchRunRecovery(runIdValue)
+      .then((recovery) => {
+        runRecoveryPanel.render(recovery);
+      })
+      .catch(() => {
+        runRecoveryPanel.render(null);
+      });
+
+    const persistedRecordsPromise = Promise.all([
+      fetchPersistedRunStepRecords(runIdValue),
+      fetchPersistedRunArtifactRecords(runIdValue),
+    ]).then(([persistedStepRecords, persistedArtifactRecords]) => {
+      const stepItems = Array.isArray(persistedStepRecords) && persistedStepRecords.length > 0
+        ? mapPersistedStepRecordsToDetailView(persistedStepRecords)
+        : payload.steps;
+      const artifactItems = Array.isArray(persistedArtifactRecords) && persistedArtifactRecords.length > 0
+        ? mapPersistedArtifactRecordsToDetailView(persistedArtifactRecords)
+        : payload.artifacts;
+
+      renderRunSteps(stepItems);
+      renderRunArtifacts(artifactItems);
+    });
+
+    await Promise.all([
+      recoveryPromise,
+      persistedRecordsPromise,
+      runLogViewer.load(runIdValue),
+    ]);
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load run detail: ${error.message}`;
@@ -666,6 +683,9 @@ async function fetchRunRecovery(runIdValue) {
   const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/recovery`, {
     headers: { Accept: "application/json" },
   });
+  if (response.status === 404) {
+    return null;
+  }
   if (!response.ok) {
     throw new Error(`Run recovery API returned ${response.status}`);
   }
@@ -729,7 +749,7 @@ function renderRunSteps(steps) {
   const table = document.getElementById("run-detail-steps-table");
   const body = document.getElementById("run-detail-steps-body");
   const empty = document.getElementById("run-detail-steps-empty");
-  const list = Array.isArray(steps) ? steps : [];
+  const list = coalesceRunSteps(steps);
 
   body.innerHTML = "";
   if (list.length === 0) {

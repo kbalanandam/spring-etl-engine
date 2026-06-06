@@ -82,3 +82,20 @@ test("run recovery panel shows empty anchors message when none exist", () => {
   }
 });
 
+test("run recovery panel shows neutral message when recovery is missing", () => {
+  const { elements, restore } = installDom(IDS);
+  try {
+    const panel = createRunRecoveryPanel({
+      valueOrDash: (value) => (value === null || value === undefined || value === "" ? "-" : String(value)),
+    });
+
+    panel.render(null);
+
+    assert.equal(elements.get("run-detail-recovery-state").textContent, "No advisory recovery diagnostics found for this run.");
+    assert.equal(elements.get("run-detail-recovery-state").className, "state");
+    assert.equal(elements.get("run-detail-recovery-box").hidden, true);
+  } finally {
+    restore();
+  }
+});
+
