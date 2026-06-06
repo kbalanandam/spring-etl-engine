@@ -301,7 +301,7 @@ Use this section as the near-term sequencing view behind the execution board:
 8. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
 9. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
 10. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-11. Start Operator UI in parallel as a monitoring-first independent slice (`U1` -> `U2` -> `U3`) so users get centralized job/run visibility without coupling UI to ETL-core launch behavior.
+11. `U1` -> `U3` are now closed as shipped monitoring-first slices; keep follow-on Operator UI work additive and bounded to stability/read-model hardening unless a new board item explicitly widens scope.
 12. Run `S1` contract freeze as the active scheduler boundary and execute first `S2` + phased `S4` slices in the same release lane (`S4a`/`S4b` shipped and `S4c` first functional slice shipped), while keeping advanced `S3` overlap/missed-run policy deferred.
 13. Treat `Epic F` docs freeze as complete for `D1`/`D2`/`D3`; any next restartability work should now be implementation-oriented or release-gate oriented rather than another contract-freeze pass.
 14. Keep `Epic R` in docs-freeze mode for now (`R1`/`R2` anchors in place) and defer `R3` -> `R5` implementation plus unresolved `R2` validation execution until Epic F implementation priority changes.

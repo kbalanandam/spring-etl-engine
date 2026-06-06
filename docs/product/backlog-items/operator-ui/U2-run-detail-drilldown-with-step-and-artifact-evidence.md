@@ -108,6 +108,8 @@ Keep this slice read-only and evidence-first. Any action buttons should remain d
 
 Completed as the second monitoring-first UI slice after jobs/runs overview, including follow-on UX/filtering polish and run-scoped log rendering.
 
+Post-delivery hardening on the same read-model boundary also shipped stale-response route guards, runs-filter cache TTL/size bounds, jobs-scoped cache reconciliation, and route-safe sequencing for run-detail log loading (see `docs/architecture/operator-ui/monitoring-shell-runtime-hardening.md`).
+
 Shipped scope:
 
 - replaced U1 run-detail placeholder panel with read-only sections for run summary, step outcomes/counts, failure summary, artifacts, and evidence links

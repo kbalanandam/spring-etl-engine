@@ -27,6 +27,7 @@ This epic is **not** the place to make UI a runtime prerequisite or to redesign 
 - [`../../../architecture/operator-ui/operator-ui-architecture-direction.md`](../../../architecture/operator-ui/operator-ui-architecture-direction.md)
 - [`../../../architecture/operator-ui/angular-ui-mvp-structure.md`](../../../architecture/operator-ui/angular-ui-mvp-structure.md)
 - [`../../../architecture/operator-ui/angular-ui-mvp-wireframes.md`](../../../architecture/operator-ui/angular-ui-mvp-wireframes.md)
+- [`../../../architecture/operator-ui/monitoring-shell-runtime-hardening.md`](../../../architecture/operator-ui/monitoring-shell-runtime-hardening.md)
 - [`../../../architecture/control-plane/operator-ui-mvp-api-surface.md`](../../../architecture/control-plane/operator-ui-mvp-api-surface.md)
 - [`../../../architecture/control-plane/operator-ui-mvp-openapi.yaml`](../../../architecture/control-plane/operator-ui-mvp-openapi.yaml)
 - [`../../../architecture/control-plane/control-plane-worker-boundary.md`](../../../architecture/control-plane/control-plane-worker-boundary.md)
