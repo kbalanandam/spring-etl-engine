@@ -4,23 +4,33 @@ export function createJobsListUi(options) {
   const getState = options.getState;
   const syncRouteHash = options.syncRouteHash;
   const escapeHtml = options.escapeHtml;
+  const getRouteSuffix = typeof options.getRouteSuffix === "function"
+    ? options.getRouteSuffix
+    : () => "";
 
   function initializeControls() {
     const jobsFilter = document.getElementById("jobs-filter-input");
     const jobsSort = document.getElementById("jobs-sort-select");
     const jobsDirection = document.getElementById("jobs-sort-dir-btn");
-    if (!jobsFilter || !jobsSort || !jobsDirection) {
+    const jobsPageSize = document.getElementById("jobs-page-size-select");
+    const jobsPrev = document.getElementById("jobs-page-prev-btn");
+    const jobsNext = document.getElementById("jobs-page-next-btn");
+    if (!jobsFilter || !jobsSort || !jobsDirection || !jobsPageSize || !jobsPrev || !jobsNext) {
       return;
     }
 
     jobsFilter.addEventListener("input", (event) => {
-      getState().filterText = event.target.value || "";
+      const state = getState();
+      state.filterText = event.target.value || "";
+      state.page = 1;
       syncRouteHash("jobs");
       renderTable();
     });
 
     jobsSort.addEventListener("change", (event) => {
-      getState().sortKey = event.target.value;
+      const state = getState();
+      state.sortKey = event.target.value;
+      state.page = 1;
       syncRouteHash("jobs");
       renderTable();
     });
@@ -28,7 +38,34 @@ export function createJobsListUi(options) {
     jobsDirection.addEventListener("click", () => {
       const state = getState();
       state.sortDirection = toggleDirection(state.sortDirection);
+      state.page = 1;
       jobsDirection.textContent = labelDirection(state.sortDirection);
+      syncRouteHash("jobs");
+      renderTable();
+    });
+
+    jobsPageSize.addEventListener("change", (event) => {
+      const state = getState();
+      const nextPageSize = Number(event.target.value);
+      state.pageSize = Number.isFinite(nextPageSize) && nextPageSize > 0 ? nextPageSize : state.pageSize;
+      state.page = 1;
+      syncRouteHash("jobs");
+      renderTable();
+    });
+
+    jobsPrev.addEventListener("click", () => {
+      const state = getState();
+      if (state.page <= 1) {
+        return;
+      }
+      state.page -= 1;
+      syncRouteHash("jobs");
+      renderTable();
+    });
+
+    jobsNext.addEventListener("click", () => {
+      const state = getState();
+      state.page += 1;
       syncRouteHash("jobs");
       renderTable();
     });
@@ -39,10 +76,13 @@ export function createJobsListUi(options) {
     state.filterText = routeState.filterText || "";
     state.sortKey = routeState.sortKey || "jobKey";
     state.sortDirection = routeState.sortDirection || "asc";
+    state.page = routeState.page || 1;
+    state.pageSize = routeState.pageSize || state.pageSize || 10;
 
     const filter = document.getElementById("jobs-filter-input");
     const sort = document.getElementById("jobs-sort-select");
     const direction = document.getElementById("jobs-sort-dir-btn");
+    const pageSize = document.getElementById("jobs-page-size-select");
     if (filter) {
       filter.value = state.filterText;
     }
@@ -52,13 +92,20 @@ export function createJobsListUi(options) {
     if (direction) {
       direction.textContent = labelDirection(state.sortDirection);
     }
+    if (pageSize) {
+      pageSize.value = String(state.pageSize);
+    }
   }
 
   function renderTable() {
     const stateElement = document.getElementById("jobs-state");
     const table = document.getElementById("jobs-table");
     const body = document.getElementById("jobs-body");
-    if (!stateElement || !table || !body) {
+    const pageStatus = document.getElementById("jobs-page-status");
+    const prevButton = document.getElementById("jobs-page-prev-btn");
+    const nextButton = document.getElementById("jobs-page-next-btn");
+    const pageSize = document.getElementById("jobs-page-size-select");
+    if (!stateElement || !table || !body || !pageStatus || !prevButton || !nextButton || !pageSize) {
       return;
     }
 
@@ -68,19 +115,30 @@ export function createJobsListUi(options) {
       return haystack.includes(state.filterText.trim().toLowerCase());
     });
     const sorted = sortItems(filtered, state.sortKey, state.sortDirection);
+    const effectivePageSize = Number.isFinite(Number(state.pageSize)) && Number(state.pageSize) > 0
+      ? Number(state.pageSize)
+      : 10;
+    const totalPages = Math.max(1, Math.ceil(sorted.length / effectivePageSize));
+    state.page = Math.min(Math.max(Number(state.page) || 1, 1), totalPages);
+    const startIndex = (state.page - 1) * effectivePageSize;
+    const visible = sorted.slice(startIndex, startIndex + effectivePageSize);
+    const routeSuffix = getRouteSuffix();
 
     body.innerHTML = "";
     if (sorted.length === 0) {
       stateElement.textContent = "No job bundles match the current filter.";
+      pageStatus.textContent = "Page 0 of 0";
+      prevButton.disabled = true;
+      nextButton.disabled = true;
       table.hidden = true;
       return;
     }
 
-    sorted.forEach((job) => {
+    visible.forEach((job) => {
       const row = document.createElement("tr");
       const jobKey = job.jobKey;
       const jobKeyCell = jobKey
-        ? `<a href="#/jobs/${encodeURIComponent(jobKey)}">${escapeHtml(jobKey)}</a>`
+        ? `<a href="#/jobs/${encodeURIComponent(jobKey)}${routeSuffix}">${escapeHtml(jobKey)}</a>`
         : "-";
       row.innerHTML = `
         <td>${jobKeyCell}</td>
@@ -89,7 +147,11 @@ export function createJobsListUi(options) {
       body.appendChild(row);
     });
 
-    stateElement.textContent = `Showing ${sorted.length} of ${state.items.length} job bundle(s).`;
+    pageSize.value = String(effectivePageSize);
+    pageStatus.textContent = `Page ${state.page} of ${totalPages}`;
+    prevButton.disabled = state.page <= 1;
+    nextButton.disabled = state.page >= totalPages;
+    stateElement.textContent = `Showing ${visible.length} of ${sorted.length} matching job bundle(s) (${state.items.length} total).`;
     table.hidden = false;
   }
 

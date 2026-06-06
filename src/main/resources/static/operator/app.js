@@ -32,6 +32,8 @@ const routes = {
   },
 };
 
+const JOBS_PAGE_SIZE_OPTIONS = [8, 10, 15, 20];
+
 const viewState = {
   jobs: {
     loaded: false,
@@ -39,6 +41,8 @@ const viewState = {
     filterText: "",
     sortKey: "jobKey",
     sortDirection: "asc",
+    page: 1,
+    pageSize: defaultJobsPageSize(),
   },
   runs: {
     loaded: false,
@@ -72,6 +76,7 @@ const runRecoveryPanel = createRunRecoveryPanel({
 const jobsListUi = createJobsListUi({
   getState: () => viewState.jobs,
   syncRouteHash: syncListRouteHash,
+  getRouteSuffix: getJobsRouteQuerySuffix,
   escapeHtml,
 });
 
@@ -141,6 +146,8 @@ function currentRouteState() {
     jobKey: null,
     query: parsed.query,
     filterText: parsed.query.f || "",
+    page: normalizePositiveInteger(parsed.query.page, 1),
+    pageSize: normalizePageSize(parsed.query.pageSize, defaultJobsPageSize()),
     sortKey: normalizeSortKey("jobs", parsed.query.sort, "jobKey"),
     sortDirection: normalizeDirection(parsed.query.dir, "asc"),
   };
@@ -204,7 +211,9 @@ async function loadJobDetailPlaceholder(routeState) {
   const triggerButton = document.getElementById("job-detail-trigger-now-btn");
   const triggerFeedback = document.getElementById("job-detail-trigger-feedback");
   const viewConfigLink = document.getElementById("job-detail-view-config-link");
+  const backLink = document.getElementById("job-detail-back-link");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
+  const jobsRouteQuerySuffix = getQuerySuffix(routeState && routeState.query);
 
   state.className = "state";
   summary.hidden = true;
@@ -213,7 +222,10 @@ async function loadJobDetailPlaceholder(routeState) {
   triggerFeedback.textContent = "";
   triggerButton.disabled = true;
   if (viewConfigLink) {
-    viewConfigLink.setAttribute("href", "#/jobs");
+    viewConfigLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
+  }
+  if (backLink) {
+    backLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
   }
 
   if (!jobKeyValue) {
@@ -238,7 +250,7 @@ async function loadJobDetailPlaceholder(routeState) {
     document.getElementById("job-detail-recent-run-count").textContent = String(Array.isArray(payload.recentRuns) ? payload.recentRuns.length : 0);
     document.getElementById("job-detail-trigger-count").textContent = String(Array.isArray(payload.triggerEvents) ? payload.triggerEvents.length : 0);
     if (viewConfigLink) {
-      viewConfigLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}/config`);
+      viewConfigLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}/config${jobsRouteQuerySuffix}`);
     }
 
     triggerButton.disabled = false;
@@ -258,13 +270,14 @@ async function loadJobConfig(routeState) {
   const raw = document.getElementById("job-config-raw");
   const backLink = document.getElementById("job-config-back-link");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
+  const jobsRouteQuerySuffix = getQuerySuffix(routeState && routeState.query);
 
   state.className = "state";
   summary.hidden = true;
   raw.hidden = true;
   raw.textContent = "";
   if (backLink) {
-    backLink.setAttribute("href", "#/jobs");
+    backLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
   }
 
   if (!jobKeyValue) {
@@ -288,7 +301,7 @@ async function loadJobConfig(routeState) {
     document.getElementById("job-config-path").textContent = payload.jobConfigPath || "-";
     raw.textContent = payload.rawYaml || "";
     if (backLink) {
-      backLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}`);
+      backLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}${jobsRouteQuerySuffix}`);
     }
 
     summary.hidden = false;
@@ -447,7 +460,42 @@ function applyRouteStateToListView(routeState) {
 }
 
 function syncListRouteHash(routeKey) {
-  const source = routeKey === "jobs" ? viewState.jobs : viewState.runs;
+  const hash = routeKey === "jobs"
+    ? getJobsRouteHash()
+    : getRunsRouteHash();
+  if (location.hash !== hash) {
+    location.hash = hash;
+  }
+}
+
+function getJobsRouteHash() {
+  const query = buildJobsRouteQuery(viewState.jobs);
+  return query ? `#/jobs?${query}` : "#/jobs";
+}
+
+function getJobsRouteQuerySuffix() {
+  const query = buildJobsRouteQuery(viewState.jobs);
+  return query ? `?${query}` : "";
+}
+
+function buildJobsRouteQuery(source) {
+  const params = new URLSearchParams();
+  if (source.filterText.trim() !== "") {
+    params.set("f", source.filterText.trim());
+  }
+  if ((source.page || 1) > 1) {
+    params.set("page", String(source.page));
+  }
+  if ((source.pageSize || defaultJobsPageSize()) !== defaultJobsPageSize()) {
+    params.set("pageSize", String(source.pageSize));
+  }
+  params.set("sort", source.sortKey);
+  params.set("dir", source.sortDirection);
+  return params.toString();
+}
+
+function getRunsRouteHash() {
+  const source = viewState.runs;
   const params = new URLSearchParams();
 
   if (source.filterText.trim() !== "") {
@@ -456,29 +504,21 @@ function syncListRouteHash(routeKey) {
   if (source.selectedJobKey && source.selectedJobKey.trim() !== "") {
     params.set("job", source.selectedJobKey.trim());
   }
-  if (routeKey === "runs") {
-    if (source.runModeFilter && source.runModeFilter.trim() !== "") {
-      params.set("runMode", source.runModeFilter.trim());
-    }
-    if (source.recoveryPolicyFilter && source.recoveryPolicyFilter.trim() !== "") {
-      params.set("recoveryPolicy", source.recoveryPolicyFilter.trim());
-    }
+  if (source.runModeFilter && source.runModeFilter.trim() !== "") {
+    params.set("runMode", source.runModeFilter.trim());
   }
-  if (routeKey === "runs") {
-    if (source.startDate && source.startDate.trim() !== "") {
-      params.set("startDate", source.startDate.trim());
-    }
-    if (source.timezone && source.timezone.trim() !== "") {
-      params.set("timezone", source.timezone.trim());
-    }
+  if (source.recoveryPolicyFilter && source.recoveryPolicyFilter.trim() !== "") {
+    params.set("recoveryPolicy", source.recoveryPolicyFilter.trim());
+  }
+  if (source.startDate && source.startDate.trim() !== "") {
+    params.set("startDate", source.startDate.trim());
+  }
+  if (source.timezone && source.timezone.trim() !== "") {
+    params.set("timezone", source.timezone.trim());
   }
   params.set("sort", source.sortKey);
   params.set("dir", source.sortDirection);
-
-  const hash = `#/${routeKey}?${params.toString()}`;
-  if (location.hash !== hash) {
-    location.hash = hash;
-  }
+  return `#/runs?${params.toString()}`;
 }
 
 function parseHashRoute() {
@@ -511,6 +551,43 @@ function normalizeDirection(value, fallback) {
     return value;
   }
   return fallback;
+}
+
+function normalizePositiveInteger(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return fallback;
+}
+
+function normalizePageSize(value, fallback) {
+  const parsed = normalizePositiveInteger(value, fallback);
+  return JOBS_PAGE_SIZE_OPTIONS.includes(parsed) ? parsed : fallback;
+}
+
+function defaultJobsPageSize() {
+  const viewportHeight = typeof window !== "undefined" && Number.isFinite(window.innerHeight)
+    ? window.innerHeight
+    : 900;
+  if (viewportHeight >= 1200) {
+    return 15;
+  }
+  if (viewportHeight >= 900) {
+    return 10;
+  }
+  return 8;
+}
+
+function getQuerySuffix(query) {
+  const params = new URLSearchParams();
+  Object.entries(query || {}).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && String(value) !== "") {
+      params.set(key, String(value));
+    }
+  });
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : "";
 }
 
 async function ensureRunsJobOptions() {

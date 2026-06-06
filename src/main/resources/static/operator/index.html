@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Operator UI - Monitoring First</title>
-  <link rel="stylesheet" href="/operator/styles.css?v=20260605-run-step-dedupe">
+  <link rel="stylesheet" href="/operator/styles.css?v=20260606-jobs-pagination">
 </head>
 <body>
 <header class="topbar">
@@ -25,7 +25,7 @@
   <section id="view-jobs" class="panel" hidden>
     <h2>Jobs</h2>
     <p class="hint">Known bundles from <code>/api/v1/jobs</code>.</p>
-    <div class="control-row">
+    <div class="control-row jobs-controls">
       <label for="jobs-filter-input">Filter</label>
       <input id="jobs-filter-input" type="text" placeholder="job key or display name">
       <label for="jobs-sort-select">Sort</label>
@@ -35,6 +35,18 @@
         <option value="readinessStatus">Readiness</option>
       </select>
       <button id="jobs-sort-dir-btn" type="button">Asc</button>
+    </div>
+    <div class="control-row jobs-pagination">
+      <label for="jobs-page-size-select">Rows</label>
+      <select id="jobs-page-size-select">
+        <option value="8">8</option>
+        <option value="10">10</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+      </select>
+      <button id="jobs-page-prev-btn" type="button">Prev</button>
+      <span id="jobs-page-status" class="jobs-page-status">Page 1 of 1</span>
+      <button id="jobs-page-next-btn" type="button">Next</button>
     </div>
     <div id="jobs-state" class="state"></div>
     <table id="jobs-table" hidden>
@@ -70,7 +82,7 @@
     </div>
     <div id="job-detail-trigger-feedback" class="state" hidden></div>
 
-    <p><a href="#/jobs">Back to jobs list</a></p>
+    <p><a id="job-detail-back-link" href="#/jobs">Back to jobs list</a></p>
   </section>
 
   <section id="view-job-config" class="panel" hidden>
@@ -255,6 +267,6 @@
   <p class="footnote-meta">&copy; 2026 OneFlow contributors. All rights reserved.</p>
 </footer>
 
-<script type="module" src="/operator/app.js?v=20260605-run-step-dedupe"></script>
+<script type="module" src="/operator/app.js?v=20260606-jobs-pagination"></script>
 </body>
 </html>

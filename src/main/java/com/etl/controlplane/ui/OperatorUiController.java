@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 @Controller
 public class OperatorUiController {
 
-      private static final String UI_VERSION = "20260605-run-step-dedupe";
+      private static final String UI_VERSION = "20260606-jobs-pagination";
 
     @GetMapping({"/operator", "/operator/"})
     public String operatorHome() {

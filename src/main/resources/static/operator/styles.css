@@ -108,6 +108,25 @@ body {
   cursor: pointer;
 }
 
+.jobs-controls,
+.jobs-pagination {
+  align-items: center;
+}
+
+.jobs-pagination {
+  margin-top: -2px;
+}
+
+.jobs-page-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 4px;
+  color: #475569;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .runs-controls {
   align-items: flex-start;
   gap: 10px 12px;

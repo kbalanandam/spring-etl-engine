@@ -7,14 +7,19 @@ and this project adheres to **Semantic Versioning**.
 ## [Unreleased]
 
 ### Added
-- N/A
+- Added Operator Run Detail advisory recovery diagnostics panel with dedicated renderer wiring and smoke coverage for populated, empty, and missing-recovery states.
+- Added `scripts/cleanup-controlplane-duplicate-steps.ps1` plus operations runbook guidance for audit/cleanup of duplicate `controlplane_step_record` rows in local SQLite control-plane history.
 
 ### Changed
 - Started `F1` phase-2 advisory recovery read-model support by adding `GET /api/v1/runs/{jobExecutionId}/recovery`, projecting retained `attempt_link` + `checkpoint_anchor` evidence with explicit `resumeSupported=false` semantics while preserving the current fail-fast checkpoint-resume runtime boundary.
 - Continued `F1` phase-2 recovery behavior by returning a deterministic advisory recovery payload when no retained recovery row exists (including memory-mode fallback), centralizing `resumeBlockedReason` semantics, and preserving `resumeSupported=false` with checkpoint-resume execution still unshipped.
+- Updated Operator Run Detail loading to tolerate `GET /api/v1/runs/{jobExecutionId}/recovery` `404` responses and continue rendering core run detail/log diagnostics as advisory-only fallback evidence.
+- Updated structured-log step projection identity merge behavior in `JdbcRunSummaryRegistry` so mixed name-only and id-based `STEP_EVENT` records converge to one canonical step record per logical step.
+- Updated control-plane run projection writes to emit explicit warning evidence when duplicate step-name groups are detected for a run (`RUN_EVENT event=duplicate_step_groups_detected`).
+- Updated the Operator Jobs tab to keep client-side search/sort state while adding screen-friendly pagination controls, configurable rows-per-page, and route-preserving navigation back from job detail/config views.
 
 ### Fixed
-- N/A
+- Fixed duplicate logical step rows shown in Operator Run Detail by deduplicating rendered step entries and preferring the most complete counts/status projection.
 
 ### Security
 - N/A
