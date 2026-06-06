@@ -51,6 +51,7 @@ const viewState = {
     pageSize: defaultJobsPageSize(),
     expandedJobKey: "",
     jobStepPreviewByJobKey: {},
+    stepNamesByJobKey: {},
   },
   runs: {
     loaded: false,
@@ -101,6 +102,16 @@ const SORT_KEYS = {
   jobs: ["jobKey", "displayName", "readinessStatus"],
   runs: ["startTime", "jobExecutionId", "scenario", "status", "runMode", "recoveryPolicy"],
 };
+
+const loadRequestTracker = {
+  jobs: 0,
+  jobDetail: 0,
+  jobConfig: 0,
+  runs: 0,
+  runDetail: 0,
+};
+
+const inFlightStepNamesByJobKey = {};
 
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("DOMContentLoaded", () => {
@@ -180,6 +191,7 @@ function renderRoute() {
 }
 
 async function loadJobs() {
+  const requestId = ++loadRequestTracker.jobs;
   const state = document.getElementById("jobs-state");
   const table = document.getElementById("jobs-table");
   const body = document.getElementById("jobs-body");
@@ -200,7 +212,12 @@ async function loadJobs() {
       throw new Error(`Jobs API returned ${response.status}`);
     }
     const payload = await response.json();
-    viewState.jobs.items = Array.isArray(payload.items) ? payload.items : [];
+    if (!isLatestRequest("jobs", requestId) || !isActiveRoute("jobs")) {
+      return;
+    }
+
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    applyJobsItems(items);
     viewState.jobs.loaded = true;
 
     if (viewState.jobs.items.length === 0) {
@@ -209,6 +226,9 @@ async function loadJobs() {
     }
     jobsListUi.renderTable();
   } catch (error) {
+    if (!isLatestRequest("jobs", requestId) || !isActiveRoute("jobs")) {
+      return;
+    }
     state.className = "state error";
     state.textContent = `Unable to load jobs: ${error.message}`;
   }
@@ -220,15 +240,36 @@ async function loadJobStepNames(jobKey) {
     return [];
   }
 
-  const response = await fetch(`/api/v1/jobs/${encodeURIComponent(normalizedJobKey)}/config`, {
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    throw new Error(`Job config API returned ${response.status}`);
+  if (Array.isArray(viewState.jobs.stepNamesByJobKey[normalizedJobKey])) {
+    return viewState.jobs.stepNamesByJobKey[normalizedJobKey];
   }
 
-  const payload = await response.json();
-  return extractStepNamesFromRawYaml(payload.rawYaml);
+  if (inFlightStepNamesByJobKey[normalizedJobKey]) {
+    return inFlightStepNamesByJobKey[normalizedJobKey];
+  }
+
+  const requestPromise = fetch(`/api/v1/jobs/${encodeURIComponent(normalizedJobKey)}/config`, {
+    headers: { Accept: "application/json" },
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error(`Job config API returned ${response.status}`);
+      }
+      return response.json();
+    })
+    .then((payload) => {
+      const stepNames = extractStepNamesFromRawYaml(payload.rawYaml);
+      viewState.jobs.stepNamesByJobKey[normalizedJobKey] = stepNames;
+      return stepNames;
+    })
+    .finally(() => {
+      if (inFlightStepNamesByJobKey[normalizedJobKey] === requestPromise) {
+        delete inFlightStepNamesByJobKey[normalizedJobKey];
+      }
+    });
+
+  inFlightStepNamesByJobKey[normalizedJobKey] = requestPromise;
+  return requestPromise;
 }
 
 function extractStepNamesFromRawYaml(rawYaml) {
@@ -280,6 +321,7 @@ function extractStepNamesFromRawYaml(rawYaml) {
 }
 
 async function loadJobDetailPlaceholder(routeState) {
+  const requestId = ++loadRequestTracker.jobDetail;
   const state = document.getElementById("job-detail-state");
   const summary = document.getElementById("job-detail-summary");
   const triggerButton = document.getElementById("job-detail-trigger-now-btn");
@@ -316,6 +358,10 @@ async function loadJobDetailPlaceholder(routeState) {
       throw new Error(`Job detail API returned ${response.status}`);
     }
     const payload = await response.json();
+    if (!isLatestRequest("jobDetail", requestId) || !isActiveRoute("jobDetail", jobKeyValue)) {
+      return;
+    }
+
     const job = payload.job || {};
 
     document.getElementById("job-detail-key").textContent = job.jobKey || jobKeyValue;
@@ -333,12 +379,16 @@ async function loadJobDetailPlaceholder(routeState) {
     state.textContent = "Job detail loaded.";
     summary.hidden = false;
   } catch (error) {
+    if (!isLatestRequest("jobDetail", requestId) || !isActiveRoute("jobDetail", jobKeyValue)) {
+      return;
+    }
     state.className = "state error";
     state.textContent = `Unable to load job detail placeholder: ${error.message}`;
   }
 }
 
 async function loadJobConfig(routeState) {
+  const requestId = ++loadRequestTracker.jobConfig;
   const state = document.getElementById("job-config-state");
   const summary = document.getElementById("job-config-summary");
   const fileState = document.getElementById("job-config-file-state");
@@ -386,6 +436,10 @@ async function loadJobConfig(routeState) {
       throw new Error(`Job config API returned ${response.status}`);
     }
     const payload = await response.json();
+    if (!isLatestRequest("jobConfig", requestId) || !isActiveRoute("jobConfig", jobKeyValue)) {
+      return;
+    }
+
     document.getElementById("job-config-key").textContent = payload.jobKey || jobKeyValue;
     document.getElementById("job-config-name").textContent = payload.displayName || "-";
     document.getElementById("job-config-path").textContent = payload.jobConfigPath || "-";
@@ -398,6 +452,9 @@ async function loadJobConfig(routeState) {
     raw.hidden = false;
     state.textContent = "Job config loaded.";
   } catch (error) {
+    if (!isLatestRequest("jobConfig", requestId) || !isActiveRoute("jobConfig", jobKeyValue)) {
+      return;
+    }
     state.className = "state error";
     state.textContent = `Unable to load job config: ${error.message}`;
   }
@@ -565,6 +622,7 @@ function categorizeTriggerFailure(statusCode) {
 }
 
 async function loadRuns() {
+  const requestId = ++loadRequestTracker.runs;
   const state = document.getElementById("runs-state");
   const table = document.getElementById("runs-table");
   const body = document.getElementById("runs-body");
@@ -589,6 +647,10 @@ async function loadRuns() {
   try {
     await ensureRunsJobOptions();
     const runs = await fetchRunsForFilters(selectedJobKey, selectedRunMode, selectedRecoveryPolicy, selectedStartDate, selectedTimezone);
+    if (!isLatestRequest("runs", requestId) || !isActiveRoute("runs")) {
+      return;
+    }
+
     viewState.runs.items = runs;
     viewState.runs.loaded = true;
     viewState.runs.loadedForKey = loadKey;
@@ -599,6 +661,9 @@ async function loadRuns() {
     }
     runsListUi.renderTable();
   } catch (error) {
+    if (!isLatestRequest("runs", requestId) || !isActiveRoute("runs")) {
+      return;
+    }
     state.className = "state error";
     state.textContent = `Unable to load runs: ${error.message}`;
   }
@@ -716,6 +781,24 @@ function parseHashRoute() {
   return { path, query };
 }
 
+function isLatestRequest(scope, requestId) {
+  return loadRequestTracker[scope] === requestId;
+}
+
+function isActiveRoute(routeKey, routeValue) {
+  const routeState = currentRouteState();
+  if (routeState.key !== routeKey) {
+    return false;
+  }
+  if (routeKey === "jobDetail" || routeKey === "jobConfig") {
+    return String(routeState.jobKey || "") === String(routeValue || "");
+  }
+  if (routeKey === "runDetail") {
+    return String(routeState.jobExecutionId || "") === String(routeValue || "");
+  }
+  return true;
+}
+
 function normalizeSortKey(routeKey, value, fallback) {
   if (!value) {
     return fallback;
@@ -815,9 +898,45 @@ async function fetchJobsForRunsScope() {
   }
   const payload = await response.json();
   const jobs = Array.isArray(payload.items) ? payload.items : [];
-  viewState.jobs.items = jobs;
+  applyJobsItems(jobs);
   viewState.jobs.loaded = true;
   return jobs;
+}
+
+function applyJobsItems(items) {
+  const jobs = Array.isArray(items) ? items : [];
+  const validKeys = new Set(
+    jobs
+      .map((job) => String(job?.jobKey || "").trim())
+      .filter((jobKey) => jobKey !== "")
+  );
+
+  viewState.jobs.items = jobs;
+  reconcileJobsScopedCaches(validKeys);
+}
+
+function reconcileJobsScopedCaches(validJobKeys) {
+  const validKeys = validJobKeys instanceof Set ? validJobKeys : new Set();
+
+  if (!validKeys.has(viewState.jobs.expandedJobKey)) {
+    viewState.jobs.expandedJobKey = "";
+  }
+
+  pruneObjectKeys(viewState.jobs.jobStepPreviewByJobKey, validKeys);
+  pruneObjectKeys(viewState.jobs.stepNamesByJobKey, validKeys);
+  pruneObjectKeys(inFlightStepNamesByJobKey, validKeys);
+}
+
+function pruneObjectKeys(source, validKeys) {
+  if (!source || typeof source !== "object") {
+    return;
+  }
+
+  Object.keys(source).forEach((key) => {
+    if (!validKeys.has(key)) {
+      delete source[key];
+    }
+  });
 }
 
 async function fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, startDate, timezone) {
@@ -856,6 +975,7 @@ async function fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, star
 
 
 async function loadRunDetail(routeState) {
+  const requestId = ++loadRequestTracker.runDetail;
   const state = document.getElementById("run-detail-state");
   const summary = document.getElementById("run-detail-summary");
   const runIdValue = routeState && routeState.jobExecutionId ? routeState.jobExecutionId : null;
@@ -879,6 +999,10 @@ async function loadRunDetail(routeState) {
       throw new Error(`Run detail API returned ${response.status}`);
     }
     const payload = await response.json();
+    if (!isLatestRequest("runDetail", requestId) || !isActiveRoute("runDetail", runIdValue)) {
+      return;
+    }
+
     const run = payload.run || {};
 
     document.getElementById("run-detail-id").textContent = String(run.jobExecutionId ?? runIdValue);
@@ -901,9 +1025,15 @@ async function loadRunDetail(routeState) {
 
     const recoveryPromise = fetchRunRecovery(runIdValue)
       .then((recovery) => {
+        if (!isLatestRequest("runDetail", requestId) || !isActiveRoute("runDetail", runIdValue)) {
+          return;
+        }
         runRecoveryPanel.render(recovery);
       })
       .catch(() => {
+        if (!isLatestRequest("runDetail", requestId) || !isActiveRoute("runDetail", runIdValue)) {
+          return;
+        }
         runRecoveryPanel.render(null);
       });
 
@@ -911,6 +1041,10 @@ async function loadRunDetail(routeState) {
       fetchPersistedRunStepRecords(runIdValue),
       fetchPersistedRunArtifactRecords(runIdValue),
     ]).then(([persistedStepRecords, persistedArtifactRecords]) => {
+      if (!isLatestRequest("runDetail", requestId) || !isActiveRoute("runDetail", runIdValue)) {
+        return;
+      }
+
       const stepItems = Array.isArray(persistedStepRecords) && persistedStepRecords.length > 0
         ? mapPersistedStepRecordsToDetailView(persistedStepRecords)
         : payload.steps;
@@ -928,6 +1062,9 @@ async function loadRunDetail(routeState) {
       runLogViewer.load(runIdValue),
     ]);
   } catch (error) {
+    if (!isLatestRequest("runDetail", requestId) || !isActiveRoute("runDetail", runIdValue)) {
+      return;
+    }
     state.className = "state error";
     state.textContent = `Unable to load run detail: ${error.message}`;
   }
