@@ -186,7 +186,7 @@ Response body:
 
 ### `GET /api/v1/jobs/{jobKey}/config`
 
-Returns one read-only `job-config.yaml` payload for drill-down viewing.
+Returns one read-only bundle config payload for drill-down viewing.
 
 Response body:
 
@@ -195,14 +195,21 @@ Response body:
   "jobKey": "customer-load",
   "displayName": "Customer Load",
   "jobConfigPath": "src/main/resources/config-jobs/customer-load/job-config.yaml",
-  "rawYaml": "name: customer-load\nsourceConfigPath: source-config.yaml\n..."
+  "rawYaml": "name: customer-load\nsourceConfigPath: source-config.yaml\n...",
+  "sourceConfigPath": "src/main/resources/config-jobs/customer-load/source-config.yaml",
+  "sourceRawYaml": "sources:\n  - sourceName: Customers\n    filePath: input/customers.csv\n...",
+  "targetConfigPath": "src/main/resources/config-jobs/customer-load/target-config.yaml",
+  "targetRawYaml": "targets:\n  - targetName: Customers\n    filePath: output/customers.xml\n...",
+  "processorConfigPath": "src/main/resources/config-jobs/customer-load/processor-config.yaml",
+  "processorRawYaml": "mappings:\n  - source: Customers\n    target: Customers\n..."
 }
 ```
 
 Current behavior:
 
 - returns `404` when the `jobKey` is unknown
-- returns read-only raw YAML content; this endpoint does not mutate bundle files
+- returns read-only YAML content only; this endpoint does not mutate bundle files
+- companion config payload fields are best-effort (`null` when a configured file path is missing or unreadable)
 
 ### `POST /api/v1/jobs/{jobKey}:trigger-now`
 
@@ -305,6 +312,12 @@ Response body shape:
 }
 ```
 
+Current restart-contract semantics for these fields:
+
+- `runMode` is resolved launch provenance (`explicit-job` or `demo-fallback`); it is not a resume switch.
+- `recoveryPolicy` is authored/defaulted restart intent evidence rendered with canonical tokens.
+- the shipped runtime still executes only rerun-from-start behavior; a visible `recoveryPolicy` value does not imply checkpoint-resume support.
+
 ### `GET /api/v1/runs/{jobExecutionId}`
 
 Returns one projected `RUN_SUMMARY` view by job execution id.
@@ -343,10 +356,17 @@ Current shape:
 
 Current semantics:
 
-- exposes retained `attempt_link` lineage when available
-- exposes retained `checkpoint_anchor` rows for the run when available
+- exposes retained `attempt_link` lineage when available; this is diagnostic relationship evidence, not executable resume eligibility
+- exposes retained `checkpoint_anchor` rows for the run when available; these are evidence anchors, not a shipped checkpoint-resume contract
 - is advisory only for now; it does not imply executable checkpoint-resume support
 - always reports `resumeSupported=false` in the current shipped runtime while checkpoint-resume execution is not shipped
+- keeps one stable operator-facing blocked reason: `resume-from-checkpoint is not supported in the current shipped runtime; rerun-from-start remains the active execution boundary.`
+- when no retained recovery row exists but the run exists, the endpoint still returns `200` with a deterministic advisory fallback payload:
+  - `runRecordId` defaults to `rr-<jobExecutionId>`
+  - `attemptLinkId`, `linkKind`, `priorRunRecordId`, and `priorJobExecutionId` remain `null`
+  - `checkpointAnchors` falls back to one `RUN_LOG` anchor when `run.logPath` is available, otherwise an empty list
+- returns `404` only when the selected run instance does not exist
+- no current `runMode`/`recoveryPolicy` combination makes `resumeSupported=true`; unsupported `resume-from-checkpoint` intent remains a fail-fast guardrail on the worker side rather than a deferred operator action
 
 ### `GET /api/v1/runs/{jobExecutionId}/detail`
 

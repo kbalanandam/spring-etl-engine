@@ -68,17 +68,98 @@ public class JobBundleReadModelService {
 		return findBundle(jobKey)
 				.flatMap(bundle -> {
 					try {
-						String rawYaml = Files.readString(Path.of(bundle.jobConfigPath()));
+						Path jobConfigPath = Path.of(bundle.jobConfigPath());
+						String rawYaml = Files.readString(jobConfigPath);
+						JobConfig jobConfig = yamlMapper.readValue(jobConfigPath.toFile(), JobConfig.class);
+
+						String sourceConfigPath = resolveConfigPath(jobConfigPath,
+								firstNonBlank(jobConfig.getSourceConfigPath(), extractPathHint(rawYaml, "sourceConfigPath")));
+						String targetConfigPath = resolveConfigPath(jobConfigPath,
+								firstNonBlank(jobConfig.getTargetConfigPath(), extractPathHint(rawYaml, "targetConfigPath")));
+						String processorConfigPath = resolveConfigPath(jobConfigPath,
+								firstNonBlank(jobConfig.getProcessorConfigPath(), extractPathHint(rawYaml, "processorConfigPath")));
+
 						return Optional.of(new JobBundleConfigView(
 								bundle.jobKey(),
 								bundle.displayName(),
 								bundle.jobConfigPath(),
-								rawYaml
+								rawYaml,
+								sourceConfigPath,
+								readOptionalFile(sourceConfigPath),
+								targetConfigPath,
+								readOptionalFile(targetConfigPath),
+								processorConfigPath,
+								readOptionalFile(processorConfigPath)
 						));
 					} catch (Exception ignored) {
 						return Optional.empty();
 					}
 				});
+	}
+
+	private String firstNonBlank(String primary, String secondary) {
+		if (primary != null && !primary.isBlank()) {
+			return primary;
+		}
+		if (secondary != null && !secondary.isBlank()) {
+			return secondary;
+		}
+		return null;
+	}
+
+	private String extractPathHint(String rawYaml, String key) {
+		if (rawYaml == null || rawYaml.isBlank()) {
+			return null;
+		}
+		String[] lines = rawYaml.split("\\r?\\n");
+		for (String line : lines) {
+			String trimmed = line == null ? "" : line.trim();
+			if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+				continue;
+			}
+			String prefix = key + ":";
+			if (!trimmed.startsWith(prefix)) {
+				continue;
+			}
+			String value = trimmed.substring(prefix.length()).trim();
+			if (value.startsWith("\"") && value.endsWith("\"") && value.length() >= 2) {
+				value = value.substring(1, value.length() - 1).trim();
+			} else if (value.startsWith("'") && value.endsWith("'") && value.length() >= 2) {
+				value = value.substring(1, value.length() - 1).trim();
+			}
+			return value.isBlank() ? null : value;
+		}
+		return null;
+	}
+
+	private String resolveConfigPath(Path jobConfigPath, String configuredPath) {
+		if (configuredPath == null || configuredPath.isBlank()) {
+			return null;
+		}
+		Path configured = Path.of(configuredPath.trim());
+		if (configured.isAbsolute()) {
+			return configured.normalize().toString();
+		}
+		Path parent = jobConfigPath.getParent();
+		if (parent == null) {
+			return configured.normalize().toString();
+		}
+		return parent.resolve(configured).normalize().toString();
+	}
+
+	private String readOptionalFile(String absoluteOrRelativePath) {
+		if (absoluteOrRelativePath == null || absoluteOrRelativePath.isBlank()) {
+			return null;
+		}
+		try {
+			Path path = Path.of(absoluteOrRelativePath);
+			if (!Files.exists(path) || !Files.isRegularFile(path)) {
+				return null;
+			}
+			return Files.readString(path);
+		} catch (Exception ignored) {
+			return null;
+		}
 	}
 
 	private JobBundleSummaryView readBundle(Path jobConfigPath) {

@@ -8,6 +8,10 @@ const IDS = [
   "jobs-filter-input",
   "jobs-sort-select",
   "jobs-sort-dir-btn",
+  "jobs-page-size-select",
+  "jobs-page-prev-btn",
+  "jobs-page-next-btn",
+  "jobs-page-status",
   "jobs-state",
   "jobs-table",
   "jobs-body",
@@ -31,6 +35,8 @@ test("jobs list applies route state and renders rows", () => {
         { jobKey: "orders-load", displayName: "Orders Load", readinessStatus: "BLOCKED" },
       ],
       filterText: "",
+      page: 1,
+      pageSize: 10,
       sortKey: "jobKey",
       sortDirection: "asc",
     };
@@ -38,11 +44,15 @@ test("jobs list applies route state and renders rows", () => {
     const ui = createJobsListUi({
       getState: () => state,
       syncRouteHash: () => {},
+      getRouteSuffix: () => "?f=customer&page=1&pageSize=10&sort=displayName&dir=desc",
+      loadJobStepNames: async () => [],
       escapeHtml,
     });
 
     ui.applyRouteState({
       filterText: "customer",
+      page: 1,
+      pageSize: 10,
       sortKey: "displayName",
       sortDirection: "desc",
     });
@@ -51,11 +61,16 @@ test("jobs list applies route state and renders rows", () => {
     assert.equal(elements.get("jobs-filter-input").value, "customer");
     assert.equal(elements.get("jobs-sort-select").value, "displayName");
     assert.equal(elements.get("jobs-sort-dir-btn").textContent, "Desc");
+    assert.equal(elements.get("jobs-page-size-select").value, "10");
+    assert.equal(elements.get("jobs-page-status").textContent, "Page 1 of 1");
     assert.equal(elements.get("jobs-body").children.length, 1);
     assert.equal(elements.get("jobs-table").hidden, false);
 
     const row = elements.get("jobs-body").children[0];
-    assert.match(row.innerHTML, /href="#\/jobs\/customer-load"/);
+    assert.equal(row.children.length, 3);
+    assert.match(row.children[0].children[0].children[1].innerHTML, /href="#\/jobs\/customer-load\?f=customer&page=1&pageSize=10&sort=displayName&dir=desc"/);
+    assert.equal(row.children[0].children[0].children[0].textContent, "+");
+    assert.equal(row.children[0].children[0].children[2].textContent, "1+ steps");
   } finally {
     restore();
   }
@@ -67,6 +82,8 @@ test("jobs controls update state, sync route, and re-render", () => {
     const state = {
       items: [{ jobKey: "alpha", displayName: "Alpha", readinessStatus: "READY" }],
       filterText: "",
+      page: 1,
+      pageSize: 10,
       sortKey: "jobKey",
       sortDirection: "asc",
     };
@@ -75,6 +92,8 @@ test("jobs controls update state, sync route, and re-render", () => {
     const ui = createJobsListUi({
       getState: () => state,
       syncRouteHash: (routeKey) => syncCalls.push(routeKey),
+      getRouteSuffix: () => "",
+      loadJobStepNames: async () => [],
       escapeHtml,
     });
 
@@ -83,17 +102,115 @@ test("jobs controls update state, sync route, and re-render", () => {
     const filter = elements.get("jobs-filter-input");
     const sort = elements.get("jobs-sort-select");
     const direction = elements.get("jobs-sort-dir-btn");
+    const pageSize = elements.get("jobs-page-size-select");
 
     filter.value = "alp";
     filter.dispatch("input");
     sort.value = "displayName";
     sort.dispatch("change");
     direction.dispatch("click");
+    pageSize.value = "15";
+    pageSize.dispatch("change");
 
     assert.equal(state.filterText, "alp");
     assert.equal(state.sortKey, "displayName");
     assert.equal(state.sortDirection, "desc");
-    assert.deepEqual(syncCalls, ["jobs", "jobs", "jobs"]);
+    assert.equal(state.page, 1);
+    assert.equal(state.pageSize, 15);
+    assert.deepEqual(syncCalls, ["jobs", "jobs", "jobs", "jobs"]);
+    assert.equal(elements.get("jobs-body").children.length, 1);
+  } finally {
+    restore();
+  }
+});
+
+test("jobs pagination limits visible rows and navigates pages", () => {
+  const { elements, restore } = installDom(IDS);
+  try {
+    const state = {
+      items: [
+        { jobKey: "job-1", displayName: "Job 1", readinessStatus: "READY" },
+        { jobKey: "job-2", displayName: "Job 2", readinessStatus: "READY" },
+        { jobKey: "job-3", displayName: "Job 3", readinessStatus: "READY" },
+      ],
+      filterText: "",
+      page: 1,
+      pageSize: 2,
+      sortKey: "jobKey",
+      sortDirection: "asc",
+    };
+    const syncCalls = [];
+
+    const ui = createJobsListUi({
+      getState: () => state,
+      syncRouteHash: (routeKey) => syncCalls.push(routeKey),
+      getRouteSuffix: () => "?page=1&pageSize=2&sort=jobKey&dir=asc",
+      loadJobStepNames: async () => [],
+      escapeHtml,
+    });
+
+    ui.initializeControls();
+    ui.renderTable();
+
+    assert.equal(elements.get("jobs-body").children.length, 2);
+    assert.equal(elements.get("jobs-page-status").textContent, "Page 1 of 2");
+    assert.equal(elements.get("jobs-page-prev-btn").disabled, true);
+    assert.equal(elements.get("jobs-page-next-btn").disabled, false);
+
+    elements.get("jobs-page-next-btn").dispatch("click");
+
+    assert.equal(state.page, 2);
+    assert.equal(elements.get("jobs-body").children.length, 1);
+    assert.equal(elements.get("jobs-page-status").textContent, "Page 2 of 2");
+    assert.equal(elements.get("jobs-page-prev-btn").disabled, false);
+    assert.equal(elements.get("jobs-page-next-btn").disabled, true);
+    assert.deepEqual(syncCalls, ["jobs"]);
+  } finally {
+    restore();
+  }
+});
+
+test("jobs row drill-down loads step preview and toggles inline detail", async () => {
+  const { elements, restore } = installDom(IDS);
+  try {
+    const state = {
+      items: [{ jobKey: "customer-load", displayName: "Customer Load", readinessStatus: "READY" }],
+      filterText: "",
+      page: 1,
+      pageSize: 10,
+      sortKey: "jobKey",
+      sortDirection: "asc",
+      expandedJobKey: "",
+      jobStepPreviewByJobKey: {},
+    };
+    let loadCalls = 0;
+
+    const ui = createJobsListUi({
+      getState: () => state,
+      syncRouteHash: () => {},
+      getRouteSuffix: () => "",
+      loadJobStepNames: async () => {
+        loadCalls += 1;
+        return ["customers-step", "archive-step"];
+      },
+      escapeHtml,
+    });
+
+    ui.renderTable();
+    const firstRow = elements.get("jobs-body").children[0];
+    const toggle = firstRow.children[0].children[0].children[0];
+    toggle.dispatch("click");
+    await Promise.resolve();
+
+    assert.equal(loadCalls, 1);
+    assert.equal(state.expandedJobKey, "customer-load");
+    assert.equal(elements.get("jobs-body").children.length, 2);
+    assert.match(elements.get("jobs-body").children[1].children[0].innerHTML, /customers-step/);
+    assert.equal(elements.get("jobs-body").children[0].children[0].children[0].children[2].textContent, "2 steps");
+
+    const expandedRow = elements.get("jobs-body").children[0];
+    expandedRow.children[0].children[0].children[0].dispatch("click");
+    assert.equal(state.expandedJobKey, "");
     assert.equal(elements.get("jobs-body").children.length, 1);
   } finally {
     restore();

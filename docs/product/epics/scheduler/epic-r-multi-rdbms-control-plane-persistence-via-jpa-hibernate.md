@@ -27,13 +27,18 @@ This epic is **not** the place to make control-plane persistence mandatory for E
 ## Related docs
 
 - [`../../product-backlog.md`](../../product-backlog.md)
+- [`../../../config/control-plane-persistence-profiles.md`](../../../config/control-plane-persistence-profiles.md)
 - [`../../../architecture/control-plane/control-plane-worker-boundary.md`](../../../architecture/control-plane/control-plane-worker-boundary.md)
+- [`../../../architecture/control-plane/control-plane-persistence-boundary-contract.md`](../../../architecture/control-plane/control-plane-persistence-boundary-contract.md)
 - [`../../../architecture/control-plane/control-plane-operational-data-model.md`](../../../architecture/control-plane/control-plane-operational-data-model.md)
 - [`../../../architecture/control-plane/control-plane-local-relational-schema.md`](../../../architecture/control-plane/control-plane-local-relational-schema.md)
 - [`../../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md`](../../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md)
 - [`../../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md`](../../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md)
+- [`../../../adr/control-plane/0014-freeze-jpa-hibernate-control-plane-persistence-boundary.md`](../../../adr/control-plane/0014-freeze-jpa-hibernate-control-plane-persistence-boundary.md)
 
 ## Maintenance note
 
 Use [`../../product-backlog.md`](../../product-backlog.md) for live item-level board fields. Use this page for the shared Epic R boundary and phased multi-RDBMS persistence intent.
+
+Near-term sequencing: Epic R is currently parked at boundary/contract documentation (`R1`/`R2`) while active implementation focus remains on `Epic F` continuation gates.
 

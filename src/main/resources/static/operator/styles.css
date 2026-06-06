@@ -108,6 +108,84 @@ body {
   cursor: pointer;
 }
 
+.jobs-controls,
+.jobs-pagination {
+  align-items: center;
+}
+
+.jobs-pagination {
+  margin-top: -2px;
+}
+
+.jobs-page-status {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 4px;
+  color: #475569;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.jobs-key-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.jobs-step-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #475569;
+  background: #f8fafc;
+}
+
+.jobs-step-toggle-btn {
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 5px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.jobs-step-toggle-btn:hover {
+  background: #eff6ff;
+}
+
+.jobs-step-detail-row {
+  background: #f8fafc;
+}
+
+.jobs-step-detail-cell {
+  padding: 8px 12px;
+}
+
+
+.jobs-step-preview-list {
+  margin: 0 0 0 16px;
+  padding: 0;
+}
+
+.jobs-step-preview-list li {
+  margin: 2px 0;
+}
+
+.jobs-step-preview-state {
+  color: #475569;
+}
+
+.jobs-step-preview-state.error {
+  color: #b91c1c;
+}
+
 .runs-controls {
   align-items: flex-start;
   gap: 10px 12px;
@@ -318,9 +396,48 @@ th {
   font-size: 11px;
 }
 
+.job-config-file-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.job-config-file-btn {
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  font-size: 12px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.job-config-file-btn:hover {
+  background: #eff6ff;
+}
+
+.job-config-file-btn.active {
+  border-color: #2563eb;
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.job-config-selected-file {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: #334155;
+}
+
 #view-run-detail h3 {
   margin: 14px 0 8px;
   font-size: 14px;
+}
+
+.detail-subheading {
+  margin: 12px 0 8px;
+  font-size: 13px;
+  color: #0f172a;
 }
 
 .detail-box {

@@ -1,6 +1,14 @@
 import { createRunLogViewer } from "./run-log-viewer.js";
 import { createJobsListUi } from "./jobs-list-ui.js";
 import { createRunsListUi } from "./runs-list-ui.js";
+import { createRunRecoveryPanel } from "./run-recovery-panel.js";
+import { coalesceRunSteps } from "./run-step-dedupe.js";
+import {
+  buildJobConfigDocuments,
+  buildMissingCompanionWarning,
+  normalizeDocumentKey,
+  pickJobConfigDocument,
+} from "./job-config-files.js";
 
 const routes = {
   jobs: {
@@ -30,6 +38,8 @@ const routes = {
   },
 };
 
+const JOBS_PAGE_SIZE_OPTIONS = [8, 10, 15, 20];
+
 const viewState = {
   jobs: {
     loaded: false,
@@ -37,6 +47,10 @@ const viewState = {
     filterText: "",
     sortKey: "jobKey",
     sortDirection: "asc",
+    page: 1,
+    pageSize: defaultJobsPageSize(),
+    expandedJobKey: "",
+    jobStepPreviewByJobKey: {},
   },
   runs: {
     loaded: false,
@@ -63,9 +77,15 @@ const runLogViewer = createRunLogViewer({
   escapeHtml,
 });
 
+const runRecoveryPanel = createRunRecoveryPanel({
+  valueOrDash,
+});
+
 const jobsListUi = createJobsListUi({
   getState: () => viewState.jobs,
   syncRouteHash: syncListRouteHash,
+  getRouteSuffix: getJobsRouteQuerySuffix,
+  loadJobStepNames,
   escapeHtml,
 });
 
@@ -135,6 +155,8 @@ function currentRouteState() {
     jobKey: null,
     query: parsed.query,
     filterText: parsed.query.f || "",
+    page: normalizePositiveInteger(parsed.query.page, 1),
+    pageSize: normalizePageSize(parsed.query.pageSize, defaultJobsPageSize()),
     sortKey: normalizeSortKey("jobs", parsed.query.sort, "jobKey"),
     sortDirection: normalizeDirection(parsed.query.dir, "asc"),
   };
@@ -192,13 +214,80 @@ async function loadJobs() {
   }
 }
 
+async function loadJobStepNames(jobKey) {
+  const normalizedJobKey = String(jobKey || "").trim();
+  if (!normalizedJobKey) {
+    return [];
+  }
+
+  const response = await fetch(`/api/v1/jobs/${encodeURIComponent(normalizedJobKey)}/config`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error(`Job config API returned ${response.status}`);
+  }
+
+  const payload = await response.json();
+  return extractStepNamesFromRawYaml(payload.rawYaml);
+}
+
+function extractStepNamesFromRawYaml(rawYaml) {
+  const text = typeof rawYaml === "string" ? rawYaml : "";
+  if (text.trim() === "") {
+    return [];
+  }
+
+  const lines = text.split(/\r?\n/);
+  const stepNames = [];
+  let inStepsBlock = false;
+  let stepsIndent = 0;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) {
+      continue;
+    }
+
+    if (!inStepsBlock) {
+      const stepsMatch = line.match(/^(\s*)steps\s*:\s*$/);
+      if (stepsMatch) {
+        inStepsBlock = true;
+        stepsIndent = stepsMatch[1].length;
+      }
+      continue;
+    }
+
+    const indent = line.length - line.trimStart().length;
+    if (indent <= stepsIndent && !line.trimStart().startsWith("-")) {
+      break;
+    }
+
+    const stepNameMatch = line.match(/^\s*-\s*name\s*:\s*(.+)\s*$/);
+    if (!stepNameMatch) {
+      continue;
+    }
+
+    let stepName = stepNameMatch[1].trim();
+    if ((stepName.startsWith('"') && stepName.endsWith('"')) || (stepName.startsWith("'") && stepName.endsWith("'"))) {
+      stepName = stepName.substring(1, stepName.length - 1).trim();
+    }
+    if (stepName !== "") {
+      stepNames.push(stepName);
+    }
+  }
+
+  return Array.from(new Set(stepNames));
+}
+
 async function loadJobDetailPlaceholder(routeState) {
   const state = document.getElementById("job-detail-state");
   const summary = document.getElementById("job-detail-summary");
   const triggerButton = document.getElementById("job-detail-trigger-now-btn");
   const triggerFeedback = document.getElementById("job-detail-trigger-feedback");
   const viewConfigLink = document.getElementById("job-detail-view-config-link");
+  const backLink = document.getElementById("job-detail-back-link");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
+  const jobsRouteQuerySuffix = getQuerySuffix(routeState && routeState.query);
 
   state.className = "state";
   summary.hidden = true;
@@ -207,7 +296,10 @@ async function loadJobDetailPlaceholder(routeState) {
   triggerFeedback.textContent = "";
   triggerButton.disabled = true;
   if (viewConfigLink) {
-    viewConfigLink.setAttribute("href", "#/jobs");
+    viewConfigLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
+  }
+  if (backLink) {
+    backLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
   }
 
   if (!jobKeyValue) {
@@ -232,7 +324,7 @@ async function loadJobDetailPlaceholder(routeState) {
     document.getElementById("job-detail-recent-run-count").textContent = String(Array.isArray(payload.recentRuns) ? payload.recentRuns.length : 0);
     document.getElementById("job-detail-trigger-count").textContent = String(Array.isArray(payload.triggerEvents) ? payload.triggerEvents.length : 0);
     if (viewConfigLink) {
-      viewConfigLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}/config`);
+      viewConfigLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}/config${jobsRouteQuerySuffix}`);
     }
 
     triggerButton.disabled = false;
@@ -249,16 +341,33 @@ async function loadJobDetailPlaceholder(routeState) {
 async function loadJobConfig(routeState) {
   const state = document.getElementById("job-config-state");
   const summary = document.getElementById("job-config-summary");
+  const fileState = document.getElementById("job-config-file-state");
+  const fileLinks = document.getElementById("job-config-file-links");
+  const selectedFile = document.getElementById("job-config-selected-file");
   const raw = document.getElementById("job-config-raw");
   const backLink = document.getElementById("job-config-back-link");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
+  const jobsRouteQuerySuffix = getQuerySuffix(routeState && routeState.query);
 
   state.className = "state";
   summary.hidden = true;
+  if (fileState) {
+    fileState.hidden = true;
+    fileState.className = "state";
+    fileState.textContent = "";
+  }
+  if (fileLinks) {
+    fileLinks.hidden = true;
+    fileLinks.innerHTML = "";
+  }
+  if (selectedFile) {
+    selectedFile.hidden = true;
+    selectedFile.textContent = "";
+  }
   raw.hidden = true;
   raw.textContent = "";
   if (backLink) {
-    backLink.setAttribute("href", "#/jobs");
+    backLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
   }
 
   if (!jobKeyValue) {
@@ -280,9 +389,9 @@ async function loadJobConfig(routeState) {
     document.getElementById("job-config-key").textContent = payload.jobKey || jobKeyValue;
     document.getElementById("job-config-name").textContent = payload.displayName || "-";
     document.getElementById("job-config-path").textContent = payload.jobConfigPath || "-";
-    raw.textContent = payload.rawYaml || "";
+    renderJobConfigFileNavigator(payload, routeState);
     if (backLink) {
-      backLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}`);
+      backLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}${jobsRouteQuerySuffix}`);
     }
 
     summary.hidden = false;
@@ -291,6 +400,93 @@ async function loadJobConfig(routeState) {
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load job config: ${error.message}`;
+  }
+}
+
+function renderJobConfigFileNavigator(payload, routeState) {
+  const fileState = document.getElementById("job-config-file-state");
+  const fileLinks = document.getElementById("job-config-file-links");
+  const selectedFile = document.getElementById("job-config-selected-file");
+  const raw = document.getElementById("job-config-raw");
+  if (!fileState || !fileLinks || !selectedFile || !raw) {
+    return;
+  }
+
+  const { documents: docs, missingCompanionDocuments: missingCompanionDocs } = buildJobConfigDocuments(payload);
+  const requestedFileKey = normalizeDocumentKey(routeState?.query?.file);
+  const selectedDocument = pickJobConfigDocument(docs, requestedFileKey);
+
+  fileState.hidden = true;
+  fileState.className = "state";
+  fileState.textContent = "";
+
+  const buttons = [];
+  const renderDocument = (doc) => {
+    buttons.forEach((button) => button.classList.toggle("active", button.dataset.docKey === doc.key));
+    selectedFile.textContent = `${doc.label} | ${doc.path}`;
+    selectedFile.hidden = false;
+    if (String(doc.content || "").trim() === "") {
+      raw.textContent = `No read-only payload was returned for ${doc.label}.`;
+    } else {
+      raw.textContent = doc.content;
+    }
+    const warningMessage = buildMissingCompanionWarning(doc, missingCompanionDocs);
+    if (warningMessage) {
+      fileState.hidden = false;
+      fileState.textContent = warningMessage;
+    } else {
+      fileState.hidden = true;
+      fileState.textContent = "";
+    }
+    raw.hidden = false;
+    syncJobConfigFileRouteSelection(routeState?.jobKey, routeState?.query, doc.key);
+  };
+
+  fileLinks.innerHTML = "";
+  docs.forEach((doc) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "job-config-file-btn";
+    button.dataset.docKey = doc.key;
+    button.textContent = doc.label;
+    button.title = doc.path;
+    button.addEventListener("click", () => renderDocument(doc));
+    fileLinks.appendChild(button);
+    buttons.push(button);
+  });
+
+  fileLinks.hidden = false;
+  if (selectedDocument) {
+    renderDocument(selectedDocument);
+  }
+}
+
+function syncJobConfigFileRouteSelection(jobKey, currentQuery, selectedFileKey) {
+  const normalizedJobKey = String(jobKey || "").trim();
+  if (normalizedJobKey === "") {
+    return;
+  }
+
+  const params = new URLSearchParams();
+  Object.entries(currentQuery || {}).forEach(([key, value]) => {
+    if (key === "file") {
+      return;
+    }
+    if (value !== null && value !== undefined && String(value) !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  const normalizedFileKey = normalizeDocumentKey(selectedFileKey);
+  if (normalizedFileKey !== "job") {
+    params.set("file", normalizedFileKey);
+  }
+
+  const nextHash = params.toString()
+    ? `#/jobs/${encodeURIComponent(normalizedJobKey)}/config?${params.toString()}`
+    : `#/jobs/${encodeURIComponent(normalizedJobKey)}/config`;
+  if (location.hash !== nextHash) {
+    history.replaceState(null, "", nextHash);
   }
 }
 
@@ -441,7 +637,42 @@ function applyRouteStateToListView(routeState) {
 }
 
 function syncListRouteHash(routeKey) {
-  const source = routeKey === "jobs" ? viewState.jobs : viewState.runs;
+  const hash = routeKey === "jobs"
+    ? getJobsRouteHash()
+    : getRunsRouteHash();
+  if (location.hash !== hash) {
+    location.hash = hash;
+  }
+}
+
+function getJobsRouteHash() {
+  const query = buildJobsRouteQuery(viewState.jobs);
+  return query ? `#/jobs?${query}` : "#/jobs";
+}
+
+function getJobsRouteQuerySuffix() {
+  const query = buildJobsRouteQuery(viewState.jobs);
+  return query ? `?${query}` : "";
+}
+
+function buildJobsRouteQuery(source) {
+  const params = new URLSearchParams();
+  if (source.filterText.trim() !== "") {
+    params.set("f", source.filterText.trim());
+  }
+  if ((source.page || 1) > 1) {
+    params.set("page", String(source.page));
+  }
+  if ((source.pageSize || defaultJobsPageSize()) !== defaultJobsPageSize()) {
+    params.set("pageSize", String(source.pageSize));
+  }
+  params.set("sort", source.sortKey);
+  params.set("dir", source.sortDirection);
+  return params.toString();
+}
+
+function getRunsRouteHash() {
+  const source = viewState.runs;
   const params = new URLSearchParams();
 
   if (source.filterText.trim() !== "") {
@@ -450,29 +681,21 @@ function syncListRouteHash(routeKey) {
   if (source.selectedJobKey && source.selectedJobKey.trim() !== "") {
     params.set("job", source.selectedJobKey.trim());
   }
-  if (routeKey === "runs") {
-    if (source.runModeFilter && source.runModeFilter.trim() !== "") {
-      params.set("runMode", source.runModeFilter.trim());
-    }
-    if (source.recoveryPolicyFilter && source.recoveryPolicyFilter.trim() !== "") {
-      params.set("recoveryPolicy", source.recoveryPolicyFilter.trim());
-    }
+  if (source.runModeFilter && source.runModeFilter.trim() !== "") {
+    params.set("runMode", source.runModeFilter.trim());
   }
-  if (routeKey === "runs") {
-    if (source.startDate && source.startDate.trim() !== "") {
-      params.set("startDate", source.startDate.trim());
-    }
-    if (source.timezone && source.timezone.trim() !== "") {
-      params.set("timezone", source.timezone.trim());
-    }
+  if (source.recoveryPolicyFilter && source.recoveryPolicyFilter.trim() !== "") {
+    params.set("recoveryPolicy", source.recoveryPolicyFilter.trim());
+  }
+  if (source.startDate && source.startDate.trim() !== "") {
+    params.set("startDate", source.startDate.trim());
+  }
+  if (source.timezone && source.timezone.trim() !== "") {
+    params.set("timezone", source.timezone.trim());
   }
   params.set("sort", source.sortKey);
   params.set("dir", source.sortDirection);
-
-  const hash = `#/${routeKey}?${params.toString()}`;
-  if (location.hash !== hash) {
-    location.hash = hash;
-  }
+  return `#/runs?${params.toString()}`;
 }
 
 function parseHashRoute() {
@@ -505,6 +728,43 @@ function normalizeDirection(value, fallback) {
     return value;
   }
   return fallback;
+}
+
+function normalizePositiveInteger(value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return fallback;
+}
+
+function normalizePageSize(value, fallback) {
+  const parsed = normalizePositiveInteger(value, fallback);
+  return JOBS_PAGE_SIZE_OPTIONS.includes(parsed) ? parsed : fallback;
+}
+
+function defaultJobsPageSize() {
+  const viewportHeight = typeof window !== "undefined" && Number.isFinite(window.innerHeight)
+    ? window.innerHeight
+    : 900;
+  if (viewportHeight >= 1200) {
+    return 15;
+  }
+  if (viewportHeight >= 900) {
+    return 10;
+  }
+  return 8;
+}
+
+function getQuerySuffix(query) {
+  const params = new URLSearchParams();
+  Object.entries(query || {}).forEach(([key, value]) => {
+    if (value !== null && value !== undefined && String(value) !== "") {
+      params.set(key, String(value));
+    }
+  });
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : "";
 }
 
 async function ensureRunsJobOptions() {
@@ -621,9 +881,6 @@ async function loadRunDetail(routeState) {
     const payload = await response.json();
     const run = payload.run || {};
 
-    const persistedStepRecords = await fetchPersistedRunStepRecords(runIdValue);
-    const persistedArtifactRecords = await fetchPersistedRunArtifactRecords(runIdValue);
-
     document.getElementById("run-detail-id").textContent = String(run.jobExecutionId ?? runIdValue);
     document.getElementById("run-detail-scenario").textContent = run.scenario || "-";
     document.getElementById("run-detail-status").textContent = run.status || "-";
@@ -634,25 +891,60 @@ async function loadRunDetail(routeState) {
     document.getElementById("run-detail-duration").textContent = String(run.durationSeconds ?? "-");
     document.getElementById("run-detail-counts").textContent = `${valueOrDash(run.sourceCount)} / ${valueOrDash(run.writtenCount)} / ${valueOrDash(run.rejectedCount)}`;
 
-    const stepItems = Array.isArray(persistedStepRecords) && persistedStepRecords.length > 0
-      ? mapPersistedStepRecordsToDetailView(persistedStepRecords)
-      : payload.steps;
-    const artifactItems = Array.isArray(persistedArtifactRecords) && persistedArtifactRecords.length > 0
-      ? mapPersistedArtifactRecordsToDetailView(persistedArtifactRecords)
-      : payload.artifacts;
-
-    renderRunSteps(stepItems);
+    renderRunSteps(payload.steps);
     renderRunFailureSummary(payload.failureSummary);
-    renderRunArtifacts(artifactItems);
+    renderRunArtifacts(payload.artifacts);
     renderRunEvidenceLinks(payload.evidenceLinks);
-    await runLogViewer.load(runIdValue);
 
     state.textContent = "Run detail loaded.";
     summary.hidden = false;
+
+    const recoveryPromise = fetchRunRecovery(runIdValue)
+      .then((recovery) => {
+        runRecoveryPanel.render(recovery);
+      })
+      .catch(() => {
+        runRecoveryPanel.render(null);
+      });
+
+    const persistedRecordsPromise = Promise.all([
+      fetchPersistedRunStepRecords(runIdValue),
+      fetchPersistedRunArtifactRecords(runIdValue),
+    ]).then(([persistedStepRecords, persistedArtifactRecords]) => {
+      const stepItems = Array.isArray(persistedStepRecords) && persistedStepRecords.length > 0
+        ? mapPersistedStepRecordsToDetailView(persistedStepRecords)
+        : payload.steps;
+      const artifactItems = Array.isArray(persistedArtifactRecords) && persistedArtifactRecords.length > 0
+        ? mapPersistedArtifactRecordsToDetailView(persistedArtifactRecords)
+        : payload.artifacts;
+
+      renderRunSteps(stepItems);
+      renderRunArtifacts(artifactItems);
+    });
+
+    await Promise.all([
+      recoveryPromise,
+      persistedRecordsPromise,
+      runLogViewer.load(runIdValue),
+    ]);
   } catch (error) {
     state.className = "state error";
     state.textContent = `Unable to load run detail: ${error.message}`;
   }
+}
+
+async function fetchRunRecovery(runIdValue) {
+  const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/recovery`, {
+    headers: { Accept: "application/json" },
+  });
+  if (response.status === 404) {
+    return null;
+  }
+  if (!response.ok) {
+    throw new Error(`Run recovery API returned ${response.status}`);
+  }
+  const payload = await response.json();
+  return payload.recovery || null;
 }
 
 async function fetchPersistedRunStepRecords(runIdValue) {
@@ -711,7 +1003,7 @@ function renderRunSteps(steps) {
   const table = document.getElementById("run-detail-steps-table");
   const body = document.getElementById("run-detail-steps-body");
   const empty = document.getElementById("run-detail-steps-empty");
-  const list = Array.isArray(steps) ? steps : [];
+  const list = coalesceRunSteps(steps);
 
   body.innerHTML = "";
   if (list.length === 0) {

@@ -29,6 +29,7 @@ The active config documentation set is currently organized by runtime concern (n
 - [`source/`](source/) - source format contracts (CSV, XML, relational)
 - [`target/`](target/) - target format contracts (CSV, JSON, XML, relational)
 - [`processor/`](processor/) - processor mapping, transform, and validation contracts
+- [`control-plane-persistence-profiles.md`](control-plane-persistence-profiles.md) - deploy-time control-plane persistence mode/datasource/dialect contract (Epic R `R2`)
 
 Category-split placeholders such as `config/core/` and `config/runtime/` are intentionally deferred for now while impact is evaluated.
 
@@ -307,30 +308,18 @@ For selected relational source or target configs, startup now also validates tha
 
 This means the preserved SQL Server scenario bundles are safe to keep in the repository as templates, while still failing clearly if they are run without real environment-specific overrides.
 
-## Control-plane persistence DB profile matrix (R2 first pass)
+## Control-plane persistence profiles
 
-This section tracks the planned deploy-time contract for optional control-plane persistence portability.
+`R2` now maintains a dedicated config contract page for deploy-time datasource and dialect selection:
 
-- It applies to control-plane retained-history persistence only.
-- It does not change the selected-job ETL execution contract.
-- Direct ETL runs remain valid when control-plane persistence is disabled.
+- [`control-plane-persistence-profiles.md`](control-plane-persistence-profiles.md)
 
-| Target DB | Intended usage lane | Profile / mode intent | Dialect intent | Notes |
-|---|---|---|---|---|
-| SQLite | local developer laptop and smoke lanes | local-first baseline | SQLite dialect | Keep lightweight local persistence path for fast setup and troubleshooting. |
-| PostgreSQL | primary enterprise shared DB lane | deploy-time selectable | PostgreSQL dialect | First parity target for CI-friendly multi-RDBMS validation. |
-| MySQL | primary enterprise shared DB lane | deploy-time selectable | MySQL dialect | First parity target paired with PostgreSQL for portability confidence. |
-| SQL Server | enterprise integration lane | deploy-time selectable | SQL Server dialect | Validate with documented lane ownership when always-on CI is not available. |
-| Oracle | enterprise integration lane | deploy-time selectable | Oracle dialect | Start with scheduled/manual validation lane, then automate as environment permits. |
+Use that page for:
 
-Planned configuration principles for `R2`:
-
-1. keep persistence-mode selection explicit and environment-driven
-2. fail fast for invalid datasource/dialect combinations
-3. avoid engine-specific runtime behavior changes in read-model semantics
-4. keep vendor-specific SQL as isolated migration deltas only when strictly required
-
-Implementation and rollout details are tracked under `Epic R` and backlog items `R1`-`R5` in `docs/product/product-backlog.md`.
+- supported target lanes (SQLite, PostgreSQL, MySQL, SQL Server, Oracle)
+- mode and dialect pairing rules
+- fail-fast validation expectations
+- non-SQLite deployment example shape
 
 ## Documentation rule
 

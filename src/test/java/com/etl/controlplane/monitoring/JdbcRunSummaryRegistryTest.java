@@ -1400,6 +1400,52 @@ class JdbcRunSummaryRegistryTest {
 	}
 
 	@Test
+	void mergesNameOnlyAndIdBasedStructuredStepEventsIntoSingleStepRecord() throws Exception {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		Path logPath = tempDir.resolve("logs/customer-load.log");
+		java.nio.file.Files.createDirectories(logPath.getParent());
+		java.nio.file.Files.writeString(logPath, String.join(System.lineSeparator(),
+				"2026-05-27T09:00:00.000+00:00 INFO [main] [scenario:customer-load] [run:run-2] [job:9902] [step:customers-step] logger - STEP_EVENT event=step_started stepName=customers-step status=STARTED",
+				"2026-05-27T09:01:00.000+00:00 INFO [main] [scenario:customer-load] [run:run-2] [job:9902] [step:customers-step] logger - STEP_EVENT event=step_finished stepName=customers-step stepExecutionId=601 status=COMPLETED readCount=3 writeCount=3 filterCount=0 skipCount=0 rollbackCount=0 rejectedCount=0"
+		));
+
+		RunSummaryView runSummary = new RunSummaryView(
+				"customer-load",
+				9902L,
+				"COMPLETED",
+				LocalDateTime.parse("2026-05-27T09:00:00"),
+				LocalDateTime.parse("2026-05-27T09:02:00"),
+				120L,
+				3L,
+				3L,
+				0L,
+				logPath.toString()
+		);
+		registry.upsert(runSummary);
+
+		List<RunStepRecordView> steps = registry.listStepRecordsByJobExecutionId(9902L, 10);
+		assertEquals(1, steps.size());
+		assertEquals("customers-step", steps.get(0).stepName());
+		assertEquals("COMPLETED", steps.get(0).stepStatus());
+		assertEquals(3L, steps.get(0).readCount());
+		assertEquals(3L, steps.get(0).writeCount());
+
+		Long duplicateCount = jdbcTemplate.queryForObject(
+				"""
+				select count(*)
+				from controlplane_step_record
+				where run_record_id = ?
+				  and lower(step_name) = lower(?)
+				""",
+				Long.class,
+				"rr-9902",
+				"customers-step"
+		);
+		assertEquals(1L, duplicateCount);
+	}
+
+	@Test
 	void writesStepLevelArtifactsFromEscapedJsonExecutionContextValues() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		jdbcTemplate.execute("""

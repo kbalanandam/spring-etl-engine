@@ -159,6 +159,13 @@ Scheduler implementation should stay aligned with these already-documented prere
 
 This matters because a scheduler can easily over-promise operator behavior before those semantics are explicit.
 
+Current downstream dependency rule from `F1` D3:
+
+- scheduler controls may request or serialize reruns, but they must not imply checkpoint resume
+- overlap, pause/resume, and missed-run governance remain downstream of target-pattern rerun safety classifications
+- file-target reruns may be operationally acceptable only when scenario-owned output publication conventions are understood
+- relational-target and mixed-handoff scenarios must remain conservative until later slices explicitly ship stronger idempotent load guarantees
+
 ## Non-negotiable rules
 
 Treat the following as non-negotiable unless a future ADR changes direction:

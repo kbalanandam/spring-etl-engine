@@ -60,10 +60,10 @@ Capture a short architecture/product decision set that pins boundary terms, keep
 
 ## Acceptance criteria
 
-- [ ] a clear boundary statement exists for optional control-plane persistence vs ETL worker runtime
-- [ ] non-goals explicitly prevent launch-contract changes and mandatory control-plane DB coupling
-- [ ] parity invariants for retained run/step/artifact/recovery read models are documented
-- [ ] R2-R5 phase sequencing and guardrails are documented and linked
+- [x] a clear boundary statement exists for optional control-plane persistence vs ETL worker runtime
+- [x] non-goals explicitly prevent launch-contract changes and mandatory control-plane DB coupling
+- [x] parity invariants for retained run/step/artifact/recovery read models are documented
+- [x] R2-R5 phase sequencing and guardrails are documented and linked
 
 ## Related docs
 
@@ -71,6 +71,7 @@ Capture a short architecture/product decision set that pins boundary terms, keep
 - [`Epic R`](../../epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)
 - [`ADR-0014: freeze JPA/Hibernate control-plane persistence boundary`](../../../adr/control-plane/0014-freeze-jpa-hibernate-control-plane-persistence-boundary.md)
 - [`Control plane and worker boundary`](../../../architecture/control-plane/control-plane-worker-boundary.md)
+- [`Control-plane persistence boundary contract`](../../../architecture/control-plane/control-plane-persistence-boundary-contract.md)
 - [`S4 - Control-plane operational data model`](S4-control-plane-operational-data-model.md)
 
 ## Implementation notes
@@ -79,6 +80,6 @@ Use R1 as a freeze gate. Do not merge substantial portability implementation bef
 
 ## Status notes
 
-Pending kickoff.
+- Kickoff started: boundary freeze anchors are now documented in ADR-0014 (Accepted) and the control-plane persistence boundary contract note.
 
 

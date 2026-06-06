@@ -95,6 +95,12 @@ export function createRunLogViewer(options) {
       const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/log?limit=200`, {
         headers: { Accept: "application/json" },
       });
+      if (response.status === 404) {
+        state.lines = [];
+        state.truncated = false;
+        renderRunLogLines();
+        return;
+      }
       if (!response.ok) {
         throw new Error(`Run log API returned ${response.status}`);
       }

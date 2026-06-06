@@ -4,7 +4,9 @@ This folder groups operational documentation that is not architecture design its
 
 Runtime logs remain under repo-root `logs/` (`logs/startup/` and `logs/<yyyy-MM-dd>/...`).
 
-Logging/evidence category scaffolding inside `docs/operations/` has been intentionally deferred for now.
+Available runbooks:
+
+- [`control-plane-sqlite-duplicate-step-maintenance.md`](control-plane-sqlite-duplicate-step-maintenance.md) - audit/cleanup workflow for duplicate `controlplane_step_record` rows and recurrence tracking
 
 
 

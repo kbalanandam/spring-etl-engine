@@ -69,9 +69,107 @@ Phase-3 remains gated and should only start after Phase-2 semantics are frozen:
 
 ### Top F1 continuation deliverables
 
-- [ ] **D1 advisory recovery semantics freeze** - one explicit semantics note for advisory recovery evidence (`attempt_link`, `checkpoint_anchor`, `resumeSupported=false`)
-- [ ] **D2 resume eligibility rules freeze** - one explicit rule set that explains when resume is ineligible vs future-eligible without changing shipped runtime behavior
-- [ ] **D3 idempotent rerun boundary freeze** - one explicit rerun safety boundary per target pattern before any resume execution work is proposed
+- [x] **D1 advisory recovery semantics freeze** - one explicit semantics note for advisory recovery evidence (`attempt_link`, `checkpoint_anchor`, `resumeSupported=false`)
+- [x] **D2 resume eligibility rules freeze** - one explicit rule set that explains when resume is ineligible vs future-eligible without changing shipped runtime behavior
+- [x] **D3 idempotent rerun boundary freeze** - one explicit rerun safety boundary per target pattern before any resume execution work is proposed
+
+### D1 canonical advisory recovery semantics
+
+Treat retained recovery data as **diagnostic lineage only** in the current shipped runtime.
+
+- `attempt_link` identifies retained run-to-run lineage when a stored recovery row exists; it explains relationship, not executable resume eligibility.
+- `checkpoint_anchor` identifies retained evidence anchors for the run (for example a `RUN_LOG` anchor and later step-linked anchors where available); it does not represent a resumable checkpoint contract yet.
+- `resumeSupported` is always `false` in the current shipped runtime.
+- `resumeBlockedReason` must remain explicit and operator-facing: `resume-from-checkpoint is not supported in the current shipped runtime; rerun-from-start remains the active execution boundary.`
+- when retained recovery rows are missing but the run itself exists, the API still returns a deterministic advisory payload rather than a missing-resource response:
+  - `runRecordId` defaults to `rr-<jobExecutionId>`
+  - attempt-lineage fields remain `null`
+  - checkpoint anchors fall back to one `RUN_LOG` anchor when `RUN_SUMMARY.logPath` is available, otherwise an empty list
+- this endpoint remains evidence-first and advisory-only; it does not widen the shipped execution boundary beyond `rerun-from-start`
+
+### D2 canonical resume-eligibility rules
+
+Treat `runMode` as **resolved observability metadata** and `recoveryPolicy` as **authored or defaulted restart intent evidence**. Neither field by itself authorizes checkpoint-resume execution in the shipped runtime.
+
+| Resolved `runMode` | Authored/defaulted `recoveryPolicy` | Current shipped behavior | Resume eligibility now |
+| --- | --- | --- | --- |
+| `explicit-job` | `rerun-from-start` | Allowed. The whole selected ordered scenario reruns from the beginning. | Ineligible for checkpoint resume; rerun-only behavior is the shipped boundary. |
+| `explicit-job` | `resume-from-checkpoint` (or authored alias `restart`) | Not allowed. Selected-run startup/runtime descriptor assembly fails fast as unsupported. | Ineligible. The runtime rejects this policy before execution starts. |
+| `demo-fallback` | `rerun-from-start` | Allowed. Demo/local compatibility runs rerun from the beginning. | Ineligible for checkpoint resume; demo mode does not widen restart semantics. |
+| `demo-fallback` | `resume-from-checkpoint` | Not a shipped execution lane. Demo fallback still remains rerun-only behavior. | Ineligible. No shipped demo-fallback path enables checkpoint resume. |
+
+Operator rules:
+
+- `resumeSupported=false` is the stable current answer for every shipped execution mode.
+- `resumeBlockedReason` explains the product boundary, not a per-run transient failure.
+- authored aliases normalize to canonical evidence tokens (`rerun` -> `rerun-from-start`, `restart` -> `resume-from-checkpoint`) but alias acceptance does not imply shipped resume support.
+- the recovery endpoint remains diagnostic-only even when retained lineage/anchor rows exist.
+
+Future-gated conditions before any run could become resume-eligible:
+
+1. D1 advisory recovery semantics stay frozen and portability-safe.
+2. D3 idempotent rerun boundary is documented by target behavior.
+3. checkpoint state shape, replay preconditions, and operator release-gate evidence are explicitly defined in a later Epic F slice.
+4. a shipped runtime path exists that does more than fail fast for `resume-from-checkpoint`.
+
+### D3 canonical idempotent rerun boundary
+
+Treat rerun safety as a **target-pattern classification**, not as a blanket promise for every failed run.
+
+| Target pattern | Current shipped rerun boundary | Operator interpretation now |
+| --- | --- | --- |
+| File target only (`csv` / `json` / `xml`) | Conditionally rerun-safe when the scenario treats the final output path as replaceable/publish-on-success output and no external side effect is committed before successful completion. | Rerun-from-start is the shipped recovery action, but teams must still own final-path overwrite/versioning conventions. |
+| Relational target (`format: relational`, current insert-first baseline) | Not assumed idempotent by default. A partial or repeated rerun can duplicate rows unless the target contract adds its own protections outside the current shipped F1 boundary. | Operators should treat rerun as potentially duplicating writes until a later slice freezes target-specific idempotent load patterns. |
+| Mixed handoff (`step -> intermediate artifact -> downstream step`) | Safe only when each handoff artifact is reproducible from the beginning of the ordered plan and each downstream final target also satisfies its own rerun boundary. | A rerun restarts the whole selected scenario; it does not resume from an intermediate handoff checkpoint. |
+
+Current D3 rules:
+
+- staged file publication improves rerun safety for file outputs because final artifacts are promoted only after successful step completion, but that does not by itself define cross-run overwrite/versioning policy
+- archive/reject evidence helps diagnosis and replay decisions, but evidence presence does not make a target idempotent automatically
+- the current relational baseline is still insert-oriented first; F1 therefore does not claim database-target reruns are inherently duplicate-safe
+- intermediate handoff artifacts are diagnostic and reproducible-flow evidence, not resumable restart checkpoints
+
+Preconditions before any future resume-execution design starts:
+
+1. rerun safety is frozen per target pattern, including which targets are not idempotent by default
+2. step/target publication semantics are explicit enough to distinguish replaceable output from duplicate-risk output
+3. retained run/step/artifact lineage can prove which side effects were already published
+4. scheduler/control-plane follow-on work continues to treat rerun-only execution as the active boundary until those target-specific guarantees are explicitly shipped
+
+### F1 continuation execution checklist
+
+#### Scope guardrails
+
+- [x] keep checkpoint-resume execution unshipped (`resumeSupported=false` remains explicit)
+- [x] keep selected-job launch semantics unchanged (`etl.config.job` boundary)
+- [x] keep Epic R persistence portability implementation parked during F1 continuation
+
+#### D1 - Advisory recovery semantics freeze
+
+- [x] define one canonical semantics note for `attempt_link` and `checkpoint_anchor` advisory evidence
+- [x] align wording for advisory recovery behavior across F1, runtime-flow, and control-plane API docs
+- [x] confirm deterministic fallback semantics when no retained recovery row exists
+- [x] confirm `resumeBlockedReason` guidance stays explicit and operator-facing
+
+#### D2 - Resume-eligibility rules freeze
+
+- [x] define explicit ineligible/eligible-later rule set for resume
+- [x] document why shipped runtime still reports `resumeSupported=false`
+- [x] align guardrail wording with fail-fast `resume-from-checkpoint` behavior
+- [x] add one rule table that maps authored `runMode`/`recoveryPolicy` to shipped behavior
+
+#### D3 - Idempotent rerun boundary freeze
+
+- [x] document rerun safety boundary by target pattern (file, relational, mixed handoff)
+- [x] document preconditions before any future resume-execution design is considered
+- [x] define release-gate evidence expectations for any future transition beyond rerun-only behavior
+- [x] link rerun boundary guidance to scheduler/control-plane follow-on notes that depend on F1 decisions
+
+#### Verification and handoff
+
+- [ ] link focused F1 continuation tests/evidence to this page as they are added
+- [x] update `product-backlog.md` notes when D1/D2/D3 are closed
+- [ ] confirm docs/backlog/changelog consistency before opening resume-execution design work
 
 ## Operator / runtime impact
 
@@ -84,9 +182,9 @@ Phase-3 remains gated and should only start after Phase-2 semantics are frozen:
 - [x] one explicit restart-semantics model exists for the main execution modes
 - [x] required state/artifact/evidence expectations are documented
 - [x] future restart implementation work can reference one stable contract
-- [ ] advisory recovery semantics are documented consistently across F1, runtime flow, and control-plane API docs
-- [ ] explicit resume-eligibility rules are documented with no implied shipped checkpoint-resume execution
-- [ ] idempotent rerun boundary guidance is documented for follow-on Epic F planning
+- [x] advisory recovery semantics are documented consistently across F1, runtime flow, and control-plane API docs
+- [x] explicit resume-eligibility rules are documented with no implied shipped checkpoint-resume execution
+- [x] idempotent rerun boundary guidance is documented for follow-on Epic F planning
 
 ## Related docs
 
@@ -118,4 +216,12 @@ Phase-1.3 guardrail coverage expanded: selected-run config metadata and runtime-
 Phase-1 contract ergonomics continued: selected `job-config.yaml` now accepts short `recoveryPolicy` aliases (`rerun`, `restart`) that normalize to canonical runtime evidence tokens while preserving the current fail-fast guardrail for unsupported checkpoint resume execution.
 
 Phase-2 advisory recovery view started: `/api/v1/runs/{jobExecutionId}/recovery` now exposes retained `attempt_link` and `checkpoint_anchor` evidence as advisory-only diagnostics; `resumeSupported=false` remains explicit while checkpoint-resume execution is not shipped.
+
+D1 advisory recovery semantics freeze completed: F1, runtime-flow, and control-plane API docs now use one explicit advisory-only contract for retained lineage/anchor evidence, deterministic fallback payloads, and operator-facing `resumeBlockedReason` wording.
+
+D2 resume-eligibility rules freeze completed: `runMode` and `recoveryPolicy` now map to one explicit rerun-only shipped behavior matrix, with unsupported `resume-from-checkpoint` remaining fail-fast guarded and no implied checkpoint-resume execution.
+
+D3 idempotent rerun boundary freeze completed: file, relational, and mixed-handoff target patterns now have one explicit rerun-safety classification, and scheduler/control-plane follow-on work remains downstream of those rerun-only boundaries.
+
+Priority sequencing update: `F1` continuation work is the active near-term lane; portability implementation under `Epic R` remains parked after the current docs-freeze anchors.
 

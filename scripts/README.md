@@ -7,6 +7,7 @@ Automation helpers under `scripts/` for local verification, cleanup, project-boa
 - Generate local verification report (`mvn test` + smoke + markdown report): `generate-verification-report.ps1`
 - Run smoke-only verification checks: `verify-recent-changes.ps1`
 - Migrate legacy control-plane SQLite tables into the shared dev database: `migrate-controlplane-sqlite-to-shared.ps1`
+- Audit and clean duplicate control-plane step rows in SQLite: `cleanup-controlplane-duplicate-steps.ps1`
 - Remove one job bundle and matching generated artifacts safely: `remove-job-bundle.ps1`
 - Sync product backlog execution board to GitHub Project V2: `sync_project_board.py`
 - Prepare/run one explicit job config on Windows: `job-runner.ps1`
@@ -66,6 +67,34 @@ Custom source/target paths:
 ```powershell
 Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\migrate-controlplane-sqlite-to-shared.ps1 -SourceDbPath .\.controlplane\controlplane.db -TargetDbPath .\.etl-dev\etl-dev.db
+```
+
+## `cleanup-controlplane-duplicate-steps.ps1`
+
+Purpose:
+- Audits duplicate `controlplane_step_record` rows grouped by `(run_record_id, step_name)`
+- Cleanup mode keeps one canonical row per group, rewires `artifact_record` / `checkpoint_anchor` references, then deletes duplicate step rows
+- Writes a JSON report under `target/` for evidence and repeatable tracking
+
+Audit only:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\cleanup-controlplane-duplicate-steps.ps1 -Mode Audit
+```
+
+Cleanup with backup:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\cleanup-controlplane-duplicate-steps.ps1 -Mode Cleanup
+```
+
+CI/nightly guardrail (non-zero exit when duplicates are found):
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\cleanup-controlplane-duplicate-steps.ps1 -Mode Audit -FailOnDuplicates
 ```
 
 ## `remove-job-bundle.ps1`

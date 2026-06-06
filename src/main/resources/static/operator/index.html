@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Operator UI - Monitoring First</title>
-  <link rel="stylesheet" href="/operator/styles.css?v=20260604-job-config-view">
+  <link rel="stylesheet" href="/operator/styles.css">
 </head>
 <body>
 <header class="topbar">
@@ -25,7 +25,7 @@
   <section id="view-jobs" class="panel" hidden>
     <h2>Jobs</h2>
     <p class="hint">Known bundles from <code>/api/v1/jobs</code>.</p>
-    <div class="control-row">
+    <div class="control-row jobs-controls">
       <label for="jobs-filter-input">Filter</label>
       <input id="jobs-filter-input" type="text" placeholder="job key or display name">
       <label for="jobs-sort-select">Sort</label>
@@ -35,6 +35,18 @@
         <option value="readinessStatus">Readiness</option>
       </select>
       <button id="jobs-sort-dir-btn" type="button">Asc</button>
+    </div>
+    <div class="control-row jobs-pagination">
+      <label for="jobs-page-size-select">Rows</label>
+      <select id="jobs-page-size-select">
+        <option value="8">8</option>
+        <option value="10">10</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+      </select>
+      <button id="jobs-page-prev-btn" type="button">Prev</button>
+      <span id="jobs-page-status" class="jobs-page-status">Page 1 of 1</span>
+      <button id="jobs-page-next-btn" type="button">Next</button>
     </div>
     <div id="jobs-state" class="state"></div>
     <table id="jobs-table" hidden>
@@ -70,7 +82,7 @@
     </div>
     <div id="job-detail-trigger-feedback" class="state" hidden></div>
 
-    <p><a href="#/jobs">Back to jobs list</a></p>
+    <p><a id="job-detail-back-link" href="#/jobs">Back to jobs list</a></p>
   </section>
 
   <section id="view-job-config" class="panel" hidden>
@@ -82,6 +94,11 @@
       <p><strong>Display name:</strong> <span id="job-config-name"></span></p>
       <p><strong>Config path:</strong> <span id="job-config-path"></span></p>
     </div>
+    <h3>Read-only config files</h3>
+    <p class="hint">Starts with <code>Job config</code>. Click each config section to inspect read-only YAML content.</p>
+    <div id="job-config-file-state" class="state" hidden></div>
+    <div id="job-config-file-links" class="job-config-file-links" hidden></div>
+    <p id="job-config-selected-file" class="job-config-selected-file" hidden></p>
     <pre id="job-config-raw" class="detail-box" hidden></pre>
     <p><a id="job-config-back-link" href="#/jobs">Back</a></p>
   </section>
@@ -177,7 +194,23 @@
       <p><strong>Counts (source/written/rejected):</strong> <span id="run-detail-counts"></span></p>
     </div>
 
-    <h3>Steps</h3>
+    <h3>Advisory recovery</h3>
+    <p class="hint">Diagnostic-only recovery lineage from <code>/api/v1/runs/{jobExecutionId}/recovery</code>. This does not enable checkpoint resume in the current shipped runtime.</p>
+    <div id="run-detail-recovery-state" class="state" hidden></div>
+    <div id="run-detail-recovery-box" class="detail-box" hidden>
+      <p><strong>Run record:</strong> <span id="run-detail-recovery-run-record-id"></span></p>
+      <p><strong>Attempt link:</strong> <span id="run-detail-recovery-attempt-link-id"></span></p>
+      <p><strong>Link kind:</strong> <span id="run-detail-recovery-link-kind"></span></p>
+      <p><strong>Prior run record:</strong> <span id="run-detail-recovery-prior-run-record-id"></span></p>
+      <p><strong>Prior job execution:</strong> <span id="run-detail-recovery-prior-job-execution-id"></span></p>
+      <p><strong>Resume supported:</strong> <span id="run-detail-recovery-resume-supported"></span></p>
+      <p><strong>Blocked reason:</strong> <span id="run-detail-recovery-blocked-reason"></span></p>
+
+      <h4 class="detail-subheading">Checkpoint anchors</h4>
+      <ul id="run-detail-recovery-anchors-list" class="detail-list" hidden></ul>
+      <div id="run-detail-recovery-anchors-empty" class="state" hidden>No advisory checkpoint anchors available.</div>
+    </div>
+
     <div id="run-detail-steps-empty" class="state" hidden>No step records available.</div>
     <table id="run-detail-steps-table" hidden>
       <thead>
@@ -238,6 +271,6 @@
   <p class="footnote-meta">&copy; 2026 OneFlow contributors. All rights reserved.</p>
 </footer>
 
-<script type="module" src="/operator/app.js?v=20260604-job-config-view"></script>
+<script type="module" src="/operator/app.js"></script>
 </body>
 </html>

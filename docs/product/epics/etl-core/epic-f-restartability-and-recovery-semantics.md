@@ -17,8 +17,10 @@ This epic is **not** the place for broader control-plane persistence design by i
 ## Current phased direction
 
 - **Phase-1 (active baseline)** - rerun-from-start remains the shipped execution boundary with explicit `runMode`/`recoveryPolicy` evidence
-- **Phase-2 (docs-first hardening)** - freeze advisory recovery semantics and resume-eligibility rules without changing execution behavior
-- **Phase-3 (gated later)** - define idempotent rerun boundaries and release-gate requirements before any resume execution design is proposed
+- **Phase-2 (docs-first hardening)** - advisory recovery semantics and resume-eligibility rules are now frozen without changing execution behavior
+- **Phase-3 (gated later)** - idempotent rerun boundaries are now frozen at pattern level; any later resume execution design still requires explicit release-gate requirements and target-specific runtime proof
+
+Current checkpoint: the docs-first `F1` freeze is complete through `D1`/`D2`/`D3`; any follow-on work should now build on that frozen contract rather than reopening baseline wording.
 
 ## Related backlog items
 
