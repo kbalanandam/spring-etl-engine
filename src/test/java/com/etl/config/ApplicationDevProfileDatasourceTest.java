@@ -20,6 +20,9 @@ class ApplicationDevProfileDatasourceTest {
 
         assertEquals("jdbc:sqlite:./.etl-dev/etl-dev.db", properties.getProperty("spring.datasource.url"));
         assertEquals("org.sqlite.JDBC", properties.getProperty("spring.datasource.driver-class-name"));
+        assertEquals("1", properties.getProperty("spring.datasource.hikari.maximum-pool-size"));
+        assertEquals("1", properties.getProperty("spring.datasource.hikari.minimum-idle"));
+        assertEquals("PRAGMA busy_timeout=5000", properties.getProperty("spring.datasource.hikari.connection-init-sql"));
         assertEquals("always", properties.getProperty("spring.batch.jdbc.initialize-schema"));
         assertEquals("always", properties.getProperty("spring.sql.init.mode"));
         assertEquals("true", properties.getProperty("spring.sql.init.continue-on-error"));
