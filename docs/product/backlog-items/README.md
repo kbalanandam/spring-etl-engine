@@ -113,6 +113,7 @@ Use this page as the main browse index when you want to navigate backlog items b
 - [`U1 - Stand up independent monitoring-first Operator UI shell with jobs and runs list views`](operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md)
 - [`U2 - Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer`](operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md)
 - [`U3 - Add guarded trigger-now action from job details without scheduler coupling`](operator-ui/U3-guarded-trigger-now-from-job-details.md)
+- [`U4 - Add schedule visibility and pause/resume controls in Operator UI without making native scheduling mandatory`](operator-ui/U4-schedule-visibility-and-pause-resume-controls.md)
 
 ### Epic V - Verification evidence and reporting
 
@@ -137,6 +138,15 @@ Keep the responsibilities separated:
 - this folder holds item-specific scope, acceptance criteria, and implementation notes
 - backlog item pages should link back to their matching epic page so readers can move from one item to the broader capability track
 - keep this index in sync when new backlog item pages are added or renamed
+
+## Authoring guidance
+
+Keep backlog items understandable for a new contributor without turning them into full specifications:
+
+- prefer one concrete example flow, payload, or config snippet when it reduces ambiguity
+- for UI-facing items, add a compact low-fidelity wireframe snippet, screen sketch, or screenshot reference when it materially improves clarity
+- keep visuals lightweight and in service of the backlog item; move broad design exploration to architecture notes when needed
+- stop once the reader can understand intent, scope boundary, and expected behavior without scanning other files first
 
 ## Naming rule
 

@@ -112,6 +112,7 @@ These scaffolds are additive. Existing files stay in current paths for compatibi
 - [`architecture/operator-ui/operator-ui-architecture-direction.md`](architecture/operator-ui/operator-ui-architecture-direction.md) - first operator UI architecture direction over the optional control-plane/backend layer
 - [`architecture/operator-ui/angular-ui-mvp-structure.md`](architecture/operator-ui/angular-ui-mvp-structure.md) - practical Angular-based MVP structure for monitoring-first UI rollout, route map, and control-plane-facing API client boundaries
 - [`architecture/operator-ui/angular-ui-mvp-wireframes.md`](architecture/operator-ui/angular-ui-mvp-wireframes.md) - low-fidelity wireframes for the first five Angular MVP screens and their operator drill-down flows
+- [`architecture/operator-ui/monitoring-shell-runtime-hardening.md`](architecture/operator-ui/monitoring-shell-runtime-hardening.md) - shipped monitoring-shell hardening notes for stale-response guards, step-preview request deduplication, and jobs-scoped cache reconciliation
 - [`architecture/etl-core/csv-to-xml-runtime-flow.md`](architecture/etl-core/csv-to-xml-runtime-flow.md) - operational deep dive for the shipped CSV source to XML target runtime path, including nested XML, hardening hooks, staged publication, and evidence
 - [`architecture/etl-core/runtime-flow-walkthrough.html`](architecture/etl-core/runtime-flow-walkthrough.html) - lightweight animated HTML walkthrough of the shipped runtime path with `MainFlow -> SubFlow -> Step` product-flow context
 - [`architecture/etl-core/job-level-activation-and-startup-guardrails.md`](architecture/etl-core/job-level-activation-and-startup-guardrails.md) - shipped job-level `isActive` contract and fail-fast startup guardrail for inactive selected jobs
@@ -272,5 +273,3 @@ The future observability and logging baseline is now captured in [`architecture/
 Enterprise verification reporting direction is now captured in [`adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md`](adr/foundations/0005-use-shared-verification-evidence-for-markdown-and-html-reports.md), and the current phase-1 implementation already includes a shared evidence model plus categorized Markdown verification reports.
 
 The future AI-assisted operations direction is now captured in [AI-assisted operations intelligence](architecture/operator-ui/ai-assisted-operations-intelligence.md).
-
-

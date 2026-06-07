@@ -101,3 +101,5 @@ Keep this slice focused on observability. Do not merge trigger/scheduler control
 
 Completed as a monitoring-first thin shell slice: `/operator` entry route, Jobs/Runs read-only list rendering from existing control-plane APIs, explicit empty/error states, run-row and jobs-row click-through placeholder routes (`#/runs/{jobExecutionId}`, `#/jobs/{jobKey}`), lightweight client-side filter/sort controls for fast table triage, and hash-route state persistence for filter/sort context across refresh/back navigation.
 
+Follow-on shell hardening later tightened route-aware stale-response guards, deduplicated per-job step-preview fetches, and added jobs/runs cache lifecycle controls while keeping the same independent read-only runtime boundary (see `docs/architecture/operator-ui/monitoring-shell-runtime-hardening.md`).
+

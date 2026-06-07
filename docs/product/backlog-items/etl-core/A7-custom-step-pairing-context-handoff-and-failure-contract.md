@@ -199,6 +199,20 @@ Expected review artifacts:
 - known-cons decisions and chosen mitigations
 - updated docs links across runtime/config/product notes
 
+## Balanced delivery lane handshake
+
+This item is the ETL leg of the current balanced-growth lane:
+
+- `A7` = ETL/runtime contract proof
+- `S2` = scheduler/control-plane pause-resume baseline
+- `U4` = operator-facing schedule visibility and guarded controls
+
+Cross-track review expectation before implementation expands:
+
+- A7 must not introduce a second launch or orchestration model that `S2` or `U4` would need to special-case
+- scheduler-triggered runs and UI-exposed controls must continue to target the same selected-job boundary used by standard ETL execution
+- custom-step evidence must stay compatible with the operator read-model assumptions already used by the UI lane
+
 ## Acceptance criteria
 
 - [ ] pre-implementation multi-review workflow is completed (runtime, scheduler/control-plane, UI/operations)

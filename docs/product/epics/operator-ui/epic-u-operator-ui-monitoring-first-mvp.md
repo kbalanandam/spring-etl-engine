@@ -12,6 +12,7 @@ This epic is the home for work that:
 - starts with monitoring-first read models (jobs list, run list, run detail)
 - supports selected-job and/or start-date run narrowing so operators can choose one run instance before opening run detail
 - exposes operational evidence for faster diagnosis (status, counts, failure summary, artifacts)
+- extends into bounded native-schedule controls only when those controls preserve the same optional control-plane boundary
 - preserves explicit selected-job launch behavior and avoids scheduler lock-in
 
 This epic is **not** the place to make UI a runtime prerequisite or to redesign `etl.config.job` execution boundaries.
@@ -21,12 +22,14 @@ This epic is **not** the place to make UI a runtime prerequisite or to redesign 
 - [`U1 - Stand up independent monitoring-first Operator UI shell with jobs and runs list views`](../../backlog-items/operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md)
 - [`U2 - Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer`](../../backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md)
 - [`U3 - Add guarded trigger-now action from job details without scheduler coupling`](../../backlog-items/operator-ui/U3-guarded-trigger-now-from-job-details.md)
+- [`U4 - Add schedule visibility and pause/resume controls in Operator UI without making native scheduling mandatory`](../../backlog-items/operator-ui/U4-schedule-visibility-and-pause-resume-controls.md)
 
 ## Related docs
 
 - [`../../../architecture/operator-ui/operator-ui-architecture-direction.md`](../../../architecture/operator-ui/operator-ui-architecture-direction.md)
 - [`../../../architecture/operator-ui/angular-ui-mvp-structure.md`](../../../architecture/operator-ui/angular-ui-mvp-structure.md)
 - [`../../../architecture/operator-ui/angular-ui-mvp-wireframes.md`](../../../architecture/operator-ui/angular-ui-mvp-wireframes.md)
+- [`../../../architecture/operator-ui/monitoring-shell-runtime-hardening.md`](../../../architecture/operator-ui/monitoring-shell-runtime-hardening.md)
 - [`../../../architecture/control-plane/operator-ui-mvp-api-surface.md`](../../../architecture/control-plane/operator-ui-mvp-api-surface.md)
 - [`../../../architecture/control-plane/operator-ui-mvp-openapi.yaml`](../../../architecture/control-plane/operator-ui-mvp-openapi.yaml)
 - [`../../../architecture/control-plane/control-plane-worker-boundary.md`](../../../architecture/control-plane/control-plane-worker-boundary.md)

@@ -31,6 +31,15 @@ List what is included in this item.
 - in-scope item
 - in-scope item
 
+## Example user / operator flow
+
+Add one short example flow when it helps a new reader understand the item faster.
+
+- example action or scenario step
+- example expected system or UI response
+
+If the item is UI-facing, add a compact low-fidelity screen sketch, wireframe snippet, or screenshot reference when that materially improves clarity. Keep it lightweight and do not turn the backlog item into a full design document.
+
 ## Out of scope
 
 List what this item intentionally does not cover.
@@ -41,6 +50,8 @@ List what this item intentionally does not cover.
 ## Proposed approach
 
 Capture the currently preferred implementation or delivery direction at a high level.
+
+When helpful, include one illustrative example payload, config snippet, or low-fidelity UI sketch. Prefer concrete examples that reduce ambiguity for new contributors, but stop once the intended behavior is clear.
 
 ## Operator / runtime impact
 
