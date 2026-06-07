@@ -106,6 +106,7 @@ const SORT_KEYS = {
 
 const RUNS_FILTER_CACHE_MAX_ENTRIES = 30;
 const RUNS_FILTER_CACHE_TTL_MS = 5 * 60 * 1000;
+const TRIGGER_NOW_DUPLICATE_WINDOW_MS = 5 * 1000;
 
 const loadRequestTracker = {
   jobs: 0,
@@ -116,6 +117,10 @@ const loadRequestTracker = {
 };
 
 const inFlightStepNamesByJobKey = {};
+const triggerNowRequestState = {
+  inFlightByJobKey: {},
+  cooldownUntilByJobKey: {},
+};
 
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("DOMContentLoaded", () => {
@@ -555,18 +560,38 @@ async function requestTriggerNow(jobKeyValue) {
   const triggerButton = document.getElementById("job-detail-trigger-now-btn");
   const triggerFeedback = document.getElementById("job-detail-trigger-feedback");
   const triggerCount = document.getElementById("job-detail-trigger-count");
+  const normalizedJobKey = String(jobKeyValue || "").trim();
+  const now = Date.now();
 
-  if (!jobKeyValue) {
+  if (!normalizedJobKey) {
     triggerFeedback.className = "state error";
     triggerFeedback.textContent = "Unable to trigger: missing job key.";
     triggerFeedback.hidden = false;
     return;
   }
 
+  if (triggerNowRequestState.inFlightByJobKey[normalizedJobKey]) {
+    triggerFeedback.className = "state";
+    triggerFeedback.textContent = "Trigger request already in progress. Please wait for the current response.";
+    triggerFeedback.hidden = false;
+    return;
+  }
+
+  const cooldownUntil = Number(triggerNowRequestState.cooldownUntilByJobKey[normalizedJobKey] || 0);
+  if (cooldownUntil > now) {
+    triggerFeedback.className = "state";
+    triggerFeedback.textContent = "Trigger already accepted recently. Please wait a few seconds before retrying.";
+    triggerFeedback.hidden = false;
+    return;
+  }
+
+  triggerNowRequestState.inFlightByJobKey[normalizedJobKey] = true;
+
   const confirmed = window.confirm(
     "Trigger one ad hoc run now? This is operator convenience only and not schedule management."
   );
   if (!confirmed) {
+    delete triggerNowRequestState.inFlightByJobKey[normalizedJobKey];
     return;
   }
 
@@ -576,7 +601,7 @@ async function requestTriggerNow(jobKeyValue) {
   triggerFeedback.hidden = false;
 
   try {
-    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(jobKeyValue)}:trigger-now`, {
+    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(normalizedJobKey)}:trigger-now`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -592,11 +617,16 @@ async function requestTriggerNow(jobKeyValue) {
     if (response.ok || response.status === 202) {
       const eventId = valueOrDash(payload.triggerEventId);
       triggerFeedback.className = "state";
-      triggerFeedback.textContent = `Trigger accepted. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`;
+      const decisionStatus = String(payload.decisionStatus || "").trim();
+      const duplicateSuppressed = decisionStatus === "DUPLICATE_SUPPRESSED";
+      triggerFeedback.textContent = duplicateSuppressed
+        ? `Trigger already accepted recently. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`
+        : `Trigger accepted. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`;
       triggerFeedback.hidden = false;
+      triggerNowRequestState.cooldownUntilByJobKey[normalizedJobKey] = Date.now() + TRIGGER_NOW_DUPLICATE_WINDOW_MS;
 
       const current = Number(triggerCount.textContent);
-      if (!Number.isNaN(current)) {
+      if (!duplicateSuppressed && !Number.isNaN(current)) {
         triggerCount.textContent = String(current + 1);
       }
       return;
@@ -611,6 +641,7 @@ async function requestTriggerNow(jobKeyValue) {
     triggerFeedback.textContent = `Trigger failed [runtime]: ${error.message}`;
     triggerFeedback.hidden = false;
   } finally {
+    delete triggerNowRequestState.inFlightByJobKey[normalizedJobKey];
     triggerButton.disabled = false;
   }
 }

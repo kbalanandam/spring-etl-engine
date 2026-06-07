@@ -106,6 +106,7 @@ Delivered in this slice:
 - shipped guarded `Trigger now` action in job-detail UI with explicit ad hoc wording and selected-job boundary note
 - shipped POST request mapping to `/api/v1/jobs/{jobKey}:trigger-now` with confirmation and decision feedback including `triggerEventId`
 - shipped categorized failure feedback (`validation` / `config` / `runtime`) in the UI without introducing scheduler-management controls
+- hardened trigger-now against accidental repeat clicks by adding UI in-flight/cooldown guards plus short-window backend duplicate suppression for repeated manual requests from the same operator/job pair
 
 Handshake with `S1`:
 

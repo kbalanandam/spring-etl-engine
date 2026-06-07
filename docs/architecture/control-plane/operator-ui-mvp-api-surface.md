@@ -239,6 +239,7 @@ Current behavior:
 
 - returns `202 ACCEPTED` for known jobs
 - records a trigger event in the configured control-plane registry (`jdbc` by default for control-plane profile, `memory` fallback)
+- suppresses duplicate manual trigger-now requests for a short window when the same job, reason, and requester were already accepted moments earlier, returning `decisionStatus=DUPLICATE_SUPPRESSED` with the existing `triggerEventId`
 - follows trigger persistence mode-switch guardrails so fallback changes are explicit, not silent (`controlplane.triggers.persistence.allow-mode-switch=true` only for intentional resets)
 - does not launch the worker yet; launch orchestration remains a later slice
 

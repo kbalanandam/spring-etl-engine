@@ -10,6 +10,7 @@ This note describes the current client-side hardening applied in `src/main/resou
 
 - route-aware async response guards
 - in-flight request deduplication for job step previews
+- guarded duplicate-click suppression for ad hoc trigger-now requests
 - cache reconciliation for jobs-scoped preview state
 - bounded and expiring runs-filter response caching
 - route-safe sequencing for run-scoped log loading
@@ -55,6 +56,7 @@ flowchart TD
 
 - Stale response protection: list/detail loaders now render only when response state still matches the active route and newest request scope.
 - Step preview dedup: repeated expansion requests for one job reuse one in-flight call rather than fan-out duplicate `/api/v1/jobs/{jobKey}/config` requests.
+- Trigger-now dedup hardening: repeated clicks on the same job-detail trigger button are ignored while one request is already in flight, and a short UI cooldown prevents immediate accidental re-submit after an accepted response.
 - Step preview caching: parsed step names are cached per `jobKey` to reduce repeated YAML fetch/parse work.
 - Cache reconciliation: when a new jobs payload arrives, stale per-job preview and step-name entries are pruned so removed jobs do not leave stale UI state.
 - Runs filter cache hardening: runs responses are now cached with TTL and bounded entry count to reduce repeated fetches while preventing unbounded in-memory growth during long operator sessions.

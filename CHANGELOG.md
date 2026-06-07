@@ -20,6 +20,7 @@ and this project adheres to **Semantic Versioning**.
 - Updated the Operator Jobs tab with an inline prototype drill-down (`+`) per job row that lazily previews configured job step names from job-config YAML without introducing step-level navigation.
 - Hardened Operator UI monitoring route behavior to ignore stale async responses, deduplicate in-flight job step-name requests, and reconcile per-job preview/step-name caches against the latest jobs payload.
 - Hardened Operator Runs filtering with bounded/expiring per-filter cache entries and improved route-safe run-detail sequencing so run-scoped log loading is skipped when the active route changes.
+- Hardened guarded job-detail trigger-now behavior to ignore accidental repeat clicks in the UI and suppress short-window duplicate manual trigger requests on the backend, returning `DUPLICATE_SUPPRESSED` with the existing `triggerEventId` instead of recording a second trigger event.
 - Updated product backlog planning to run the next balanced delivery lane as `A7` + `S2` + `U4`, added `U4` as the first bounded post-MVP schedule-visibility/pause-resume Operator UI slice, and added lightweight backlog-item authoring guidance for concrete examples plus optional low-fidelity UI sketches when they materially improve clarity.
 
 ### Fixed

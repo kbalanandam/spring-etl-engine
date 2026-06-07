@@ -141,6 +141,12 @@ class ControlPlaneApiLauncherIntegrationTest {
 				.andExpect(status().isAccepted())
 				.andExpect(jsonPath("$.decisionStatus").value("ACCEPTED"));
 
+		mockMvc.perform(post("/api/v1/jobs/customer-load:trigger-now")
+						.contentType(MediaType.APPLICATION_JSON)
+						.content("{\"reason\":\"manual_operator_request\",\"requestedBy\":\"integration-test\"}"))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.decisionStatus").value("DUPLICATE_SUPPRESSED"));
+
 		mockMvc.perform(get("/api/v1/jobs/customer-load/trigger-events"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.totalItems").value(1));
