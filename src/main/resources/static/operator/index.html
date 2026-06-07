@@ -82,6 +82,23 @@
     </div>
     <div id="job-detail-trigger-feedback" class="state" hidden></div>
 
+    <h3>Native schedule</h3>
+    <p class="hint">Optional native scheduler controls only. Direct selected-job execution remains valid with or without this schedule panel.</p>
+    <div id="job-detail-schedule-state" class="state"></div>
+    <div id="job-detail-schedule-summary" hidden>
+      <p><strong>Status:</strong> <span id="job-detail-schedule-status"></span></p>
+      <p><strong>Schedule id:</strong> <span id="job-detail-schedule-id"></span></p>
+      <p><strong>Schedule key:</strong> <span id="job-detail-schedule-key"></span></p>
+      <p><strong>Timezone:</strong> <span id="job-detail-schedule-timezone"></span></p>
+      <p><strong>Expression:</strong> <span id="job-detail-schedule-expression"></span></p>
+      <p><strong>Next due:</strong> <span id="job-detail-schedule-next-due"></span></p>
+    </div>
+    <div class="schedule-row">
+      <button id="job-detail-schedule-action-btn" type="button" disabled>Pause schedule</button>
+      <span class="boundary-note">Schedule controls apply only to optional control-plane native schedules.</span>
+    </div>
+    <div id="job-detail-schedule-feedback" class="state" hidden></div>
+
     <p><a id="job-detail-back-link" href="#/jobs">Back to jobs list</a></p>
   </section>
 

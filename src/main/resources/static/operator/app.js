@@ -107,6 +107,7 @@ const SORT_KEYS = {
 const RUNS_FILTER_CACHE_MAX_ENTRIES = 30;
 const RUNS_FILTER_CACHE_TTL_MS = 5 * 60 * 1000;
 const TRIGGER_NOW_DUPLICATE_WINDOW_MS = 5 * 1000;
+const DEFAULT_SCHEDULE_LOOKUP_LIMIT = 200;
 
 const loadRequestTracker = {
   jobs: 0,
@@ -120,6 +121,9 @@ const inFlightStepNamesByJobKey = {};
 const triggerNowRequestState = {
   inFlightByJobKey: {},
   cooldownUntilByJobKey: {},
+};
+const scheduleRequestState = {
+  inFlightActionByScheduleId: {},
 };
 
 window.addEventListener("hashchange", renderRoute);
@@ -335,6 +339,10 @@ async function loadJobDetailPlaceholder(routeState) {
   const summary = document.getElementById("job-detail-summary");
   const triggerButton = document.getElementById("job-detail-trigger-now-btn");
   const triggerFeedback = document.getElementById("job-detail-trigger-feedback");
+  const scheduleState = document.getElementById("job-detail-schedule-state");
+  const scheduleSummary = document.getElementById("job-detail-schedule-summary");
+  const scheduleActionButton = document.getElementById("job-detail-schedule-action-btn");
+  const scheduleFeedback = document.getElementById("job-detail-schedule-feedback");
   const viewConfigLink = document.getElementById("job-detail-view-config-link");
   const backLink = document.getElementById("job-detail-back-link");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
@@ -346,6 +354,23 @@ async function loadJobDetailPlaceholder(routeState) {
   triggerFeedback.className = "state";
   triggerFeedback.textContent = "";
   triggerButton.disabled = true;
+  if (scheduleState) {
+    scheduleState.className = "state";
+    scheduleState.textContent = "Loading native schedule...";
+  }
+  if (scheduleSummary) {
+    scheduleSummary.hidden = true;
+  }
+  if (scheduleActionButton) {
+    scheduleActionButton.disabled = true;
+    scheduleActionButton.textContent = "Pause schedule";
+    scheduleActionButton.onclick = null;
+  }
+  if (scheduleFeedback) {
+    scheduleFeedback.hidden = true;
+    scheduleFeedback.className = "state";
+    scheduleFeedback.textContent = "";
+  }
   if (viewConfigLink) {
     viewConfigLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
   }
@@ -384,6 +409,7 @@ async function loadJobDetailPlaceholder(routeState) {
 
     triggerButton.disabled = false;
     triggerButton.onclick = () => requestTriggerNow(jobKeyValue);
+    await loadJobDetailSchedulePanel(jobKeyValue, requestId);
 
     state.textContent = "Job detail loaded.";
     summary.hidden = false;
@@ -554,6 +580,161 @@ function syncJobConfigFileRouteSelection(jobKey, currentQuery, selectedFileKey) 
   if (location.hash !== nextHash) {
     history.replaceState(null, "", nextHash);
   }
+}
+
+async function loadJobDetailSchedulePanel(jobKeyValue, requestId) {
+  const scheduleState = document.getElementById("job-detail-schedule-state");
+  const scheduleSummary = document.getElementById("job-detail-schedule-summary");
+  const scheduleActionButton = document.getElementById("job-detail-schedule-action-btn");
+  const scheduleFeedback = document.getElementById("job-detail-schedule-feedback");
+
+  if (!scheduleState || !scheduleSummary || !scheduleActionButton || !scheduleFeedback) {
+    return;
+  }
+
+  scheduleState.className = "state";
+  scheduleState.textContent = "Loading native schedule...";
+  scheduleSummary.hidden = true;
+  scheduleActionButton.disabled = true;
+  scheduleActionButton.onclick = null;
+
+  try {
+    const response = await fetch(`/api/v1/schedules?limit=${DEFAULT_SCHEDULE_LOOKUP_LIMIT}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Schedule API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    if (!shouldApplyRouteScopedUpdate("jobDetail", requestId, jobKeyValue)) {
+      return;
+    }
+
+    const schedules = Array.isArray(payload.items) ? payload.items : [];
+    const normalizedJobKey = String(jobKeyValue || "").trim().toLowerCase();
+    const matches = schedules.filter((schedule) => String(schedule?.selectedJobKey || "").trim().toLowerCase() === normalizedJobKey);
+
+    if (matches.length === 0) {
+      scheduleState.className = "state";
+      scheduleState.textContent = "No native schedule is configured for this job.";
+      scheduleSummary.hidden = true;
+      scheduleActionButton.disabled = true;
+      return;
+    }
+
+    const selectedSchedule = pickNewestSchedule(matches);
+    const statusLabel = formatScheduleStatus(selectedSchedule);
+    document.getElementById("job-detail-schedule-status").textContent = statusLabel;
+    document.getElementById("job-detail-schedule-id").textContent = valueOrDash(selectedSchedule.scheduleId);
+    document.getElementById("job-detail-schedule-key").textContent = valueOrDash(selectedSchedule.scheduleKey);
+    document.getElementById("job-detail-schedule-timezone").textContent = valueOrDash(selectedSchedule.timezone);
+    document.getElementById("job-detail-schedule-expression").textContent = valueOrDash(selectedSchedule.expression);
+    document.getElementById("job-detail-schedule-next-due").textContent = valueOrDash(selectedSchedule.nextDueAt);
+
+    const multipleNote = matches.length > 1 ? ` (${matches.length} schedules found for this job)` : "";
+    scheduleState.className = "state";
+    scheduleState.textContent = `Native schedule loaded.${multipleNote}`;
+    scheduleSummary.hidden = false;
+
+    if (!selectedSchedule.enabled) {
+      scheduleActionButton.textContent = "Pause schedule";
+      scheduleActionButton.disabled = true;
+      scheduleActionButton.onclick = null;
+      scheduleFeedback.className = "state";
+      scheduleFeedback.textContent = "Schedule is disabled. Pause/resume controls apply to enabled schedules only.";
+      scheduleFeedback.hidden = false;
+      return;
+    }
+
+    const action = selectedSchedule.paused ? "resume" : "pause";
+    scheduleActionButton.textContent = selectedSchedule.paused ? "Resume schedule" : "Pause schedule";
+    scheduleActionButton.disabled = false;
+    scheduleActionButton.onclick = () => requestScheduleStateChange(jobKeyValue, selectedSchedule.scheduleId, action, requestId);
+  } catch (error) {
+    if (!shouldApplyRouteScopedUpdate("jobDetail", requestId, jobKeyValue)) {
+      return;
+    }
+    scheduleState.className = "state error";
+    scheduleState.textContent = `Unable to load native schedule: ${error.message}`;
+    scheduleSummary.hidden = true;
+    scheduleActionButton.disabled = true;
+  }
+}
+
+async function requestScheduleStateChange(jobKeyValue, scheduleId, action, requestId) {
+  const scheduleActionButton = document.getElementById("job-detail-schedule-action-btn");
+  const scheduleFeedback = document.getElementById("job-detail-schedule-feedback");
+  const normalizedScheduleId = String(scheduleId || "").trim();
+  const normalizedAction = String(action || "").trim().toLowerCase();
+
+  if (!scheduleActionButton || !scheduleFeedback || !normalizedScheduleId || (normalizedAction !== "pause" && normalizedAction !== "resume")) {
+    return;
+  }
+  if (scheduleRequestState.inFlightActionByScheduleId[normalizedScheduleId]) {
+    scheduleFeedback.className = "state";
+    scheduleFeedback.textContent = "Schedule action already in progress. Please wait for the current response.";
+    scheduleFeedback.hidden = false;
+    return;
+  }
+
+  const confirmMessage = normalizedAction === "pause"
+    ? "Pause this native schedule? Direct selected-job execution remains available."
+    : "Resume this native schedule?";
+  if (!window.confirm(confirmMessage)) {
+    return;
+  }
+
+  scheduleRequestState.inFlightActionByScheduleId[normalizedScheduleId] = true;
+  scheduleActionButton.disabled = true;
+  scheduleFeedback.className = "state";
+  scheduleFeedback.textContent = `Submitting ${normalizedAction} request...`;
+  scheduleFeedback.hidden = false;
+
+  try {
+    const response = await fetch(`/api/v1/schedules/${encodeURIComponent(normalizedScheduleId)}:${normalizedAction}`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      scheduleFeedback.className = "state error";
+      scheduleFeedback.textContent = `Schedule ${normalizedAction} failed: ${valueOrDash(payload.message)}`;
+      scheduleFeedback.hidden = false;
+      return;
+    }
+
+    scheduleFeedback.className = "state";
+    scheduleFeedback.textContent = `Schedule ${normalizedAction} accepted for ${normalizedScheduleId}.`;
+    scheduleFeedback.hidden = false;
+    await loadJobDetailSchedulePanel(jobKeyValue, requestId);
+  } catch (error) {
+    scheduleFeedback.className = "state error";
+    scheduleFeedback.textContent = `Schedule ${normalizedAction} failed [runtime]: ${error.message}`;
+    scheduleFeedback.hidden = false;
+  } finally {
+    delete scheduleRequestState.inFlightActionByScheduleId[normalizedScheduleId];
+    if (shouldApplyRouteScopedUpdate("jobDetail", requestId, jobKeyValue)) {
+      scheduleActionButton.disabled = false;
+    }
+  }
+}
+
+function pickNewestSchedule(schedules) {
+  return [...schedules].sort((left, right) => {
+    const leftUpdated = String(left?.updatedAt || "");
+    const rightUpdated = String(right?.updatedAt || "");
+    return rightUpdated.localeCompare(leftUpdated);
+  })[0];
+}
+
+function formatScheduleStatus(schedule) {
+  if (!schedule || !schedule.enabled) {
+    return "Disabled";
+  }
+  if (schedule.paused) {
+    return "Paused";
+  }
+  return "Active";
 }
 
 async function requestTriggerNow(jobKeyValue) {
