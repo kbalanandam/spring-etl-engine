@@ -7,6 +7,7 @@ Current items:
 - `U1-independent-operator-ui-shell-and-monitoring-read-model.md`
 - `U2-run-detail-drilldown-with-step-and-artifact-evidence.md`
 - `U3-guarded-trigger-now-from-job-details.md`
+- `U4-schedule-visibility-and-pause-resume-controls.md`
 
 Keep execution status canonical in `docs/product/product-backlog.md` and treat this folder as item-level drill-down only.
 

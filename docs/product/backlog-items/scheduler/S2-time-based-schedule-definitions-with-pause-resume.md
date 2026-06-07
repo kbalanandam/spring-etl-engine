@@ -30,6 +30,13 @@ Introduce one time-based schedule-definition slice that remains optional and doe
 - pause/resume controls
 - alignment with the optional control-plane boundary
 
+## Example operator flow
+
+- operator opens one job in the Operator UI and sees that native schedule state is `Active`
+- operator selects **Pause schedule** and receives a clear confirmation/result message
+- later the same job shows `Paused` state and no misleading wording that direct ETL execution is blocked
+- operator can still use the bounded ad hoc trigger path separately when allowed
+
 ## Out of scope
 
 - overlap or missed-run policy by itself
@@ -39,6 +46,12 @@ Introduce one time-based schedule-definition slice that remains optional and doe
 ## Proposed approach
 
 Build S2 only after S1 freezes the schedule/trigger contract, and keep the ETL worker launch contract unchanged underneath.
+
+Balanced-growth pairing for this slice:
+
+- `A7` exercises ETL/runtime contract extensibility on the same selected-job boundary
+- `S2` provides the first native schedule state and pause/resume control contract
+- `U4` consumes that contract in the UI without widening it into full scheduler governance
 
 ## Operator / runtime impact
 
