@@ -28,7 +28,7 @@ Without an explicit trigger-origin model and screen, operations and hypercare wo
 
 ## Goal
 
-Ship a bounded schedule workbench and trigger-origin visibility slice that keeps scheduler controls optional while making run origins explicit and auditable.
+Ship a bounded schedule workbench and trigger-origin visibility slice that keeps scheduler controls bounded while making run origins explicit and auditable.
 
 ## Scope
 
@@ -36,7 +36,7 @@ Ship a bounded schedule workbench and trigger-origin visibility slice that keeps
 - bounded schedule actions in that view: open job detail, pause/resume, and guarded ad hoc trigger-now
 - clear trigger-origin token rendered in Runs list and Run detail (`Manual`, `Schedule`; `Event` reserved)
 - read-model and persistence contract updates needed to carry explicit trigger origin into run projections
-- explicit wording that schedule controls remain optional and selected-job boundaries stay intact
+- explicit wording that schedule controls remain bounded and selected-job boundaries stay intact
 
 ## Example operator flow
 
@@ -78,7 +78,7 @@ Runs
 2. carry explicit trigger-origin classification from trigger events into run projections
 3. render trigger-origin labels in Runs list/detail with stable token mapping
 4. reserve `Event` as a first-class origin token now so future watcher triggers use the same UI/persistence contract
-5. keep wording and docs explicit that this is optional control-plane behavior
+5. keep wording and docs explicit that this is control-plane behavior
 
 ## Operator / runtime impact
 
@@ -105,7 +105,7 @@ Runs
 - [ ] Runs list and Run detail show explicit trigger origin (`Manual`, `Schedule`)
 - [ ] trigger-origin contract reserves `Event` and does not require UI redesign when event triggers ship
 - [ ] persistence/read-model flow keeps run origin auditable from trigger event to run projection
-- [ ] selected-job and optional-control-plane boundary wording remains explicit
+- [ ] selected-job and control-plane boundary wording remains explicit
 
 ## Related docs
 

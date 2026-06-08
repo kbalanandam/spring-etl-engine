@@ -244,13 +244,56 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (limit <= 0) {
 			return List.of();
 		}
+		if (!triggerEventTableAvailable()) {
+			return jdbcTemplate.query("""
+					select job_execution_id, scenario, status, start_time, end_time, duration_seconds,
+					       source_count, written_count, rejected_count, run_mode, recovery_policy, log_path
+					from controlplane_run_summary
+					order by case when start_time is null then 1 else 0 end,
+					         start_time desc,
+					         job_execution_id desc
+					limit ?
+					""", (rs, rowNum) -> new RunSummaryView(
+					rs.getString("scenario"),
+					rs.getLong("job_execution_id"),
+					rs.getString("status"),
+					toLocalDateTime(rs.getTimestamp("start_time")),
+					toLocalDateTime(rs.getTimestamp("end_time")),
+					nullableLong(rs, "duration_seconds"),
+					nullableLong(rs, "source_count"),
+					nullableLong(rs, "written_count"),
+					nullableLong(rs, "rejected_count"),
+					rs.getString("run_mode"),
+					rs.getString("recovery_policy"),
+					"MANUAL",
+					rs.getString("log_path")
+			), limit);
+		}
 		return jdbcTemplate.query("""
-				select job_execution_id, scenario, status, start_time, end_time, duration_seconds,
-				       source_count, written_count, rejected_count, run_mode, recovery_policy, log_path
-				from controlplane_run_summary
-				order by case when start_time is null then 1 else 0 end,
-				         start_time desc,
-				         job_execution_id desc
+				select rs.job_execution_id,
+				       rs.scenario,
+				       rs.status,
+				       rs.start_time,
+				       rs.end_time,
+				       rs.duration_seconds,
+				       rs.source_count,
+				       rs.written_count,
+				       rs.rejected_count,
+				       rs.run_mode,
+				       rs.recovery_policy,
+				       rs.log_path,
+				       te.trigger_origin,
+				       te.schedule_id,
+				       te.watcher_id,
+				       te.external_origin_key
+				from controlplane_run_summary rs
+				left join controlplane_run_record rr on rr.job_execution_id = rs.job_execution_id
+				left join controlplane_trigger_event te
+				  on (rr.trigger_event_pk is not null and te.trigger_event_pk = rr.trigger_event_pk)
+				  or (rr.trigger_event_pk is null and rr.trigger_event_id is not null and te.trigger_event_id = rr.trigger_event_id)
+				order by case when rs.start_time is null then 1 else 0 end,
+				         rs.start_time desc,
+				         rs.job_execution_id desc
 				limit ?
 				""", (rs, rowNum) -> new RunSummaryView(
 				rs.getString("scenario"),
@@ -264,17 +307,64 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				nullableLong(rs, "rejected_count"),
 				rs.getString("run_mode"),
 				rs.getString("recovery_policy"),
+				normalizeTriggerOriginToken(
+					rs.getString("trigger_origin"),
+					rs.getString("schedule_id"),
+					rs.getString("watcher_id"),
+					rs.getString("external_origin_key")
+				),
 				rs.getString("log_path")
 		), limit);
 	}
 
 	@Override
 	public Optional<RunSummaryView> findByJobExecutionId(long jobExecutionId) {
+		if (!triggerEventTableAvailable()) {
+			List<RunSummaryView> matches = jdbcTemplate.query("""
+					select job_execution_id, scenario, status, start_time, end_time, duration_seconds,
+					       source_count, written_count, rejected_count, run_mode, recovery_policy, log_path
+					from controlplane_run_summary
+					where job_execution_id = ?
+					""", (rs, rowNum) -> new RunSummaryView(
+					rs.getString("scenario"),
+					rs.getLong("job_execution_id"),
+					rs.getString("status"),
+					toLocalDateTime(rs.getTimestamp("start_time")),
+					toLocalDateTime(rs.getTimestamp("end_time")),
+					nullableLong(rs, "duration_seconds"),
+					nullableLong(rs, "source_count"),
+					nullableLong(rs, "written_count"),
+					nullableLong(rs, "rejected_count"),
+					rs.getString("run_mode"),
+					rs.getString("recovery_policy"),
+					"MANUAL",
+					rs.getString("log_path")
+			), jobExecutionId);
+			return matches.stream().findFirst();
+		}
 		List<RunSummaryView> matches = jdbcTemplate.query("""
-				select job_execution_id, scenario, status, start_time, end_time, duration_seconds,
-				       source_count, written_count, rejected_count, run_mode, recovery_policy, log_path
-				from controlplane_run_summary
-				where job_execution_id = ?
+				select rs.job_execution_id,
+				       rs.scenario,
+				       rs.status,
+				       rs.start_time,
+				       rs.end_time,
+				       rs.duration_seconds,
+				       rs.source_count,
+				       rs.written_count,
+				       rs.rejected_count,
+				       rs.run_mode,
+				       rs.recovery_policy,
+				       rs.log_path,
+				       te.trigger_origin,
+				       te.schedule_id,
+				       te.watcher_id,
+				       te.external_origin_key
+				from controlplane_run_summary rs
+				left join controlplane_run_record rr on rr.job_execution_id = rs.job_execution_id
+				left join controlplane_trigger_event te
+				  on (rr.trigger_event_pk is not null and te.trigger_event_pk = rr.trigger_event_pk)
+				  or (rr.trigger_event_pk is null and rr.trigger_event_id is not null and te.trigger_event_id = rr.trigger_event_id)
+				where rs.job_execution_id = ?
 				""", (rs, rowNum) -> new RunSummaryView(
 				rs.getString("scenario"),
 				rs.getLong("job_execution_id"),
@@ -287,6 +377,12 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				nullableLong(rs, "rejected_count"),
 				rs.getString("run_mode"),
 				rs.getString("recovery_policy"),
+				normalizeTriggerOriginToken(
+					rs.getString("trigger_origin"),
+					rs.getString("schedule_id"),
+					rs.getString("watcher_id"),
+					rs.getString("external_origin_key")
+				),
 				rs.getString("log_path")
 		), jobExecutionId);
 		return matches.stream().findFirst();
@@ -1811,6 +1907,32 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 
 	private String normalize(String value) {
 		return value == null ? "" : value.trim();
+	}
+
+	private boolean triggerEventTableAvailable() {
+		try {
+			jdbcTemplate.queryForObject("select 1 from controlplane_trigger_event limit 1", Integer.class);
+			return true;
+		} catch (DataAccessException ex) {
+			return false;
+		}
+	}
+
+	private String normalizeTriggerOriginToken(String value, String scheduleId, String watcherId, String externalOriginKey) {
+		String token = normalize(value).toUpperCase(Locale.ROOT);
+		if ("SCHEDULE".equals(token)) {
+			return "SCHEDULE";
+		}
+		if ("EVENT".equals(token)) {
+			return "EVENT";
+		}
+		if (!normalize(scheduleId).isBlank()) {
+			return "SCHEDULE";
+		}
+		if (!normalize(watcherId).isBlank() || !normalize(externalOriginKey).isBlank()) {
+			return "EVENT";
+		}
+		return "MANUAL";
 	}
 
 	private record RunRecordLinkCandidate(long jobExecutionId, String scenario, LocalDateTime startedAt) {

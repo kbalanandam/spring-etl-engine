@@ -2,7 +2,7 @@
 
 ## Summary
 
-Create the first independent Operator UI shell so users can view jobs and recent runs in one centralized interface, while keeping ETL-core execution unchanged and optional control-plane usage additive.
+Create the first independent Operator UI shell so users can view jobs and recent runs in one centralized interface, while keeping ETL-core execution unchanged and control-plane usage additive.
 
 ## Current board status
 

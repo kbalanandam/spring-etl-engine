@@ -36,6 +36,7 @@ test("runs list applies route state and renders sorted table", () => {
         {
           scenario: "customer-load",
           status: "COMPLETED",
+          triggerOrigin: "SCHEDULE",
           runMode: "explicit-job",
           recoveryPolicy: "rerun-from-start",
           startTime: "2026-06-03T10:00:00",
@@ -45,6 +46,7 @@ test("runs list applies route state and renders sorted table", () => {
         {
           scenario: "orders-load",
           status: "FAILED",
+          triggerOrigin: "MANUAL",
           runMode: "demo-fallback",
           recoveryPolicy: "rerun-from-start",
           startTime: "2026-06-03T11:00:00",
@@ -90,6 +92,7 @@ test("runs list applies route state and renders sorted table", () => {
     assert.equal(elements.get("runs-body").children.length, 2);
 
     const firstRow = elements.get("runs-body").children[0];
+    assert.match(firstRow.innerHTML, /SCHEDULE/);
     assert.match(firstRow.innerHTML, /explicit-job/);
     assert.match(firstRow.innerHTML, /rerun-from-start/);
     firstRow.dispatch("click");
@@ -105,7 +108,7 @@ test("runs controls update state and request route sync", () => {
   const { elements, restore } = installDom(IDS);
   try {
     const state = {
-      items: [{ scenario: "customer-load", status: "COMPLETED", runMode: "explicit-job", recoveryPolicy: "rerun-from-start", startTime: "2026-06-03T10:00:00", durationSeconds: 25, jobExecutionId: 11 }],
+      items: [{ scenario: "customer-load", status: "COMPLETED", triggerOrigin: "MANUAL", runMode: "explicit-job", recoveryPolicy: "rerun-from-start", startTime: "2026-06-03T10:00:00", durationSeconds: 25, jobExecutionId: 11 }],
       loaded: true,
       filterText: "",
       selectedJobKey: "",

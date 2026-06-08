@@ -14,6 +14,7 @@
 
 <nav class="tabs">
   <a href="#/jobs" id="tab-jobs">Jobs</a>
+  <a href="#/schedules" id="tab-schedules">Schedules</a>
   <a href="#/runs" id="tab-runs">Runs</a>
   <div class="tabs-timezone">
     <label for="runs-timezone-select">Timezone</label>
@@ -83,7 +84,7 @@
     <div id="job-detail-trigger-feedback" class="state" hidden></div>
 
     <h3>Native schedule</h3>
-    <p class="hint">Optional native scheduler controls only. Direct selected-job execution remains valid with or without this schedule panel.</p>
+    <p class="hint">Native scheduler controls only. Direct selected-job execution remains valid with or without this schedule panel.</p>
     <div id="job-detail-schedule-state" class="state"></div>
     <div id="job-detail-schedule-summary" hidden>
       <p><strong>Status:</strong> <span id="job-detail-schedule-status"></span></p>
@@ -95,7 +96,6 @@
     </div>
     <div class="schedule-row">
       <button id="job-detail-schedule-action-btn" type="button" disabled>Pause schedule</button>
-      <span class="boundary-note">Schedule controls apply only to optional control-plane native schedules.</span>
     </div>
     <div id="job-detail-schedule-feedback" class="state" hidden></div>
 
@@ -118,6 +118,32 @@
     <p id="job-config-selected-file" class="job-config-selected-file" hidden></p>
     <pre id="job-config-raw" class="detail-box" hidden></pre>
     <p><a id="job-config-back-link" href="#/jobs">Back</a></p>
+  </section>
+
+  <section id="view-schedules" class="panel" hidden>
+    <h2>Schedules</h2>
+    <p class="hint">Native scheduler workbench from <code>/api/v1/schedules</code> with recent trigger evidence.</p>
+    <div class="control-row">
+      <button id="schedules-refresh-btn" type="button">Refresh</button>
+      <span class="boundary-note">Scheduler controls are control-plane behavior; selected-job execution remains available independently.</span>
+    </div>
+    <div id="schedules-state" class="state"></div>
+    <table id="schedules-table" hidden>
+      <thead>
+      <tr>
+        <th>Schedule key</th>
+        <th>Job</th>
+        <th>Status</th>
+        <th>Next due</th>
+        <th>Actions</th>
+      </tr>
+      </thead>
+      <tbody id="schedules-body"></tbody>
+    </table>
+
+    <h3>Recent triggers (selected schedule)</h3>
+    <div id="schedules-triggers-state" class="state">Select a schedule to load trigger evidence.</div>
+    <ul id="schedules-trigger-events-list" class="detail-list" hidden></ul>
   </section>
 
   <section id="view-runs" class="panel" hidden>
@@ -171,6 +197,7 @@
             <option value="jobExecutionId">Job execution</option>
             <option value="scenario">Scenario</option>
             <option value="status">Status</option>
+            <option value="triggerOrigin">Trigger origin</option>
             <option value="runMode">Run mode</option>
             <option value="recoveryPolicy">Recovery policy</option>
           </select>
@@ -184,6 +211,7 @@
       <tr>
         <th>Scenario</th>
         <th>Status</th>
+        <th>Trigger origin</th>
         <th>Run mode</th>
         <th>Recovery policy</th>
         <th>Start time</th>
@@ -203,6 +231,7 @@
       <p><strong>Job execution:</strong> <span id="run-detail-id"></span></p>
       <p><strong>Scenario:</strong> <span id="run-detail-scenario"></span></p>
       <p><strong>Status:</strong> <span id="run-detail-status"></span></p>
+      <p><strong>Trigger origin:</strong> <span id="run-detail-trigger-origin"></span></p>
       <p><strong>Run mode:</strong> <span id="run-detail-run-mode"></span></p>
       <p><strong>Recovery policy:</strong> <span id="run-detail-recovery-policy"></span></p>
       <p><strong>Start time:</strong> <span id="run-detail-start-time"></span></p>

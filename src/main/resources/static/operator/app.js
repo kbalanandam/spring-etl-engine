@@ -26,6 +26,11 @@ const routes = {
     view: document.getElementById("view-job-config"),
     load: loadJobConfig,
   },
+  schedules: {
+    tab: document.getElementById("tab-schedules"),
+    view: document.getElementById("view-schedules"),
+    load: loadSchedules,
+  },
   runs: {
     tab: document.getElementById("tab-runs"),
     view: document.getElementById("view-runs"),
@@ -52,6 +57,11 @@ const viewState = {
     expandedJobKey: "",
     jobStepPreviewByJobKey: {},
     stepNamesByJobKey: {},
+  },
+  schedules: {
+    loaded: false,
+    items: [],
+    selectedScheduleId: "",
   },
   runs: {
     loaded: false,
@@ -101,7 +111,7 @@ const runsListUi = createRunsListUi({
 
 const SORT_KEYS = {
   jobs: ["jobKey", "displayName", "readinessStatus"],
-  runs: ["startTime", "jobExecutionId", "scenario", "status", "runMode", "recoveryPolicy"],
+  runs: ["startTime", "jobExecutionId", "scenario", "status", "triggerOrigin", "runMode", "recoveryPolicy"],
 };
 
 const RUNS_FILTER_CACHE_MAX_ENTRIES = 30;
@@ -113,6 +123,7 @@ const loadRequestTracker = {
   jobs: 0,
   jobDetail: 0,
   jobConfig: 0,
+  schedules: 0,
   runs: 0,
   runDetail: 0,
 };
@@ -156,6 +167,14 @@ function currentRouteState() {
 
   if (runDetailMatch) {
     return { key: "runDetail", jobExecutionId: runDetailMatch[1], jobKey: null, query: parsed.query };
+  }
+  if (normalized === "schedules") {
+    return {
+      key: "schedules",
+      jobExecutionId: null,
+      jobKey: null,
+      query: parsed.query,
+    };
   }
   if (normalized === "runs") {
     return {
@@ -662,11 +681,14 @@ async function loadJobDetailSchedulePanel(jobKeyValue, requestId) {
       scheduleState.textContent = "No native schedule is configured for this job.";
       scheduleSummary.hidden = true;
       scheduleActionButton.disabled = true;
+      scheduleFeedback.hidden = true;
       return;
     }
 
-    const selectedSchedule = pickNewestSchedule(matches);
-    const statusLabel = formatScheduleStatus(selectedSchedule);
+    const selectedSchedule = selectScheduleForJobDetail(matches, viewState.schedules.selectedScheduleId);
+    viewState.schedules.selectedScheduleId = String(selectedSchedule?.scheduleId || "").trim();
+    const scheduleControlState = getScheduleControlState(selectedSchedule);
+    const statusLabel = scheduleControlState.statusLabel;
     document.getElementById("job-detail-schedule-status").textContent = statusLabel;
     document.getElementById("job-detail-schedule-id").textContent = valueOrDash(selectedSchedule.scheduleId);
     document.getElementById("job-detail-schedule-key").textContent = valueOrDash(selectedSchedule.scheduleKey);
@@ -674,13 +696,22 @@ async function loadJobDetailSchedulePanel(jobKeyValue, requestId) {
     document.getElementById("job-detail-schedule-expression").textContent = valueOrDash(selectedSchedule.expression);
     document.getElementById("job-detail-schedule-next-due").textContent = valueOrDash(selectedSchedule.nextDueAt);
 
-    const multipleNote = matches.length > 1 ? ` (${matches.length} schedules found for this job)` : "";
     scheduleState.className = "state";
-    scheduleState.textContent = `Native schedule loaded.${multipleNote}`;
+    scheduleState.textContent = "Native schedule loaded.";
     scheduleSummary.hidden = false;
 
-    if (!selectedSchedule.enabled) {
-      scheduleActionButton.textContent = "Pause schedule";
+    if (matches.length > 1) {
+      scheduleFeedback.className = "state";
+      scheduleFeedback.textContent = `Multiple native schedules are configured for this job (${matches.length} found). Managing ${valueOrDash(selectedSchedule.scheduleKey)} in this panel.`;
+      scheduleFeedback.hidden = false;
+    } else {
+      scheduleFeedback.hidden = true;
+      scheduleFeedback.className = "state";
+      scheduleFeedback.textContent = "";
+    }
+
+    if (scheduleControlState.toggleDisabled) {
+      scheduleActionButton.textContent = scheduleControlState.detailToggleLabel;
       scheduleActionButton.disabled = true;
       scheduleActionButton.onclick = null;
       scheduleFeedback.className = "state";
@@ -689,8 +720,8 @@ async function loadJobDetailSchedulePanel(jobKeyValue, requestId) {
       return;
     }
 
-    const action = selectedSchedule.paused ? "resume" : "pause";
-    scheduleActionButton.textContent = selectedSchedule.paused ? "Resume schedule" : "Pause schedule";
+    const action = scheduleControlState.toggleAction;
+    scheduleActionButton.textContent = scheduleControlState.detailToggleLabel;
     scheduleActionButton.disabled = false;
     scheduleActionButton.onclick = () => requestScheduleStateChange(jobKeyValue, selectedSchedule.scheduleId, action, requestId);
   } catch (error) {
@@ -770,14 +801,35 @@ function pickNewestSchedule(schedules) {
   })[0];
 }
 
+function selectScheduleForJobDetail(schedules, preferredScheduleId) {
+  const list = Array.isArray(schedules) ? schedules : [];
+  const preferredId = String(preferredScheduleId || "").trim();
+  if (preferredId !== "") {
+    const preferred = list.find((schedule) => String(schedule?.scheduleId || "").trim() === preferredId);
+    if (preferred) {
+      return preferred;
+    }
+  }
+  return pickNewestSchedule(list);
+}
+
 function formatScheduleStatus(schedule) {
-  if (!schedule || !schedule.enabled) {
-    return "Disabled";
-  }
-  if (schedule.paused) {
-    return "Paused";
-  }
-  return "Active";
+  return getScheduleControlState(schedule).statusLabel;
+}
+
+function getScheduleControlState(schedule) {
+  const enabled = Boolean(schedule?.enabled);
+  const paused = enabled && Boolean(schedule?.paused);
+
+  return {
+    enabled,
+    paused,
+    statusLabel: !enabled ? "Disabled" : paused ? "Paused" : "Active",
+    toggleAction: enabled ? (paused ? "resume" : "pause") : null,
+    toggleLabel: paused ? "Resume" : "Pause",
+    detailToggleLabel: paused ? "Resume schedule" : "Pause schedule",
+    toggleDisabled: !enabled,
+  };
 }
 
 async function requestTriggerNow(jobKeyValue) {
@@ -870,6 +922,251 @@ async function requestTriggerNow(jobKeyValue) {
   }
 }
 
+async function loadSchedules() {
+  const requestId = ++loadRequestTracker.schedules;
+  const state = document.getElementById("schedules-state");
+  const table = document.getElementById("schedules-table");
+  const body = document.getElementById("schedules-body");
+  const triggerState = document.getElementById("schedules-triggers-state");
+  const triggerList = document.getElementById("schedules-trigger-events-list");
+
+  if (!state || !table || !body || !triggerState || !triggerList) {
+    return;
+  }
+
+  state.className = "state";
+  state.textContent = "Loading schedules...";
+  table.hidden = true;
+  body.innerHTML = "";
+  triggerState.className = "state";
+  triggerState.textContent = "Select a schedule to load trigger evidence.";
+  triggerList.hidden = true;
+  triggerList.innerHTML = "";
+
+  try {
+    const response = await fetch(`/api/v1/schedules?limit=${DEFAULT_SCHEDULE_LOOKUP_LIMIT}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Schedule API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
+      return;
+    }
+
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    viewState.schedules.items = items;
+    viewState.schedules.loaded = true;
+
+    if (items.length === 0) {
+      state.textContent = "No schedules found.";
+      return;
+    }
+
+    renderSchedulesTable(items, requestId);
+    state.textContent = `Loaded ${items.length} schedule(s).`;
+    table.hidden = false;
+
+    const selected = items.find((item) => item.scheduleId === viewState.schedules.selectedScheduleId) || items[0];
+    if (selected) {
+      await loadScheduleTriggerEvidence(selected, requestId);
+    }
+  } catch (error) {
+    if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
+      return;
+    }
+    state.className = "state error";
+    state.textContent = `Unable to load schedules: ${error.message}`;
+  }
+}
+
+function renderSchedulesTable(items, requestId) {
+  const body = document.getElementById("schedules-body");
+  if (!body) {
+    return;
+  }
+  body.innerHTML = "";
+
+  items.forEach((schedule) => {
+    const row = document.createElement("tr");
+    const scheduleControlState = getScheduleControlState(schedule);
+    row.className = "clickable-row";
+    row.title = "Load recent trigger evidence";
+    row.addEventListener("click", () => {
+      loadScheduleTriggerEvidence(schedule, requestId);
+    });
+
+    const actions = document.createElement("td");
+
+    const openJobButton = document.createElement("button");
+    openJobButton.type = "button";
+    openJobButton.textContent = "Open job";
+    openJobButton.addEventListener("click", (event) => {
+      event.stopPropagation();
+      const selectedJobKey = String(schedule?.selectedJobKey || "").trim();
+      if (!selectedJobKey) {
+        return;
+      }
+      viewState.schedules.selectedScheduleId = String(schedule?.scheduleId || "").trim();
+      location.hash = `#/jobs/${encodeURIComponent(selectedJobKey)}`;
+    });
+
+    const toggleButton = document.createElement("button");
+    toggleButton.type = "button";
+    toggleButton.textContent = scheduleControlState.toggleLabel;
+    toggleButton.disabled = scheduleControlState.toggleDisabled;
+    toggleButton.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      const action = scheduleControlState.toggleAction;
+      if (!action) {
+        return;
+      }
+      await requestScheduleWorkbenchStateChange(schedule, action, requestId);
+    });
+
+    const triggerNowButton = document.createElement("button");
+    triggerNowButton.type = "button";
+    triggerNowButton.textContent = "Trigger now";
+    triggerNowButton.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      await requestScheduleWorkbenchTriggerNow(schedule, requestId);
+    });
+
+    actions.append(openJobButton, document.createTextNode(" "), toggleButton, document.createTextNode(" "), triggerNowButton);
+    row.innerHTML = `
+      <td>${escapeHtml(valueOrDash(schedule.scheduleKey))}</td>
+      <td>${escapeHtml(valueOrDash(schedule.selectedJobKey))}</td>
+      <td>${escapeHtml(formatScheduleStatus(schedule))}</td>
+      <td>${escapeHtml(valueOrDash(schedule.nextDueAt))}</td>`;
+    row.appendChild(actions);
+    body.appendChild(row);
+  });
+}
+
+async function requestScheduleWorkbenchStateChange(schedule, action, requestId) {
+  const state = document.getElementById("schedules-state");
+  const scheduleId = String(schedule?.scheduleId || "").trim();
+  if (!state || !scheduleId) {
+    return;
+  }
+  const response = await fetch(`/api/v1/schedules/${encodeURIComponent(scheduleId)}:${action}`, {
+    method: "POST",
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    state.className = "state error";
+    state.textContent = `Schedule ${action} failed: ${valueOrDash(payload.message)}`;
+    return;
+  }
+  if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
+    return;
+  }
+  viewState.schedules.selectedScheduleId = scheduleId;
+  await loadSchedules();
+}
+
+async function requestScheduleWorkbenchTriggerNow(schedule, requestId) {
+  const state = document.getElementById("schedules-state");
+  const selectedJobKey = String(schedule?.selectedJobKey || "").trim();
+  if (!state || !selectedJobKey) {
+    return;
+  }
+  const response = await fetch(`/api/v1/jobs/${encodeURIComponent(selectedJobKey)}:trigger-now`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      reason: "manual_operator_request",
+      requestedBy: "operator-ui",
+    }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok && response.status !== 202) {
+    state.className = "state error";
+    state.textContent = `Trigger now failed: ${valueOrDash(payload.message)}`;
+    return;
+  }
+  state.className = "state";
+  state.textContent = `Trigger now accepted for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}`;
+  if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
+    return;
+  }
+  viewState.schedules.selectedScheduleId = String(schedule?.scheduleId || "").trim();
+  await loadSchedules();
+}
+
+async function loadScheduleTriggerEvidence(schedule, requestId) {
+  const triggerState = document.getElementById("schedules-triggers-state");
+  const triggerList = document.getElementById("schedules-trigger-events-list");
+  if (!triggerState || !triggerList) {
+    return;
+  }
+  const scheduleId = String(schedule?.scheduleId || "").trim();
+  viewState.schedules.selectedScheduleId = scheduleId;
+  triggerState.className = "state";
+  triggerState.textContent = `Loading trigger evidence for ${valueOrDash(schedule?.scheduleKey)}...`;
+  triggerList.hidden = true;
+  triggerList.innerHTML = "";
+
+  try {
+    const response = await fetch(`/api/v1/schedules/${encodeURIComponent(scheduleId)}/trigger-events?limit=20`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Trigger events API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
+      return;
+    }
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    if (items.length === 0) {
+      triggerState.textContent = "No trigger events recorded for this schedule yet.";
+      return;
+    }
+
+    items.forEach((item) => {
+      const line = document.createElement("li");
+      line.textContent = `${valueOrDash(item.requestedAt)} | origin=${formatScheduleTriggerOriginToken(item.triggerOrigin)} | decision=${valueOrDash(item.decisionStatus)} | triggerEventId=${valueOrDash(item.triggerEventId)} | launchedRunId=${valueOrDash(item.launchedRunId)}`;
+      triggerList.appendChild(line);
+    });
+    triggerState.textContent = `Showing ${items.length} trigger event(s) for ${valueOrDash(schedule?.scheduleKey)}.`;
+    triggerList.hidden = false;
+  } catch (error) {
+    if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
+      return;
+    }
+    triggerState.className = "state error";
+    triggerState.textContent = `Unable to load schedule trigger evidence: ${error.message}`;
+  }
+}
+
+function formatTriggerOriginToken(token) {
+  const normalized = String(token || "").trim().toUpperCase();
+  if (normalized === "SCHEDULE") {
+    return "SCHEDULE";
+  }
+  if (normalized === "EVENT") {
+    return "EVENT";
+  }
+  return "MANUAL";
+}
+
+function formatScheduleTriggerOriginToken(token) {
+  const normalized = String(token || "").trim().toUpperCase();
+  if (normalized === "EVENT") {
+    return "EVENT";
+  }
+  if (normalized === "MANUAL") {
+    return "MANUAL";
+  }
+  return "SCHEDULE";
+}
+
 function categorizeTriggerFailure(statusCode) {
   if (statusCode === 404 || statusCode === 409) {
     return "config";
@@ -949,6 +1246,20 @@ function formatDateForInput(date) {
 function initializeControls() {
   jobsListUi.initializeControls();
   runsListUi.initializeControls();
+  initializeScheduleControls();
+}
+
+function initializeScheduleControls() {
+  const refreshButton = document.getElementById("schedules-refresh-btn");
+  if (!refreshButton) {
+    return;
+  }
+  refreshButton.addEventListener("click", () => {
+    viewState.schedules.loaded = false;
+    if (currentRouteState().key === "schedules") {
+      loadSchedules();
+    }
+  });
 }
 
 function applyRouteStateToListView(routeState) {
@@ -1317,6 +1628,7 @@ async function loadRunDetail(routeState) {
     document.getElementById("run-detail-id").textContent = String(run.jobExecutionId ?? runIdValue);
     document.getElementById("run-detail-scenario").textContent = run.scenario || "-";
     document.getElementById("run-detail-status").textContent = run.status || "-";
+    document.getElementById("run-detail-trigger-origin").textContent = formatTriggerOriginToken(run.triggerOrigin);
     document.getElementById("run-detail-run-mode").textContent = valueOrDash(run.runMode);
     document.getElementById("run-detail-recovery-policy").textContent = valueOrDash(run.recoveryPolicy);
     document.getElementById("run-detail-start-time").textContent = valueOrDash(run.startTime);

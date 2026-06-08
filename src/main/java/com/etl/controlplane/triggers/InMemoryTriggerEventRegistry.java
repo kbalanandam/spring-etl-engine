@@ -30,15 +30,20 @@ public class InMemoryTriggerEventRegistry implements TriggerEventRegistry {
 
 	@Override
 	public TriggerEventView recordAccepted(String jobKey, String reason, String requestedBy, String message) {
-		return recordAcceptedInternal(null, jobKey, reason, requestedBy, message);
+		return recordAcceptedInternal(null, "MANUAL", jobKey, reason, requestedBy, message);
 	}
 
 	@Override
 	public TriggerEventView recordAcceptedForSchedule(String scheduleId, String jobKey, String reason, String requestedBy, String message) {
-		return recordAcceptedInternal(scheduleId, jobKey, reason, requestedBy, message);
+		return recordAcceptedInternal(scheduleId, "SCHEDULE", jobKey, reason, requestedBy, message);
 	}
 
-	private TriggerEventView recordAcceptedInternal(String scheduleId, String jobKey, String reason, String requestedBy, String message) {
+	private TriggerEventView recordAcceptedInternal(String scheduleId,
+	                                              String triggerOrigin,
+	                                              String jobKey,
+	                                              String reason,
+	                                              String requestedBy,
+	                                              String message) {
 		String normalizedJobKey = normalize(jobKey);
 		String normalizedScheduleId = normalize(scheduleId);
 		TriggerEventView event = new TriggerEventView(
@@ -49,7 +54,8 @@ public class InMemoryTriggerEventRegistry implements TriggerEventRegistry {
 				normalize(requestedBy),
 				Instant.now(),
 				null,
-				message
+				message,
+				normalize(triggerOrigin)
 		);
 		Deque<TriggerEventView> queue = eventsByJobKey.computeIfAbsent(normalizedJobKey, ignored -> new ArrayDeque<>());
 		synchronized (queue) {

@@ -31,6 +31,7 @@ class JdbcTriggerEventRegistryTest {
 		assertEquals(2, events.size());
 		assertEquals(second.triggerEventId(), events.get(0).triggerEventId());
 		assertEquals(first.triggerEventId(), events.get(1).triggerEventId());
+		assertEquals("MANUAL", events.get(0).triggerOrigin());
 	}
 
 	@Test
@@ -177,6 +178,7 @@ class JdbcTriggerEventRegistryTest {
 		assertEquals(2, events.size());
 		assertEquals("second", events.get(0).message());
 		assertEquals("first", events.get(1).message());
+		assertEquals("SCHEDULE", events.get(0).triggerOrigin());
 	}
 
 	@Test
@@ -379,6 +381,34 @@ class JdbcTriggerEventRegistryTest {
 		List<TriggerEventView> events = registry.listByScheduleId("  SCH-CASE  ", 10);
 		assertEquals(1, events.size());
 		assertEquals("first", events.get(0).message());
+	}
+
+	@Test
+	void listByScheduleIdInfersScheduleOriginWhenLegacyTriggerOriginIsMissing() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry scheduleRegistry = new JdbcScheduleRegistry(jdbcTemplate);
+		scheduleRegistry.upsert(new ScheduleView(
+				"sch-legacy-origin",
+				"daily-legacy-origin",
+				"customer-load",
+				"0 0 * * *",
+				"UTC",
+				true,
+				false,
+				"legacy-origin",
+				LocalDateTime.parse("2026-05-28T09:00:00"),
+				LocalDateTime.parse("2026-05-28T10:00:00"),
+				null,
+				null
+		));
+
+		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+		TriggerEventView created = registry.recordAcceptedForSchedule("sch-legacy-origin", "customer-load", "schedule_tick", "scheduler", "legacy-origin-row");
+		jdbcTemplate.update("update controlplane_trigger_event set trigger_origin = null where trigger_event_id = ?", created.triggerEventId());
+
+		List<TriggerEventView> events = registry.listByScheduleId("sch-legacy-origin", 10);
+		assertEquals(1, events.size());
+		assertEquals("SCHEDULE", events.get(0).triggerOrigin());
 	}
 
 	private DriverManagerDataSource inMemoryDataSource() {

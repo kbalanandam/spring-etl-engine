@@ -14,6 +14,7 @@ This note describes the current client-side hardening applied in `src/main/resou
 - cache reconciliation for jobs-scoped preview state
 - bounded and expiring runs-filter response caching
 - route-safe sequencing for run-scoped log loading
+- control-plane profile static-resource no-cache defaults for faster local UI iteration
 
 It does not redefine control-plane API contracts or scheduler semantics.
 
@@ -21,12 +22,10 @@ It does not redefine control-plane API contracts or scheduler semantics.
 
 ```mermaid
 flowchart TD
-    A[User action
-    route change/filter/drill-down] --> B[Start async request]
+    A["User action<br/>route change/filter/drill-down"] --> B["Start async request"]
     B --> C[Assign scoped requestId]
     C --> D[Fetch API payload]
-    D --> E{Latest request
-    and active route?}
+    D --> E{"Latest request<br/>and active route?"}
     E -- No --> F[Ignore stale response]
     E -- Yes --> G[Apply view-state updates]
     G --> H[Render UI]
@@ -61,6 +60,7 @@ flowchart TD
 - Cache reconciliation: when a new jobs payload arrives, stale per-job preview and step-name entries are pruned so removed jobs do not leave stale UI state.
 - Runs filter cache hardening: runs responses are now cached with TTL and bounded entry count to reduce repeated fetches while preventing unbounded in-memory growth during long operator sessions.
 - Run log sequencing hardening: run-scoped log loading now starts only after other run-detail async updates settle and only when the same run route is still active.
+- Static asset refresh hardening: `application-controlplane.properties` disables Spring static-resource cache (`spring.web.resources.cache.period=0`, `spring.web.resources.chain.cache=false`) so Operator UI updates are reflected without stale bundled JS/CSS responses during control-plane sessions.
 
 ## Guardrails
 

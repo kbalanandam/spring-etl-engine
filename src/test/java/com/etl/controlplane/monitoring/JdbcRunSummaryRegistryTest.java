@@ -390,6 +390,43 @@ class JdbcRunSummaryRegistryTest {
 	}
 
 	@Test
+	void projectsTriggerOriginFromLinkedTriggerEvent() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcTriggerEventRegistry triggerRegistry = new JdbcTriggerEventRegistry(jdbcTemplate, 100);
+		TriggerEventView triggerEvent = triggerRegistry.recordAcceptedForSchedule("sch-1", "customer-load", "schedule_tick", "scheduler", "queued");
+		jdbcTemplate.update(
+				"update controlplane_trigger_event set launched_run_id = ? where trigger_event_id = ?",
+				"4401",
+				triggerEvent.triggerEventId()
+		);
+
+		JdbcRunSummaryRegistry runRegistry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		runRegistry.upsert(run(4401L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+
+		RunSummaryView run = runRegistry.findByJobExecutionId(4401L).orElseThrow();
+		assertEquals("SCHEDULE", run.triggerOrigin());
+	}
+
+	@Test
+	void infersScheduleTriggerOriginWhenLinkedTriggerOriginIsMissing() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcTriggerEventRegistry triggerRegistry = new JdbcTriggerEventRegistry(jdbcTemplate, 100);
+		TriggerEventView triggerEvent = triggerRegistry.recordAcceptedForSchedule("sch-2", "customer-load", "schedule_tick", "scheduler", "queued");
+		jdbcTemplate.update("update controlplane_trigger_event set trigger_origin = null where trigger_event_id = ?", triggerEvent.triggerEventId());
+		jdbcTemplate.update(
+				"update controlplane_trigger_event set launched_run_id = ? where trigger_event_id = ?",
+				"4402",
+				triggerEvent.triggerEventId()
+		);
+
+		JdbcRunSummaryRegistry runRegistry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		runRegistry.upsert(run(4402L, "customer-load", LocalDateTime.parse("2026-05-27T09:05:00"), "COMPLETED"));
+
+		RunSummaryView run = runRegistry.findByJobExecutionId(4402L).orElseThrow();
+		assertEquals("SCHEDULE", run.triggerOrigin());
+	}
+
+	@Test
 	void startupBackfillsTriggerEventIdForExistingRunRecordWhenLaunchedRunIdArrivesLater() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		JdbcTriggerEventRegistry triggerRegistry = new JdbcTriggerEventRegistry(jdbcTemplate, 100);
