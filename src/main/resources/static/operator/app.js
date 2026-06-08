@@ -62,6 +62,7 @@ const viewState = {
     loaded: false,
     items: [],
     selectedScheduleId: "",
+    evidenceRequestId: 0,
   },
   runs: {
     loaded: false,
@@ -135,6 +136,7 @@ const triggerNowRequestState = {
 };
 const scheduleRequestState = {
   inFlightActionByScheduleId: {},
+  inFlightTriggerByScheduleId: {},
 };
 
 window.addEventListener("hashchange", renderRoute);
@@ -936,6 +938,7 @@ async function loadSchedules() {
 
   state.className = "state";
   state.textContent = "Loading schedules...";
+  viewState.schedules.evidenceRequestId += 1;
   table.hidden = true;
   body.innerHTML = "";
   triggerState.className = "state";
@@ -1050,53 +1053,88 @@ async function requestScheduleWorkbenchStateChange(schedule, action, requestId) 
   if (!state || !scheduleId) {
     return;
   }
-  const response = await fetch(`/api/v1/schedules/${encodeURIComponent(scheduleId)}:${action}`, {
-    method: "POST",
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
+  if (scheduleRequestState.inFlightActionByScheduleId[scheduleId]) {
+    state.className = "state";
+    state.textContent = "Schedule action already in progress. Please wait for the current response.";
+    return;
+  }
+
+  scheduleRequestState.inFlightActionByScheduleId[scheduleId] = true;
+  state.className = "state";
+  state.textContent = `Submitting schedule ${action} request...`;
+
+  try {
+    const response = await fetch(`/api/v1/schedules/${encodeURIComponent(scheduleId)}:${action}`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      state.className = "state error";
+      state.textContent = `Schedule ${action} failed: ${valueOrDash(payload.message)}`;
+      return;
+    }
+    if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
+      return;
+    }
+    viewState.schedules.selectedScheduleId = scheduleId;
+    await loadSchedules();
+  } catch (error) {
     state.className = "state error";
-    state.textContent = `Schedule ${action} failed: ${valueOrDash(payload.message)}`;
-    return;
+    state.textContent = `Schedule ${action} failed [runtime]: ${error.message}`;
+  } finally {
+    delete scheduleRequestState.inFlightActionByScheduleId[scheduleId];
   }
-  if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
-    return;
-  }
-  viewState.schedules.selectedScheduleId = scheduleId;
-  await loadSchedules();
 }
 
 async function requestScheduleWorkbenchTriggerNow(schedule, requestId) {
   const state = document.getElementById("schedules-state");
+  const scheduleId = String(schedule?.scheduleId || "").trim();
   const selectedJobKey = String(schedule?.selectedJobKey || "").trim();
-  if (!state || !selectedJobKey) {
+  if (!state || !scheduleId || !selectedJobKey) {
     return;
   }
-  const response = await fetch(`/api/v1/jobs/${encodeURIComponent(selectedJobKey)}:trigger-now`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({
-      reason: "manual_operator_request",
-      requestedBy: "operator-ui",
-    }),
-  });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok && response.status !== 202) {
-    state.className = "state error";
-    state.textContent = `Trigger now failed: ${valueOrDash(payload.message)}`;
+  if (scheduleRequestState.inFlightTriggerByScheduleId[scheduleId]) {
+    state.className = "state";
+    state.textContent = "Trigger request already in progress for this schedule. Please wait for the current response.";
     return;
   }
+
+  scheduleRequestState.inFlightTriggerByScheduleId[scheduleId] = true;
   state.className = "state";
-  state.textContent = `Trigger now accepted for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}`;
-  if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
-    return;
+  state.textContent = `Submitting trigger now request for ${selectedJobKey}...`;
+
+  try {
+    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(selectedJobKey)}:trigger-now`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        reason: "manual_operator_request",
+        requestedBy: "operator-ui",
+      }),
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok && response.status !== 202) {
+      state.className = "state error";
+      state.textContent = `Trigger now failed: ${valueOrDash(payload.message)}`;
+      return;
+    }
+    state.className = "state";
+    state.textContent = `Trigger now accepted for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}`;
+    if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
+      return;
+    }
+    viewState.schedules.selectedScheduleId = scheduleId;
+    await loadSchedules();
+  } catch (error) {
+    state.className = "state error";
+    state.textContent = `Trigger now failed [runtime]: ${error.message}`;
+  } finally {
+    delete scheduleRequestState.inFlightTriggerByScheduleId[scheduleId];
   }
-  viewState.schedules.selectedScheduleId = String(schedule?.scheduleId || "").trim();
-  await loadSchedules();
 }
 
 async function loadScheduleTriggerEvidence(schedule, requestId) {
@@ -1106,6 +1144,7 @@ async function loadScheduleTriggerEvidence(schedule, requestId) {
     return;
   }
   const scheduleId = String(schedule?.scheduleId || "").trim();
+  const evidenceRequestId = ++viewState.schedules.evidenceRequestId;
   viewState.schedules.selectedScheduleId = scheduleId;
   triggerState.className = "state";
   triggerState.textContent = `Loading trigger evidence for ${valueOrDash(schedule?.scheduleKey)}...`;
@@ -1120,7 +1159,9 @@ async function loadScheduleTriggerEvidence(schedule, requestId) {
       throw new Error(`Trigger events API returned ${response.status}`);
     }
     const payload = await response.json();
-    if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
+    if (!shouldApplyRouteScopedUpdate("schedules", requestId)
+      || evidenceRequestId !== viewState.schedules.evidenceRequestId
+      || viewState.schedules.selectedScheduleId !== scheduleId) {
       return;
     }
     const items = Array.isArray(payload.items) ? payload.items : [];
@@ -1137,7 +1178,9 @@ async function loadScheduleTriggerEvidence(schedule, requestId) {
     triggerState.textContent = `Showing ${items.length} trigger event(s) for ${valueOrDash(schedule?.scheduleKey)}.`;
     triggerList.hidden = false;
   } catch (error) {
-    if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
+    if (!shouldApplyRouteScopedUpdate("schedules", requestId)
+      || evidenceRequestId !== viewState.schedules.evidenceRequestId
+      || viewState.schedules.selectedScheduleId !== scheduleId) {
       return;
     }
     triggerState.className = "state error";
