@@ -3,16 +3,20 @@ package com.etl.controlplane.schedules;
 import com.etl.controlplane.triggers.TriggerEventRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 
 /**
@@ -33,7 +37,10 @@ public class ScheduleTriggerTickService {
 	private final MissedRunPolicy missedRunPolicy;
 	private final OverlapPolicy overlapPolicy;
 	private final int maxCatchUpIterations;
+	private final boolean launchEnabled;
+	private final String jobsRoot;
 
+	@Autowired
 	public ScheduleTriggerTickService(
 			ScheduleService scheduleService,
 			TriggerEventRegistry triggerEventRegistry,
@@ -41,6 +48,8 @@ public class ScheduleTriggerTickService {
 			@Value("${controlplane.scheduler.missed-run-policy:SKIP}") String missedRunPolicy,
 			@Value("${controlplane.scheduler.overlap-policy:ALLOW}") String overlapPolicy,
 			@Value("${controlplane.scheduler.max-catch-up-iterations:2000}") int maxCatchUpIterations,
+			@Value("${controlplane.scheduler.launch-enabled:false}") boolean launchEnabled,
+			@Value("${controlplane.jobs.root:src/main/resources/config-jobs}") String jobsRoot,
 			@Value("${controlplane.scheduler.trigger-reason:schedule_tick}") String reason,
 			@Value("${controlplane.scheduler.requested-by:scheduler}") String requestedBy) {
 		this(scheduleService,
@@ -51,7 +60,9 @@ public class ScheduleTriggerTickService {
 				Clock.systemUTC(),
 				MissedRunPolicy.from(missedRunPolicy),
 				OverlapPolicy.from(overlapPolicy),
-				Math.max(1, maxCatchUpIterations));
+				Math.max(1, maxCatchUpIterations),
+				launchEnabled,
+				jobsRoot);
 	}
 
 	ScheduleTriggerTickService(ScheduleService scheduleService,
@@ -68,7 +79,9 @@ public class ScheduleTriggerTickService {
 				clock,
 				MissedRunPolicy.SKIP,
 				OverlapPolicy.ALLOW,
-				2000);
+				2000,
+				false,
+				"src/main/resources/config-jobs");
 	}
 
 	ScheduleTriggerTickService(ScheduleService scheduleService,
@@ -87,7 +100,9 @@ public class ScheduleTriggerTickService {
 				clock,
 				missedRunPolicy,
 				OverlapPolicy.ALLOW,
-				maxCatchUpIterations);
+				maxCatchUpIterations,
+				false,
+				"src/main/resources/config-jobs");
 	}
 
 	ScheduleTriggerTickService(ScheduleService scheduleService,
@@ -99,6 +114,30 @@ public class ScheduleTriggerTickService {
 	                           MissedRunPolicy missedRunPolicy,
 	                           OverlapPolicy overlapPolicy,
 	                           int maxCatchUpIterations) {
+		this(scheduleService,
+				triggerEventRegistry,
+				pollIntervalMs,
+				reason,
+				requestedBy,
+				clock,
+				missedRunPolicy,
+				overlapPolicy,
+				maxCatchUpIterations,
+				false,
+				"src/main/resources/config-jobs");
+	}
+
+	ScheduleTriggerTickService(ScheduleService scheduleService,
+	                           TriggerEventRegistry triggerEventRegistry,
+	                           long pollIntervalMs,
+	                           String reason,
+	                           String requestedBy,
+	                           Clock clock,
+	                           MissedRunPolicy missedRunPolicy,
+	                           OverlapPolicy overlapPolicy,
+	                           int maxCatchUpIterations,
+	                           boolean launchEnabled,
+	                           String jobsRoot) {
 		this.scheduleService = scheduleService;
 		this.triggerEventRegistry = triggerEventRegistry;
 		this.lookbackSeconds = Math.max(1L, (pollIntervalMs / 1000L) + 1L);
@@ -108,6 +147,8 @@ public class ScheduleTriggerTickService {
 		this.missedRunPolicy = missedRunPolicy == null ? MissedRunPolicy.SKIP : missedRunPolicy;
 		this.overlapPolicy = overlapPolicy == null ? OverlapPolicy.ALLOW : overlapPolicy;
 		this.maxCatchUpIterations = Math.max(1, maxCatchUpIterations);
+		this.launchEnabled = launchEnabled;
+		this.jobsRoot = normalize(jobsRoot);
 	}
 
 	@Scheduled(fixedDelayString = "${controlplane.scheduler.poll-interval-ms:30000}")
@@ -165,7 +206,71 @@ public class ScheduleTriggerTickService {
 			triggerEventRegistry.recordAcceptedForSchedule(schedule.scheduleId(), schedule.selectedJobKey(), reason, requestedBy, message);
 			log.info("SCHEDULE_TICK event=schedule_trigger_recorded scheduleId={} selectedJobKey={} dueAt={}",
 					schedule.scheduleId(), schedule.selectedJobKey(), dueAt);
+			launchScheduledJob(schedule, dueAt);
 			lastAccepted = dueInstant;
+		}
+	}
+
+	private void launchScheduledJob(ScheduleView schedule, ZonedDateTime dueAt) {
+		if (!launchEnabled) {
+			return;
+		}
+
+		String selectedJobKey = normalize(schedule.selectedJobKey()).toLowerCase();
+		if (selectedJobKey.isBlank()) {
+			log.warn("SCHEDULE_TICK event=schedule_launch_skipped scheduleId={} reason=missing_selected_job_key", schedule.scheduleId());
+			return;
+		}
+
+		Path jobConfigPath = Path.of(jobsRoot).resolve(selectedJobKey).resolve("job-config.yaml").normalize();
+		if (!Files.isRegularFile(jobConfigPath)) {
+			log.warn("SCHEDULE_TICK event=schedule_launch_skipped scheduleId={} selectedJobKey={} reason=job_config_missing jobConfigPath={}",
+					schedule.scheduleId(), selectedJobKey, jobConfigPath);
+			return;
+		}
+
+		String javaExecutable = Path.of(System.getProperty("java.home"), "bin", "java").toString();
+		String classPath = normalize(System.getProperty("java.class.path"));
+		if (classPath.isBlank()) {
+			log.warn("SCHEDULE_TICK event=schedule_launch_skipped scheduleId={} selectedJobKey={} reason=classpath_unavailable",
+					schedule.scheduleId(), selectedJobKey);
+			return;
+		}
+
+		ProcessBuilder processBuilder = new ProcessBuilder(
+				javaExecutable,
+				"-Detl.config.job=" + jobConfigPath,
+				"-Detl.config.allow-demo-fallback=false",
+				"-cp",
+				classPath,
+				"com.etl.ETLEngineApplication");
+		processBuilder.redirectErrorStream(true);
+		processBuilder.inheritIO();
+
+		try {
+			Process process = processBuilder.start();
+			log.info("SCHEDULE_TICK event=schedule_launch_started scheduleId={} selectedJobKey={} dueAt={} pid={} jobConfigPath={}",
+					schedule.scheduleId(), selectedJobKey, dueAt, process.pid(), jobConfigPath);
+			Thread completionWatcher = new Thread(
+					() -> waitForLaunchCompletion(schedule.scheduleId(), selectedJobKey, process),
+					"schedule-launch-wait-" + schedule.scheduleId());
+			completionWatcher.setDaemon(true);
+			completionWatcher.start();
+		} catch (IOException ex) {
+			log.error("SCHEDULE_TICK event=schedule_launch_failed scheduleId={} selectedJobKey={} dueAt={} reason=process_start_failed message={}",
+					schedule.scheduleId(), selectedJobKey, dueAt, ex.getMessage(), ex);
+		}
+	}
+
+	private void waitForLaunchCompletion(String scheduleId, String selectedJobKey, Process process) {
+		try {
+			int exitCode = process.waitFor();
+			log.info("SCHEDULE_TICK event=schedule_launch_finished scheduleId={} selectedJobKey={} pid={} exitCode={}",
+					scheduleId, selectedJobKey, process.pid(), exitCode);
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			log.warn("SCHEDULE_TICK event=schedule_launch_wait_interrupted scheduleId={} selectedJobKey={} pid={}",
+					scheduleId, selectedJobKey, process.pid());
 		}
 	}
 

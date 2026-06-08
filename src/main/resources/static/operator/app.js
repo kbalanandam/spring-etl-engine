@@ -230,7 +230,11 @@ async function loadJobs() {
     }
 
     const items = Array.isArray(payload.items) ? payload.items : [];
-    applyJobsItems(items);
+    const jobsWithScheduleReadiness = await applyScheduledReadiness(items);
+    if (!shouldApplyRouteScopedUpdate("jobs", requestId)) {
+      return;
+    }
+    applyJobsItems(jobsWithScheduleReadiness);
     viewState.jobs.loaded = true;
 
     if (viewState.jobs.items.length === 0) {
@@ -244,6 +248,45 @@ async function loadJobs() {
     }
     state.className = "state error";
     state.textContent = `Unable to load jobs: ${error.message}`;
+  }
+}
+
+async function applyScheduledReadiness(items) {
+  const jobs = Array.isArray(items) ? items : [];
+  try {
+    const response = await fetch(`/api/v1/schedules?limit=${DEFAULT_SCHEDULE_LOOKUP_LIMIT}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      return jobs;
+    }
+    const payload = await response.json();
+    const schedules = Array.isArray(payload.items) ? payload.items : [];
+    const scheduledJobKeys = new Set(
+      schedules
+        .filter((schedule) => Boolean(schedule?.enabled))
+        .map((schedule) => String(schedule?.selectedJobKey || "").trim().toLowerCase())
+        .filter((jobKey) => jobKey !== "")
+    );
+
+    return jobs.map((job) => {
+      const jobKey = String(job?.jobKey || "").trim().toLowerCase();
+      if (!scheduledJobKeys.has(jobKey)) {
+        return job;
+      }
+
+      const readiness = String(job?.readinessStatus || "").trim().toUpperCase();
+      if (readiness === "INVALID" || readiness === "INACTIVE") {
+        return job;
+      }
+
+      return {
+        ...job,
+        readinessStatus: "SCHEDULED",
+      };
+    });
+  } catch {
+    return jobs;
   }
 }
 
