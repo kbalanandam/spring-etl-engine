@@ -23,6 +23,7 @@ This epic is **not** the place to make UI a runtime prerequisite or to redesign 
 - [`U2 - Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer`](../../backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md)
 - [`U3 - Add guarded trigger-now action from job details without scheduler coupling`](../../backlog-items/operator-ui/U3-guarded-trigger-now-from-job-details.md)
 - [`U4 - Add schedule visibility and pause/resume controls in Operator UI without making native scheduling mandatory`](../../backlog-items/operator-ui/U4-schedule-visibility-and-pause-resume-controls.md)
+- [`U5 - Add schedule workbench and run trigger-origin visibility (Manual, Schedule, Event)`](../../backlog-items/operator-ui/U5-schedule-workbench-and-trigger-origin-visibility.md)
 
 ## Related docs
 

@@ -283,6 +283,7 @@ This table is the day-to-day execution view for the current product stage.
 | [U2](backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md) | Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer | Epic U | P1 | Done | M2 | U1, C2 | Completed run-detail drill-down with step/failure/artifact evidence, independent/combined runs-list job + start-date filtering, and richer run-instance-scoped in-page log rendering (without widening scheduler/launch boundaries) |
 | [U3](backlog-items/operator-ui/U3-guarded-trigger-now-from-job-details.md) | Add guarded trigger-now action from job details without scheduler coupling | Epic U | P1 | Done | M2 | U1, S1 | Completed guarded trigger-now action on job detail with confirmation, traceable `triggerEventId`/decision feedback, categorized failure messages, and explicit selected-job boundary wording (no scheduler-management controls added) |
 | [U4](backlog-items/operator-ui/U4-schedule-visibility-and-pause-resume-controls.md) | Add schedule visibility and pause/resume controls in Operator UI without making native scheduling mandatory | Epic U | P1 | Ready | M2 | S2, U3 | First bounded post-MVP Operator UI slice to prove optional native-schedule visibility and guarded pause/resume controls without redefining the ETL launch boundary |
+| [U5](backlog-items/operator-ui/U5-schedule-workbench-and-trigger-origin-visibility.md) | Add schedule workbench and run trigger-origin visibility (Manual, Schedule, Event) | Epic U | P1 | Ready | M2 | U4, S2 | Add one schedule-centric operations screen and explicit run trigger-origin visibility so Manual/Schedule paths are auditable now and Event origin can be introduced without UI contract churn |
 | [G1](backlog-items/etl-core/G1-secret-injection-via-environment-or-secure-config-source.md) | Support secret injection via environment or secure config source | Epic G | P1 | Deferred | M3 | C1 | Important for enterprise readiness, but not first delivery blocker |
 | [V1](backlog-items/etl-core/V1-enterprise-verification-evidence-model-and-report-categories.md) | Define enterprise verification evidence model and report categories | Epic V | P1 | Done | M3 | C1, C2 | Shared evidence model and phase-1 report categories are defined in the report generator and ADRs |
 | [V2](backlog-items/etl-core/V2-markdown-verification-reports-from-shared-evidence-model.md) | Generate Markdown verification reports from the shared evidence model | Epic V | P1 | Done | M3 | V1 | Markdown reporting now renders from the shared evidence model |
@@ -304,7 +305,7 @@ Use this section as the near-term sequencing view behind the execution board:
 9. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
 10. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
 11. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-12. `U1` -> `U3` are now closed as shipped monitoring-first slices; use `U4` as the first bounded control-plane UI follow-on rather than reopening broad UI scope.
+12. `U1` -> `U3` are now closed as shipped monitoring-first slices; use `U4` then `U5` as bounded control-plane UI follow-ons (schedule controls first, then schedule-workbench + run-origin visibility) rather than reopening broad UI scope.
 13. Run `S1` contract freeze as the active scheduler boundary and execute first `S2` + phased `S4` slices in the same release lane (`S4a`/`S4b` shipped and `S4c` first functional slice shipped), while keeping advanced `S3` overlap/missed-run policy deferred.
 14. Treat `Epic F` docs freeze as complete for `D1`/`D2`/`D3`; any next restartability work should now be implementation-oriented or release-gate oriented rather than another contract-freeze pass.
 15. Keep `Epic R` in docs-freeze mode for now (`R1`/`R2` anchors in place) and defer `R3` -> `R5` implementation plus unresolved `R2` validation execution until Epic F implementation priority changes.
@@ -811,14 +812,15 @@ Exit signal:
 Use this as the condensed near-term priority order:
 
 1. balanced-growth lane - `A7` / `S2` / `U4` as one ETL + one scheduler + one UI slice delivered in parallel against the same selected-job and optional-control-plane boundaries
-2. `A7` / `T16` - bounded customer extensibility through job-level custom steps plus processor-level custom transforms, now anchored to the shipped D1 taxonomy baseline and shipped `B1`/`B2` fault-tolerance baselines
-3. duplicate follow-on - `T7` (larger duplicate-scale redesign)
-4. deferred `Epic T` advanced sequence - `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
-5. `Epic P` - first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
-6. `X1` / `X2` - SFTP contract and first inbound slice
-7. `F1` / `S1` / `S2` / `S4` - restartability, scheduler baseline, and first retained-history table-structure evolution slice
-8. `R1` / `R2` / `R3` / `R4` / `R5` - freeze and deliver deploy-time configurable multi-RDBMS control-plane persistence via JPA/Hibernate
-9. `V3` / `V4` / `G1` - reporting, release gating, and secure config
+2. follow-on UI lane - `U5` schedule workbench plus run trigger-origin visibility (`Manual` / `Schedule` now, `Event` ready) after `U4`
+3. `A7` / `T16` - bounded customer extensibility through job-level custom steps plus processor-level custom transforms, now anchored to the shipped D1 taxonomy baseline and shipped `B1`/`B2` fault-tolerance baselines
+4. duplicate follow-on - `T7` (larger duplicate-scale redesign)
+5. deferred `Epic T` advanced sequence - `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
+6. `Epic P` - first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
+7. `X1` / `X2` - SFTP contract and first inbound slice
+8. `F1` / `S1` / `S2` / `S4` - restartability, scheduler baseline, and first retained-history table-structure evolution slice
+9. `R1` / `R2` / `R3` / `R4` / `R5` - freeze and deliver deploy-time configurable multi-RDBMS control-plane persistence via JPA/Hibernate
+10. `V3` / `V4` / `G1` - reporting, release gating, and secure config
 
 ---
 
