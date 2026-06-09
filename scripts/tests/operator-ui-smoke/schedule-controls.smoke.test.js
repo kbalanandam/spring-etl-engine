@@ -20,7 +20,8 @@ test("operator includes schedule workbench and trigger evidence markup", async (
 
   assert.match(source, /id="tab-schedules"/);
   assert.match(source, /id="view-schedules"/);
-  assert.match(source, /id="schedules-trigger-events-list"/);
+  assert.match(source, /id="view-schedule-detail"/);
+  assert.match(source, /id="schedule-detail-triggers-list"/);
   assert.match(source, /Trigger origin/);
 });
 
@@ -38,6 +39,9 @@ test("operator app wires schedule lookup and pause\/resume actions", async () =>
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(normalizedScheduleId\)\}:\$\{normalizedAction\}/);
   assert.match(source, /Schedule action already in progress\. Please wait for the current response\./);
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}\/trigger-events\?limit=20/);
+  assert.match(source, /function loadScheduleDetail\(routeState\)/);
+  assert.match(source, /#\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}/);
+  assert.match(source, /Back to schedules/);
   assert.match(source, /function formatTriggerOriginToken\(token\)/);
   assert.match(source, /function getScheduleControlState\(schedule\)/);
   assert.match(source, /const scheduleControlState = getScheduleControlState\(selectedSchedule\);/);

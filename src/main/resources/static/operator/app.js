@@ -31,6 +31,11 @@ const routes = {
     view: document.getElementById("view-schedules"),
     load: loadSchedules,
   },
+  scheduleDetail: {
+    tab: document.getElementById("tab-schedules"),
+    view: document.getElementById("view-schedule-detail"),
+    load: loadScheduleDetail,
+  },
   runs: {
     tab: document.getElementById("tab-runs"),
     view: document.getElementById("view-runs"),
@@ -119,12 +124,14 @@ const RUNS_FILTER_CACHE_MAX_ENTRIES = 30;
 const RUNS_FILTER_CACHE_TTL_MS = 5 * 60 * 1000;
 const TRIGGER_NOW_DUPLICATE_WINDOW_MS = 5 * 1000;
 const DEFAULT_SCHEDULE_LOOKUP_LIMIT = 200;
+const JOB_DETAIL_RECENT_RUNS_LIMIT = 10;
 
 const loadRequestTracker = {
   jobs: 0,
   jobDetail: 0,
   jobConfig: 0,
   schedules: 0,
+  scheduleDetail: 0,
   runs: 0,
   runDetail: 0,
 };
@@ -156,6 +163,7 @@ function currentRouteState() {
   const path = parsed.path;
   const normalized = path.toLowerCase();
   const runDetailMatch = path.match(/^runs\/(\d+)$/i);
+  const scheduleDetailMatch = path.match(/^schedules\/([^/]+)$/i);
   const jobConfigMatch = path.match(/^jobs\/([^/]+)\/config$/i);
   const jobDetailMatch = path.match(/^jobs\/([^/]+)$/i);
 
@@ -170,12 +178,22 @@ function currentRouteState() {
   if (runDetailMatch) {
     return { key: "runDetail", jobExecutionId: runDetailMatch[1], jobKey: null, query: parsed.query };
   }
+  if (scheduleDetailMatch) {
+    return {
+      key: "scheduleDetail",
+      jobExecutionId: null,
+      jobKey: null,
+      query: parsed.query,
+      selectedScheduleId: decodeURIComponent(scheduleDetailMatch[1]),
+    };
+  }
   if (normalized === "schedules") {
     return {
       key: "schedules",
       jobExecutionId: null,
       jobKey: null,
       query: parsed.query,
+      selectedScheduleId: parsed.query.scheduleId || "",
     };
   }
   if (normalized === "runs") {
@@ -213,6 +231,9 @@ function renderRoute() {
 
   if (routeKey === "jobs" || routeKey === "runs") {
     applyRouteStateToListView(routeState);
+  }
+  if (routeKey === "schedules") {
+    viewState.schedules.selectedScheduleId = String(routeState.selectedScheduleId || "").trim() || viewState.schedules.selectedScheduleId;
   }
 
   Object.entries(routes).forEach(([key, route]) => {
@@ -407,9 +428,13 @@ async function loadJobDetailPlaceholder(routeState) {
   const scheduleSummary = document.getElementById("job-detail-schedule-summary");
   const scheduleActionButton = document.getElementById("job-detail-schedule-action-btn");
   const scheduleFeedback = document.getElementById("job-detail-schedule-feedback");
+  const recentRunsState = document.getElementById("job-detail-recent-runs-state");
+  const recentRunsList = document.getElementById("job-detail-recent-runs-list");
   const viewConfigLink = document.getElementById("job-detail-view-config-link");
   const backLink = document.getElementById("job-detail-back-link");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
+  const navigationSource = String(routeState?.query?.from || "").trim().toLowerCase();
+  const sourceScheduleId = String(routeState?.query?.scheduleId || "").trim();
   const jobsRouteQuerySuffix = getQuerySuffix(routeState && routeState.query);
 
   state.className = "state";
@@ -438,8 +463,22 @@ async function loadJobDetailPlaceholder(routeState) {
   if (viewConfigLink) {
     viewConfigLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
   }
+  if (recentRunsState) {
+    recentRunsState.className = "state";
+    recentRunsState.textContent = "Loading recent runs...";
+  }
+  if (recentRunsList) {
+    recentRunsList.hidden = true;
+    recentRunsList.innerHTML = "";
+  }
   if (backLink) {
-    backLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
+    if (navigationSource === "schedule" && sourceScheduleId !== "") {
+      backLink.setAttribute("href", `#/schedules?scheduleId=${encodeURIComponent(sourceScheduleId)}`);
+      backLink.textContent = "Back to schedules";
+    } else {
+      backLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
+      backLink.textContent = "Back to jobs list";
+    }
   }
 
   if (!jobKeyValue) {
@@ -467,6 +506,7 @@ async function loadJobDetailPlaceholder(routeState) {
     document.getElementById("job-detail-readiness").textContent = job.readinessStatus || "-";
     document.getElementById("job-detail-recent-run-count").textContent = String(Array.isArray(payload.recentRuns) ? payload.recentRuns.length : 0);
     document.getElementById("job-detail-trigger-count").textContent = String(Array.isArray(payload.triggerEvents) ? payload.triggerEvents.length : 0);
+    renderJobDetailRecentRuns(payload.recentRuns, jobKeyValue);
     if (viewConfigLink) {
       viewConfigLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}/config${jobsRouteQuerySuffix}`);
     }
@@ -484,6 +524,50 @@ async function loadJobDetailPlaceholder(routeState) {
     state.className = "state error";
     state.textContent = `Unable to load job detail placeholder: ${error.message}`;
   }
+}
+
+function renderJobDetailRecentRuns(recentRuns, jobKeyValue) {
+  const recentRunsState = document.getElementById("job-detail-recent-runs-state");
+  const recentRunsList = document.getElementById("job-detail-recent-runs-list");
+  if (!recentRunsState || !recentRunsList) {
+    return;
+  }
+
+  const list = Array.isArray(recentRuns) ? recentRuns : [];
+  const visibleRuns = list.slice(0, JOB_DETAIL_RECENT_RUNS_LIMIT);
+  recentRunsList.innerHTML = "";
+
+  if (visibleRuns.length === 0) {
+    recentRunsState.className = "state";
+    recentRunsState.textContent = "No recent runs found for this job.";
+    recentRunsList.hidden = true;
+    return;
+  }
+
+  visibleRuns.forEach((run) => {
+    const item = document.createElement("li");
+    const runId = String(run?.jobExecutionId || "").trim();
+    if (runId !== "") {
+      const anchor = document.createElement("a");
+      anchor.href = `#/runs/${encodeURIComponent(runId)}?from=job&job=${encodeURIComponent(jobKeyValue)}`;
+      anchor.textContent = formatJobDetailRecentRunLabel(run);
+      item.appendChild(anchor);
+    } else {
+      item.textContent = formatJobDetailRecentRunLabel(run);
+    }
+    recentRunsList.appendChild(item);
+  });
+
+  recentRunsState.className = "state";
+  recentRunsState.textContent = `Showing ${visibleRuns.length} recent run(s).`;
+  recentRunsList.hidden = false;
+}
+
+function formatJobDetailRecentRunLabel(run) {
+  const runId = valueOrDash(run?.jobExecutionId);
+  const status = valueOrDash(run?.status);
+  const start = valueOrDash(run?.startTime);
+  return `runId=${runId} | status=${status} | start=${start}`;
 }
 
 async function loadJobConfig(routeState) {
@@ -929,22 +1013,15 @@ async function loadSchedules() {
   const state = document.getElementById("schedules-state");
   const table = document.getElementById("schedules-table");
   const body = document.getElementById("schedules-body");
-  const triggerState = document.getElementById("schedules-triggers-state");
-  const triggerList = document.getElementById("schedules-trigger-events-list");
 
-  if (!state || !table || !body || !triggerState || !triggerList) {
+  if (!state || !table || !body) {
     return;
   }
 
   state.className = "state";
   state.textContent = "Loading schedules...";
-  viewState.schedules.evidenceRequestId += 1;
   table.hidden = true;
   body.innerHTML = "";
-  triggerState.className = "state";
-  triggerState.textContent = "Select a schedule to load trigger evidence.";
-  triggerList.hidden = true;
-  triggerList.innerHTML = "";
 
   try {
     const response = await fetch(`/api/v1/schedules?limit=${DEFAULT_SCHEDULE_LOOKUP_LIMIT}`, {
@@ -970,11 +1047,6 @@ async function loadSchedules() {
     renderSchedulesTable(items, requestId);
     state.textContent = `Loaded ${items.length} schedule(s).`;
     table.hidden = false;
-
-    const selected = items.find((item) => item.scheduleId === viewState.schedules.selectedScheduleId) || items[0];
-    if (selected) {
-      await loadScheduleTriggerEvidence(selected, requestId);
-    }
   } catch (error) {
     if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
       return;
@@ -995,9 +1067,13 @@ function renderSchedulesTable(items, requestId) {
     const row = document.createElement("tr");
     const scheduleControlState = getScheduleControlState(schedule);
     row.className = "clickable-row";
-    row.title = "Load recent trigger evidence";
+    row.title = "Open schedule detail";
     row.addEventListener("click", () => {
-      loadScheduleTriggerEvidence(schedule, requestId);
+      const scheduleId = String(schedule?.scheduleId || "").trim();
+      if (scheduleId === "") {
+        return;
+      }
+      location.hash = `#/schedules/${encodeURIComponent(scheduleId)}`;
     });
 
     const actions = document.createElement("td");
@@ -1012,7 +1088,10 @@ function renderSchedulesTable(items, requestId) {
         return;
       }
       viewState.schedules.selectedScheduleId = String(schedule?.scheduleId || "").trim();
-      location.hash = `#/jobs/${encodeURIComponent(selectedJobKey)}`;
+      const selectedScheduleId = viewState.schedules.selectedScheduleId;
+      location.hash = selectedScheduleId === ""
+        ? `#/jobs/${encodeURIComponent(selectedJobKey)}`
+        : `#/jobs/${encodeURIComponent(selectedJobKey)}?from=schedule&scheduleId=${encodeURIComponent(selectedScheduleId)}`;
     });
 
     const toggleButton = document.createElement("button");
@@ -1137,56 +1216,121 @@ async function requestScheduleWorkbenchTriggerNow(schedule, requestId) {
   }
 }
 
-async function loadScheduleTriggerEvidence(schedule, requestId) {
-  const triggerState = document.getElementById("schedules-triggers-state");
-  const triggerList = document.getElementById("schedules-trigger-events-list");
-  if (!triggerState || !triggerList) {
+async function loadScheduleDetail(routeState) {
+  const requestId = ++loadRequestTracker.scheduleDetail;
+  const state = document.getElementById("schedule-detail-state");
+  const summary = document.getElementById("schedule-detail-summary");
+  const triggerState = document.getElementById("schedule-detail-triggers-state");
+  const triggerList = document.getElementById("schedule-detail-triggers-list");
+  const backLink = document.getElementById("schedule-detail-back-link");
+  const scheduleId = String(routeState?.selectedScheduleId || "").trim();
+
+  if (!state || !summary || !triggerState || !triggerList || !backLink) {
     return;
   }
-  const scheduleId = String(schedule?.scheduleId || "").trim();
-  const evidenceRequestId = ++viewState.schedules.evidenceRequestId;
-  viewState.schedules.selectedScheduleId = scheduleId;
+
+  backLink.setAttribute("href", "#/schedules");
+  state.className = "state";
+  state.textContent = "Loading schedule detail...";
+  summary.hidden = true;
   triggerState.className = "state";
-  triggerState.textContent = `Loading trigger evidence for ${valueOrDash(schedule?.scheduleKey)}...`;
+  triggerState.textContent = "Loading triggers...";
   triggerList.hidden = true;
   triggerList.innerHTML = "";
 
+  if (scheduleId === "") {
+    state.className = "state error";
+    state.textContent = "Missing schedule id in route.";
+    return;
+  }
+
+  viewState.schedules.selectedScheduleId = scheduleId;
+
   try {
-    const response = await fetch(`/api/v1/schedules/${encodeURIComponent(scheduleId)}/trigger-events?limit=20`, {
+    const response = await fetch(`/api/v1/schedules?limit=${DEFAULT_SCHEDULE_LOOKUP_LIMIT}`, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) {
-      throw new Error(`Trigger events API returned ${response.status}`);
+      throw new Error(`Schedule API returned ${response.status}`);
     }
     const payload = await response.json();
-    if (!shouldApplyRouteScopedUpdate("schedules", requestId)
-      || evidenceRequestId !== viewState.schedules.evidenceRequestId
-      || viewState.schedules.selectedScheduleId !== scheduleId) {
-      return;
-    }
-    const items = Array.isArray(payload.items) ? payload.items : [];
-    if (items.length === 0) {
-      triggerState.textContent = "No trigger events recorded for this schedule yet.";
+    if (!shouldApplyRouteScopedUpdate("scheduleDetail", requestId)) {
       return;
     }
 
-    items.forEach((item) => {
-      const line = document.createElement("li");
-      line.textContent = `${valueOrDash(item.requestedAt)} | origin=${formatScheduleTriggerOriginToken(item.triggerOrigin)} | decision=${valueOrDash(item.decisionStatus)} | triggerEventId=${valueOrDash(item.triggerEventId)} | launchedRunId=${valueOrDash(item.launchedRunId)}`;
-      triggerList.appendChild(line);
-    });
-    triggerState.textContent = `Showing ${items.length} trigger event(s) for ${valueOrDash(schedule?.scheduleKey)}.`;
-    triggerList.hidden = false;
-  } catch (error) {
-    if (!shouldApplyRouteScopedUpdate("schedules", requestId)
-      || evidenceRequestId !== viewState.schedules.evidenceRequestId
-      || viewState.schedules.selectedScheduleId !== scheduleId) {
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    const selected = items.find((item) => String(item?.scheduleId || "").trim() === scheduleId);
+    if (!selected) {
+      state.className = "state error";
+      state.textContent = `Schedule ${scheduleId} was not found.`;
       return;
     }
-    triggerState.className = "state error";
-    triggerState.textContent = `Unable to load schedule trigger evidence: ${error.message}`;
+
+    document.getElementById("schedule-detail-id").textContent = valueOrDash(selected.scheduleId);
+    document.getElementById("schedule-detail-key").textContent = valueOrDash(selected.scheduleKey);
+    document.getElementById("schedule-detail-job").textContent = valueOrDash(selected.selectedJobKey);
+    document.getElementById("schedule-detail-status").textContent = formatScheduleStatus(selected);
+    document.getElementById("schedule-detail-timezone").textContent = valueOrDash(selected.timezone);
+    document.getElementById("schedule-detail-expression").textContent = valueOrDash(selected.expression);
+    document.getElementById("schedule-detail-next-due").textContent = valueOrDash(selected.nextDueAt);
+    summary.hidden = false;
+
+    const triggerResponse = await fetch(`/api/v1/schedules/${encodeURIComponent(scheduleId)}/trigger-events?limit=20`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!triggerResponse.ok) {
+      throw new Error(`Trigger events API returned ${triggerResponse.status}`);
+    }
+    const triggerPayload = await triggerResponse.json();
+    if (!shouldApplyRouteScopedUpdate("scheduleDetail", requestId)) {
+      return;
+    }
+
+    const triggerItems = Array.isArray(triggerPayload.items) ? triggerPayload.items : [];
+    if (triggerItems.length === 0) {
+      triggerState.textContent = "No trigger events recorded for this schedule yet.";
+    } else {
+      triggerItems.forEach((item) => {
+        triggerList.appendChild(buildScheduleTriggerEventLine(item, scheduleId));
+      });
+      triggerState.textContent = `Showing ${triggerItems.length} trigger event(s).`;
+      triggerList.hidden = false;
+    }
+
+    state.textContent = "Schedule detail loaded.";
+  } catch (error) {
+    if (!shouldApplyRouteScopedUpdate("scheduleDetail", requestId)) {
+      return;
+    }
+    state.className = "state error";
+    state.textContent = `Unable to load schedule detail: ${error.message}`;
   }
 }
+
+function buildScheduleTriggerEventLine(item, scheduleId) {
+  const line = document.createElement("li");
+  const requestedAt = valueOrDash(item?.requestedAt);
+  const origin = formatScheduleTriggerOriginToken(item?.triggerOrigin);
+  const decision = valueOrDash(item?.decisionStatus);
+  const triggerEventId = valueOrDash(item?.triggerEventId);
+  const launchedRunId = String(item?.launchedRunId || "").trim();
+
+  line.appendChild(document.createTextNode(`${requestedAt} | origin=${origin} | decision=${decision} | triggerEventId=${triggerEventId} | launchedRunId=`));
+
+  if (launchedRunId !== "") {
+    const runLink = document.createElement("a");
+    runLink.href = `#/runs/${encodeURIComponent(launchedRunId)}?from=schedule&scheduleId=${encodeURIComponent(scheduleId)}`;
+    runLink.textContent = launchedRunId;
+    line.appendChild(runLink);
+  } else {
+    line.appendChild(document.createTextNode("-"));
+  }
+
+  return line;
+}
+
+// schedule detail now uses a dedicated route (`#/schedules/{scheduleId}`), so
+// list-selection hash syncing is intentionally not used.
 
 function formatTriggerOriginToken(token) {
   const normalized = String(token || "").trim().toUpperCase();
@@ -1641,10 +1785,27 @@ async function loadRunDetail(routeState) {
   const requestId = ++loadRequestTracker.runDetail;
   const state = document.getElementById("run-detail-state");
   const summary = document.getElementById("run-detail-summary");
+  const backLink = document.getElementById("run-detail-back-link");
   const runIdValue = routeState && routeState.jobExecutionId ? routeState.jobExecutionId : null;
+  const source = String(routeState?.query?.from || "").trim().toLowerCase();
+  const sourceJobKey = String(routeState?.query?.job || "").trim();
+  const sourceScheduleId = String(routeState?.query?.scheduleId || "").trim();
 
   state.className = "state";
   summary.hidden = true;
+
+  if (backLink) {
+    if (source === "job" && sourceJobKey !== "") {
+      backLink.setAttribute("href", `#/jobs/${encodeURIComponent(sourceJobKey)}`);
+      backLink.textContent = "Back to job detail";
+    } else if (source === "schedule" && sourceScheduleId !== "") {
+      backLink.setAttribute("href", `#/schedules?scheduleId=${encodeURIComponent(sourceScheduleId)}`);
+      backLink.textContent = "Back to schedules";
+    } else {
+      backLink.setAttribute("href", "#/runs");
+      backLink.textContent = "Back to runs list";
+    }
+  }
 
   if (!runIdValue) {
     state.className = "state error";

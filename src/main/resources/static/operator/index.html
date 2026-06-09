@@ -75,6 +75,10 @@
       <p><strong>Config:</strong> <a id="job-detail-view-config-link" href="#">View read-only config</a></p>
     </div>
 
+    <h3>Recent runs</h3>
+    <div id="job-detail-recent-runs-state" class="state">No recent runs loaded yet.</div>
+    <ul id="job-detail-recent-runs-list" class="detail-list" hidden></ul>
+
     <h3>Ad hoc trigger</h3>
     <p class="hint">This is optional operator convenience only. It does not manage schedules, overlap policy, or missed-run behavior.</p>
     <div class="trigger-row">
@@ -122,7 +126,7 @@
 
   <section id="view-schedules" class="panel" hidden>
     <h2>Schedules</h2>
-    <p class="hint">Native scheduler workbench from <code>/api/v1/schedules</code> with recent trigger evidence.</p>
+    <p class="hint">Native scheduler workbench from <code>/api/v1/schedules</code>.</p>
     <div class="control-row">
       <button id="schedules-refresh-btn" type="button">Refresh</button>
       <span class="boundary-note">Scheduler controls are control-plane behavior; selected-job execution remains available independently.</span>
@@ -141,9 +145,29 @@
       <tbody id="schedules-body"></tbody>
     </table>
 
-    <h3>Recent triggers (selected schedule)</h3>
-    <div id="schedules-triggers-state" class="state">Select a schedule to load trigger evidence.</div>
-    <ul id="schedules-trigger-events-list" class="detail-list" hidden></ul>
+    <h3>Schedule details</h3>
+    <p class="hint">Click a schedule row to open detail view with recent triggers.</p>
+  </section>
+
+  <section id="view-schedule-detail" class="panel" hidden>
+    <h2>Schedule Detail</h2>
+    <p class="hint">Read-only detail from <code>/api/v1/schedules</code> and <code>/api/v1/schedules/{scheduleId}/trigger-events</code>.</p>
+    <div id="schedule-detail-state" class="state"></div>
+    <div id="schedule-detail-summary" hidden>
+      <p><strong>Schedule id:</strong> <span id="schedule-detail-id"></span></p>
+      <p><strong>Schedule key:</strong> <span id="schedule-detail-key"></span></p>
+      <p><strong>Job:</strong> <span id="schedule-detail-job"></span></p>
+      <p><strong>Status:</strong> <span id="schedule-detail-status"></span></p>
+      <p><strong>Timezone:</strong> <span id="schedule-detail-timezone"></span></p>
+      <p><strong>Expression:</strong> <span id="schedule-detail-expression"></span></p>
+      <p><strong>Next due:</strong> <span id="schedule-detail-next-due"></span></p>
+    </div>
+
+    <h3>Recent triggers</h3>
+    <div id="schedule-detail-triggers-state" class="state">Loading triggers...</div>
+    <ul id="schedule-detail-triggers-list" class="detail-list" hidden></ul>
+
+    <p><a id="schedule-detail-back-link" href="#/schedules">Back to schedules</a></p>
   </section>
 
   <section id="view-runs" class="panel" hidden>
@@ -308,7 +332,7 @@
     <div id="run-detail-log-empty" class="state" hidden>No run-scoped log lines available.</div>
     <div id="run-detail-log-list" class="log-list" hidden></div>
 
-    <p><a href="#/runs">Back to runs list</a></p>
+    <p><a id="run-detail-back-link" href="#/runs">Back to runs list</a></p>
   </section>
 </main>
 
