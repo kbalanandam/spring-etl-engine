@@ -1,7 +1,7 @@
 package com.etl.controlplane.schedules;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -11,7 +11,7 @@ import java.util.UUID;
 /**
  * Internal schedule service used to prepare persistence-backed schedule workflows.
  */
-@Component
+@Service
 public class ScheduleService {
 
 	private final ScheduleRegistry registry;

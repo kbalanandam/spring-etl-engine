@@ -2,7 +2,7 @@ package com.etl.controlplane.monitoring;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 /**
  * Builds run-scoped log lines for one job execution id from scenario log evidence.
  */
-@Component
+@Service
 public class RunScopedLogReadModelService {
 
 	private static final int DEFAULT_LIMIT = 200;

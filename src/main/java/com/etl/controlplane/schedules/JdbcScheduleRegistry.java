@@ -2,7 +2,7 @@ package com.etl.controlplane.schedules;
 
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -13,7 +13,7 @@ import java.util.Optional;
 /**
  * JDBC-backed registry for durable schedule records.
  */
-@Component
+@Repository
 @ConditionalOnProperty(name = "controlplane.schedules.persistence.mode", havingValue = "jdbc")
 public class JdbcScheduleRegistry implements ScheduleRegistry {
 

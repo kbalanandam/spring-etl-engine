@@ -2,7 +2,7 @@ package com.etl.controlplane.monitoring;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -18,7 +18,7 @@ import java.util.stream.Stream;
 /**
  * Reads RUN_SUMMARY evidence from scenario log files and projects it as a simple read model.
  */
-@Component
+@Service
 public class RunSummaryReadModelService {
 	private static final long DEFAULT_MAX_LOG_FILE_SIZE_BYTES = 5_000_000L;
 	private static final int DEFAULT_MAX_LOG_FILES_PER_REFRESH = 500;

@@ -3,7 +3,7 @@ package com.etl.controlplane.triggers;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 
 import java.sql.Timestamp;
 import java.time.Instant;
@@ -13,7 +13,7 @@ import java.util.UUID;
 /**
  * JDBC-backed trigger-event registry for durable control-plane trigger history.
  */
-@Component
+@Repository
 @ConditionalOnProperty(name = "controlplane.triggers.persistence.mode", havingValue = "jdbc")
 public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 

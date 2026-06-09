@@ -36,4 +36,10 @@ Scheduler is grouped here, not under the UI folder.
 
 The UI may manage schedules, but the scheduler itself is a control-plane/backend capability that must still exist conceptually even when no browser UI is present.
 
+## Backend stereotype intent
+
+- Use `@Service` for control-plane orchestration and read-model projection beans, such as schedule workflows and run/job detail assembly.
+- Use `@Repository` for JDBC-backed registries that own durable control-plane persistence access.
+- Keep generic `@Component` for infrastructure helpers, validators, guards, and adapter registries that are not the primary service or persistence boundary.
+
 

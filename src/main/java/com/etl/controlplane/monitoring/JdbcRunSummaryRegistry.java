@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Repository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,7 +25,7 @@ import java.util.Optional;
 /**
  * JDBC-backed registry for durable run-summary projections.
  */
-@Component
+@Repository
 @ConditionalOnProperty(name = "controlplane.runs.persistence.mode", havingValue = "jdbc")
 public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	private static final Logger logger = LoggerFactory.getLogger(JdbcRunSummaryRegistry.class);

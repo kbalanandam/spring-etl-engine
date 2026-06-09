@@ -1,7 +1,7 @@
 package com.etl.controlplane.monitoring;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,7 +17,7 @@ import java.util.stream.Stream;
 /**
  * Builds a richer run drill-down view from structured scenario log evidence.
  */
-@Component
+@Service
 public class RunDetailReadModelService {
 
 	private final RunSummaryReadModelService runSummaryReadModelService;

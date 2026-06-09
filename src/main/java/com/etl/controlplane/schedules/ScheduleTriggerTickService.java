@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.scheduling.support.CronExpression;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.time.Clock;
@@ -22,7 +22,7 @@ import java.util.List;
 /**
  * Optional schedule tick evaluator that records schedule-origin trigger events.
  */
-@Component
+@Service
 @ConditionalOnProperty(name = "controlplane.scheduler.enabled", havingValue = "true")
 public class ScheduleTriggerTickService {
 
