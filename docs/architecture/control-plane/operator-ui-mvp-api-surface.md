@@ -23,6 +23,7 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 - Scheduler overlap behavior is now policy-driven with `controlplane.scheduler.overlap-policy` (`ALLOW` default, optional `SERIALIZE`).
 - `GET /api/v1/system/info` now exposes scheduler governance defaults (`schedulerEnabled`, `schedulerMissedRunPolicy`, `schedulerOverlapPolicy`).
 - `GET /api/v1/schedules*` responses now expose persisted scheduler watermark state through `lastAcceptedDueAt` alongside computed `nextDueAt`.
+- Operator UI Job Detail now uses `GET /api/v1/schedules` (filtered by `selectedJobKey`) plus `POST /api/v1/schedules/{scheduleId}:pause|:resume` for bounded native schedule visibility and pause/resume controls without changing selected-job execution boundaries.
 - `GET /api/v1/runs*` responses now expose additive F1 restart-contract evidence fields (`runMode`, `recoveryPolicy`) when present in `RUN_SUMMARY` projections.
 - `GET /api/v1/runs/{jobExecutionId}/recovery` now exposes retained `attempt_link` and `checkpoint_anchor` data as advisory recovery evidence, while explicitly reporting `resumeSupported=false` while checkpoint-resume execution is not shipped.
 - F1 continuity rule: recovery endpoint payloads remain diagnostic-only until resume-eligibility and idempotent-rerun boundaries are frozen in Epic F docs.
@@ -239,6 +240,7 @@ Current behavior:
 
 - returns `202 ACCEPTED` for known jobs
 - records a trigger event in the configured control-plane registry (`jdbc` by default for control-plane profile, `memory` fallback)
+- suppresses duplicate manual trigger-now requests for a short window when the same job, reason, and requester were already accepted moments earlier, returning `decisionStatus=DUPLICATE_SUPPRESSED` with the existing `triggerEventId`
 - follows trigger persistence mode-switch guardrails so fallback changes are explicit, not silent (`controlplane.triggers.persistence.allow-mode-switch=true` only for intentional resets)
 - does not launch the worker yet; launch orchestration remains a later slice
 

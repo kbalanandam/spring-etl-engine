@@ -585,6 +585,13 @@ th {
   flex-wrap: wrap;
 }
 
+.schedule-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 #job-detail-trigger-now-btn {
   padding: 6px 10px;
   border: 1px solid #2563eb;
@@ -595,6 +602,20 @@ th {
 }
 
 #job-detail-trigger-now-btn:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+#job-detail-schedule-action-btn {
+  padding: 6px 10px;
+  border: 1px solid #334155;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+#job-detail-schedule-action-btn:disabled {
   opacity: 0.65;
   cursor: default;
 }

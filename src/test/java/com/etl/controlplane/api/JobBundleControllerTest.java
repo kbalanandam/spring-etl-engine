@@ -20,7 +20,9 @@ import java.util.List;
 import java.util.Optional;
 import java.time.Instant;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -170,6 +172,29 @@ class JobBundleControllerTest {
 				.andExpect(jsonPath("$.decisionStatus").value("NOT_FOUND"));
 
 		verify(jobBundleReadModelService).findBundle(eq("missing-job"));
+	}
+
+	@Test
+	void triggerNowSuppressesRecentDuplicateManualRequest() throws Exception {
+		when(jobBundleReadModelService.findBundle(eq("customer-load"))).thenReturn(Optional.of(
+				new JobBundleSummaryView("customer-load", "Customer Load",
+						"src/main/resources/config-jobs/customer-load/job-config.yaml", "READY", List.of())
+		));
+		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(5))).thenReturn(List.of(
+				new TriggerEventView("te-existing", "customer-load", "ACCEPTED", "manual_operator_request", "operator@example", Instant.now(), null, "accepted")
+		));
+
+		mockMvc.perform(post("/api/v1/jobs/customer-load:trigger-now")
+						.contentType("application/json")
+						.content("{\"reason\":\"manual_operator_request\",\"requestedBy\":\"operator@example\"}"))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.jobKey").value("customer-load"))
+				.andExpect(jsonPath("$.decisionStatus").value("DUPLICATE_SUPPRESSED"))
+				.andExpect(jsonPath("$.triggerEventId").value("te-existing"));
+
+		verify(jobBundleReadModelService).findBundle(eq("customer-load"));
+		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(5));
+		verify(triggerEventRegistry, never()).recordAccepted(any(), any(), any(), any());
 	}
 
 	@Test

@@ -114,6 +114,7 @@ Use this page as the main browse index when you want to navigate backlog items b
 - [`U2 - Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer`](operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md)
 - [`U3 - Add guarded trigger-now action from job details without scheduler coupling`](operator-ui/U3-guarded-trigger-now-from-job-details.md)
 - [`U4 - Add schedule visibility and pause/resume controls in Operator UI without making native scheduling mandatory`](operator-ui/U4-schedule-visibility-and-pause-resume-controls.md)
+- [`U5 - Add schedule workbench and run trigger-origin visibility (Manual, Schedule, Event)`](operator-ui/U5-schedule-workbench-and-trigger-origin-visibility.md)
 
 ### Epic V - Verification evidence and reporting
 

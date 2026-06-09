@@ -9,8 +9,13 @@ and this project adheres to **Semantic Versioning**.
 ### Added
 - Added Operator Run Detail advisory recovery diagnostics panel with dedicated renderer wiring and smoke coverage for populated, empty, and missing-recovery states.
 - Added `scripts/cleanup-controlplane-duplicate-steps.ps1` plus operations runbook guidance for audit/cleanup of duplicate `controlplane_step_record` rows in local SQLite control-plane history.
+- Added Job Detail native schedule controls so operators can pause/resume assigned control-plane schedules without leaving the job context.
+- Added `scripts/restart-controlplane.ps1` and companion script guidance so local control-plane stop/start workflows remain repeatable when IDE-owned process controls are unavailable.
 
 ### Changed
+- Refined Spring stereotype boundaries across the control-plane backend by reclassifying orchestration/read-model beans to `@Service` and JDBC persistence adapters to `@Repository`, while preserving existing runtime behavior and conditional wiring.
+- Simplified worker bootstrap scanning by removing redundant `@ComponentScan(basePackages = "com.etl")` from `ETLEngineApplication`, relying on `@SpringBootApplication` default package scanning.
+- Updated control-plane architecture guidance with explicit backend stereotype intent (`@Service` vs `@Repository` vs `@Component`) so code and docs stay aligned during ongoing runtime refactoring.
 - Started `F1` phase-2 advisory recovery read-model support by adding `GET /api/v1/runs/{jobExecutionId}/recovery`, projecting retained `attempt_link` + `checkpoint_anchor` evidence with explicit `resumeSupported=false` semantics while preserving the current fail-fast checkpoint-resume runtime boundary.
 - Continued `F1` phase-2 recovery behavior by returning a deterministic advisory recovery payload when no retained recovery row exists (including memory-mode fallback), centralizing `resumeBlockedReason` semantics, and preserving `resumeSupported=false` with checkpoint-resume execution still unshipped.
 - Updated Operator Run Detail loading to tolerate `GET /api/v1/runs/{jobExecutionId}/recovery` `404` responses and continue rendering core run detail/log diagnostics as advisory-only fallback evidence.
@@ -19,11 +24,18 @@ and this project adheres to **Semantic Versioning**.
 - Updated the Operator Jobs tab to keep client-side search/sort state while adding screen-friendly pagination controls, configurable rows-per-page, and route-preserving navigation back from job detail/config views.
 - Updated the Operator Jobs tab with an inline prototype drill-down (`+`) per job row that lazily previews configured job step names from job-config YAML without introducing step-level navigation.
 - Hardened Operator UI monitoring route behavior to ignore stale async responses, deduplicate in-flight job step-name requests, and reconcile per-job preview/step-name caches against the latest jobs payload.
+- Hardened Operator Schedules workbench async handling to ignore stale trigger-evidence responses and guard pause/resume/trigger actions against duplicate in-flight requests.
 - Hardened Operator Runs filtering with bounded/expiring per-filter cache entries and improved route-safe run-detail sequencing so run-scoped log loading is skipped when the active route changes.
+- Hardened guarded job-detail trigger-now behavior to ignore accidental repeat clicks in the UI and suppress short-window duplicate manual trigger requests on the backend, returning `DUPLICATE_SUPPRESSED` with the existing `triggerEventId` instead of recording a second trigger event.
+- Added optional scheduler-triggered ETL launch support behind `controlplane.scheduler.launch-enabled`, including schedule launch start/finish evidence logs while preserving trigger-event recording as the scheduler baseline.
+- Updated the Operator Jobs list readiness label to show `SCHEDULED` when one enabled native schedule exists for a ready job, while preserving `INVALID`/`INACTIVE` statuses.
+- Updated Operator monitoring navigation with a dedicated schedule-detail route and context-aware back links across schedules, job detail, and run detail flows.
 - Updated product backlog planning to run the next balanced delivery lane as `A7` + `S2` + `U4`, added `U4` as the first bounded post-MVP schedule-visibility/pause-resume Operator UI slice, and added lightweight backlog-item authoring guidance for concrete examples plus optional low-fidelity UI sketches when they materially improve clarity.
 
 ### Fixed
 - Fixed duplicate logical step rows shown in Operator Run Detail by deduplicating rendered step entries and preferring the most complete counts/status projection.
+- Fixed schedule-origin context propagation so `Schedules -> Job Detail -> Run Detail -> Back` returns to the expected schedule-aware job-detail flow.
+- Fixed local `dev` profile SQLite metadata lock contention by reducing concurrent metadata pressure during developer runs/tests.
 
 ### Security
 - N/A

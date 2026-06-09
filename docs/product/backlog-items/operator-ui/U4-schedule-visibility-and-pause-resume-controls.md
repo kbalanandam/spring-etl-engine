@@ -18,7 +18,7 @@ Use the linked `Epic` entry above to navigate to the shared epic-level product c
 
 ## Problem
 
-The Operator UI can already monitor jobs and runs and can issue guarded ad hoc triggers, but it does not yet expose the state of optional native schedules or let operators pause/resume those schedules from the same bounded control surface.
+The Operator UI can already monitor jobs and runs and can issue guarded ad hoc triggers, but it does not yet expose the state of native schedules or let operators pause/resume those schedules from the same bounded control surface.
 
 Without that slice, scheduler growth and UI growth can drift apart:
 
@@ -28,10 +28,10 @@ Without that slice, scheduler growth and UI growth can drift apart:
 
 ## Goal
 
-Provide one explicit UI slice that exposes schedule state and guarded pause/resume actions for optional native schedules while preserving:
+Provide one explicit UI slice that exposes schedule state and guarded pause/resume actions for native schedules while preserving:
 
 - the same selected-job launch boundary frozen by `S1`
-- the optional-control-plane rule from `S2`
+- the control-plane boundary rule from `S2`
 - the existing UI guardrail that direct ETL execution remains valid without the UI
 
 ## Scope
@@ -40,7 +40,7 @@ Provide one explicit UI slice that exposes schedule state and guarded pause/resu
 - operator-readable rendering of schedule status such as active/paused and next-run intent when available
 - guarded pause/resume actions aligned with `S2` controls
 - explicit empty-state handling when a job has no native schedule or native scheduling is disabled
-- wording and evidence links that keep native scheduling optional and bounded
+- wording and evidence links that keep native scheduling bounded
 
 ## Example operator flow
 
@@ -67,7 +67,7 @@ Schedule id: sched_customer_load_daily
 [ Pause schedule ]
 
 Notes
-- Native scheduling is optional.
+- Native scheduling is bounded.
 - Direct selected-job execution remains valid.
 ```
 
@@ -85,7 +85,7 @@ Build this slice only on top of the `S1`/`S2` scheduler boundary:
 
 1. surface native schedule state only when control-plane APIs project that data
 2. use guarded pause/resume actions rather than broad schedule editing in the first slice
-3. preserve explicit wording that these controls apply to optional native schedules only
+3. preserve explicit wording that these controls apply to native schedules only
 4. keep ad hoc trigger (`U3`) and schedule controls clearly separated in UI copy and evidence
 5. render stable trigger/schedule identifiers so operators can correlate schedule actions with later runs
 
@@ -100,7 +100,7 @@ Balanced-growth pairing for this slice:
 - operators get one bounded place to inspect whether a native schedule is active or paused
 - pause/resume intent becomes observable without requiring direct database or API inspection
 - the ETL worker launch contract remains unchanged and independently runnable
-- external schedulers remain valid because the UI is exposing optional native scheduling, not redefining the launch contract
+- external schedulers remain valid because the UI is exposing native scheduling, not redefining the launch contract
 
 ## Trade-off Snapshot
 
@@ -117,8 +117,8 @@ Balanced-growth pairing for this slice:
 
 - [ ] jobs with native schedule definitions show explicit schedule state in the Operator UI
 - [ ] pause/resume actions are guarded, operator-visible, and aligned with `S2`
-- [ ] jobs without native schedules render a clear optional-control-plane empty state
-- [ ] UI wording keeps native scheduling optional and preserves direct selected-job execution as a valid path
+- [ ] jobs without native schedules render a clear empty state
+- [ ] UI wording keeps native scheduling bounded and preserves direct selected-job execution as a valid path
 - [ ] schedule state and actions remain distinguishable from ad hoc trigger-now behavior shipped in `U3`
 - [ ] related backlog and architecture docs stay aligned with the first bounded schedule-control slice
 
@@ -138,6 +138,6 @@ Keep the first slice narrow and evidence-first: show schedule state, expose guar
 ## Status notes
 
 - Added as the first planned post-MVP Operator UI slice so ETL, scheduler, and UI capability growth can be tested in parallel rather than only serially.
-- Intended pairing for the next balanced delivery lane: one ETL slice, one scheduler slice, and one UI slice progressing together on the same optional-control-plane boundaries.
+- Intended pairing for the next balanced delivery lane: one ETL slice, one scheduler slice, and one UI slice progressing together on the same control-plane boundaries.
 
 

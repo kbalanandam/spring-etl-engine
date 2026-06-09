@@ -3,7 +3,6 @@ package com.etl;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
-import org.springframework.context.annotation.ComponentScan;
 
 /**
  * Spring Boot bootstrap entry point for the ETL runtime.
@@ -14,7 +13,6 @@ import org.springframework.context.annotation.ComponentScan;
  * than in this class.</p>
  */
 @SpringBootApplication
-@ComponentScan(basePackages = "com.etl")
 public class ETLEngineApplication {
 
 	public static void main(String[] args) {

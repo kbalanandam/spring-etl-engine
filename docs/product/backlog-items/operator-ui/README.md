@@ -8,6 +8,7 @@ Current items:
 - `U2-run-detail-drilldown-with-step-and-artifact-evidence.md`
 - `U3-guarded-trigger-now-from-job-details.md`
 - `U4-schedule-visibility-and-pause-resume-controls.md`
+- `U5-schedule-workbench-and-trigger-origin-visibility.md`
 
 Keep execution status canonical in `docs/product/product-backlog.md` and treat this folder as item-level drill-down only.
 

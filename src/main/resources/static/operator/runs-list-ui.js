@@ -202,7 +202,7 @@ export function createRunsListUi(options) {
 
     const state = getState();
     const filtered = state.items.filter((run) => {
-      const haystack = `${run.scenario || ""} ${run.status || ""} ${run.runMode || ""} ${run.recoveryPolicy || ""} ${run.jobExecutionId || ""}`.toLowerCase();
+        const haystack = `${run.scenario || ""} ${run.status || ""} ${run.runMode || ""} ${run.recoveryPolicy || ""} ${run.triggerOrigin || ""} ${run.jobExecutionId || ""}`.toLowerCase();
       return haystack.includes(state.filterText.trim().toLowerCase());
     });
     const sorted = sortItems(filtered, state.sortKey, state.sortDirection);
@@ -228,6 +228,7 @@ export function createRunsListUi(options) {
       row.innerHTML = `
         <td>${escapeHtml(run.scenario || "-")}</td>
         <td>${escapeHtml(run.status || "-")}</td>
+        <td>${escapeHtml(run.triggerOrigin || "MANUAL")}</td>
         <td>${escapeHtml(run.runMode || "-")}</td>
         <td>${escapeHtml(run.recoveryPolicy || "-")}</td>
         <td>${escapeHtml(run.startTime || "-")}</td>

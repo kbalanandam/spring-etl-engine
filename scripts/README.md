@@ -9,6 +9,7 @@ Automation helpers under `scripts/` for local verification, cleanup, project-boa
 - Migrate legacy control-plane SQLite tables into the shared dev database: `migrate-controlplane-sqlite-to-shared.ps1`
 - Audit and clean duplicate control-plane step rows in SQLite: `cleanup-controlplane-duplicate-steps.ps1`
 - Remove one job bundle and matching generated artifacts safely: `remove-job-bundle.ps1`
+- Restart/start/stop/status control-plane quickly on port 8081: `restart-controlplane.ps1`
 - Sync product backlog execution board to GitHub Project V2: `sync_project_board.py`
 - Prepare/run one explicit job config on Windows: `job-runner.ps1`
 - Prepare/run one explicit job config on Linux/macOS: `job-runner.sh`
@@ -109,6 +110,27 @@ Preview first:
 ```powershell
 Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\remove-job-bundle.ps1 -JobConfigPath .\private-jobs\local-verification\your-job\config\job-config.yaml -WhatIf
+```
+
+## `restart-controlplane.ps1`
+
+Purpose:
+- Stops any process listening on control-plane port (default `8081`)
+- Starts control-plane with explicit main class and `controlplane` profile
+- Supports quick `Restart`, `Start`, `Stop`, and `Status`
+
+Common usage:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 -Action Restart
+```
+
+Status only:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 -Action Status
 ```
 
 ## `sync_project_board.py`
