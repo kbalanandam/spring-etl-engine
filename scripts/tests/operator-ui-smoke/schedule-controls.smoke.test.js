@@ -41,6 +41,8 @@ test("operator app wires schedule lookup and pause\/resume actions", async () =>
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}\/trigger-events\?limit=20/);
   assert.match(source, /function loadScheduleDetail\(routeState\)/);
   assert.match(source, /#\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}/);
+  assert.match(source, /params\.set\("scheduleId", sourceScheduleId\);/);
+  assert.match(source, /\?from=schedule&scheduleId=\$\{encodeURIComponent\(sourceScheduleId\)\}/);
   assert.match(source, /Back to schedules/);
   assert.match(source, /function formatTriggerOriginToken\(token\)/);
   assert.match(source, /function getScheduleControlState\(schedule\)/);

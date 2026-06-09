@@ -473,7 +473,7 @@ async function loadJobDetailPlaceholder(routeState) {
   }
   if (backLink) {
     if (navigationSource === "schedule" && sourceScheduleId !== "") {
-      backLink.setAttribute("href", `#/schedules?scheduleId=${encodeURIComponent(sourceScheduleId)}`);
+      backLink.setAttribute("href", `#/schedules/${encodeURIComponent(sourceScheduleId)}`);
       backLink.textContent = "Back to schedules";
     } else {
       backLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
@@ -506,7 +506,7 @@ async function loadJobDetailPlaceholder(routeState) {
     document.getElementById("job-detail-readiness").textContent = job.readinessStatus || "-";
     document.getElementById("job-detail-recent-run-count").textContent = String(Array.isArray(payload.recentRuns) ? payload.recentRuns.length : 0);
     document.getElementById("job-detail-trigger-count").textContent = String(Array.isArray(payload.triggerEvents) ? payload.triggerEvents.length : 0);
-    renderJobDetailRecentRuns(payload.recentRuns, jobKeyValue);
+    renderJobDetailRecentRuns(payload.recentRuns, jobKeyValue, routeState?.query);
     if (viewConfigLink) {
       viewConfigLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}/config${jobsRouteQuerySuffix}`);
     }
@@ -526,7 +526,7 @@ async function loadJobDetailPlaceholder(routeState) {
   }
 }
 
-function renderJobDetailRecentRuns(recentRuns, jobKeyValue) {
+function renderJobDetailRecentRuns(recentRuns, jobKeyValue, query) {
   const recentRunsState = document.getElementById("job-detail-recent-runs-state");
   const recentRunsList = document.getElementById("job-detail-recent-runs-list");
   if (!recentRunsState || !recentRunsList) {
@@ -549,7 +549,15 @@ function renderJobDetailRecentRuns(recentRuns, jobKeyValue) {
     const runId = String(run?.jobExecutionId || "").trim();
     if (runId !== "") {
       const anchor = document.createElement("a");
-      anchor.href = `#/runs/${encodeURIComponent(runId)}?from=job&job=${encodeURIComponent(jobKeyValue)}`;
+      const params = new URLSearchParams();
+      params.set("from", "job");
+      params.set("job", String(jobKeyValue || ""));
+      const source = String(query?.from || "").trim().toLowerCase();
+      const sourceScheduleId = String(query?.scheduleId || "").trim();
+      if (source === "schedule" && sourceScheduleId !== "") {
+        params.set("scheduleId", sourceScheduleId);
+      }
+      anchor.href = `#/runs/${encodeURIComponent(runId)}?${params.toString()}`;
       anchor.textContent = formatJobDetailRecentRunLabel(run);
       item.appendChild(anchor);
     } else {
@@ -1796,10 +1804,13 @@ async function loadRunDetail(routeState) {
 
   if (backLink) {
     if (source === "job" && sourceJobKey !== "") {
-      backLink.setAttribute("href", `#/jobs/${encodeURIComponent(sourceJobKey)}`);
+      const returnHash = sourceScheduleId !== ""
+        ? `#/jobs/${encodeURIComponent(sourceJobKey)}?from=schedule&scheduleId=${encodeURIComponent(sourceScheduleId)}`
+        : `#/jobs/${encodeURIComponent(sourceJobKey)}`;
+      backLink.setAttribute("href", returnHash);
       backLink.textContent = "Back to job detail";
     } else if (source === "schedule" && sourceScheduleId !== "") {
-      backLink.setAttribute("href", `#/schedules?scheduleId=${encodeURIComponent(sourceScheduleId)}`);
+      backLink.setAttribute("href", `#/schedules/${encodeURIComponent(sourceScheduleId)}`);
       backLink.textContent = "Back to schedules";
     } else {
       backLink.setAttribute("href", "#/runs");
