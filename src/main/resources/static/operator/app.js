@@ -1881,9 +1881,7 @@ async function loadRunDetail(routeState) {
         return;
       }
 
-      const stepItems = Array.isArray(persistedStepRecords) && persistedStepRecords.length > 0
-        ? mapPersistedStepRecordsToDetailView(persistedStepRecords)
-        : payload.steps;
+      const stepItems = mergePersistedStepRecordsWithDetailSteps(payload.steps, persistedStepRecords);
       const artifactItems = Array.isArray(persistedArtifactRecords) && persistedArtifactRecords.length > 0
         ? mapPersistedArtifactRecordsToDetailView(persistedArtifactRecords)
         : payload.artifacts;
@@ -1963,6 +1961,44 @@ function mapPersistedStepRecordsToDetailView(records) {
     writeCount: record.writeCount,
     rejectedCount: record.rejectedCount,
   }));
+}
+
+function mergePersistedStepRecordsWithDetailSteps(detailSteps, persistedRecords) {
+  const detailItems = Array.isArray(detailSteps) ? detailSteps : [];
+  const persistedItems = Array.isArray(persistedRecords) ? persistedRecords : [];
+
+  if (persistedItems.length === 0) {
+    return detailItems;
+  }
+
+  const persistedByStepName = new Map();
+  persistedItems.forEach((record) => {
+    if (record && record.stepName) {
+      persistedByStepName.set(record.stepName, record);
+    }
+  });
+
+  const merged = detailItems.map((step) => {
+    const persisted = persistedByStepName.get(step.stepName);
+    if (!persisted) {
+      return step;
+    }
+
+    // Keep detail values when persisted projections are null/blank.
+    return {
+      ...step,
+      status: persisted.stepStatus ?? step.status,
+      readCount: persisted.readCount ?? step.readCount,
+      writeCount: persisted.writeCount ?? step.writeCount,
+      rejectedCount: persisted.rejectedCount ?? step.rejectedCount,
+    };
+  });
+
+  const existingStepNames = new Set(detailItems.map((step) => step.stepName));
+  const persistedOnly = mapPersistedStepRecordsToDetailView(
+    persistedItems.filter((record) => record && !existingStepNames.has(record.stepName))
+  );
+  return merged.concat(persistedOnly);
 }
 
 function mapPersistedArtifactRecordsToDetailView(records) {
