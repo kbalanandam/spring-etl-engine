@@ -300,6 +300,7 @@ Planned preserved examples for this enhancement:
 - In the same slice, runtime also fails fast when retry policy is combined with ordered duplicate winner selection because that duplicate path intentionally requires tasklet buffering.
 - If the selected processor config is malformed, explicit startup now fails before generated-model class validation so processor issues are not masked by unrelated missing generated classes.
 - Use `etl.config.job` as the normal production-style entry point whether the selected `job-config.yaml` lives under `src/main/resources/config-jobs/` or a developer-local git-ignored private bundle under `private-jobs/`. Direct `etl.config.source`, `etl.config.target`, and `etl.config.processor` overrides are intended for demo/fallback cases only.
+- Demo fallback direct-path defaults are `etl.config.source=src/main/resources/source-config.yaml`, `etl.config.target=src/main/resources/target-config.yaml`, and `etl.config.processor=src/main/resources/processor-config.yaml`. Treat those defaults as local/demo compatibility behavior only, not as the preferred runtime contract.
 - Archive-on-success remains part of the selected file-backed source config (for example CSV or XML), not `job-config.yaml`.
 - Rejected-record output and field-level validation rules remain part of the selected processor config, not `job-config.yaml`.
 

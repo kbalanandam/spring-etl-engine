@@ -39,7 +39,6 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -68,28 +67,24 @@ public class ConfigLoader {
 
 	private static final Logger logger = LoggerFactory.getLogger(ConfigLoader.class);
 
-	@Value("${etl.config.source:src/main/resources/source-config.yaml}")
 	private String sourceConfigPath;
 
-	@Value("${etl.config.target:src/main/resources/target-config.yaml}")
 	private String targetConfigPath;
 
-	@Value("${etl.config.processor:src/main/resources/processor-config.yaml}")
 	private String processorConfigPath;
 
-	@Value("${etl.config.job:}")
 	private String jobConfigPath;
 
-	@Value("${etl.config.allow-demo-fallback:false}")
 	private boolean allowDemoFallback;
 
-	private volatile ResolvedRuntimeConfig cachedRuntimeConfig;
 	private final SourceValidationService sourceValidationService;
 	private final ValidationRuleEvaluator validationRuleEvaluator;
 	private final TransformEvaluator transformEvaluator;
+	private final RuntimeConfigResolver runtimeConfigResolver;
 
 	public ConfigLoader() {
 		this(
+				new EtlConfigProperties(),
 				new SourceValidationService(),
 				new ValidationRuleEvaluator(ProcessorExtensionDefaults.defaultValidationRules(new FileIngestionRuntimeSupport())),
 				new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms())
@@ -98,16 +93,39 @@ public class ConfigLoader {
 
 	public ConfigLoader(SourceValidationService sourceValidationService,
 	                  ValidationRuleEvaluator validationRuleEvaluator) {
-		this(sourceValidationService, validationRuleEvaluator, new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms()));
+		this(
+				new EtlConfigProperties(),
+				sourceValidationService,
+				validationRuleEvaluator,
+				new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms())
+		);
 	}
 
-	@Autowired
 	public ConfigLoader(SourceValidationService sourceValidationService,
 	                  ValidationRuleEvaluator validationRuleEvaluator,
 	                  TransformEvaluator transformEvaluator) {
+		this(new EtlConfigProperties(), sourceValidationService, validationRuleEvaluator, transformEvaluator);
+	}
+
+	@Autowired
+	public ConfigLoader(EtlConfigProperties etlConfigProperties,
+	                  SourceValidationService sourceValidationService,
+	                  ValidationRuleEvaluator validationRuleEvaluator,
+	                  TransformEvaluator transformEvaluator) {
+		applyEtlConfigProperties(etlConfigProperties);
 		this.sourceValidationService = sourceValidationService;
 		this.validationRuleEvaluator = validationRuleEvaluator;
 		this.transformEvaluator = transformEvaluator;
+		this.runtimeConfigResolver = new RuntimeConfigResolver(this);
+	}
+
+	private void applyEtlConfigProperties(EtlConfigProperties etlConfigProperties) {
+		EtlConfigProperties properties = etlConfigProperties == null ? new EtlConfigProperties() : etlConfigProperties;
+		this.sourceConfigPath = properties.getSource();
+		this.targetConfigPath = properties.getTarget();
+		this.processorConfigPath = properties.getProcessor();
+		this.jobConfigPath = properties.getJob();
+		this.allowDemoFallback = properties.isAllowDemoFallback();
 	}
 
     @Bean(name = "sourceWrapper")
@@ -218,7 +236,7 @@ public class ConfigLoader {
 		try {
 			return buildJobRuntimeDescriptor(resolveRuntimeConfig(), sourceWrapper, targetWrapper, processorConfig, assembler);
 		} catch (IllegalArgumentException | IllegalStateException e) {
-			ResolvedRuntimeConfig runtimeConfig = cachedRuntimeConfig;
+			ResolvedRuntimeConfig runtimeConfig = runtimeConfigResolver.peekCachedRuntimeConfig();
 			throw new ConfigException("Invalid runtime descriptor configuration for scenario '"
 					+ defaultName(runtimeConfig == null ? null : runtimeConfig.scenarioName()) + "' in "
 					+ defaultJobPath(runtimeConfig == null ? null : runtimeConfig.jobConfigPath()) + ": " + e.getMessage(), e);
@@ -380,22 +398,10 @@ public class ConfigLoader {
 	}
 
 	private ResolvedRuntimeConfig resolveRuntimeConfig() throws IOException {
-		// Runtime config is resolved once per application startup because all downstream beans
-		// must agree on one selected scenario or one explicit demo-fallback contract.
-		ResolvedRuntimeConfig existing = cachedRuntimeConfig;
-		if (existing != null) {
-			return existing;
-		}
-
-		synchronized (this) {
-			if (cachedRuntimeConfig == null) {
-				cachedRuntimeConfig = buildRuntimeConfig();
-			}
-			return cachedRuntimeConfig;
-		}
+		return runtimeConfigResolver.resolveRuntimeConfig();
 	}
 
-	private ResolvedRuntimeConfig buildRuntimeConfig() throws IOException {
+	ResolvedRuntimeConfig buildRuntimeConfigInternal() throws IOException {
 		// The shipped runtime chooses exactly one selected job bundle per run. When no explicit
 		// job-config is provided, demo fallback is allowed only if operators enabled it on purpose.
 		if (jobConfigPath == null || jobConfigPath.isBlank()) {
@@ -1506,7 +1512,7 @@ public class ConfigLoader {
 		}
 	}
 
-	private record ResolvedRuntimeConfig(
+	record ResolvedRuntimeConfig(
 			String sourceConfigPath,
 			String targetConfigPath,
 			String processorConfigPath,
