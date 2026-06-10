@@ -12,12 +12,8 @@ import com.etl.common.util.JobScopedPackageNameResolver;
 import com.etl.common.util.SelectedJobNamingValidator;
 import com.etl.config.source.validation.SourceValidationContext;
 import com.etl.config.source.validation.SourceValidationService;
-import com.etl.config.target.CsvTargetConfig;
-import com.etl.config.target.JsonTargetConfig;
-import com.etl.config.target.RelationalTargetConfig;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
-import com.etl.config.target.XmlTargetConfig;
 import com.etl.runtime.job.JobConfigPaths;
 import com.etl.runtime.job.JobRecoveryPolicy;
 import com.etl.runtime.job.JobRunMode;
@@ -45,7 +41,6 @@ import java.nio.file.Path;
 import java.util.*;
 
 import static java.nio.file.Files.readString;
-import static com.etl.config.RuntimeConfigIO.copyColumns;
 
 /**
  * Loads the active source, target, processor, and job-level runtime configuration.
@@ -252,7 +247,7 @@ public class ConfigLoader {
 					selectedJobSourcePackageContract(runtimeConfig.scenarioName())
 			);
 			normalizeSourceConfigPaths(sourceWrapper, parentDirectory(runtimeConfig.sourceConfigPath()));
-			applyDefaultSourcePackages(sourceWrapper, runtimeConfig.scenarioName());
+			RuntimePackageDefaults.applyDefaultSourcePackages(sourceWrapper, runtimeConfig.scenarioName());
 			return sourceWrapper;
 		}
 
@@ -263,7 +258,7 @@ public class ConfigLoader {
 				buildYamlMapper(),
 				directSourcePackageContract()
 		);
-		applyDirectConfigSourcePackages(sourceWrapper);
+		RuntimePackageDefaults.applyDirectConfigSourcePackages(sourceWrapper);
 		return sourceWrapper;
 	}
 
@@ -276,7 +271,7 @@ public class ConfigLoader {
 					selectedJobTargetPackageContract(runtimeConfig.scenarioName())
 			);
 			normalizeTargetConfigPaths(targetWrapper, parentDirectory(runtimeConfig.targetConfigPath()));
-			applyDefaultTargetPackages(targetWrapper, runtimeConfig.scenarioName());
+			RuntimePackageDefaults.applyDefaultTargetPackages(targetWrapper, runtimeConfig.scenarioName());
 			return targetWrapper;
 		}
 
@@ -287,7 +282,7 @@ public class ConfigLoader {
 				buildYamlMapper(),
 				directTargetPackageContract()
 		);
-		applyDirectConfigTargetPackages(targetWrapper);
+		RuntimePackageDefaults.applyDirectConfigTargetPackages(targetWrapper);
 		return targetWrapper;
 	}
 
@@ -721,162 +716,8 @@ public class ConfigLoader {
 	private void applyJobScopedPackageDefaults(SourceWrapper sourceWrapper,
 	                                         TargetWrapper targetWrapper,
 	                                         String scenarioName) {
-		applyDefaultSourcePackages(sourceWrapper, scenarioName);
-		applyDefaultTargetPackages(targetWrapper, scenarioName);
-	}
-
-	private static void applyDefaultSourcePackages(SourceWrapper sourceWrapper, String scenarioName) {
-		if (sourceWrapper == null || sourceWrapper.getSources() == null) {
-			return;
-		}
-
-		String defaultSourcePackage = JobScopedPackageNameResolver.resolveSourcePackage(scenarioName);
-		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
-			sourceConfig.setPackageName(defaultSourcePackage);
-		}
-	}
-
-	private static void applyDirectConfigSourcePackages(SourceWrapper sourceWrapper) {
-		if (sourceWrapper == null || sourceWrapper.getSources() == null) {
-			return;
-		}
-
-		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
-			if (sourceConfig != null) {
-				sourceConfig.setPackageName("com.etl.model.source");
-			}
-		}
-	}
-
-	private static void applyDefaultTargetPackages(TargetWrapper targetWrapper, String scenarioName) {
-		if (targetWrapper == null || targetWrapper.getTargets() == null) {
-			return;
-		}
-
-		List<TargetConfig> defaultedTargets = new ArrayList<>();
-		for (TargetConfig targetConfig : targetWrapper.getTargets()) {
-			defaultedTargets.add(applyDefaultTargetPackage(targetConfig, scenarioName));
-		}
-		targetWrapper.setTargets(List.copyOf(defaultedTargets));
-	}
-
-	private static void applyDirectConfigTargetPackages(TargetWrapper targetWrapper) {
-		if (targetWrapper == null || targetWrapper.getTargets() == null) {
-			return;
-		}
-
-		List<TargetConfig> defaultedTargets = new ArrayList<>();
-		for (TargetConfig targetConfig : targetWrapper.getTargets()) {
-			defaultedTargets.add(applyDirectConfigTargetPackage(targetConfig));
-		}
-		targetWrapper.setTargets(List.copyOf(defaultedTargets));
-	}
-
-	private static TargetConfig applyDirectConfigTargetPackage(TargetConfig targetConfig) {
-		if (targetConfig == null) {
-			return targetConfig;
-		}
-
-		String defaultTargetPackage = "com.etl.model.target";
-		if (targetConfig instanceof CsvTargetConfig csvTargetConfig) {
-			return new CsvTargetConfig(
-					csvTargetConfig.getTargetName(),
-					defaultTargetPackage,
-					copyColumns(csvTargetConfig.getFields()),
-					csvTargetConfig.getFilePath(),
-					csvTargetConfig.getDelimiter(),
-					csvTargetConfig.isIncludeHeader(),
-					csvTargetConfig.isPackageAsZip()
-			);
-		}
-		if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
-			return new JsonTargetConfig(
-					jsonTargetConfig.getTargetName(),
-					defaultTargetPackage,
-					copyColumns(jsonTargetConfig.getFields()),
-					jsonTargetConfig.getFilePath(),
-					jsonTargetConfig.isPackageAsZip()
-			);
-		}
-		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
-			return new XmlTargetConfig(
-					xmlTargetConfig.getTargetName(),
-					defaultTargetPackage,
-					copyColumns(xmlTargetConfig.getFields()),
-					xmlTargetConfig.getFilePath(),
-					xmlTargetConfig.getRootElement(),
-					xmlTargetConfig.getRecordElement(),
-					xmlTargetConfig.getModelDefinitionPath(),
-					xmlTargetConfig.isPackageAsZip()
-			);
-		}
-		if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
-			return new RelationalTargetConfig(
-					relationalTargetConfig.getTargetName(),
-					defaultTargetPackage,
-					copyColumns(relationalTargetConfig.getFields()),
-					relationalTargetConfig.getConnection(),
-					relationalTargetConfig.getTable(),
-					relationalTargetConfig.getSchema(),
-					relationalTargetConfig.getWriteMode().name(),
-					relationalTargetConfig.getBatchSize()
-			);
-		}
-
-		return targetConfig;
-	}
-
-	private static TargetConfig applyDefaultTargetPackage(TargetConfig targetConfig, String scenarioName) {
-		if (targetConfig == null) {
-			return targetConfig;
-		}
-
-		String defaultTargetPackage = JobScopedPackageNameResolver.resolveTargetPackage(scenarioName);
-		if (targetConfig instanceof CsvTargetConfig csvTargetConfig) {
-			return new CsvTargetConfig(
-					csvTargetConfig.getTargetName(),
-					defaultTargetPackage,
-					copyColumns(csvTargetConfig.getFields()),
-					csvTargetConfig.getFilePath(),
-					csvTargetConfig.getDelimiter(),
-					csvTargetConfig.isIncludeHeader(),
-					csvTargetConfig.isPackageAsZip()
-			);
-		}
-		if (targetConfig instanceof JsonTargetConfig jsonTargetConfig) {
-			return new JsonTargetConfig(
-					jsonTargetConfig.getTargetName(),
-					defaultTargetPackage,
-					copyColumns(jsonTargetConfig.getFields()),
-					jsonTargetConfig.getFilePath(),
-					jsonTargetConfig.isPackageAsZip()
-			);
-		}
-		if (targetConfig instanceof XmlTargetConfig xmlTargetConfig) {
-			return new XmlTargetConfig(
-					xmlTargetConfig.getTargetName(),
-					defaultTargetPackage,
-					copyColumns(xmlTargetConfig.getFields()),
-					xmlTargetConfig.getFilePath(),
-					xmlTargetConfig.getRootElement(),
-					xmlTargetConfig.getRecordElement(),
-					xmlTargetConfig.getModelDefinitionPath(),
-					xmlTargetConfig.isPackageAsZip()
-			);
-		}
-		if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
-			return new RelationalTargetConfig(
-					relationalTargetConfig.getTargetName(),
-					defaultTargetPackage,
-					copyColumns(relationalTargetConfig.getFields()),
-					relationalTargetConfig.getConnection(),
-					relationalTargetConfig.getTable(),
-					relationalTargetConfig.getSchema(),
-					relationalTargetConfig.getWriteMode().name(),
-					relationalTargetConfig.getBatchSize()
-			);
-		}
-		return targetConfig;
+		RuntimePackageDefaults.applyDefaultSourcePackages(sourceWrapper, scenarioName);
+		RuntimePackageDefaults.applyDefaultTargetPackages(targetWrapper, scenarioName);
 	}
 
 	private static String resolveReferencedPath(Path jobConfigDirectory, String configuredPath, String propertyName) {
