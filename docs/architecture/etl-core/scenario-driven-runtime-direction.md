@@ -67,6 +67,8 @@ The bridge runtime continues to split heavy config responsibilities away from `C
 - `RuntimeConfigResolver` owns selected runtime config cache/synchronization.
 - `RuntimeConfigIO` owns selected-job path resolution and path normalization helpers.
 - `RuntimeConfigValidation` owns selected target + processor validation used during runtime-config assembly.
+- `RuntimeStepPolicyResolver` owns explicit step resolution plus skip/retry policy normalization for selected jobs.
+- `RuntimePackageDefaults` owns job-scoped/direct package-name default application for source + target config models.
 
 This extraction is intentionally behavior-preserving: explicit selected-job guardrails, fail-fast startup semantics, and step-plan contracts remain unchanged.
 

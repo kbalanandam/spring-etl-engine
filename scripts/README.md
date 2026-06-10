@@ -36,6 +36,13 @@ Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\generate-verification-report.ps1 -SkipSmoke
 ```
 
+Timeout-safe usage (bounded Maven + smoke):
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\generate-verification-report.ps1 -MavenTimeoutMinutes 45 -SmokeTimeoutMinutes 20
+```
+
 ## `verify-recent-changes.ps1`
 
 Purpose:
@@ -47,6 +54,13 @@ Usage:
 ```powershell
 Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\verify-recent-changes.ps1
+```
+
+Bound each scenario run with a timeout:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\verify-recent-changes.ps1 -ScenarioTimeoutMinutes 20
 ```
 
 ## `migrate-controlplane-sqlite-to-shared.ps1`
@@ -177,4 +191,4 @@ chmod +x ./scripts/job-runner.sh
 ## Tests
 
 - `scripts/tests/test_sync_project_board.py`: tests for `sync_project_board.py`
-
+- `scripts/tests/test_verify_recent_changes_timeout.py`: validates forced-timeout handling exits with code `124` for `verify-recent-changes.ps1`

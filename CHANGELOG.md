@@ -11,6 +11,8 @@ and this project adheres to **Semantic Versioning**.
 - Added `scripts/cleanup-controlplane-duplicate-steps.ps1` plus operations runbook guidance for audit/cleanup of duplicate `controlplane_step_record` rows in local SQLite control-plane history.
 - Added Job Detail native schedule controls so operators can pause/resume assigned control-plane schedules without leaving the job context.
 - Added `scripts/restart-controlplane.ps1` and companion script guidance so local control-plane stop/start workflows remain repeatable when IDE-owned process controls are unavailable.
+- Added focused timeout-exit regression coverage for `scripts/verify-recent-changes.ps1` through `scripts/tests/test_verify_recent_changes_timeout.py`.
+- Added `.github/workflows/scripts-tests.yml` to run scripts-focused Python tests on Ubuntu plus Windows timeout-exit coverage for `verify-recent-changes.ps1`.
 
 ### Changed
 - Refined Spring stereotype boundaries across the control-plane backend by reclassifying orchestration/read-model beans to `@Service` and JDBC persistence adapters to `@Repository`, while preserving existing runtime behavior and conditional wiring.
@@ -31,11 +33,14 @@ and this project adheres to **Semantic Versioning**.
 - Updated the Operator Jobs list readiness label to show `SCHEDULED` when one enabled native schedule exists for a ready job, while preserving `INVALID`/`INACTIVE` statuses.
 - Updated Operator monitoring navigation with a dedicated schedule-detail route and context-aware back links across schedules, job detail, and run detail flows.
 - Updated product backlog planning to run the next balanced delivery lane as `A7` + `S2` + `U4`, added `U4` as the first bounded post-MVP schedule-visibility/pause-resume Operator UI slice, and added lightweight backlog-item authoring guidance for concrete examples plus optional low-fidelity UI sketches when they materially improve clarity.
+- Hardened verification workflows with configurable timeout bounds in `scripts/generate-verification-report.ps1` and `scripts/verify-recent-changes.ps1`, including explicit timeout evidence/status propagation in generated verification artifacts.
 
 ### Fixed
 - Fixed duplicate logical step rows shown in Operator Run Detail by deduplicating rendered step entries and preferring the most complete counts/status projection.
 - Fixed schedule-origin context propagation so `Schedules -> Job Detail -> Run Detail -> Back` returns to the expected schedule-aware job-detail flow.
 - Fixed local `dev` profile SQLite metadata lock contention by reducing concurrent metadata pressure during developer runs/tests.
+- Fixed smoke timeout handling in `scripts/verify-recent-changes.ps1` to return exit code `124` reliably instead of being preempted by `Write-Error` under `ErrorActionPreference=Stop`.
+- Fixed Operator Run Detail step-count rendering so persisted step-record nulls no longer overwrite non-null `rejectedCount` values from `/api/v1/runs/{jobExecutionId}/detail`.
 
 ### Security
 - N/A

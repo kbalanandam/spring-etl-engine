@@ -53,7 +53,6 @@ import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.*;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.retry.RetryCallback;
@@ -121,7 +120,6 @@ public class BatchConfig {
      * The threshold for switching between chunk and tasklet processing.
      * If the source record count exceeds this value, chunk processing is used.
      */
-    @Value("${etl.chunk.threshold:10000}")
     private int chunkThreshold;
 
     /**
@@ -147,7 +145,8 @@ public class BatchConfig {
                RunConfigurationMetadata runConfigurationMetadata,
                    JobRuntimeDescriptor jobRuntimeDescriptor,
              FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
-             DuplicateResolverFactory duplicateResolverFactory) {
+              DuplicateResolverFactory duplicateResolverFactory,
+              EtlBatchProperties etlBatchProperties) {
         this.sourceWrapper = sourceWrapper;
         this.readerFactory = readerFactory;
         this.targetWrapper = targetWrapper;
@@ -162,8 +161,36 @@ public class BatchConfig {
             this.jobRuntimeDescriptor = jobRuntimeDescriptor;
 		this.fileIngestionRuntimeSupport = fileIngestionRuntimeSupport;
     this.duplicateResolverFactory = duplicateResolverFactory;
+        this.chunkThreshold = Math.max(1, etlBatchProperties == null ? 10000 : etlBatchProperties.getThreshold());
 
         logger.info("EtlJobConfiguration initialized.");
+    }
+
+    public BatchConfig(SourceWrapper sourceWrapper, DynamicReaderFactory readerFactory,
+                       DynamicWriterFactory writerFactory, JobRepository jobRepository,
+                       PlatformTransactionManager transactionManager,
+                       JobCompletionNotificationListener listener, DynamicProcessorFactory processorFactory,
+                       ProcessorConfig processorConfig, TargetWrapper targetWrapper,
+                       StepLoggingContextListener stepLoggingContextListener,
+                       RunConfigurationMetadata runConfigurationMetadata,
+                       JobRuntimeDescriptor jobRuntimeDescriptor,
+                       FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
+                       DuplicateResolverFactory duplicateResolverFactory) {
+        this(sourceWrapper,
+                readerFactory,
+                writerFactory,
+                jobRepository,
+                transactionManager,
+                listener,
+                processorFactory,
+                processorConfig,
+                targetWrapper,
+                stepLoggingContextListener,
+                runConfigurationMetadata,
+                jobRuntimeDescriptor,
+                fileIngestionRuntimeSupport,
+                duplicateResolverFactory,
+                new EtlBatchProperties());
     }
 
   public BatchConfig(SourceWrapper sourceWrapper, DynamicReaderFactory readerFactory,
@@ -188,7 +215,8 @@ public class BatchConfig {
         runConfigurationMetadata,
         null,
         fileIngestionRuntimeSupport,
-        duplicateResolverFactory);
+        duplicateResolverFactory,
+        new EtlBatchProperties());
   }
 
     /**

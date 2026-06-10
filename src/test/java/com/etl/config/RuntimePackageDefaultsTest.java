@@ -19,6 +19,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 class RuntimePackageDefaultsTest {
 
@@ -83,7 +84,7 @@ class RuntimePackageDefaultsTest {
         assertEquals("customers", relationalTarget.getTable());
         assertEquals("dbo", relationalTarget.getSchema());
         assertEquals(250, relationalTarget.getBatchSize());
-        assertNotSame(connection, relationalTarget.getConnection());
+        assertSame(connection, relationalTarget.getConnection());
 
         for (int i = 0; i < originalTargets.size(); i++) {
             assertNotSame(originalTargets.get(i), targetWrapper.getTargets().get(i));
@@ -150,4 +151,5 @@ class RuntimePackageDefaultsTest {
         return connection;
     }
 }
+
 
