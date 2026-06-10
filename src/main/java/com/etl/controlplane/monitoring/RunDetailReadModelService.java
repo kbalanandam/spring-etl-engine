@@ -8,10 +8,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -21,16 +23,25 @@ import java.util.stream.Stream;
 public class RunDetailReadModelService {
 
 	private final RunSummaryReadModelService runSummaryReadModelService;
+	private final RunSummaryRegistry runSummaryRegistry;
 	private final StructuredLogEventParser parser;
 
 	@Autowired
-	public RunDetailReadModelService(RunSummaryReadModelService runSummaryReadModelService) {
-		this(runSummaryReadModelService, new StructuredLogEventParser());
+	public RunDetailReadModelService(RunSummaryReadModelService runSummaryReadModelService,
+	                                 RunSummaryRegistry runSummaryRegistry) {
+		this(runSummaryReadModelService, runSummaryRegistry, new StructuredLogEventParser());
 	}
 
 	RunDetailReadModelService(RunSummaryReadModelService runSummaryReadModelService,
 	                         StructuredLogEventParser parser) {
+		this(runSummaryReadModelService, new InMemoryRunSummaryRegistry(), parser);
+	}
+
+	RunDetailReadModelService(RunSummaryReadModelService runSummaryReadModelService,
+	                         RunSummaryRegistry runSummaryRegistry,
+	                         StructuredLogEventParser parser) {
 		this.runSummaryReadModelService = runSummaryReadModelService;
+		this.runSummaryRegistry = runSummaryRegistry;
 		this.parser = parser;
 	}
 
@@ -42,12 +53,14 @@ public class RunDetailReadModelService {
 	private RunDetailView buildDetail(RunSummaryView runSummary, long jobExecutionId) {
 		Path logPath = Path.of(runSummary.logPath());
 		if (!Files.exists(logPath)) {
+			List<StepRecordView> mergedSteps = reconcileWithPersistedStepRecords(jobExecutionId, List.of());
+			List<ArtifactRecordView> mergedArtifacts = reconcileWithPersistedArtifactRecords(jobExecutionId, List.of(), mergedSteps);
 			return new RunDetailView(
 					runSummary,
-					List.of(),
-					List.of(),
+					mergedSteps,
+					mergedArtifacts,
 					null,
-					defaultEvidenceLinks(runSummary.logPath(), false)
+					defaultEvidenceLinks(runSummary.logPath())
 			);
 		}
 
@@ -107,13 +120,275 @@ public class RunDetailReadModelService {
 			// Best-effort read model: retain the summary even if detailed evidence cannot be read.
 		}
 
+		List<StepRecordView> mergedSteps = reconcileWithPersistedStepRecords(
+				jobExecutionId,
+				stepsByKey.values().stream().map(StepAccumulator::toView).toList()
+		);
+		List<ArtifactRecordView> mergedArtifacts = reconcileWithPersistedArtifactRecords(
+				jobExecutionId,
+				deduplicateArtifacts(artifacts),
+				mergedSteps
+		);
+
 		return new RunDetailView(
 				runSummary,
-				stepsByKey.values().stream().map(StepAccumulator::toView).toList(),
-				deduplicateArtifacts(artifacts),
+				mergedSteps,
+				mergedArtifacts,
 				failureSummary,
 				buildEvidenceLinks(runSummary.logPath(), sawRunSummary, sawStepEvent, sawJobFailure, runSummaryLine, firstStepEventLine, jobFailureLine)
 		);
+	}
+
+	private List<StepRecordView> reconcileWithPersistedStepRecords(long jobExecutionId, List<StepRecordView> detailSteps) {
+		List<StepRecordView> detailItems = detailSteps == null ? List.of() : detailSteps;
+		List<RunStepRecordView> persistedItems = runSummaryRegistry.listStepRecordsByJobExecutionId(jobExecutionId, 200);
+		if (persistedItems == null || persistedItems.isEmpty()) {
+			return detailItems;
+		}
+
+		Map<String, RunStepRecordView> persistedByName = new LinkedHashMap<>();
+		for (RunStepRecordView persisted : persistedItems) {
+			String stepKey = normalizeStepName(persisted.stepName());
+			if (stepKey.isBlank()) {
+				continue;
+			}
+			persistedByName.putIfAbsent(stepKey, persisted);
+		}
+
+		List<StepRecordView> merged = new ArrayList<>();
+		for (StepRecordView detail : detailItems) {
+			RunStepRecordView persisted = persistedByName.remove(normalizeStepName(detail.stepName()));
+			merged.add(persisted == null ? detail : mergeStepRecord(detail, persisted));
+		}
+
+		if (!detailItems.isEmpty()) {
+			return merged;
+		}
+
+		int nextSequence = 1;
+		for (RunStepRecordView persisted : persistedItems) {
+			merged.add(mapPersistedStepRecord(persisted, nextSequence++));
+		}
+		return merged;
+	}
+
+	private List<ArtifactRecordView> reconcileWithPersistedArtifactRecords(long jobExecutionId,
+	                                                                     List<ArtifactRecordView> detailArtifacts,
+	                                                                     List<StepRecordView> mergedSteps) {
+		List<ArtifactRecordView> detailItems = detailArtifacts == null ? List.of() : detailArtifacts;
+		List<RunArtifactRecordView> persistedItems = runSummaryRegistry.listArtifactRecordsByJobExecutionId(jobExecutionId, 200);
+		if (persistedItems == null || persistedItems.isEmpty()) {
+			return detailItems;
+		}
+
+		Map<String, ArtifactRecordView> mergedByKey = new LinkedHashMap<>();
+		for (ArtifactRecordView artifact : detailItems) {
+			mergedByKey.put(artifactKey(artifact.role(), artifact.pathOrUri()), artifact);
+		}
+
+		Set<String> knownStepKeys = new HashSet<>();
+		for (StepRecordView step : mergedSteps) {
+			String stepKey = normalizeStepName(step.stepName());
+			if (!stepKey.isBlank()) {
+				knownStepKeys.add(stepKey);
+			}
+		}
+
+		Set<String> detailRejectStepKeys = new HashSet<>();
+		for (ArtifactRecordView artifact : detailItems) {
+			if (!"reject-output".equalsIgnoreCase(firstNonBlank(artifact.role()))) {
+				continue;
+			}
+			String stepKey = normalizeStepName(artifact.stepName());
+			if (!stepKey.isBlank()) {
+				detailRejectStepKeys.add(stepKey);
+			}
+		}
+
+		Map<String, String> stepNamesByRecordId = persistedStepNameByRecordId(jobExecutionId);
+		for (RunArtifactRecordView persisted : persistedItems) {
+			if ("RUN_LOG".equals(normalizeRoleToken(persisted.artifactRole()))) {
+				continue;
+			}
+			ArtifactRecordView mapped = mapPersistedArtifact(persisted, stepNamesByRecordId, mergedSteps);
+			String mappedStepKey = normalizeStepName(mapped.stepName());
+			if (!mappedStepKey.isBlank() && !knownStepKeys.isEmpty() && !knownStepKeys.contains(mappedStepKey)) {
+				continue;
+			}
+			if ("reject-output".equalsIgnoreCase(mapped.role()) && !detailItems.isEmpty()) {
+				if (mappedStepKey.isBlank() || detailRejectStepKeys.contains(mappedStepKey)) {
+					continue;
+				}
+			}
+			String key = artifactKey(mapped.role(), mapped.pathOrUri());
+			ArtifactRecordView existing = mergedByKey.get(key);
+			if (existing == null) {
+				mergedByKey.put(key, mapped);
+				continue;
+			}
+			mergedByKey.put(key, new ArtifactRecordView(
+					existing.artifactId(),
+					existing.role(),
+					existing.label(),
+					existing.pathOrUri(),
+					preferDateTime(existing.createdAt(), mapped.createdAt()),
+					preferLong(existing.recordCount(), mapped.recordCount()),
+					preferText(existing.stepName(), mapped.stepName())
+			));
+		}
+
+		return List.copyOf(mergedByKey.values());
+	}
+
+	private StepRecordView mergeStepRecord(StepRecordView detail, RunStepRecordView persisted) {
+		return new StepRecordView(
+				preferText(persisted.stepName(), detail.stepName()),
+				detail.sequence(),
+				preferText(persisted.stepStatus(), detail.status()),
+				detail.stepExecutionId(),
+				preferLong(persisted.readCount(), detail.readCount()),
+				preferLong(persisted.writeCount(), detail.writeCount()),
+				preferLong(persisted.filterCount(), detail.filterCount()),
+				preferLong(persisted.skipCount(), detail.skipCount()),
+				preferLong(persisted.rollbackCount(), detail.rollbackCount()),
+				preferLong(persisted.rejectedCount(), detail.rejectedCount()),
+				preferDateTime(persisted.startedAt(), detail.startedAt()),
+				preferDateTime(persisted.finishedAt(), detail.finishedAt()),
+				detail.subFlow(),
+				detail.stepSummary()
+		);
+	}
+
+	private StepRecordView mapPersistedStepRecord(RunStepRecordView persisted, int sequence) {
+		return new StepRecordView(
+				persisted.stepName(),
+				sequence,
+				blankToUnknown(persisted.stepStatus()),
+				null,
+				persisted.readCount(),
+				persisted.writeCount(),
+				persisted.filterCount(),
+				persisted.skipCount(),
+				persisted.rollbackCount(),
+				persisted.rejectedCount(),
+				persisted.startedAt(),
+				persisted.finishedAt(),
+				null,
+				null
+		);
+	}
+
+	private Map<String, String> persistedStepNameByRecordId(long jobExecutionId) {
+		Map<String, String> map = new LinkedHashMap<>();
+		List<RunStepRecordView> persistedSteps = runSummaryRegistry.listStepRecordsByJobExecutionId(jobExecutionId, 200);
+		for (RunStepRecordView step : persistedSteps) {
+			String recordId = step.stepRecordId();
+			if (recordId == null || recordId.isBlank()) {
+				continue;
+			}
+			map.put(recordId, step.stepName());
+		}
+		return map;
+	}
+
+	private ArtifactRecordView mapPersistedArtifact(RunArtifactRecordView persisted,
+	                                              Map<String, String> stepNamesByRecordId,
+	                                              List<StepRecordView> mergedSteps) {
+		String roleToken = normalizeRoleToken(persisted.artifactRole());
+		String stepName = resolveArtifactStepName(persisted.stepRecordId(), stepNamesByRecordId);
+		String role;
+		String label;
+		if ("STEP_REJECT_OUTPUT".equals(roleToken)) {
+			role = "reject-output";
+			label = "Rejected records for " + (stepName.isBlank() ? "step" : stepName);
+		} else if ("STEP_ARCHIVED_SOURCE".equals(roleToken)) {
+			role = "archived-source";
+			label = "Archived source for " + (stepName.isBlank() ? "step" : stepName);
+		} else if ("RUN_LOG".equals(roleToken)) {
+			role = "run-log";
+			label = "Scenario log";
+		} else {
+			role = roleToken.toLowerCase().replace('_', '-');
+			label = "Artifact " + role;
+		}
+
+		Long recordCount = null;
+		if ("reject-output".equals(role) && !stepName.isBlank()) {
+			recordCount = mergedSteps.stream()
+					.filter(step -> stepName.equals(step.stepName()))
+					.map(StepRecordView::rejectedCount)
+					.filter(value -> value != null)
+					.findFirst()
+					.orElse(null);
+		}
+
+		String artifactId = persisted.artifactRecordId();
+		if (artifactId == null || artifactId.isBlank()) {
+			artifactId = role + "-" + System.identityHashCode(persisted);
+		}
+
+		return new ArtifactRecordView(
+				artifactId,
+				role,
+				label,
+				persisted.artifactPath(),
+				persisted.createdAt(),
+				recordCount,
+				stepName.isBlank() ? null : stepName
+		);
+	}
+
+	private String resolveArtifactStepName(String stepRecordId, Map<String, String> stepNamesByRecordId) {
+		if (stepRecordId == null || stepRecordId.isBlank()) {
+			return "";
+		}
+		return firstNonBlank(stepNamesByRecordId.get(stepRecordId));
+	}
+
+	private String normalizeRoleToken(String role) {
+		String normalized = firstNonBlank(role);
+		return normalized.isBlank() ? "UNKNOWN" : normalized.toUpperCase();
+	}
+
+	private String normalizeStepName(String value) {
+		return firstNonBlank(value).toLowerCase();
+	}
+
+	private String artifactKey(String role, String path) {
+		return firstNonBlank(role) + "|" + firstNonBlank(path);
+	}
+
+	private String blankToUnknown(String value) {
+		String normalized = firstNonBlank(value);
+		return normalized.isBlank() ? "UNKNOWN" : normalized;
+	}
+
+	private Long preferLong(Long preferred, Long fallback) {
+		return preferred != null ? preferred : fallback;
+	}
+
+	private LocalDateTime preferDateTime(LocalDateTime preferred, LocalDateTime fallback) {
+		return preferred != null ? preferred : fallback;
+	}
+
+	private String preferText(String preferred, String fallback) {
+		String normalizedPreferred = firstNonBlank(preferred);
+		if (!normalizedPreferred.isBlank()) {
+			return normalizedPreferred;
+		}
+		return firstNonBlank(fallback);
+	}
+
+	private String firstNonBlank(String... values) {
+		if (values == null) {
+			return "";
+		}
+		for (String value : values) {
+			if (value != null && !value.isBlank()) {
+				return value.trim();
+			}
+		}
+		return "";
 	}
 
 	private StepAccumulator stepAccumulator(Map<String, StepAccumulator> stepsByKey,
@@ -187,12 +462,10 @@ public class RunDetailReadModelService {
 		return List.copyOf(unique.values());
 	}
 
-	private List<EvidenceLinkView> defaultEvidenceLinks(String logPath, boolean exists) {
+	private List<EvidenceLinkView> defaultEvidenceLinks(String logPath) {
 		List<EvidenceLinkView> links = new ArrayList<>();
 		links.add(new EvidenceLinkView("Scenario log", logPath, "log-file"));
-		if (!exists) {
-			links.add(new EvidenceLinkView("Scenario log unavailable", logPath, "log-file-missing"));
-		}
+		links.add(new EvidenceLinkView("Scenario log unavailable", logPath, "log-file-missing"));
 		return List.copyOf(links);
 	}
 

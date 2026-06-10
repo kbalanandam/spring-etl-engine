@@ -1873,27 +1873,7 @@ async function loadRunDetail(routeState) {
         runRecoveryPanel.render(null);
       });
 
-    const persistedRecordsPromise = Promise.all([
-      fetchPersistedRunStepRecords(runIdValue),
-      fetchPersistedRunArtifactRecords(runIdValue),
-    ]).then(([persistedStepRecords, persistedArtifactRecords]) => {
-      if (!shouldApplyRouteScopedUpdate("runDetail", requestId, runIdValue)) {
-        return;
-      }
-
-      const stepItems = mergePersistedStepRecordsWithDetailSteps(payload.steps, persistedStepRecords);
-      const artifactItems = Array.isArray(persistedArtifactRecords) && persistedArtifactRecords.length > 0
-        ? mapPersistedArtifactRecordsToDetailView(persistedArtifactRecords)
-        : payload.artifacts;
-
-      renderRunSteps(stepItems);
-      renderRunArtifacts(artifactItems);
-    });
-
-    await Promise.all([
-      recoveryPromise,
-      persistedRecordsPromise,
-    ]);
+    await recoveryPromise;
 
     if (!shouldApplyRouteScopedUpdate("runDetail", requestId, runIdValue)) {
       return;
@@ -1923,91 +1903,6 @@ async function fetchRunRecovery(runIdValue) {
   return payload.recovery || null;
 }
 
-async function fetchPersistedRunStepRecords(runIdValue) {
-  try {
-    const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/step-records?limit=200`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!response.ok) {
-      return null;
-    }
-    const payload = await response.json();
-    return Array.isArray(payload.items) ? payload.items : [];
-  } catch (error) {
-    return null;
-  }
-}
-
-async function fetchPersistedRunArtifactRecords(runIdValue) {
-  try {
-    const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/artifact-records?limit=200`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!response.ok) {
-      return null;
-    }
-    const payload = await response.json();
-    return Array.isArray(payload.items) ? payload.items : [];
-  } catch (error) {
-    return null;
-  }
-}
-
-function mapPersistedStepRecordsToDetailView(records) {
-  return records.map((record) => ({
-    stepName: record.stepName,
-    status: record.stepStatus,
-    readCount: record.readCount,
-    writeCount: record.writeCount,
-    rejectedCount: record.rejectedCount,
-  }));
-}
-
-function mergePersistedStepRecordsWithDetailSteps(detailSteps, persistedRecords) {
-  const detailItems = Array.isArray(detailSteps) ? detailSteps : [];
-  const persistedItems = Array.isArray(persistedRecords) ? persistedRecords : [];
-
-  if (persistedItems.length === 0) {
-    return detailItems;
-  }
-
-  const persistedByStepName = new Map();
-  persistedItems.forEach((record) => {
-    if (record && record.stepName) {
-      persistedByStepName.set(record.stepName, record);
-    }
-  });
-
-  const merged = detailItems.map((step) => {
-    const persisted = persistedByStepName.get(step.stepName);
-    if (!persisted) {
-      return step;
-    }
-
-    // Keep detail values when persisted projections are null/blank.
-    return {
-      ...step,
-      status: persisted.stepStatus ?? step.status,
-      readCount: persisted.readCount ?? step.readCount,
-      writeCount: persisted.writeCount ?? step.writeCount,
-      rejectedCount: persisted.rejectedCount ?? step.rejectedCount,
-    };
-  });
-
-  const existingStepNames = new Set(detailItems.map((step) => step.stepName));
-  const persistedOnly = mapPersistedStepRecordsToDetailView(
-    persistedItems.filter((record) => record && !existingStepNames.has(record.stepName))
-  );
-  return merged.concat(persistedOnly);
-}
-
-function mapPersistedArtifactRecordsToDetailView(records) {
-  return records.map((record) => ({
-    role: record.artifactRole,
-    path: record.artifactPath,
-    recordCount: null,
-  }));
-}
 
 function focusRunScopedLogViewer() {
   runLogViewer.focus();

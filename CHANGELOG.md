@@ -34,6 +34,7 @@ and this project adheres to **Semantic Versioning**.
 - Updated Operator monitoring navigation with a dedicated schedule-detail route and context-aware back links across schedules, job detail, and run detail flows.
 - Updated product backlog planning to run the next balanced delivery lane as `A7` + `S2` + `U4`, added `U4` as the first bounded post-MVP schedule-visibility/pause-resume Operator UI slice, and added lightweight backlog-item authoring guidance for concrete examples plus optional low-fidelity UI sketches when they materially improve clarity.
 - Hardened verification workflows with configurable timeout bounds in `scripts/generate-verification-report.ps1` and `scripts/verify-recent-changes.ps1`, including explicit timeout evidence/status propagation in generated verification artifacts.
+- Updated `GET /api/v1/runs/{jobExecutionId}/detail` to reconcile persisted `step_record` / `artifact_record` projections with log-derived detail server-side, making the detail endpoint the canonical operator run-drilldown payload.
 
 ### Fixed
 - Fixed duplicate logical step rows shown in Operator Run Detail by deduplicating rendered step entries and preferring the most complete counts/status projection.
@@ -41,6 +42,7 @@ and this project adheres to **Semantic Versioning**.
 - Fixed local `dev` profile SQLite metadata lock contention by reducing concurrent metadata pressure during developer runs/tests.
 - Fixed smoke timeout handling in `scripts/verify-recent-changes.ps1` to return exit code `124` reliably instead of being preempted by `Write-Error` under `ErrorActionPreference=Stop`.
 - Fixed Operator Run Detail step-count rendering so persisted step-record nulls no longer overwrite non-null `rejectedCount` values from `/api/v1/runs/{jobExecutionId}/detail`.
+- Fixed Operator Run Detail data-source drift by removing client-side `/step-records` and `/artifact-records` post-merge overrides in favor of server-side canonical `/detail` reconciliation.
 
 ### Security
 - N/A
