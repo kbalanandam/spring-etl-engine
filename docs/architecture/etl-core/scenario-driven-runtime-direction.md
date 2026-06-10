@@ -51,6 +51,25 @@ The remaining problem is that bridge-era behavior still leaks around that path:
 
 Because of that, the next architecture should make the selected scenario the only normal execution boundary.
 
+## Configuration binding baseline
+
+The bridge runtime now binds startup/runtime properties through typed configuration objects rather than scattered `@Value` fields:
+
+- `etl.config.*` binds through `EtlConfigProperties` (selected `job-config.yaml`, direct source/target/processor paths, and demo-fallback guardrail toggle).
+- `etl.chunk.threshold` binds through `EtlBatchProperties` and is consumed by `BatchConfig` step mode selection.
+
+This keeps property keys stable while reducing mutable field injection in core runtime configuration classes.
+
+## Bridge-boundary extraction baseline
+
+The bridge runtime continues to split heavy config responsibilities away from `ConfigLoader` so it remains a bootstrap adapter instead of a long-term architecture center:
+
+- `RuntimeConfigResolver` owns selected runtime config cache/synchronization.
+- `RuntimeConfigIO` owns selected-job path resolution and path normalization helpers.
+- `RuntimeConfigValidation` owns selected target + processor validation used during runtime-config assembly.
+
+This extraction is intentionally behavior-preserving: explicit selected-job guardrails, fail-fast startup semantics, and step-plan contracts remain unchanged.
+
 ## Target runtime contract
 
 One ETL run should mean:

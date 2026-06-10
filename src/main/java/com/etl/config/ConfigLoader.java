@@ -81,6 +81,7 @@ public class ConfigLoader {
 	private final ValidationRuleEvaluator validationRuleEvaluator;
 	private final TransformEvaluator transformEvaluator;
 	private final RuntimeConfigResolver runtimeConfigResolver;
+	private final RuntimeConfigValidation runtimeConfigValidation;
 
 	public ConfigLoader() {
 		this(
@@ -117,6 +118,7 @@ public class ConfigLoader {
 		this.validationRuleEvaluator = validationRuleEvaluator;
 		this.transformEvaluator = transformEvaluator;
 		this.runtimeConfigResolver = new RuntimeConfigResolver(this);
+		this.runtimeConfigValidation = new RuntimeConfigValidation(validationRuleEvaluator, transformEvaluator);
 	}
 
 	private void applyEtlConfigProperties(EtlConfigProperties etlConfigProperties) {
@@ -304,7 +306,7 @@ public class ConfigLoader {
 		if (runtimeConfig.requireExternalConfigs()) {
 			normalizeProcessorConfigPaths(config, parentDirectory(runtimeConfig.processorConfigPath()));
 		}
-		validateProcessorConfig(
+		runtimeConfigValidation.validateProcessorConfig(
 				config,
 				runtimeConfig.scenarioName(),
 				runtimeConfig.processorConfigPath(),
@@ -423,7 +425,7 @@ public class ConfigLoader {
 					buildYamlMapper(),
 					null
 			);
-			validateProcessorConfig(demoProcessorConfig, "demo-fallback", processorConfigPath, demoSourceWrapper);
+			runtimeConfigValidation.validateProcessorConfig(demoProcessorConfig, "demo-fallback", processorConfigPath, demoSourceWrapper);
 			return new ResolvedRuntimeConfig(
 					sourceConfigPath,
 					targetConfigPath,
@@ -480,8 +482,8 @@ public class ConfigLoader {
 				explicitSourceWrapper,
 				new SourceValidationContext(scenarioName, resolvedSourceConfigPath)
 		);
-		validateSelectedTargetConfigs(explicitTargetWrapper, scenarioName, resolvedTargetConfigPath);
-		validateProcessorConfig(explicitProcessorConfig, scenarioName, resolvedProcessorConfigPath, explicitSourceWrapper);
+		runtimeConfigValidation.validateSelectedTargetConfigs(explicitTargetWrapper, scenarioName, resolvedTargetConfigPath);
+		runtimeConfigValidation.validateProcessorConfig(explicitProcessorConfig, scenarioName, resolvedProcessorConfigPath, explicitSourceWrapper);
 		List<JobConfig.JobStepConfig> resolvedSteps = resolveExplicitSteps(jobConfig, explicitSourceWrapper, explicitTargetWrapper, explicitProcessorConfig);
 		SelectedJobNamingValidator.validate(scenarioName, explicitSourceWrapper, explicitTargetWrapper, resolvedSteps);
 		validateSelectedGeneratedModelClasses(explicitSourceWrapper, explicitTargetWrapper, resolvedSteps, scenarioName, jobConfigFile.getAbsolutePath());
