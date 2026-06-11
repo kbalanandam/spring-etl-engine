@@ -204,11 +204,13 @@ final class RuntimeConfigValidation {
                 validationRuleEvaluator.validateConfiguration(entityMapping, fieldMapping, rule, sourceFormat);
             } catch (IllegalArgumentException | IllegalStateException e) {
                 String formatLabel = sourceFormat == null ? "unknown" : sourceFormat.getFormat();
-                throw new ProcessorExtensionBindingConfigException("Invalid or unsupported FieldMapping rule type '"
+                throw new ProcessorExtensionBindingConfigException("Invalid processor configuration for scenario '"
+                        + scenarioName + "' in " + processorConfigPath + ": Invalid or unsupported FieldMapping rule type '"
                         + defaultName(rule.getType()) + "' in processor config for scenario '" + scenarioName
                         + "' (path='" + processorConfigPath + "', entity=" + entityLabel(entityMapping)
                         + ", field=" + fieldLabel(fieldMapping) + ", sourceFormat=" + formatLabel + "). "
-                        + "Use a supported processor rule type or add a ProcessorValidationRule extension provider.", e);
+                        + "Use a supported processor rule type or add a ProcessorValidationRule extension provider. "
+                        + "Cause: " + e.getMessage(), e);
             }
         }
     }
@@ -235,11 +237,13 @@ final class RuntimeConfigValidation {
                 transformEvaluator.validateConfiguration(entityMapping, fieldMapping, transform, sourceFormat);
             } catch (IllegalArgumentException | IllegalStateException e) {
                 String formatLabel = sourceFormat == null ? "unknown" : sourceFormat.getFormat();
-                throw new ProcessorExtensionBindingConfigException("Invalid or unsupported FieldMapping transform type '"
+                throw new ProcessorExtensionBindingConfigException("Invalid processor configuration for scenario '"
+                        + scenarioName + "' in " + processorConfigPath + ": Invalid or unsupported FieldMapping transform type '"
                         + defaultName(transform.getType()) + "' in processor config for scenario '" + scenarioName
                         + "' (path='" + processorConfigPath + "', entity=" + entityLabel(entityMapping)
                         + ", field=" + fieldLabel(fieldMapping) + ", sourceFormat=" + formatLabel + "). "
-                        + "Use a supported processor transform type or add a ProcessorFieldTransform extension provider.", e);
+                        + "Use a supported processor transform type or add a ProcessorFieldTransform extension provider. "
+                        + "Cause: " + e.getMessage(), e);
             }
         }
     }
