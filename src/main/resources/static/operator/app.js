@@ -1873,29 +1873,7 @@ async function loadRunDetail(routeState) {
         runRecoveryPanel.render(null);
       });
 
-    const persistedRecordsPromise = Promise.all([
-      fetchPersistedRunStepRecords(runIdValue),
-      fetchPersistedRunArtifactRecords(runIdValue),
-    ]).then(([persistedStepRecords, persistedArtifactRecords]) => {
-      if (!shouldApplyRouteScopedUpdate("runDetail", requestId, runIdValue)) {
-        return;
-      }
-
-      const stepItems = Array.isArray(persistedStepRecords) && persistedStepRecords.length > 0
-        ? mapPersistedStepRecordsToDetailView(persistedStepRecords)
-        : payload.steps;
-      const artifactItems = Array.isArray(persistedArtifactRecords) && persistedArtifactRecords.length > 0
-        ? mapPersistedArtifactRecordsToDetailView(persistedArtifactRecords)
-        : payload.artifacts;
-
-      renderRunSteps(stepItems);
-      renderRunArtifacts(artifactItems);
-    });
-
-    await Promise.all([
-      recoveryPromise,
-      persistedRecordsPromise,
-    ]);
+    await recoveryPromise;
 
     if (!shouldApplyRouteScopedUpdate("runDetail", requestId, runIdValue)) {
       return;
@@ -1925,53 +1903,6 @@ async function fetchRunRecovery(runIdValue) {
   return payload.recovery || null;
 }
 
-async function fetchPersistedRunStepRecords(runIdValue) {
-  try {
-    const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/step-records?limit=200`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!response.ok) {
-      return null;
-    }
-    const payload = await response.json();
-    return Array.isArray(payload.items) ? payload.items : [];
-  } catch (error) {
-    return null;
-  }
-}
-
-async function fetchPersistedRunArtifactRecords(runIdValue) {
-  try {
-    const response = await fetch(`/api/v1/runs/${encodeURIComponent(runIdValue)}/artifact-records?limit=200`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!response.ok) {
-      return null;
-    }
-    const payload = await response.json();
-    return Array.isArray(payload.items) ? payload.items : [];
-  } catch (error) {
-    return null;
-  }
-}
-
-function mapPersistedStepRecordsToDetailView(records) {
-  return records.map((record) => ({
-    stepName: record.stepName,
-    status: record.stepStatus,
-    readCount: record.readCount,
-    writeCount: record.writeCount,
-    rejectedCount: record.rejectedCount,
-  }));
-}
-
-function mapPersistedArtifactRecordsToDetailView(records) {
-  return records.map((record) => ({
-    role: record.artifactRole,
-    path: record.artifactPath,
-    recordCount: null,
-  }));
-}
 
 function focusRunScopedLogViewer() {
   runLogViewer.focus();

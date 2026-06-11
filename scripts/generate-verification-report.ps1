@@ -27,6 +27,10 @@ param(
     [string]$ReportPath,
     [int]$KeepLatestCount = 5,
     [switch]$SkipSmoke,
+    [ValidateRange(1, 720)]
+    [int]$MavenTimeoutMinutes = 60,
+    [ValidateRange(1, 720)]
+    [int]$SmokeTimeoutMinutes = 30,
     [ValidateSet('Markdown', 'Html', 'HtmlAndPdf')]
     [string]$ReportPublishMode = 'Markdown',
     [string]$HtmlReportPath,
@@ -49,7 +53,8 @@ if ([string]::IsNullOrWhiteSpace($ReportPath)) {
 function Invoke-MavenTestRun {
     param(
         [string]$WorkingDirectory,
-        [string]$CaptureFile
+        [string]$CaptureFile,
+        [int]$TimeoutMinutes
     )
 
     if (Test-Path $CaptureFile) {
@@ -59,12 +64,18 @@ function Invoke-MavenTestRun {
     Push-Location $WorkingDirectory
     try {
         $start = Get-Date
-        # We run Maven through cmd.exe so stdout/stderr redirection is stable on
-        # Windows PowerShell and we still get a clean log file plus `$LASTEXITCODE`.
         $escapedCaptureFile = $CaptureFile.Replace('"', '""')
         $command = "mvn --no-transfer-progress test > `"$escapedCaptureFile`" 2>&1"
-        & cmd.exe /d /c $command | Out-Null
-        $exitCode = $LASTEXITCODE
+        $process = Start-Process -FilePath 'cmd.exe' -ArgumentList '/d', '/c', $command -PassThru -WindowStyle Hidden
+        $timedOut = -not $process.WaitForExit($TimeoutMinutes * 60 * 1000)
+        if ($timedOut) {
+            Stop-ProcessTree -RootProcessId $process.Id
+            Add-Content -Path $CaptureFile -Value "`nTIMED_OUT: Maven test run exceeded timeout of $TimeoutMinutes minute(s)."
+            $exitCode = 124
+        }
+        else {
+            $exitCode = $process.ExitCode
+        }
         $end = Get-Date
     }
     finally {
@@ -73,6 +84,8 @@ function Invoke-MavenTestRun {
 
     [pscustomobject]@{
         ExitCode = $exitCode
+        TimedOut = $timedOut
+        TimeoutMinutes = $TimeoutMinutes
         StartTime = $start
         EndTime = $end
         Duration = ($end - $start)
@@ -125,9 +138,33 @@ function Get-StatusBadge {
         'NOT READY' { return '[NOT READY]' }
         'PASS' { return '[PASS]' }
         'FAIL' { return '[FAIL]' }
+        'TIMEOUT' { return '[TIMEOUT]' }
         'ERROR' { return '[ERROR]' }
         'SKIPPED' { return '[SKIPPED]' }
         default { return $Status }
+    }
+}
+
+# Stops a process and discovered child processes so timeout paths do not
+# leave Maven/Java processes running in the background.
+function Stop-ProcessTree {
+    param(
+        [int]$RootProcessId
+    )
+
+    if ($RootProcessId -le 0) {
+        return
+    }
+
+    $childProcessIds = @(Get-CimInstance Win32_Process -Filter "ParentProcessId=$RootProcessId" -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty ProcessId)
+    foreach ($childId in $childProcessIds) {
+        Stop-ProcessTree -RootProcessId $childId
+    }
+
+    $rootProcess = Get-Process -Id $RootProcessId -ErrorAction SilentlyContinue
+    if ($rootProcess) {
+        Stop-Process -Id $RootProcessId -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -462,7 +499,8 @@ function Get-GitSummary {
 function Invoke-SmokeVerification {
     param(
         [string]$WorkingDirectory,
-        [string]$CaptureFile
+        [string]$CaptureFile,
+        [int]$ScenarioTimeoutMinutes
     )
 
     if (Test-Path $CaptureFile) {
@@ -474,12 +512,15 @@ function Invoke-SmokeVerification {
     try {
         # Run the smoke script in a fresh PowerShell process so local execution policy
         # does not block the workflow for new developers.
-        & powershell.exe -ExecutionPolicy Bypass -File $scriptPath 2>&1 | Out-File -FilePath $CaptureFile -Encoding utf8
+        & powershell.exe -ExecutionPolicy Bypass -File $scriptPath -ScenarioTimeoutMinutes $ScenarioTimeoutMinutes 2>&1 | Out-File -FilePath $CaptureFile -Encoding utf8
         $exitCode = $LASTEXITCODE
     }
     finally {
         Pop-Location
     }
+
+    $captureContent = if (Test-Path $CaptureFile) { Get-Content -Path $CaptureFile -Raw } else { '' }
+    $timedOut = ($exitCode -eq 124) -or $captureContent.Contains('TIMED_OUT:')
 
     $positiveLog = Join-Path $WorkingDirectory 'target\verify-customer-load.log'
     $negativeLog = Join-Path $WorkingDirectory 'target\verify-csv-to-sqlserver.log'
@@ -509,6 +550,8 @@ function Invoke-SmokeVerification {
 
     [pscustomobject]@{
         ExitCode = $exitCode
+        TimedOut = $timedOut
+        TimeoutMinutes = $ScenarioTimeoutMinutes
         Passed = ($exitCode -eq 0 -and $positivePassed -and $negativePassed)
         PositivePassed = $positivePassed
         NegativePassed = $negativePassed
@@ -531,10 +574,10 @@ function New-VerificationEvidence {
         [bool]$SmokeWasSkipped
     )
 
-    $buildStatus = if ($MavenRun.ExitCode -eq 0) { 'PASS' } else { 'FAIL' }
-    $smokeStatus = if ($SmokeWasSkipped) { 'SKIPPED' } elseif ($SmokeSummary -and $SmokeSummary.Passed) { 'PASS' } else { 'FAIL' }
-    $positiveSmokeStatus = if ($SmokeWasSkipped) { 'SKIPPED' } elseif ($SmokeSummary -and $SmokeSummary.PositivePassed) { 'PASS' } else { 'FAIL' }
-    $negativeSmokeStatus = if ($SmokeWasSkipped) { 'SKIPPED' } elseif ($SmokeSummary -and $SmokeSummary.NegativePassed) { 'PASS' } else { 'FAIL' }
+    $buildStatus = if ($MavenRun.TimedOut) { 'TIMEOUT' } elseif ($MavenRun.ExitCode -eq 0) { 'PASS' } else { 'FAIL' }
+    $smokeStatus = if ($SmokeWasSkipped) { 'SKIPPED' } elseif ($SmokeSummary -and $SmokeSummary.TimedOut) { 'TIMEOUT' } elseif ($SmokeSummary -and $SmokeSummary.Passed) { 'PASS' } else { 'FAIL' }
+    $positiveSmokeStatus = if ($SmokeWasSkipped) { 'SKIPPED' } elseif ($SmokeSummary -and $SmokeSummary.TimedOut) { 'TIMEOUT' } elseif ($SmokeSummary -and $SmokeSummary.PositivePassed) { 'PASS' } else { 'FAIL' }
+    $negativeSmokeStatus = if ($SmokeWasSkipped) { 'SKIPPED' } elseif ($SmokeSummary -and $SmokeSummary.TimedOut) { 'TIMEOUT' } elseif ($SmokeSummary -and $SmokeSummary.NegativePassed) { 'PASS' } else { 'FAIL' }
     $overallReady = ($MavenRun.ExitCode -eq 0) -and ($SmokeWasSkipped -or ($SmokeSummary -and $SmokeSummary.Passed))
     $overallStatus = if ($overallReady) { 'READY' } else { 'NOT READY' }
     $gitStatusCounts = Get-GitStatusCounts -StatusLines $GitSummary.StatusLines
@@ -638,7 +681,7 @@ function New-VerificationEvidence {
     }
 
     $releaseRecommendation = 'READY'
-    if ($MavenRun.ExitCode -ne 0 -or $nonPassingCount -gt 0) {
+    if ($MavenRun.TimedOut -or $MavenRun.ExitCode -ne 0 -or $nonPassingCount -gt 0) {
         $releaseRecommendation = 'NOT READY'
     }
     elseif ($SmokeWasSkipped) {
@@ -649,6 +692,9 @@ function New-VerificationEvidence {
     }
 
     $releaseReadinessReasons = New-Object System.Collections.Generic.List[string]
+    if ($MavenRun.TimedOut) {
+        $releaseReadinessReasons.Add("Automated regression execution timed out after $($MavenRun.TimeoutMinutes) minute(s).") | Out-Null
+    }
     if ($MavenRun.ExitCode -ne 0) {
         $releaseReadinessReasons.Add('Automated regression execution did not complete successfully.') | Out-Null
     }
@@ -658,11 +704,11 @@ function New-VerificationEvidence {
     if ($SmokeWasSkipped) {
         $releaseReadinessReasons.Add('Runtime / smoke verification was skipped, so this report is not yet full release evidence.') | Out-Null
     }
+    elseif ($SmokeSummary -and $SmokeSummary.TimedOut) {
+        $releaseReadinessReasons.Add("Runtime / smoke verification timed out after $($SmokeSummary.TimeoutMinutes) minute(s).") | Out-Null
+    }
     elseif (-not ($SmokeSummary -and $SmokeSummary.Passed)) {
         $releaseReadinessReasons.Add('Runtime / smoke verification did not prove the expected scenario behavior.') | Out-Null
-    }
-    if ($GitSummary.StatusLines.Count -gt 0) {
-        $releaseReadinessReasons.Add('Verification was executed against a working tree with local changes, so provenance is tied to the current workspace state rather than a clean immutable revision.') | Out-Null
     }
 
     [pscustomobject]@{
@@ -707,6 +753,8 @@ function New-VerificationEvidence {
         Runtime = [pscustomobject]@{
             Status = $smokeStatus
             ExitCode = if ($SmokeWasSkipped -or $null -eq $SmokeSummary) { $null } else { $SmokeSummary.ExitCode }
+            TimedOut = if ($SmokeWasSkipped -or $null -eq $SmokeSummary) { $false } else { $SmokeSummary.TimedOut }
+            TimeoutMinutes = if ($SmokeWasSkipped -or $null -eq $SmokeSummary) { $null } else { $SmokeSummary.TimeoutMinutes }
             PositiveStatus = $positiveSmokeStatus
             NegativeStatus = $negativeSmokeStatus
             CaptureFile = if ($SmokeSummary) { $SmokeSummary.CaptureFile } else { $null }
@@ -771,6 +819,7 @@ function New-VerificationReport {
     $lines.Add('') | Out-Null
     $lines.Add('- **READY / PASS**: Maven tests passed, and if smoke verification ran, it also passed.') | Out-Null
     $lines.Add('- **NOT READY / FAIL**: Maven tests failed, or smoke verification found a runtime/config regression.') | Out-Null
+    $lines.Add('- **TIMEOUT**: A bounded execution window was exceeded before completion; review timeout values and captured logs before treating results as trustworthy.') | Out-Null
     $lines.Add('- A **PASS** negative smoke result for `csv-to-sqlserver` means the scenario failed in the expected fail-fast way because placeholder SQL Server values were detected.') | Out-Null
     $lines.Add('') | Out-Null
     $lines.Add('## Change-focused verification') | Out-Null
@@ -987,6 +1036,7 @@ function New-VerificationReport {
     $lines.Add('') | Out-Null
     $lines.Add('- If Maven test run is PASS and smoke verification is PASS, the recent code changes are in a good local verification state.') | Out-Null
     $lines.Add('- If Maven tests pass but smoke verification fails, review runtime/logging or scenario-specific behavior.') | Out-Null
+    $lines.Add('- If Maven or smoke status is TIMEOUT, increase timeout bounds or run categories separately before drawing release-readiness conclusions.') | Out-Null
     $lines.Add('- If smoke verification is skipped, use the report for change-focused and regression evidence only, not as full release evidence.') | Out-Null
     $lines.Add('- If Maven tests fail, fix those before trusting smoke results.') | Out-Null
 
@@ -1145,12 +1195,12 @@ function Convert-InlineMarkdownToHtml {
     $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\bNOT READY\b', $placeholderNotReady)
     $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\bNEEDS RUNTIME EVIDENCE\b', $placeholderNeedsRuntime)
 
-    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\[(READY|PASS|FAIL|ERROR|SKIPPED)\]', {
+    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '\[(READY|PASS|FAIL|ERROR|SKIPPED|TIMEOUT)\]', {
             param($m)
             $v = $m.Groups[1].Value.ToLowerInvariant()
             return '<span class="status-token status-' + $v + '">[' + $m.Groups[1].Value + ']</span>'
         })
-    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '(?<!\[)\b(READY|PASS|FAIL|ERROR|SKIPPED)\b(?!\])', {
+    $encoded = [System.Text.RegularExpressions.Regex]::Replace($encoded, '(?<!\[)\b(READY|PASS|FAIL|ERROR|SKIPPED|TIMEOUT)\b(?!\])', {
             param($m)
             $v = $m.Groups[1].Value.ToLowerInvariant()
             return '<span class="status-token status-' + $v + '">' + $m.Groups[1].Value + '</span>'
@@ -1279,6 +1329,7 @@ function Convert-MarkdownToHtmlFragmentBasic {
                 'READY' { $statusClass = 'status-ready'; break }
                 'PASS' { $statusClass = 'status-pass'; break }
                 'FAIL' { $statusClass = 'status-fail'; break }
+                'TIMEOUT' { $statusClass = 'status-timeout'; break }
                 'ERROR' { $statusClass = 'status-error'; break }
                 'SKIPPED' { $statusClass = 'status-skipped'; break }
                 'NOT READY' { $statusClass = 'status-not-ready'; break }
@@ -1479,6 +1530,11 @@ function New-VerificationHtmlDocument {
       color: #991b1b;
       background: #fef2f2;
       border-color: #fecaca;
+    }
+    .status-timeout {
+      color: #92400e;
+      background: #fffbeb;
+      border-color: #fcd34d;
     }
     .status-needs-runtime-evidence {
       color: #92400e;
@@ -1875,7 +1931,7 @@ $timestampedReportPath = Get-TimestampedReportPath -BaseReportPath $ReportPath
 $gitSummary = Get-GitSummary -WorkingDirectory $RepoRoot
 
 # Step 1: run the full automated test suite.
-$testRun = Invoke-MavenTestRun -WorkingDirectory $RepoRoot -CaptureFile $testLog
+$testRun = Invoke-MavenTestRun -WorkingDirectory $RepoRoot -CaptureFile $testLog -TimeoutMinutes $MavenTimeoutMinutes
 # Step 2: summarize Maven Surefire XML results.
 $surefireSummary = Get-SurefireSummary -SurefireDirectory $surefireDir
 
@@ -1883,13 +1939,15 @@ $smokeSummary = $null
 if (-not $SkipSmoke) {
     try {
         # Step 3 (optional): run scenario-level smoke verification.
-        $smokeSummary = Invoke-SmokeVerification -WorkingDirectory $RepoRoot -CaptureFile $smokeCapture
+        $smokeSummary = Invoke-SmokeVerification -WorkingDirectory $RepoRoot -CaptureFile $smokeCapture -ScenarioTimeoutMinutes $SmokeTimeoutMinutes
     }
     catch {
         # If smoke verification itself crashes, still produce a report that clearly
         # marks smoke validation as failed and preserves whatever diagnostics we have.
         $smokeSummary = [pscustomobject]@{
             ExitCode = 1
+            TimedOut = $false
+            TimeoutMinutes = $SmokeTimeoutMinutes
             Passed = $false
             PositivePassed = $false
             NegativePassed = $false

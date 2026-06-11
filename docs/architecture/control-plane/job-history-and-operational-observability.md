@@ -33,6 +33,7 @@ The current codebase already implements a meaningful first observability slice:
 - step-finished evidence with `readCount`, `writeCount`, `filterCount`, `skipCount`, `rollbackCount`, `rejectedCount`, `rejectOutputPath`, and `archivedSourcePath`
 - source-validation rejection evidence through `SOURCE_VALIDATION event=file_rejected` when configured file-level validation rejects an input artifact
 - local verification-report generation that keeps build/release validation logs distinct from runtime scenario logs
+- server-side run-detail reconciliation that merges retained `step_record` / `artifact_record` projections with scenario-log evidence into one canonical `/api/v1/runs/{jobExecutionId}/detail` payload, while keeping log-derived step identity authoritative for the selected run when step evidence is available
 
 This document still describes future observability direction, but it should now be read as **current baseline plus future evolution**, not as a purely hypothetical design note.
 
@@ -299,6 +300,8 @@ Each retained event or structured log entry should aim to preserve:
 - error categories should distinguish validation, transformation, source-read, and target-write failures
 - structured events should complement stack traces, not replace them entirely
 - retained evidence should remain useful even if AI features are disabled or unavailable
+- when multiple evidence sources exist for the same run detail field, prefer non-null retained projection values and use log-derived values as fallback; never overwrite populated values with null/blank data
+- when the run already has log-derived step evidence, only reconcile retained step/artifact projections onto that same log-derived step set; do not append unmatched retained steps from outside the run's observed step identity
 
 ## Retention, redaction, and access
 

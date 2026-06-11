@@ -244,6 +244,14 @@ Typical properties are:
 - `etl.config.target`
 - `etl.config.processor`
 
+Default direct-path values (used only when demo fallback is explicitly enabled and direct-path mode is active):
+
+- `etl.config.source=src/main/resources/source-config.yaml`
+- `etl.config.target=src/main/resources/target-config.yaml`
+- `etl.config.processor=src/main/resources/processor-config.yaml`
+
+Those defaults are compatibility/demo fallbacks, not the preferred runtime contract for normal runs.
+
 Recommended precedence:
 
 1. use `etl.config.job` as the primary business-scenario selector for one run

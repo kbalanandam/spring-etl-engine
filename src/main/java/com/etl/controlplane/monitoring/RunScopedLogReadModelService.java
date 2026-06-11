@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 /**
  * Builds run-scoped log lines for one job execution id from scenario log evidence.
@@ -65,14 +64,13 @@ public class RunScopedLogReadModelService {
 		boolean includeContinuation = false;
 		boolean truncated = false;
 
-		try (Stream<String> stream = Files.lines(logPath)) {
-			List<String> rawLines = stream.toList();
-			for (int index = 0; index < rawLines.size(); index++) {
-				String rawLine = rawLines.get(index);
-				int lineNumber = index + 1;
-				Optional<StructuredLogEvent> maybeEvent = parser.parse(rawLine, logPath, lineNumber);
-				if (maybeEvent.isPresent()) {
-					StructuredLogEvent event = maybeEvent.orElseThrow();
+		try {
+			List<StructuredScenarioLogScanner.ParsedScenarioLogLine> scannedLines = StructuredScenarioLogScanner.read(logPath, parser);
+			for (StructuredScenarioLogScanner.ParsedScenarioLogLine scannedLine : scannedLines) {
+				String rawLine = scannedLine.rawLine();
+				int lineNumber = scannedLine.lineNumber();
+				StructuredLogEvent event = scannedLine.event();
+				if (event != null) {
 					includeContinuation = event.jobExecutionId() != null && event.jobExecutionId() == jobExecutionId;
 					if (includeContinuation) {
 						if (lines.size() >= effectiveLimit) {

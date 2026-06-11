@@ -9,9 +9,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.time.Instant;
@@ -26,9 +28,11 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.http.HttpStatusCode.valueOf;
 
 @WebMvcTest(ScheduleController.class)
 @AutoConfigureMockMvc
+@Import({ScheduleResponseMapper.class, ScheduleApiLimitPolicy.class, ScheduleControllerAdvice.class})
 @TestPropertySource(properties = "spring.main.web-application-type=servlet")
 class ScheduleControllerTest {
 
@@ -103,6 +107,56 @@ class ScheduleControllerTest {
 						.content("{\"scheduleKey\":\"daily-customers\",\"selectedJobKey\":\"customer-load\",\"expression\":\"bad\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"daily\"}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.reason").value("invalid_expression"));
+	}
+
+	@Test
+	void returnsSafeInternalErrorPayloadForUnexpectedRuntimeFailure() throws Exception {
+		when(scheduleService.createSchedule(eq("daily-customers"), eq("customer-load"), eq("0 0 * * *"), eq("UTC"), eq(true), eq("daily")))
+				.thenThrow(new RuntimeException("database down"));
+
+		mockMvc.perform(post("/api/v1/schedules")
+						.contentType("application/json")
+						.content("{\"scheduleKey\":\"daily-customers\",\"selectedJobKey\":\"customer-load\",\"expression\":\"0 0 * * *\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"daily\"}"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.reason").value("internal_error"))
+				.andExpect(jsonPath("$.message").value("Unexpected schedule API error."));
+	}
+
+	@Test
+	void returnsSafeInternalErrorPayloadForUnexpectedRuntimeFailureOnUpdate() throws Exception {
+		when(scheduleService.updateSchedule(eq("sch-1"), eq("customer-load"), eq("0 15 * * *"), eq("UTC"), eq(true), eq("updated")))
+				.thenThrow(new RuntimeException("database down"));
+
+		mockMvc.perform(put("/api/v1/schedules/sch-1")
+						.contentType("application/json")
+						.content("{\"selectedJobKey\":\"customer-load\",\"expression\":\"0 15 * * *\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"updated\"}"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.reason").value("internal_error"))
+				.andExpect(jsonPath("$.message").value("Unexpected schedule API error."));
+	}
+
+	@Test
+	void preservesExplicitResponseStatusExceptionFromServiceLayer() throws Exception {
+		when(scheduleService.createSchedule(eq("daily-customers"), eq("customer-load"), eq("0 0 * * *"), eq("UTC"), eq(true), eq("daily")))
+				.thenThrow(new ResponseStatusException(valueOf(463), "custom schedule guardrail"));
+
+		mockMvc.perform(post("/api/v1/schedules")
+						.contentType("application/json")
+						.content("{\"scheduleKey\":\"daily-customers\",\"selectedJobKey\":\"customer-load\",\"expression\":\"0 0 * * *\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"daily\"}"))
+				.andExpect(status().is(463))
+				.andExpect(jsonPath("$.reason").value("status_error"))
+				.andExpect(jsonPath("$.message").value("custom schedule guardrail"));
+	}
+
+	@Test
+	void returnsConflictWhenCreateScheduleAlreadyExists() throws Exception {
+		when(scheduleService.createSchedule(eq("daily-customers"), eq("customer-load"), eq("0 0 * * *"), eq("UTC"), eq(true), eq("daily")))
+				.thenThrow(new IllegalStateException("duplicate schedule"));
+
+		mockMvc.perform(post("/api/v1/schedules")
+						.contentType("application/json")
+						.content("{\"scheduleKey\":\"daily-customers\",\"selectedJobKey\":\"customer-load\",\"expression\":\"0 0 * * *\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"daily\"}"))
+				.andExpect(status().isConflict());
 	}
 
 	@Test

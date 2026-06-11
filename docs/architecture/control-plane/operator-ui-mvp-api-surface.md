@@ -13,7 +13,8 @@ It exists to freeze a small, explicit backend contract for UI delivery without c
 - Implemented now: `GET /api/v1/jobs`, `GET /api/v1/jobs/{jobKey}`, `GET /api/v1/jobs/{jobKey}/config`, `POST /api/v1/jobs/{jobKey}:trigger-now`, `GET /api/v1/jobs/{jobKey}/trigger-events`, `GET /api/v1/runs`, `GET /api/v1/runs/{jobExecutionId}`, `GET /api/v1/runs/{jobExecutionId}/recovery`, `GET /api/v1/runs/{jobExecutionId}/detail`, `GET /api/v1/runs/{jobExecutionId}/log`, `GET /api/v1/schedules`, `GET /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules`, `PUT /api/v1/schedules/{scheduleId}`, `POST /api/v1/schedules/{scheduleId}:enable`, `POST /api/v1/schedules/{scheduleId}:disable`, `POST /api/v1/schedules/{scheduleId}:pause`, `POST /api/v1/schedules/{scheduleId}:resume`, `GET /api/v1/schedules/{scheduleId}/trigger-events`, `GET /api/v1/system/health`, and `GET /api/v1/system/info`.
 - Trigger-event history now persists in the control-plane JDBC store when `controlplane.triggers.persistence.mode=jdbc` (control-plane profile default), with memory mode still available as a fallback.
 - Trigger-event persistence mode switches are startup-guarded: when the prior marker mode differs from the current configured mode (`jdbc` <-> `memory`), startup fails fast unless `controlplane.triggers.persistence.allow-mode-switch=true` is set intentionally.
-- Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default), while `/runs/{jobExecutionId}/detail` remains log-projected.
+- Run-summary history for `/runs` and `/runs/{jobExecutionId}` now persists in the control-plane JDBC store when `controlplane.runs.persistence.mode=jdbc` (control-plane profile default).
+- `GET /api/v1/runs/{jobExecutionId}/detail` now returns the canonical reconciled run-detail payload by merging persisted step/artifact projections with scenario-log evidence server-side (persisted non-null values win; log-derived values fill gaps).
 - Schedule persistence foundation now exists internally in the control-plane JDBC store when `controlplane.schedules.persistence.mode=jdbc` (control-plane profile default).
 - Schedule trigger-event history now resolves by `scheduleId` in the trigger registry.
 - Optional scheduler tick evaluation can now record schedule-origin trigger events when `controlplane.scheduler.enabled=true`; default remains disabled for explicit opt-in.
@@ -455,6 +456,15 @@ Current evidence sources for this route:
 - `RUN_SUMMARY` for run-level counts and timestamps
 - `STEP_EVENT event=step_started|step_finished` for ordered step outcomes and artifact paths
 - `JOB_FAILURE event=job_failure` for failure categorization
+- persisted control-plane `step_record`/`artifact_record` projections for additive reconciliation when available
+
+Current reconciliation semantics for this route:
+
+- `/runs/{jobExecutionId}/detail` is the canonical operator payload for run drill-down
+- persisted non-null step counts/status/timestamps are preferred when present
+- log-derived values remain as fallback and are never overwritten by null/blank persisted fields
+- when log-derived step evidence exists, only matching persisted step/artifact rows for that same step set are reconciled into the payload
+- persisted-only steps remain a fallback only when log detail is unavailable or the run has no parsed step evidence
 
 Evidence-link anchor contract for this route:
 

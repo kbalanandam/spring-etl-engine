@@ -1,0 +1,63 @@
+name: Scripts Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - scripts/**
+      - .github/workflows/scripts-tests.yml
+  push:
+    branches:
+      - master
+    paths:
+      - scripts/**
+      - .github/workflows/scripts-tests.yml
+
+concurrency:
+  group: scripts-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  scripts-python-tests:
+    name: Scripts Python tests (Ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run scripts test discovery
+        run: python -m unittest discover -s scripts/tests -p "test_*.py"
+
+  verify-recent-changes-timeout:
+    name: Verify smoke timeout exit handling (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run timeout-focused script test
+        run: python -m unittest scripts.tests.test_verify_recent_changes_timeout
+
