@@ -108,6 +108,19 @@ class ScheduleControllerTest {
 	}
 
 	@Test
+	void returnsSafeInternalErrorPayloadForUnexpectedRuntimeFailure() throws Exception {
+		when(scheduleService.createSchedule(eq("daily-customers"), eq("customer-load"), eq("0 0 * * *"), eq("UTC"), eq(true), eq("daily")))
+				.thenThrow(new RuntimeException("database down"));
+
+		mockMvc.perform(post("/api/v1/schedules")
+						.contentType("application/json")
+						.content("{\"scheduleKey\":\"daily-customers\",\"selectedJobKey\":\"customer-load\",\"expression\":\"0 0 * * *\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"daily\"}"))
+				.andExpect(status().isInternalServerError())
+				.andExpect(jsonPath("$.reason").value("internal_error"))
+				.andExpect(jsonPath("$.message").value("Unexpected schedule API error."));
+	}
+
+	@Test
 	void returnsConflictWhenCreateScheduleAlreadyExists() throws Exception {
 		when(scheduleService.createSchedule(eq("daily-customers"), eq("customer-load"), eq("0 0 * * *"), eq("UTC"), eq(true), eq("daily")))
 				.thenThrow(new IllegalStateException("duplicate schedule"));
