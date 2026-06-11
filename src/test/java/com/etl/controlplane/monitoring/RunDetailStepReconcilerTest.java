@@ -81,6 +81,60 @@ class RunDetailStepReconcilerTest {
         assertEquals(2, result.get(1).sequence());
     }
 
+    @Test
+    void keepsDetailStepUnchangedWhenNoPersistedMatchExists() {
+        StubRunSummaryRegistry registry = new StubRunSummaryRegistry();
+        registry.stepRecords = List.of(
+                new RunStepRecordView("sr-700-1", "rr-700", "customers-step", "COMPLETED",
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:02"),
+                        1L, 3L, 3L, 0L, 0L, 0L, 0L)
+        );
+        RunDetailStepReconciler reconciler = new RunDetailStepReconciler(registry);
+
+        List<StepRecordView> detailSteps = List.of(
+                new StepRecordView("normalize-orders", 1, "FAILED", 801L,
+                        10L, 8L, 0L, 0L, 0L, 2L,
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:05"),
+                        "normalize-orders-subflow", "Normalize orders")
+        );
+
+        List<StepRecordView> result = reconciler.reconcile(700L, detailSteps);
+
+        assertEquals(1, result.size());
+        assertEquals("normalize-orders", result.get(0).stepName());
+        assertEquals("FAILED", result.get(0).status());
+        assertEquals(10L, result.get(0).readCount());
+        assertEquals(2L, result.get(0).rejectedCount());
+    }
+
+    @Test
+    void retainsDetailReadCountWhenPersistedReadCountIsNull() {
+        StubRunSummaryRegistry registry = new StubRunSummaryRegistry();
+        registry.stepRecords = List.of(
+                new RunStepRecordView("sr-800-1", "rr-800", "normalize-orders", "COMPLETED",
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:05"),
+                        4L, null, 12L, 0L, 0L, 0L, 0L)
+        );
+        RunDetailStepReconciler reconciler = new RunDetailStepReconciler(registry);
+
+        List<StepRecordView> detailSteps = List.of(
+                new StepRecordView("normalize-orders", 1, "FAILED", 801L,
+                        10L, 8L, 0L, 0L, 0L, 2L,
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:05"),
+                        "normalize-orders-subflow", "Normalize orders")
+        );
+
+        List<StepRecordView> result = reconciler.reconcile(800L, detailSteps);
+
+        assertEquals(1, result.size());
+        assertEquals(10L, result.get(0).readCount());
+        assertEquals(12L, result.get(0).writeCount());
+    }
+
     private static final class StubRunSummaryRegistry implements RunSummaryRegistry {
         private List<RunStepRecordView> stepRecords = List.of();
 

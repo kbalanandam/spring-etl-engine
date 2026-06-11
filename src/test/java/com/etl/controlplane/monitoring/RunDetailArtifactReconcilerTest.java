@@ -82,6 +82,65 @@ class RunDetailArtifactReconcilerTest {
         assertEquals("output/rejects/tags.csv", result.get(0).pathOrUri());
     }
 
+    @Test
+    void skipsPersistedRejectArtifactWithMissingStepLinkWhenDetailArtifactsExist() {
+        StubRunSummaryRegistry registry = new StubRunSummaryRegistry();
+        registry.stepRecords = List.of(
+                new RunStepRecordView("sr-707-1", "rr-707", "nested-tag-validation-csv-step", "COMPLETED",
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:05"),
+                        4L, 36616L, 36583L, 33L, 0L, 0L, 0L)
+        );
+        registry.artifactRecords = List.of(
+                new RunArtifactRecordView("ar-reject-707", "rr-707", null, "STEP_REJECT_OUTPUT",
+                        "output/rejects/missing-step.csv", LocalDateTime.parse("2026-05-27T10:00:05"))
+        );
+        RunDetailArtifactReconciler reconciler = new RunDetailArtifactReconciler(registry);
+
+        List<StepRecordView> mergedSteps = List.of(
+                new StepRecordView("nested-tag-validation-csv-step", 1, "COMPLETED", 1001L,
+                        36616L, 36583L, 33L, 0L, 0L, 33L, null, null, null, null)
+        );
+        List<ArtifactRecordView> detailArtifacts = List.of(
+                new ArtifactRecordView("reject-1001", "reject-output", "Rejected records for nested-tag-validation-csv-step",
+                        "output/rejects/tags.csv", LocalDateTime.parse("2026-05-27T10:00:05"), 33L,
+                        "nested-tag-validation-csv-step")
+        );
+
+        List<ArtifactRecordView> result = reconciler.reconcile(707L, detailArtifacts, mergedSteps);
+
+        assertEquals(1, result.size());
+        assertEquals("output/rejects/tags.csv", result.get(0).pathOrUri());
+    }
+
+    @Test
+    void keepsRejectArtifactWhenMergedStepRejectedCountIsNull() {
+        StubRunSummaryRegistry registry = new StubRunSummaryRegistry();
+        registry.stepRecords = List.of(
+                new RunStepRecordView("sr-808-1", "rr-808", "nested-tag-validation-csv-step", "COMPLETED",
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:05"),
+                        4L, 36616L, 36583L, 33L, 0L, 0L, 0L)
+        );
+        registry.artifactRecords = List.of(
+                new RunArtifactRecordView("ar-reject-808", "rr-808", "sr-808-1", "STEP_REJECT_OUTPUT",
+                        "output/rejects/tags.csv", LocalDateTime.parse("2026-05-27T10:00:05"))
+        );
+        RunDetailArtifactReconciler reconciler = new RunDetailArtifactReconciler(registry);
+
+        List<StepRecordView> mergedSteps = List.of(
+                new StepRecordView("nested-tag-validation-csv-step", 1, "COMPLETED", 1001L,
+                        36616L, 36583L, 33L, 0L, 0L, null, null, null, null, null)
+        );
+
+        List<ArtifactRecordView> result = reconciler.reconcile(808L, List.of(), mergedSteps);
+
+        assertEquals(1, result.size());
+        assertEquals("reject-output", result.get(0).role());
+        assertEquals("output/rejects/tags.csv", result.get(0).pathOrUri());
+        assertEquals(null, result.get(0).recordCount());
+    }
+
     private static final class StubRunSummaryRegistry implements RunSummaryRegistry {
         private List<RunStepRecordView> stepRecords = List.of();
         private List<RunArtifactRecordView> artifactRecords = List.of();
