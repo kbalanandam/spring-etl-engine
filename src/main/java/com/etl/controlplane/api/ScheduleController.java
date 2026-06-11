@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Clock;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/schedules")
@@ -39,7 +40,7 @@ public class ScheduleController {
 
 	@GetMapping
 	public ScheduleListResponse listSchedules(@RequestParam(name = "limit", required = false) Integer limit) {
-		int effectiveLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
+		int effectiveLimit = clampLimit(limit, DEFAULT_LIMIT, MAX_LIMIT);
 		var schedules = scheduleService.list(effectiveLimit).stream().map(this::toResponse).toList();
 		return new ScheduleListResponse(schedules, 0, effectiveLimit, schedules.size());
 	}
@@ -54,9 +55,7 @@ public class ScheduleController {
 	@GetMapping("/{scheduleId}/trigger-events")
 	public ResponseEntity<TriggerEventListResponse> scheduleTriggerEvents(@PathVariable String scheduleId,
 	                                                                     @RequestParam(name = "limit", required = false) Integer limit) {
-		int effectiveLimit = limit == null
-				? DEFAULT_TRIGGER_EVENT_LIMIT
-				: Math.max(1, Math.min(limit, MAX_TRIGGER_EVENT_LIMIT));
+		int effectiveLimit = clampLimit(limit, DEFAULT_TRIGGER_EVENT_LIMIT, MAX_TRIGGER_EVENT_LIMIT);
 		return scheduleService.findByScheduleId(scheduleId)
 				.map(schedule -> {
 					var events = triggerEventRegistry.listByScheduleId(schedule.scheduleId(), effectiveLimit);
@@ -73,16 +72,16 @@ public class ScheduleController {
 					request.selectedJobKey(),
 					request.expression(),
 					request.timezone(),
-					request.enabled() == null || request.enabled(),
+					resolveEnabledDefault(request.enabled()),
 					request.description()
 			);
 			return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
 		} catch (IllegalStateException conflict) {
 			return ResponseEntity.status(HttpStatus.CONFLICT).build();
 		} catch (ScheduleValidationException invalid) {
-			return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse(invalid.reasonToken(), invalid.getMessage()));
+			return toBadRequest(invalid.reasonToken(), invalid.getMessage());
 		} catch (IllegalArgumentException invalid) {
-			return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse("invalid_schedule", invalid.getMessage()));
+			return toBadRequest("invalid_schedule", invalid.getMessage());
 		}
 	}
 
@@ -95,48 +94,58 @@ public class ScheduleController {
 					request.selectedJobKey(),
 					request.expression(),
 					request.timezone(),
-					request.enabled() == null || request.enabled(),
+					resolveEnabledDefault(request.enabled()),
 					request.description()
 			)
 					.map(schedule -> ResponseEntity.ok(toResponse(schedule)))
 					.orElseGet(() -> ResponseEntity.notFound().build());
 		} catch (ScheduleValidationException invalid) {
-			return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse(invalid.reasonToken(), invalid.getMessage()));
+			return toBadRequest(invalid.reasonToken(), invalid.getMessage());
 		} catch (IllegalArgumentException invalid) {
-			return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse("invalid_schedule", invalid.getMessage()));
+			return toBadRequest("invalid_schedule", invalid.getMessage());
 		}
 	}
 
 	@PostMapping("/{scheduleId}:enable")
 	public ResponseEntity<ScheduleStateChangeResponse> enable(@PathVariable String scheduleId) {
-		return scheduleService.enable(scheduleId)
-				.map(this::toStateResponse)
-				.map(ResponseEntity::ok)
-				.orElseGet(() -> ResponseEntity.notFound().build());
+		return applyStateChange(scheduleService.enable(scheduleId));
 	}
 
 	@PostMapping("/{scheduleId}:disable")
 	public ResponseEntity<ScheduleStateChangeResponse> disable(@PathVariable String scheduleId) {
-		return scheduleService.disable(scheduleId)
-				.map(this::toStateResponse)
-				.map(ResponseEntity::ok)
-				.orElseGet(() -> ResponseEntity.notFound().build());
+		return applyStateChange(scheduleService.disable(scheduleId));
 	}
 
 	@PostMapping("/{scheduleId}:pause")
 	public ResponseEntity<ScheduleStateChangeResponse> pause(@PathVariable String scheduleId) {
-		return scheduleService.pause(scheduleId)
+		return applyStateChange(scheduleService.pause(scheduleId));
+	}
+
+	@PostMapping("/{scheduleId}:resume")
+	public ResponseEntity<ScheduleStateChangeResponse> resume(@PathVariable String scheduleId) {
+		return applyStateChange(scheduleService.resume(scheduleId));
+	}
+
+	private boolean resolveEnabledDefault(Boolean enabled) {
+		return enabled == null || enabled;
+	}
+
+	private int clampLimit(Integer requestedLimit, int defaultLimit, int maxLimit) {
+		if (requestedLimit == null) {
+			return defaultLimit;
+		}
+		return Math.max(1, Math.min(requestedLimit, maxLimit));
+	}
+
+	private ResponseEntity<ScheduleStateChangeResponse> applyStateChange(Optional<ScheduleView> maybeSchedule) {
+		return maybeSchedule
 				.map(this::toStateResponse)
 				.map(ResponseEntity::ok)
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
 
-	@PostMapping("/{scheduleId}:resume")
-	public ResponseEntity<ScheduleStateChangeResponse> resume(@PathVariable String scheduleId) {
-		return scheduleService.resume(scheduleId)
-				.map(this::toStateResponse)
-				.map(ResponseEntity::ok)
-				.orElseGet(() -> ResponseEntity.notFound().build());
+	private ResponseEntity<ScheduleValidationErrorResponse> toBadRequest(String reason, String message) {
+		return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse(reason, message));
 	}
 
 	private ScheduleViewResponse toResponse(ScheduleView schedule) {
