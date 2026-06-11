@@ -387,6 +387,8 @@ When the selected source or target uses relational configuration, `ConfigLoader`
 
 For explicit `etl.config.job` runs, `ConfigLoader` also validates the selected processor config before it checks generated-model class availability for the selected steps. That ordering keeps malformed processor mappings or rule settings from being masked by unrelated missing generated classes and produces scenario-aware configuration failures earlier in startup.
 
+For unsupported processor `transforms[].type` or `rules[].type`, startup failures now include selected-run context (`scenario`, selected `processor-config.yaml` path, entity source/target mapping, field mapping, and source format) so operators can correct the exact processor declaration without inspecting unrelated startup logs first.
+
 This startup validation now enforces the post-cutover processor contract: selected-job processor configs must declare `type: default`. Blank or legacy/custom processor types fail fast during config load before step assembly reaches runtime processor creation.
 
 Demo fallback still validates the selected processor config, but it does not run the same selected-source and selected-target preflight validation path used by explicit-job startup.

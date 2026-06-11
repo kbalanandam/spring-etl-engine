@@ -3752,7 +3752,11 @@ class ConfigLoaderJobConfigTest {
     ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
     assertTrue(exception instanceof ProcessorExtensionBindingConfigException);
     assertTrue(exception.getMessage().contains("missingTransform"));
-    assertTrue(exception.getMessage().contains("source format csv"));
+    assertTrue(exception.getMessage().contains("scenario 'csv-missing-transform'"));
+    assertTrue(exception.getMessage().contains("processor-config.yaml"));
+    assertTrue(exception.getMessage().contains("entity=Events->EventsCsv"));
+    assertTrue(exception.getMessage().contains("field=id->id"));
+    assertTrue(exception.getMessage().contains("sourceFormat=csv"));
   }
 
   @Test
@@ -3811,7 +3815,11 @@ class ConfigLoaderJobConfigTest {
     ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
     assertTrue(exception instanceof ProcessorExtensionBindingConfigException);
     assertTrue(exception.getMessage().contains("missingRule"));
-    assertTrue(exception.getMessage().contains("source format csv"));
+    assertTrue(exception.getMessage().contains("scenario 'csv-missing-rule'"));
+    assertTrue(exception.getMessage().contains("processor-config.yaml"));
+    assertTrue(exception.getMessage().contains("entity=Events->EventsCsv"));
+    assertTrue(exception.getMessage().contains("field=id->id"));
+    assertTrue(exception.getMessage().contains("sourceFormat=csv"));
   }
 
   @Test
