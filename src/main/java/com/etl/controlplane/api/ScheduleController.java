@@ -1,10 +1,8 @@
 package com.etl.controlplane.api;
 
 import com.etl.controlplane.schedules.ScheduleService;
-import com.etl.controlplane.schedules.ScheduleValidationException;
 import com.etl.controlplane.schedules.ScheduleView;
 import com.etl.controlplane.triggers.TriggerEventRegistry;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -63,31 +61,22 @@ public class ScheduleController {
 	}
 
 	@PostMapping
-	public ResponseEntity<?> createSchedule(@RequestBody CreateScheduleRequest request) {
-		try {
-			ScheduleView created = scheduleService.createSchedule(
-					request.scheduleKey(),
-					request.selectedJobKey(),
-					request.expression(),
-					request.timezone(),
-					scheduleApiLimitPolicy.resolveEnabledDefault(request.enabled()),
-					request.description()
-			);
-			return ResponseEntity.status(HttpStatus.CREATED).body(scheduleResponseMapper.toViewResponse(created));
-		} catch (IllegalStateException conflict) {
-			return ResponseEntity.status(HttpStatus.CONFLICT).build();
-		} catch (ScheduleValidationException invalid) {
-			return toBadRequest(invalid.reasonToken(), invalid.getMessage());
-		} catch (IllegalArgumentException invalid) {
-			return toBadRequest("invalid_schedule", invalid.getMessage());
-		}
+	public ResponseEntity<ScheduleViewResponse> createSchedule(@RequestBody CreateScheduleRequest request) {
+		ScheduleView created = scheduleService.createSchedule(
+				request.scheduleKey(),
+				request.selectedJobKey(),
+				request.expression(),
+				request.timezone(),
+				scheduleApiLimitPolicy.resolveEnabledDefault(request.enabled()),
+				request.description()
+		);
+		return ResponseEntity.status(201).body(scheduleResponseMapper.toViewResponse(created));
 	}
 
 	@PutMapping("/{scheduleId}")
 	public ResponseEntity<?> updateSchedule(@PathVariable String scheduleId,
 	                                                          @RequestBody UpdateScheduleRequest request) {
-		try {
-			return scheduleService.updateSchedule(
+		return scheduleService.updateSchedule(
 					scheduleId,
 					request.selectedJobKey(),
 					request.expression(),
@@ -95,13 +84,8 @@ public class ScheduleController {
 					scheduleApiLimitPolicy.resolveEnabledDefault(request.enabled()),
 					request.description()
 			)
-					.map(schedule -> ResponseEntity.ok(scheduleResponseMapper.toViewResponse(schedule)))
-					.orElseGet(() -> ResponseEntity.notFound().build());
-		} catch (ScheduleValidationException invalid) {
-			return toBadRequest(invalid.reasonToken(), invalid.getMessage());
-		} catch (IllegalArgumentException invalid) {
-			return toBadRequest("invalid_schedule", invalid.getMessage());
-		}
+				.map(schedule -> ResponseEntity.ok(scheduleResponseMapper.toViewResponse(schedule)))
+				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
 
 	@PostMapping("/{scheduleId}:enable")
@@ -132,9 +116,6 @@ public class ScheduleController {
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
 
-	private ResponseEntity<ScheduleValidationErrorResponse> toBadRequest(String reason, String message) {
-		return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse(reason, message));
-	}
 
 }
 

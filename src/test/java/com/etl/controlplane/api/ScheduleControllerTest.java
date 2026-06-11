@@ -30,7 +30,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(ScheduleController.class)
 @AutoConfigureMockMvc
-@Import({ScheduleResponseMapper.class, ScheduleApiLimitPolicy.class})
+@Import({ScheduleResponseMapper.class, ScheduleApiLimitPolicy.class, ScheduleControllerAdvice.class})
 @TestPropertySource(properties = "spring.main.web-application-type=servlet")
 class ScheduleControllerTest {
 
@@ -105,6 +105,17 @@ class ScheduleControllerTest {
 						.content("{\"scheduleKey\":\"daily-customers\",\"selectedJobKey\":\"customer-load\",\"expression\":\"bad\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"daily\"}"))
 				.andExpect(status().isBadRequest())
 				.andExpect(jsonPath("$.reason").value("invalid_expression"));
+	}
+
+	@Test
+	void returnsConflictWhenCreateScheduleAlreadyExists() throws Exception {
+		when(scheduleService.createSchedule(eq("daily-customers"), eq("customer-load"), eq("0 0 * * *"), eq("UTC"), eq(true), eq("daily")))
+				.thenThrow(new IllegalStateException("duplicate schedule"));
+
+		mockMvc.perform(post("/api/v1/schedules")
+						.contentType("application/json")
+						.content("{\"scheduleKey\":\"daily-customers\",\"selectedJobKey\":\"customer-load\",\"expression\":\"0 0 * * *\",\"timezone\":\"UTC\",\"enabled\":true,\"description\":\"daily\"}"))
+				.andExpect(status().isConflict());
 	}
 
 	@Test
