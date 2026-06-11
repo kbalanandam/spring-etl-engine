@@ -1,8 +1,11 @@
 package com.etl.controlplane.api;
 
+import org.springframework.stereotype.Component;
+
 /**
  * Centralizes schedule API request-limit and enabled-default policies.
  */
+@Component
 final class ScheduleApiLimitPolicy {
 
     private static final int DEFAULT_LIMIT = 25;
@@ -29,4 +32,5 @@ final class ScheduleApiLimitPolicy {
         return Math.max(1, Math.min(requestedLimit, maxLimit));
     }
 }
+
 

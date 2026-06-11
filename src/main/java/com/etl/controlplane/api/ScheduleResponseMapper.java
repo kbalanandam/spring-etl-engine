@@ -2,6 +2,7 @@ package com.etl.controlplane.api;
 
 import com.etl.controlplane.schedules.ScheduleExpressionSupport;
 import com.etl.controlplane.schedules.ScheduleView;
+import org.springframework.stereotype.Component;
 
 import java.time.Clock;
 import java.time.Instant;
@@ -9,9 +10,14 @@ import java.time.Instant;
 /**
  * Maps internal schedule projections to API response payloads.
  */
+@Component
 final class ScheduleResponseMapper {
 
     private final Clock responseClock;
+
+    ScheduleResponseMapper() {
+        this(Clock.systemUTC());
+    }
 
     ScheduleResponseMapper(Clock responseClock) {
         this.responseClock = responseClock;

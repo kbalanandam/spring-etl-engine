@@ -4,7 +4,6 @@ import com.etl.controlplane.schedules.ScheduleService;
 import com.etl.controlplane.schedules.ScheduleValidationException;
 import com.etl.controlplane.schedules.ScheduleView;
 import com.etl.controlplane.triggers.TriggerEventRegistry;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -16,33 +15,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.time.Clock;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/schedules")
 public class ScheduleController {
 
-	private static final Clock RESPONSE_CLOCK = Clock.systemUTC();
-
 	private final ScheduleService scheduleService;
 	private final TriggerEventRegistry triggerEventRegistry;
 	private final ScheduleResponseMapper scheduleResponseMapper;
 	private final ScheduleApiLimitPolicy scheduleApiLimitPolicy;
 
-	@Autowired
 	public ScheduleController(ScheduleService scheduleService,
-	                         TriggerEventRegistry triggerEventRegistry) {
-		this(
-				scheduleService,
-				triggerEventRegistry,
-				new ScheduleResponseMapper(RESPONSE_CLOCK),
-				new ScheduleApiLimitPolicy()
-		);
-	}
-
-	ScheduleController(ScheduleService scheduleService,
-	                   TriggerEventRegistry triggerEventRegistry,
+	                         TriggerEventRegistry triggerEventRegistry,
 	                   ScheduleResponseMapper scheduleResponseMapper,
 	                   ScheduleApiLimitPolicy scheduleApiLimitPolicy) {
 		this.scheduleService = scheduleService;
