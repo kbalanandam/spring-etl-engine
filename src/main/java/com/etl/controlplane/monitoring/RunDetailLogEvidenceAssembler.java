@@ -1,15 +1,12 @@
 package com.etl.controlplane.monitoring;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Stream;
 
 /**
  * Assembles run-detail evidence from structured scenario logs for one run instance.
@@ -34,15 +31,13 @@ final class RunDetailLogEvidenceAssembler {
         Integer jobFailureLine = null;
         int[] nextSequence = {1};
 
-        try (Stream<String> lines = Files.lines(logPath)) {
-            List<String> allLines = lines.toList();
-            for (int i = 0; i < allLines.size(); i++) {
-                String line = allLines.get(i);
-                Optional<StructuredLogEvent> maybeEvent = parser.parse(line, logPath, i + 1);
-                if (maybeEvent.isEmpty()) {
+        try {
+            List<StructuredScenarioLogScanner.ParsedScenarioLogLine> scanned = StructuredScenarioLogScanner.read(logPath, parser);
+            for (StructuredScenarioLogScanner.ParsedScenarioLogLine scannedLine : scanned) {
+                StructuredLogEvent event = scannedLine.event();
+                if (event == null) {
                     continue;
                 }
-                StructuredLogEvent event = maybeEvent.orElseThrow();
                 if (event.jobExecutionId() == null || event.jobExecutionId() != jobExecutionId) {
                     continue;
                 }
