@@ -141,6 +141,35 @@ class RunDetailArtifactReconcilerTest {
         assertEquals(null, result.get(0).recordCount());
     }
 
+    @Test
+    void prefersPersistedDuplicateWithStepLinkForSameRoleAndPath() {
+        StubRunSummaryRegistry registry = new StubRunSummaryRegistry();
+        registry.stepRecords = List.of(
+                new RunStepRecordView("sr-909-1", "rr-909", "nested-tag-validation-csv-step", "COMPLETED",
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:05"),
+                        4L, 36616L, 36583L, 33L, 0L, 0L, 0L)
+        );
+        registry.artifactRecords = List.of(
+                new RunArtifactRecordView("ar-reject-909-b", "rr-909", null, "STEP_REJECT_OUTPUT",
+                        "output/rejects/tags.csv", LocalDateTime.parse("2026-05-27T10:00:04")),
+                new RunArtifactRecordView("ar-reject-909-a", "rr-909", "sr-909-1", "STEP_REJECT_OUTPUT",
+                        "output/rejects/tags.csv", LocalDateTime.parse("2026-05-27T10:00:05"))
+        );
+        RunDetailArtifactReconciler reconciler = new RunDetailArtifactReconciler(registry);
+
+        List<StepRecordView> mergedSteps = List.of(
+                new StepRecordView("nested-tag-validation-csv-step", 1, "COMPLETED", 1001L,
+                        36616L, 36583L, 33L, 0L, 0L, 33L, null, null, null, null)
+        );
+
+        List<ArtifactRecordView> result = reconciler.reconcile(909L, List.of(), mergedSteps);
+
+        assertEquals(1, result.size());
+        assertEquals("nested-tag-validation-csv-step", result.get(0).stepName());
+        assertEquals(33L, result.get(0).recordCount());
+    }
+
     private static final class StubRunSummaryRegistry implements RunSummaryRegistry {
         private List<RunStepRecordView> stepRecords = List.of();
         private List<RunArtifactRecordView> artifactRecords = List.of();

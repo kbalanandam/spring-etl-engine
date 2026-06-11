@@ -30,7 +30,7 @@ final class RunDetailStepReconciler {
             if (stepKey.isBlank()) {
                 continue;
             }
-            persistedByName.putIfAbsent(stepKey, persisted);
+            persistedByName.merge(stepKey, persisted, this::choosePreferredPersistedRecord);
         }
 
         List<StepRecordView> merged = new ArrayList<>();
@@ -44,10 +44,69 @@ final class RunDetailStepReconciler {
         }
 
         int nextSequence = 1;
-        for (RunStepRecordView persisted : persistedItems) {
+        for (RunStepRecordView persisted : persistedByName.values()) {
             merged.add(mapPersistedStepRecord(persisted, nextSequence++));
         }
         return merged;
+    }
+
+    private RunStepRecordView choosePreferredPersistedRecord(RunStepRecordView first, RunStepRecordView second) {
+        int firstScore = persistedCompletenessScore(first);
+        int secondScore = persistedCompletenessScore(second);
+        if (secondScore > firstScore) {
+            return second;
+        }
+        if (firstScore > secondScore) {
+            return first;
+        }
+
+        LocalDateTime firstFinished = first.finishedAt();
+        LocalDateTime secondFinished = second.finishedAt();
+        if (secondFinished != null && (firstFinished == null || secondFinished.isAfter(firstFinished))) {
+            return second;
+        }
+        if (firstFinished != null && (secondFinished == null || firstFinished.isAfter(secondFinished))) {
+            return first;
+        }
+
+        String firstRecordId = firstNonBlank(first.stepRecordId());
+        String secondRecordId = firstNonBlank(second.stepRecordId());
+        if (!secondRecordId.isBlank() && (firstRecordId.isBlank() || secondRecordId.compareTo(firstRecordId) < 0)) {
+            return second;
+        }
+        return first;
+    }
+
+    private int persistedCompletenessScore(RunStepRecordView record) {
+        int score = 0;
+        if (!firstNonBlank(record.stepStatus()).isBlank()) {
+            score++;
+        }
+        if (record.readCount() != null) {
+            score++;
+        }
+        if (record.writeCount() != null) {
+            score++;
+        }
+        if (record.filterCount() != null) {
+            score++;
+        }
+        if (record.skipCount() != null) {
+            score++;
+        }
+        if (record.rollbackCount() != null) {
+            score++;
+        }
+        if (record.rejectedCount() != null) {
+            score++;
+        }
+        if (record.startedAt() != null) {
+            score++;
+        }
+        if (record.finishedAt() != null) {
+            score++;
+        }
+        return score;
     }
 
     private StepRecordView mergeStepRecord(StepRecordView detail, RunStepRecordView persisted) {

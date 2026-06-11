@@ -135,6 +135,57 @@ class RunDetailStepReconcilerTest {
         assertEquals(12L, result.get(0).writeCount());
     }
 
+    @Test
+    void prefersMostCompletePersistedRecordWhenStepNameAppearsMoreThanOnce() {
+        StubRunSummaryRegistry registry = new StubRunSummaryRegistry();
+        registry.stepRecords = List.of(
+                new RunStepRecordView("sr-dup-2", "rr-dup", "normalize-orders", "COMPLETED",
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:05"),
+                        4L, 12L, 12L, 0L, 0L, 0L, null),
+                new RunStepRecordView("sr-dup-1", "rr-dup", "normalize-orders", "COMPLETED",
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:05"),
+                        4L, 12L, 12L, 0L, 0L, 0L, 3L)
+        );
+        RunDetailStepReconciler reconciler = new RunDetailStepReconciler(registry);
+
+        List<StepRecordView> detailSteps = List.of(
+                new StepRecordView("normalize-orders", 1, "FAILED", 801L,
+                        10L, 8L, 0L, 0L, 0L, 2L,
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:05"),
+                        "normalize-orders-subflow", "Normalize orders")
+        );
+
+        List<StepRecordView> result = reconciler.reconcile(900L, detailSteps);
+
+        assertEquals(1, result.size());
+        assertEquals(3L, result.get(0).rejectedCount());
+    }
+
+    @Test
+    void deduplicatesPersistedOnlyViewWhenSameStepAppearsMoreThanOnce() {
+        StubRunSummaryRegistry registry = new StubRunSummaryRegistry();
+        registry.stepRecords = List.of(
+                new RunStepRecordView("sr-dup-2", "rr-dup", "customers-step", "COMPLETED",
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:02"),
+                        1L, 3L, 3L, 0L, 0L, 0L, 0L),
+                new RunStepRecordView("sr-dup-1", "rr-dup", "customers-step", "COMPLETED",
+                        LocalDateTime.parse("2026-05-27T10:00:01"),
+                        LocalDateTime.parse("2026-05-27T10:00:02"),
+                        1L, 3L, 3L, 0L, 0L, 0L, 1L)
+        );
+        RunDetailStepReconciler reconciler = new RunDetailStepReconciler(registry);
+
+        List<StepRecordView> result = reconciler.reconcile(901L, List.of());
+
+        assertEquals(1, result.size());
+        assertEquals("customers-step", result.get(0).stepName());
+        assertEquals(1L, result.get(0).rejectedCount());
+    }
+
     private static final class StubRunSummaryRegistry implements RunSummaryRegistry {
         private List<RunStepRecordView> stepRecords = List.of();
 
