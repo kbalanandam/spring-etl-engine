@@ -40,6 +40,8 @@
 		<tomcat.version>10.1.55</tomcat.version>
 		<!-- Pins SQLite JDBC above CVE-2025-6965 / CVE-2025-70873-affected versions. -->
 		<sqlite-jdbc.version>3.53.1.0</sqlite-jdbc.version>
+		<!-- Temporary override until the Spring Boot parent line advances with equivalent Spring CVE remediations. -->
+		<spring-framework.version>6.2.19</spring-framework.version>
 	</properties>
 	<dependencies>
 		<dependency>
