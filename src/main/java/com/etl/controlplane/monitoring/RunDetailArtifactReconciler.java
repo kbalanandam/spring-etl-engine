@@ -28,8 +28,11 @@ final class RunDetailArtifactReconciler {
         }
 
         Map<String, ArtifactRecordView> mergedByKey = new LinkedHashMap<>();
+        Set<String> detailKeys = new HashSet<>();
         for (ArtifactRecordView artifact : detailItems) {
-            mergedByKey.put(artifactKey(artifact.role(), artifact.pathOrUri()), artifact);
+            String key = artifactKey(artifact.role(), artifact.pathOrUri());
+            mergedByKey.put(key, artifact);
+            detailKeys.add(key);
         }
 
         Set<String> knownStepKeys = new HashSet<>();
@@ -72,6 +75,10 @@ final class RunDetailArtifactReconciler {
                 mergedByKey.put(key, mapped);
                 continue;
             }
+            if (!detailKeys.contains(key)) {
+                mergedByKey.put(key, choosePreferredPersistedArtifact(existing, mapped));
+                continue;
+            }
             mergedByKey.put(key, new ArtifactRecordView(
                     existing.artifactId(),
                     existing.role(),
@@ -84,6 +91,48 @@ final class RunDetailArtifactReconciler {
         }
 
         return List.copyOf(mergedByKey.values());
+    }
+
+    private ArtifactRecordView choosePreferredPersistedArtifact(ArtifactRecordView first,
+                                                                ArtifactRecordView second) {
+        int firstScore = artifactCompletenessScore(first);
+        int secondScore = artifactCompletenessScore(second);
+        ArtifactRecordView preferred = firstScore >= secondScore ? first : second;
+        ArtifactRecordView fallback = preferred == first ? second : first;
+
+        LocalDateTime preferredCreated = preferred.createdAt();
+        LocalDateTime fallbackCreated = fallback.createdAt();
+        if (fallbackCreated != null && (preferredCreated == null || fallbackCreated.isAfter(preferredCreated))) {
+            preferred = fallback;
+            fallback = preferred == first ? second : first;
+        }
+
+        return new ArtifactRecordView(
+                preferText(preferred.artifactId(), fallback.artifactId()),
+                preferText(preferred.role(), fallback.role()),
+                preferText(preferred.label(), fallback.label()),
+                preferText(preferred.pathOrUri(), fallback.pathOrUri()),
+                preferDateTime(preferred.createdAt(), fallback.createdAt()),
+                preferLong(preferred.recordCount(), fallback.recordCount()),
+                preferText(preferred.stepName(), fallback.stepName())
+        );
+    }
+
+    private int artifactCompletenessScore(ArtifactRecordView artifact) {
+        int score = 0;
+        if (!firstNonBlank(artifact.artifactId()).isBlank()) {
+            score++;
+        }
+        if (!firstNonBlank(artifact.stepName()).isBlank()) {
+            score++;
+        }
+        if (artifact.recordCount() != null) {
+            score++;
+        }
+        if (artifact.createdAt() != null) {
+            score++;
+        }
+        return score;
     }
 
     private Map<String, String> persistedStepNameByRecordId(long jobExecutionId) {
