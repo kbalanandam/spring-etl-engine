@@ -9,6 +9,7 @@ final class RuntimeConfigResolver {
 
     private final ConfigLoader configLoader;
     private volatile ConfigLoader.ResolvedRuntimeConfig cachedRuntimeConfig;
+    private volatile String cachedRuntimeConfigKey;
 
     RuntimeConfigResolver(ConfigLoader configLoader) {
         this.configLoader = configLoader;
@@ -16,13 +17,16 @@ final class RuntimeConfigResolver {
 
     ConfigLoader.ResolvedRuntimeConfig resolveRuntimeConfig() throws IOException {
         ConfigLoader.ResolvedRuntimeConfig existing = cachedRuntimeConfig;
-        if (existing != null) {
+        String currentKey = configLoader.runtimeConfigCacheKey();
+        if (existing != null && currentKey.equals(cachedRuntimeConfigKey)) {
             return existing;
         }
 
         synchronized (this) {
-            if (cachedRuntimeConfig == null) {
+            String synchronizedKey = configLoader.runtimeConfigCacheKey();
+            if (cachedRuntimeConfig == null || !synchronizedKey.equals(cachedRuntimeConfigKey)) {
                 cachedRuntimeConfig = buildRuntimeConfig();
+                cachedRuntimeConfigKey = synchronizedKey;
             }
             return cachedRuntimeConfig;
         }

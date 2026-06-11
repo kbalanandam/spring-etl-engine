@@ -118,6 +118,20 @@ public class ConfigLoader {
 		this.allowDemoFallback = properties.isAllowDemoFallback();
 	}
 
+	String runtimeConfigCacheKey() {
+		return String.join("|",
+			normalizeCacheToken(sourceConfigPath),
+			normalizeCacheToken(targetConfigPath),
+			normalizeCacheToken(processorConfigPath),
+			normalizeCacheToken(jobConfigPath),
+			Boolean.toString(allowDemoFallback)
+		);
+	}
+
+	private static String normalizeCacheToken(String value) {
+		return value == null ? "" : value.trim();
+	}
+
     @Bean(name = "sourceWrapper")
 	public SourceWrapper createSourceWrapper() {
 		try {
