@@ -3823,6 +3823,132 @@ class ConfigLoaderJobConfigTest {
   }
 
   @Test
+  void failsFastWhenCsvMappingUsesInvalidValueMapTransformConfig() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+      - format: csv
+        sourceName: Events
+        filePath: input/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+      - format: csv
+        targetName: EventsCsv
+        filePath: output/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+      - source: Events
+        target: EventsCsv
+        fields:
+        - from: id
+          to: id
+          transforms:
+          - type: valueMap
+      """);
+    Files.writeString(jobConfig, """
+      name: csv-invalid-valuemap-transform
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+      - name: events-step
+        source: Events
+        target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(exception instanceof ProcessorExtensionBindingConfigException);
+    assertTrue(exception.getMessage().contains("valueMap"));
+    assertTrue(exception.getMessage().contains("scenario 'csv-invalid-valuemap-transform'"));
+    assertTrue(exception.getMessage().contains("processor-config.yaml"));
+    assertTrue(exception.getMessage().contains("entity=Events->EventsCsv"));
+    assertTrue(exception.getMessage().contains("field=id->id"));
+    assertTrue(exception.getMessage().contains("sourceFormat=csv"));
+  }
+
+  @Test
+  void failsFastWhenCsvMappingUsesInvalidTimeFormatRuleConfig() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+      sources:
+      - format: csv
+        sourceName: Events
+        filePath: input/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(targetConfig, """
+      targets:
+      - format: csv
+        targetName: EventsCsv
+        filePath: output/events.csv
+        delimiter: ","
+        fields:
+        - name: id
+          type: String
+      """);
+    Files.writeString(processorConfig, """
+      type: default
+      mappings:
+      - source: Events
+        target: EventsCsv
+        fields:
+        - from: id
+          to: id
+          rules:
+          - type: timeFormat
+      """);
+    Files.writeString(jobConfig, """
+      name: csv-invalid-timeformat-rule
+      sourceConfigPath: source-config.yaml
+      targetConfigPath: target-config.yaml
+      processorConfigPath: processor-config.yaml
+      steps:
+      - name: events-step
+        source: Events
+        target: EventsCsv
+      """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ConfigException exception = assertThrows(ConfigException.class, loader::processorConfig);
+    assertTrue(exception instanceof ProcessorExtensionBindingConfigException);
+    assertTrue(exception.getMessage().contains("timeFormat"));
+    assertTrue(exception.getMessage().contains("scenario 'csv-invalid-timeformat-rule'"));
+    assertTrue(exception.getMessage().contains("processor-config.yaml"));
+    assertTrue(exception.getMessage().contains("entity=Events->EventsCsv"));
+    assertTrue(exception.getMessage().contains("field=id->id"));
+    assertTrue(exception.getMessage().contains("sourceFormat=csv"));
+  }
+
+  @Test
   void loadsProcessorConfigWhenExpressionTransformDefinesDerivedFieldWithoutSource() throws IOException {
     Path sourceConfig = tempDir.resolve("source-config.yaml");
     Path targetConfig = tempDir.resolve("target-config.yaml");

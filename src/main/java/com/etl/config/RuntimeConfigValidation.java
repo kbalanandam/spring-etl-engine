@@ -202,9 +202,9 @@ final class RuntimeConfigValidation {
             validateRuleFailureAction(config, entityMapping, fieldMapping, rule);
             try {
                 validationRuleEvaluator.validateConfiguration(entityMapping, fieldMapping, rule, sourceFormat);
-            } catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException | IllegalStateException e) {
                 String formatLabel = sourceFormat == null ? "unknown" : sourceFormat.getFormat();
-                throw new ProcessorExtensionBindingConfigException("Unsupported FieldMapping rule type '"
+                throw new ProcessorExtensionBindingConfigException("Invalid or unsupported FieldMapping rule type '"
                         + defaultName(rule.getType()) + "' in processor config for scenario '" + scenarioName
                         + "' (path='" + processorConfigPath + "', entity=" + entityLabel(entityMapping)
                         + ", field=" + fieldLabel(fieldMapping) + ", sourceFormat=" + formatLabel + "). "
@@ -233,9 +233,9 @@ final class RuntimeConfigValidation {
             ProcessorConfig.FieldTransform transform = fieldMapping.getTransforms().get(i);
             try {
                 transformEvaluator.validateConfiguration(entityMapping, fieldMapping, transform, sourceFormat);
-            } catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException | IllegalStateException e) {
                 String formatLabel = sourceFormat == null ? "unknown" : sourceFormat.getFormat();
-                throw new ProcessorExtensionBindingConfigException("Unsupported FieldMapping transform type '"
+                throw new ProcessorExtensionBindingConfigException("Invalid or unsupported FieldMapping transform type '"
                         + defaultName(transform.getType()) + "' in processor config for scenario '" + scenarioName
                         + "' (path='" + processorConfigPath + "', entity=" + entityLabel(entityMapping)
                         + ", field=" + fieldLabel(fieldMapping) + ", sourceFormat=" + formatLabel + "). "
