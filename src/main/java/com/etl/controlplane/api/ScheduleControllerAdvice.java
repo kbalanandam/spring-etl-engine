@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Centralizes ScheduleController exception-to-response mapping.
@@ -29,6 +30,15 @@ class ScheduleControllerAdvice {
     @ExceptionHandler(IllegalArgumentException.class)
     ResponseEntity<ScheduleValidationErrorResponse> handleInvalidSchedule(IllegalArgumentException invalid) {
         return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse("invalid_schedule", invalid.getMessage()));
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    ResponseEntity<ScheduleValidationErrorResponse> handleResponseStatus(ResponseStatusException statusException) {
+        String message = statusException.getReason() == null || statusException.getReason().isBlank()
+                ? "Request failed."
+                : statusException.getReason();
+        return ResponseEntity.status(statusException.getStatusCode())
+                .body(new ScheduleValidationErrorResponse("status_error", message));
     }
 
     @ExceptionHandler(Exception.class)
