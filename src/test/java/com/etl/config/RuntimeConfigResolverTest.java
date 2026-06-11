@@ -39,6 +39,48 @@ class RuntimeConfigResolverTest {
         assertEquals("scenario-2", second.scenarioName());
     }
 
+    @Test
+    void reusesCachedConfigWhenCacheKeyIsNull() throws IOException {
+        TestConfigLoader loader = new TestConfigLoader();
+        loader.cacheKey = null;
+        RuntimeConfigResolver resolver = new RuntimeConfigResolver(loader);
+
+        ConfigLoader.ResolvedRuntimeConfig first = resolver.resolveRuntimeConfig();
+        ConfigLoader.ResolvedRuntimeConfig second = resolver.resolveRuntimeConfig();
+
+        assertEquals(1, loader.buildCount);
+        assertEquals(first.scenarioName(), second.scenarioName());
+    }
+
+    @Test
+    void rebuildsConfigWhenCacheKeyTransitionsFromNullToBlank() throws IOException {
+        TestConfigLoader loader = new TestConfigLoader();
+        loader.cacheKey = null;
+        RuntimeConfigResolver resolver = new RuntimeConfigResolver(loader);
+
+        resolver.resolveRuntimeConfig();
+        loader.cacheKey = "";
+        resolver.resolveRuntimeConfig();
+
+        // Null keys are normalized to blank, so this transition should not rebuild.
+        assertEquals(1, loader.buildCount);
+    }
+
+    @Test
+    void rebuildsConfigWhenCacheKeyTransitionsFromBlankToValue() throws IOException {
+        TestConfigLoader loader = new TestConfigLoader();
+        loader.cacheKey = "";
+        RuntimeConfigResolver resolver = new RuntimeConfigResolver(loader);
+
+        ConfigLoader.ResolvedRuntimeConfig first = resolver.resolveRuntimeConfig();
+        loader.cacheKey = "explicit-job";
+        ConfigLoader.ResolvedRuntimeConfig second = resolver.resolveRuntimeConfig();
+
+        assertEquals(2, loader.buildCount);
+        assertEquals("scenario-1", first.scenarioName());
+        assertEquals("scenario-2", second.scenarioName());
+    }
+
     private static final class TestConfigLoader extends ConfigLoader {
         private String cacheKey = "";
         private int buildCount = 0;

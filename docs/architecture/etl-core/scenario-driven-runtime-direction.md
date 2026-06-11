@@ -65,6 +65,7 @@ This keeps property keys stable while reducing mutable field injection in core r
 The bridge runtime continues to split heavy config responsibilities away from `ConfigLoader` so it remains a bootstrap adapter instead of a long-term architecture center:
 
 - `RuntimeConfigResolver` owns selected runtime config cache/synchronization.
+- `RuntimeConfigResolver` now also guards against stale cache reuse by recomputing when the effective `etl.config.*` property key changes (source/target/processor/job paths and demo-fallback toggle).
 - `RuntimeConfigIO` owns selected-job path resolution and path normalization helpers.
 - `RuntimeConfigValidation` owns selected target + processor validation used during runtime-config assembly.
 - `RuntimeStepPolicyResolver` owns explicit step resolution plus skip/retry policy normalization for selected jobs.

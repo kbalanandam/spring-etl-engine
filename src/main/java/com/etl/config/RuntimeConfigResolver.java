@@ -1,6 +1,7 @@
 package com.etl.config;
 
 import java.io.IOException;
+import java.util.Objects;
 
 /**
  * Resolves and caches one selected runtime configuration per application lifecycle.
@@ -17,14 +18,14 @@ final class RuntimeConfigResolver {
 
     ConfigLoader.ResolvedRuntimeConfig resolveRuntimeConfig() throws IOException {
         ConfigLoader.ResolvedRuntimeConfig existing = cachedRuntimeConfig;
-        String currentKey = configLoader.runtimeConfigCacheKey();
-        if (existing != null && currentKey.equals(cachedRuntimeConfigKey)) {
+        String currentKey = normalizeCacheKey(configLoader.runtimeConfigCacheKey());
+        if (existing != null && Objects.equals(currentKey, cachedRuntimeConfigKey)) {
             return existing;
         }
 
         synchronized (this) {
-            String synchronizedKey = configLoader.runtimeConfigCacheKey();
-            if (cachedRuntimeConfig == null || !synchronizedKey.equals(cachedRuntimeConfigKey)) {
+            String synchronizedKey = normalizeCacheKey(configLoader.runtimeConfigCacheKey());
+            if (cachedRuntimeConfig == null || !Objects.equals(synchronizedKey, cachedRuntimeConfigKey)) {
                 cachedRuntimeConfig = buildRuntimeConfig();
                 cachedRuntimeConfigKey = synchronizedKey;
             }
@@ -38,6 +39,10 @@ final class RuntimeConfigResolver {
 
     private ConfigLoader.ResolvedRuntimeConfig buildRuntimeConfig() throws IOException {
         return configLoader.buildRuntimeConfigInternal();
+    }
+
+    private String normalizeCacheKey(String cacheKey) {
+        return cacheKey == null ? "" : cacheKey;
     }
 }
 
