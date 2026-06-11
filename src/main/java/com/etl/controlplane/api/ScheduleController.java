@@ -23,33 +23,37 @@ import java.util.Optional;
 @RequestMapping("/api/v1/schedules")
 public class ScheduleController {
 
-	private static final int DEFAULT_LIMIT = 25;
-	private static final int MAX_LIMIT = 200;
-	private static final int DEFAULT_TRIGGER_EVENT_LIMIT = 20;
-	private static final int MAX_TRIGGER_EVENT_LIMIT = 200;
 	private static final Clock RESPONSE_CLOCK = Clock.systemUTC();
 
 	private final ScheduleService scheduleService;
 	private final TriggerEventRegistry triggerEventRegistry;
 	private final ScheduleResponseMapper scheduleResponseMapper;
+	private final ScheduleApiLimitPolicy scheduleApiLimitPolicy;
 
 	@Autowired
 	public ScheduleController(ScheduleService scheduleService,
 	                         TriggerEventRegistry triggerEventRegistry) {
-		this(scheduleService, triggerEventRegistry, new ScheduleResponseMapper(RESPONSE_CLOCK));
+		this(
+				scheduleService,
+				triggerEventRegistry,
+				new ScheduleResponseMapper(RESPONSE_CLOCK),
+				new ScheduleApiLimitPolicy()
+		);
 	}
 
 	ScheduleController(ScheduleService scheduleService,
 	                   TriggerEventRegistry triggerEventRegistry,
-	                   ScheduleResponseMapper scheduleResponseMapper) {
+	                   ScheduleResponseMapper scheduleResponseMapper,
+	                   ScheduleApiLimitPolicy scheduleApiLimitPolicy) {
 		this.scheduleService = scheduleService;
 		this.triggerEventRegistry = triggerEventRegistry;
 		this.scheduleResponseMapper = scheduleResponseMapper;
+		this.scheduleApiLimitPolicy = scheduleApiLimitPolicy;
 	}
 
 	@GetMapping
 	public ScheduleListResponse listSchedules(@RequestParam(name = "limit", required = false) Integer limit) {
-		int effectiveLimit = clampLimit(limit, DEFAULT_LIMIT, MAX_LIMIT);
+		int effectiveLimit = scheduleApiLimitPolicy.scheduleLimit(limit);
 		var schedules = scheduleService.list(effectiveLimit).stream().map(scheduleResponseMapper::toViewResponse).toList();
 		return new ScheduleListResponse(schedules, 0, effectiveLimit, schedules.size());
 	}
@@ -64,7 +68,7 @@ public class ScheduleController {
 	@GetMapping("/{scheduleId}/trigger-events")
 	public ResponseEntity<TriggerEventListResponse> scheduleTriggerEvents(@PathVariable String scheduleId,
 	                                                                     @RequestParam(name = "limit", required = false) Integer limit) {
-		int effectiveLimit = clampLimit(limit, DEFAULT_TRIGGER_EVENT_LIMIT, MAX_TRIGGER_EVENT_LIMIT);
+		int effectiveLimit = scheduleApiLimitPolicy.triggerEventLimit(limit);
 		return scheduleService.findByScheduleId(scheduleId)
 				.map(schedule -> {
 					var events = triggerEventRegistry.listByScheduleId(schedule.scheduleId(), effectiveLimit);
@@ -81,7 +85,7 @@ public class ScheduleController {
 					request.selectedJobKey(),
 					request.expression(),
 					request.timezone(),
-					resolveEnabledDefault(request.enabled()),
+					scheduleApiLimitPolicy.resolveEnabledDefault(request.enabled()),
 					request.description()
 			);
 			return ResponseEntity.status(HttpStatus.CREATED).body(scheduleResponseMapper.toViewResponse(created));
@@ -103,7 +107,7 @@ public class ScheduleController {
 					request.selectedJobKey(),
 					request.expression(),
 					request.timezone(),
-					resolveEnabledDefault(request.enabled()),
+					scheduleApiLimitPolicy.resolveEnabledDefault(request.enabled()),
 					request.description()
 			)
 					.map(schedule -> ResponseEntity.ok(scheduleResponseMapper.toViewResponse(schedule)))
@@ -135,16 +139,6 @@ public class ScheduleController {
 		return applyStateChange(scheduleService.resume(scheduleId));
 	}
 
-	private boolean resolveEnabledDefault(Boolean enabled) {
-		return enabled == null || enabled;
-	}
-
-	private int clampLimit(Integer requestedLimit, int defaultLimit, int maxLimit) {
-		if (requestedLimit == null) {
-			return defaultLimit;
-		}
-		return Math.max(1, Math.min(requestedLimit, maxLimit));
-	}
 
 	private ResponseEntity<ScheduleStateChangeResponse> applyStateChange(Optional<ScheduleView> maybeSchedule) {
 		return maybeSchedule
