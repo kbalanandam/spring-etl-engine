@@ -91,8 +91,10 @@ final class RuntimeConfigValidation {
                     if (fieldMapping.getTo() == null || fieldMapping.getTo().isEmpty()) {
                         throw new IllegalStateException("FieldMapping missing 'to' in entity " + entityMapping.getSource());
                     }
-                    validateFieldTransforms(entityMapping, fieldMapping, sourceFormat);
-                    validateFieldRules(config, entityMapping, fieldMapping, sourceFormat);
+                    validateFieldTransforms(entityMapping, fieldMapping, sourceFormat,
+                            defaultName(scenarioName), resolvedProcessorConfigPath);
+                    validateFieldRules(config, entityMapping, fieldMapping, sourceFormat,
+                            defaultName(scenarioName), resolvedProcessorConfigPath);
                 }
             }
 
@@ -188,7 +190,9 @@ final class RuntimeConfigValidation {
     private void validateFieldRules(ProcessorConfig config,
                                     ProcessorConfig.EntityMapping entityMapping,
                                     ProcessorConfig.FieldMapping fieldMapping,
-                                    ModelFormat sourceFormat) {
+                                    ModelFormat sourceFormat,
+                                    String scenarioName,
+                                    String processorConfigPath) {
         if (fieldMapping.getRules() == null || fieldMapping.getRules().isEmpty()) {
             return;
         }
@@ -198,18 +202,24 @@ final class RuntimeConfigValidation {
             validateRuleFailureAction(config, entityMapping, fieldMapping, rule);
             try {
                 validationRuleEvaluator.validateConfiguration(entityMapping, fieldMapping, rule, sourceFormat);
-            } catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException | IllegalStateException e) {
                 String formatLabel = sourceFormat == null ? "unknown" : sourceFormat.getFormat();
-                throw new ProcessorExtensionBindingConfigException("FieldMapping rule '" + rule.getType() + "' for entity "
-                        + entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom()
-                        + "' is not supported for source format " + formatLabel + ".", e);
+                throw new ProcessorExtensionBindingConfigException("Invalid processor configuration for scenario '"
+                        + scenarioName + "' in " + processorConfigPath + ": Invalid or unsupported FieldMapping rule type '"
+                        + defaultName(rule.getType()) + "' in processor config for scenario '" + scenarioName
+                        + "' (path='" + processorConfigPath + "', entity=" + entityLabel(entityMapping)
+                        + ", field=" + fieldLabel(fieldMapping) + ", sourceFormat=" + formatLabel + "). "
+                        + "Use a supported processor rule type or add a ProcessorValidationRule extension provider. "
+                        + "Cause: " + e.getMessage(), e);
             }
         }
     }
 
     private void validateFieldTransforms(ProcessorConfig.EntityMapping entityMapping,
                                          ProcessorConfig.FieldMapping fieldMapping,
-                                         ModelFormat sourceFormat) {
+                                         ModelFormat sourceFormat,
+                                         String scenarioName,
+                                         String processorConfigPath) {
         if (fieldMapping.getTransforms() == null || fieldMapping.getTransforms().isEmpty()) {
             return;
         }
@@ -225,13 +235,29 @@ final class RuntimeConfigValidation {
             ProcessorConfig.FieldTransform transform = fieldMapping.getTransforms().get(i);
             try {
                 transformEvaluator.validateConfiguration(entityMapping, fieldMapping, transform, sourceFormat);
-            } catch (IllegalArgumentException e) {
+            } catch (IllegalArgumentException | IllegalStateException e) {
                 String formatLabel = sourceFormat == null ? "unknown" : sourceFormat.getFormat();
-                throw new ProcessorExtensionBindingConfigException("FieldMapping transform '" + transform.getType() + "' for entity "
-                        + entityMapping.getSource() + " -> " + entityMapping.getTarget() + " field '" + fieldMapping.getFrom()
-                        + "' is not supported for source format " + formatLabel + ".", e);
+                throw new ProcessorExtensionBindingConfigException("Invalid processor configuration for scenario '"
+                        + scenarioName + "' in " + processorConfigPath + ": Invalid or unsupported FieldMapping transform type '"
+                        + defaultName(transform.getType()) + "' in processor config for scenario '" + scenarioName
+                        + "' (path='" + processorConfigPath + "', entity=" + entityLabel(entityMapping)
+                        + ", field=" + fieldLabel(fieldMapping) + ", sourceFormat=" + formatLabel + "). "
+                        + "Use a supported processor transform type or add a ProcessorFieldTransform extension provider. "
+                        + "Cause: " + e.getMessage(), e);
             }
         }
+    }
+
+    private static String entityLabel(ProcessorConfig.EntityMapping entityMapping) {
+        return defaultName(entityMapping == null ? null : entityMapping.getSource())
+                + "->"
+                + defaultName(entityMapping == null ? null : entityMapping.getTarget());
+    }
+
+    private static String fieldLabel(ProcessorConfig.FieldMapping fieldMapping) {
+        String from = defaultName(fieldMapping == null ? null : fieldMapping.getFrom());
+        String to = defaultName(fieldMapping == null ? null : fieldMapping.getTo());
+        return from + "->" + to;
     }
 
     private static boolean allowsDerivedFieldWithoutSource(ProcessorConfig.FieldMapping fieldMapping) {

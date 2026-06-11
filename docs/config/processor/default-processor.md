@@ -342,6 +342,7 @@ mappings:
 - If `rejectHandling.enabled=true`, `rejectHandling.outputPath` is required and must be a directory-style path.
 - Explicit scenario runs validate processor mappings, transforms, and rules during startup.
 - Processor-config problems are surfaced before unrelated generated-model validation issues, with scenario-aware failure context for the selected run.
+- Unsupported `transforms[].type` / `rules[].type` and invalid known-type declarations now fail fast with operator-facing context that includes scenario name, `processor-config.yaml` path, source-target entity mapping, field mapping, and source format.
 
 ### Duplicate handling
 
