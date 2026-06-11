@@ -1,10 +1,10 @@
 package com.etl.controlplane.api;
 
 import com.etl.controlplane.schedules.ScheduleService;
-import com.etl.controlplane.schedules.ScheduleExpressionSupport;
 import com.etl.controlplane.schedules.ScheduleValidationException;
 import com.etl.controlplane.schedules.ScheduleView;
 import com.etl.controlplane.triggers.TriggerEventRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,24 +31,33 @@ public class ScheduleController {
 
 	private final ScheduleService scheduleService;
 	private final TriggerEventRegistry triggerEventRegistry;
+	private final ScheduleResponseMapper scheduleResponseMapper;
 
+	@Autowired
 	public ScheduleController(ScheduleService scheduleService,
 	                         TriggerEventRegistry triggerEventRegistry) {
+		this(scheduleService, triggerEventRegistry, new ScheduleResponseMapper(RESPONSE_CLOCK));
+	}
+
+	ScheduleController(ScheduleService scheduleService,
+	                   TriggerEventRegistry triggerEventRegistry,
+	                   ScheduleResponseMapper scheduleResponseMapper) {
 		this.scheduleService = scheduleService;
 		this.triggerEventRegistry = triggerEventRegistry;
+		this.scheduleResponseMapper = scheduleResponseMapper;
 	}
 
 	@GetMapping
 	public ScheduleListResponse listSchedules(@RequestParam(name = "limit", required = false) Integer limit) {
 		int effectiveLimit = clampLimit(limit, DEFAULT_LIMIT, MAX_LIMIT);
-		var schedules = scheduleService.list(effectiveLimit).stream().map(this::toResponse).toList();
+		var schedules = scheduleService.list(effectiveLimit).stream().map(scheduleResponseMapper::toViewResponse).toList();
 		return new ScheduleListResponse(schedules, 0, effectiveLimit, schedules.size());
 	}
 
 	@GetMapping("/{scheduleId}")
 	public ResponseEntity<ScheduleViewResponse> getSchedule(@PathVariable String scheduleId) {
 		return scheduleService.findByScheduleId(scheduleId)
-				.map(schedule -> ResponseEntity.ok(toResponse(schedule)))
+				.map(schedule -> ResponseEntity.ok(scheduleResponseMapper.toViewResponse(schedule)))
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
 
@@ -75,7 +84,7 @@ public class ScheduleController {
 					resolveEnabledDefault(request.enabled()),
 					request.description()
 			);
-			return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(created));
+			return ResponseEntity.status(HttpStatus.CREATED).body(scheduleResponseMapper.toViewResponse(created));
 		} catch (IllegalStateException conflict) {
 			return ResponseEntity.status(HttpStatus.CONFLICT).build();
 		} catch (ScheduleValidationException invalid) {
@@ -97,7 +106,7 @@ public class ScheduleController {
 					resolveEnabledDefault(request.enabled()),
 					request.description()
 			)
-					.map(schedule -> ResponseEntity.ok(toResponse(schedule)))
+					.map(schedule -> ResponseEntity.ok(scheduleResponseMapper.toViewResponse(schedule)))
 					.orElseGet(() -> ResponseEntity.notFound().build());
 		} catch (ScheduleValidationException invalid) {
 			return toBadRequest(invalid.reasonToken(), invalid.getMessage());
@@ -139,7 +148,7 @@ public class ScheduleController {
 
 	private ResponseEntity<ScheduleStateChangeResponse> applyStateChange(Optional<ScheduleView> maybeSchedule) {
 		return maybeSchedule
-				.map(this::toStateResponse)
+				.map(scheduleResponseMapper::toStateChangeResponse)
 				.map(ResponseEntity::ok)
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
@@ -148,42 +157,6 @@ public class ScheduleController {
 		return ResponseEntity.badRequest().body(new ScheduleValidationErrorResponse(reason, message));
 	}
 
-	private ScheduleViewResponse toResponse(ScheduleView schedule) {
-		java.time.Instant nextDueAt = null;
-		try {
-			nextDueAt = ScheduleExpressionSupport.resolveNextDueAt(
-					schedule.expression(),
-					schedule.timezone(),
-					schedule.enabled(),
-					schedule.paused(),
-					RESPONSE_CLOCK
-			);
-		} catch (IllegalArgumentException ignored) {
-			// Keep existing persisted schedules readable even if authored expression/timezone is invalid.
-		}
-		return new ScheduleViewResponse(
-				schedule.scheduleId(),
-				schedule.scheduleKey(),
-				schedule.selectedJobKey(),
-				schedule.expression(),
-				schedule.timezone(),
-				schedule.enabled(),
-				schedule.paused(),
-				schedule.description(),
-				schedule.updatedAt(),
-				schedule.lastAcceptedDueAt(),
-				nextDueAt
-		);
-	}
-
-	private ScheduleStateChangeResponse toStateResponse(ScheduleView schedule) {
-		return new ScheduleStateChangeResponse(
-				schedule.scheduleId(),
-				schedule.enabled(),
-				schedule.paused(),
-				schedule.updatedAt()
-		);
-	}
 }
 
 
