@@ -824,6 +824,34 @@ Use this as the condensed near-term priority order:
 
 ---
 
+## 90-day execution plan (enterprise-grade by scaling current architecture)
+
+Use this week-by-week plan when the team wants a concrete 90-day lane against the current backlog and architecture boundaries.
+
+| Week | Focus items | PR slices | Go / No-Go |
+|---|---|---|---|
+| 1 | `A7`, `F1`, `S2` | `A7` pre-review artifact package; `F1` recovery-evidence gap closure; `S2` transition hardening prep | Go if `A7` review owners and checkpoints are scheduled |
+| 2 | `A7`, `F1`, `S2`, `U4` | `A7` runtime+scheduler+UI review artifacts; `F1` handoff consistency fixes; `U4` UI readiness gap PR | Go if `A7` review artifacts are approved and blockers are explicit |
+| 3 | `S2`, `U4`, `F1` | `S2` pause/resume API completion; `U4` schedule visibility + control wiring; focused regression suite update | Go if `S2`/`U4` acceptance tests pass and `F1` evidence remains green |
+| 4 | `U4`, `S2` | `U4` empty/error states + guardrail wording; scheduler evidence consistency hardening; docs/changelog sync | Go if `U4` and `S2` can move to Done without boundary drift |
+| 5 | `U5` | trigger-origin projection (`Manual`/`Schedule` baseline); schedule workbench route/actions; origin regression proof | Go if trigger-origin is deterministic end-to-end |
+| 6 | `R1`, `R2` | `R1` persistence-boundary freeze updates; `R2` datasource/dialect contract docs; startup validation harness | Go if persistence boundary remains optional and explicit |
+| 7 | `R2` | `R2` profile/dialect validation wiring; fallback behavior checks (control-plane on/off); config matrix tests | Go if `R2` matrix is green across declared profiles |
+| 8 | `R3` | `R3` entity/repository skeleton; adapter seam under existing read models; parity tests | Go if external IDs and read-model contract stay stable |
+| 9 | `R3`, `R4` | `R3` parity completion; `R4` migration baseline scripts; migration dry-run verification | Go if `R3` parity evidence is complete |
+| 10 | `R4`, `R5` | `R4` vendor-delta migration hardening; `R5` automated parity lanes; engine-specific runbook notes | Go if migrations are deterministic and repeatable |
+| 11 | `R5` | `R5` control-plane-disabled fallback proof; parity evidence publication; release-readiness portability summary | Go if parity + fallback evidence is signed off |
+| 12 | `V3`, `V4`, `G1` | `V3` HTML report renderer from shared evidence model; `V4` provenance/retention/gating policy freeze; `G1` first secure secret-injection slice | Go if shared evidence model is preserved and secret failure paths are explicit |
+
+Execution guardrails for this plan:
+
+- keep no more than two major `In Progress` items per lane at once
+- do not start `R3` before `R1` and `R2` acceptance gates are complete
+- treat `A7` review completion as a hard gate before broader custom-step implementation
+- keep scheduler/control-plane optionality intact; direct selected-job ETL execution remains supported in every phase
+
+---
+
 ## What "Enterprise Grade" Means Here
 
 For this product, "enterprise grade" should mean:
