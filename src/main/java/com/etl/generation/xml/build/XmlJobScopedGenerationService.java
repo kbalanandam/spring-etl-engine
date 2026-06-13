@@ -110,13 +110,14 @@ public class XmlJobScopedGenerationService {
         TargetWrapper targetWrapper = yamlMapper.readValue(targetYaml, TargetWrapper.class);
         applyJobScopedPackageDefaults(sourceWrapper, targetWrapper, jobName);
         List<JobConfig.JobStepConfig> steps = requireSteps(jobConfig);
-        SelectedJobNamingValidator.validate(jobName, sourceWrapper, targetWrapper, steps);
+        List<JobConfig.JobStepConfig> standardSteps = standardSteps(steps);
+        SelectedJobNamingValidator.validate(jobName, sourceWrapper, targetWrapper, standardSteps);
 
         Map<String, SourceConfig> sourcesByName = indexSources(sourceWrapper);
         Map<String, TargetConfig> targetsByName = indexTargets(targetWrapper);
         Set<String> selectedSourceNames = new LinkedHashSet<>();
         Set<String> selectedTargetNames = new LinkedHashSet<>();
-        for (JobConfig.JobStepConfig step : steps) {
+        for (JobConfig.JobStepConfig step : standardSteps) {
             String sourceName = requireNonBlank(step.getSource(), "Job step source");
             String targetName = requireNonBlank(step.getTarget(), "Job step target");
             if (!sourcesByName.containsKey(sourceName)) {
@@ -357,6 +358,16 @@ public class XmlJobScopedGenerationService {
             throw new IllegalStateException("Job config must define at least one step for XML generation.");
         }
         return jobConfig.getSteps();
+    }
+
+    private List<JobConfig.JobStepConfig> standardSteps(List<JobConfig.JobStepConfig> steps) {
+        if (steps == null || steps.isEmpty()) {
+            return List.of();
+        }
+        return steps.stream()
+                .filter(Objects::nonNull)
+                .filter(JobConfig.JobStepConfig::isStandardStep)
+                .toList();
     }
 
     private Map<String, SourceConfig> indexSources(SourceWrapper sourceWrapper) {

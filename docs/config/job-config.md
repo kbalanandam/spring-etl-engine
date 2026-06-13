@@ -29,8 +29,10 @@ Backed by:
 | `recoveryPolicy` | no | string | Optional selected-run restart policy evidence (`rerun-from-start` default). Short aliases are accepted in authored YAML (`rerun` -> `rerun-from-start`, `restart` -> `resume-from-checkpoint`), while runtime evidence remains canonical. `resume-from-checkpoint` is recognized but currently fails fast as unsupported in the shipped runtime |
 | `steps` | yes | list | Explicit ordered ETL steps for this run |
 | `steps[].name` | yes | string | Step name used for plan/logging/runtime identity |
-| `steps[].source` | yes | string | Must match a configured `sourceName` from the selected source config |
-| `steps[].target` | yes | string | Must match a configured `targetName` from the selected target config |
+| `steps[].kind` | no | string | Step discriminator. Omitted defaults to `standard`. Supported values in this slice: `standard`, `custom` |
+| `steps[].source` | conditional | string | Required for `kind: standard`; must match a configured `sourceName` from the selected source config |
+| `steps[].target` | conditional | string | Required for `kind: standard`; must match a configured `targetName` from the selected target config |
+| `steps[].custom.type` | conditional | string | Required for `kind: custom`; runtime binding key used to resolve a registered custom-step provider |
 | `steps[].skipPolicy.enabled` | no | boolean | Optional step-level B1 slice flag. When `true`, enables bounded skip behavior for supported CSV steps; runtime may override tasklet planning to chunk mode for this slice |
 | `steps[].skipPolicy.skipLimit` | conditional | int | Required positive integer when `steps[].skipPolicy.enabled: true` |
 | `steps[].skipPolicy.skippableCategories[]` | conditional | list[string] | Preferred when skip policy is enabled; each value must be a supported ETL error category (`config`, `validation`, `transformation`, `source-read`, `target-write`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
@@ -225,29 +227,21 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - Processor-config validation failures in explicit runs are surfaced with the selected scenario name and processor-config path so operators can identify the broken scenario bundle quickly.
 - Generated-model naming/package failures in explicit runs are surfaced as config errors with the selected scenario name, job-config path, and the failing `step` / `source` / `target` so support can narrow model-resolution issues quickly.
 
-## Planned enhancement: custom-step pairing with standard steps
-
-This is a future-direction enhancement, not a shipped runtime field set today.
+## Custom-step contract (A7 phase-1 slice)
 
 Tracked backlog item:
 
 - [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
 
-Design intent:
+Current first-slice behavior:
 
-- keep one explicit ordered `steps[]` contract
-- add bounded customer-owned `custom` steps before/after standard steps
-- allow controlled context handoff (for example `header.fileId`) from custom to standard steps
-- preserve one shared continuation/failure model across both step kinds
+- keep one explicit ordered `steps[]` contract; custom and standard steps run in authored order
+- `steps[].kind` is optional and defaults to `standard`
+- `kind: custom` requires `steps[].custom.type` and rejects `source`/`target`
+- `kind: standard` keeps existing `source`/`target` contract and rejects `custom`
+- custom-step runtime evidence is additive; standard-step evidence remains stable
 
-Backward-compatibility guardrails for the planned first slice:
-
-- `steps[].kind` stays optional; omission continues to mean `standard`
-- existing standard-only jobs require no config migration and keep current runtime semantics
-- existing standard step fields (`name`, `source`, `target`) stay unchanged for `kind: standard`
-- custom-step evidence is additive; existing standard-step evidence remains stable
-
-Conceptual example (future contract shape):
+Phase-1 example:
 
 ```yaml
 name: csv-to-relational-with-header-status
@@ -271,17 +265,13 @@ steps:
       type: headerFinalize
 ```
 
-In this planned shape, `custom.publish` maps custom-handler output fields to shared context keys consumed by downstream steps (for example `fileId -> header.fileId`).
-
-Planned preserved examples for this enhancement:
-
-- `src/main/resources/config-jobs/csv-to-relational-with-header-status/`
-- `src/main/resources/config-jobs/xml-to-csv-with-custom-run-audit/`
+`custom.publish`/`custom.consume`/`custom.onResult` fields are accepted as extension metadata in this slice but provider binding still keys on `custom.type` only.
 
 ## Validation / usage notes
 
 - Every `steps[].source` value must match a configured `sourceName` in the selected source config file.
 - Every `steps[].target` value must match a configured `targetName` in the selected target config file.
+- For `kind: custom` steps, do not set `source` or `target`; set `custom.type` instead.
 - If `isActive: false` is set on the selected explicit job, startup stops before downstream config resolution as a configuration failure rather than silently skipping execution.
 - In explicit job mode, selected source/target config files no longer support `packageName`. The runtime and build-time generation path derive package identity from the selected non-blank `job-config.yaml` name using a normalized lowercase alphanumeric segment.
 - Remove authored `packageName` from explicit bundles instead of trying to keep it aligned manually; selected-job startup now fails immediately when the property is present so naming cannot drift silently.

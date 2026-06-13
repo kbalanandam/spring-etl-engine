@@ -66,6 +66,9 @@ public class JobRuntimeDescriptorAssembler {
 		for (int i = 0; i < configuredSteps.size(); i++) {
 			JobConfig.JobStepConfig configuredStep = Objects.requireNonNull(configuredSteps.get(i), "configuredSteps entry must not be null.");
 			String stepName = requireNonBlank(configuredStep.getName(), "configuredSteps[" + i + "].name");
+			if (configuredStep.isCustomStep()) {
+				continue;
+			}
 			String sourceName = requireNonBlank(configuredStep.getSource(), "configuredSteps[" + i + "].source");
 			String targetName = requireNonBlank(configuredStep.getTarget(), "configuredSteps[" + i + "].target");
 			SourceConfig sourceConfig = required(sourcesByName.get(sourceName), "No source config found for step '" + stepName + "' and source '" + sourceName + "'.");
@@ -268,6 +271,9 @@ public class JobRuntimeDescriptorAssembler {
 		}
 		for (int i = currentIndex + 1; i < configuredSteps.size(); i++) {
 			JobConfig.JobStepConfig candidate = configuredSteps.get(i);
+			if (candidate != null && candidate.isCustomStep()) {
+				continue;
+			}
 			if (candidate != null && targetName.equals(candidate.getSource())) {
 				return true;
 			}

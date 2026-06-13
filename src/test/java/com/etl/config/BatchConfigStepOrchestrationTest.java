@@ -29,6 +29,9 @@ import com.etl.runtime.job.JobRecoveryPolicy;
 import com.etl.runtime.job.JobRunMode;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.runtime.job.JobRuntimeDescriptorAssembler;
+import com.etl.step.CustomStepHandler;
+import com.etl.step.CustomStepProvider;
+import com.etl.step.DynamicCustomStepFactory;
 import com.etl.writer.DynamicWriterFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -46,6 +49,7 @@ import org.springframework.retry.RetryListener;
 import org.springframework.retry.RetryPolicy;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.batch.repeat.RepeatStatus;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -176,6 +180,67 @@ class BatchConfigStepOrchestrationTest {
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, batchConfig::buildSteps);
         assertEquals("Step 'customers-step' does not have a matching processor mapping for source 'Customers' and target 'Customers'.", exception.getMessage());
+    }
+
+    @Test
+    void buildStepsInterleavesCustomAndStandardStepsByConfiguredOrder() throws Exception {
+        SourceWrapper sourceWrapper = new SourceWrapper();
+        sourceWrapper.setSources(List.of(
+                csvSource("Customers", tempCsv("customers.csv")),
+                csvSource("Department", tempCsv("departments.csv"))
+        ));
+
+        TargetWrapper targetWrapper = new TargetWrapper();
+        targetWrapper.setTargets(List.of(
+                xmlTarget("Customers", "Customer"),
+                xmlTarget("Departments", "Department")
+        ));
+
+        ProcessorConfig processorConfig = processorConfig(
+                mapping("Customers", "Customers"),
+                mapping("Department", "Departments")
+        );
+        List<JobConfig.JobStepConfig> configuredSteps = List.of(
+                step("customers-step", "Customers", "Customers"),
+                customStep("header-finalize", "headerFinalize"),
+                step("departments-step", "Department", "Departments")
+        );
+        ListAppender<ILoggingEvent> appender = attachAppender();
+
+        DynamicCustomStepFactory customStepFactory = new DynamicCustomStepFactory(List.of(new NoopCustomStepProvider("headerFinalize")));
+        BatchConfig batchConfig = new BatchConfig(
+                sourceWrapper,
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig,
+                targetWrapper,
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "custom-step-ordering",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "custom-step-ordering-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        configuredSteps
+                ),
+                null,
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory(),
+                customStepFactory,
+                new EtlBatchProperties()
+        );
+
+        List<Step> steps = batchConfig.buildSteps();
+
+        assertEquals(List.of("customers-step", "header-finalize", "departments-step"), steps.stream().map(Step::getName).toList());
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=step_ready")
+                && event.getFormattedMessage().contains("stepKind=custom")
+                && event.getFormattedMessage().contains("stepName=header-finalize")));
     }
 
     @Test
@@ -860,6 +925,35 @@ class BatchConfigStepOrchestrationTest {
         step.setSource(source);
         step.setTarget(target);
         return step;
+    }
+
+    private JobConfig.JobStepConfig customStep(String name, String customType) {
+        JobConfig.JobStepConfig step = new JobConfig.JobStepConfig();
+        step.setName(name);
+        step.setKind("custom");
+        JobConfig.CustomStepConfig custom = new JobConfig.CustomStepConfig();
+        custom.setType(customType);
+        step.setCustom(custom);
+        return step;
+    }
+
+    private static final class NoopCustomStepProvider implements CustomStepProvider {
+
+        private final String type;
+
+        private NoopCustomStepProvider(String type) {
+            this.type = type;
+        }
+
+        @Override
+        public String customType() {
+            return type;
+        }
+
+        @Override
+        public CustomStepHandler createHandler(JobConfig.CustomStepConfig config) {
+            return (contribution, chunkContext) -> RepeatStatus.FINISHED;
+        }
     }
 
     @SuppressWarnings("SameParameterValue")

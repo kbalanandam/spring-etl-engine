@@ -44,11 +44,51 @@ final class RuntimeStepPolicyResolver {
             }
 
             String stepName = requireNonBlank(configuredStep.getName(), "JobConfig.steps[" + i + "].name");
-            String sourceName = requireNonBlank(configuredStep.getSource(), "JobConfig.steps[" + i + "].source");
-            String targetName = requireNonBlank(configuredStep.getTarget(), "JobConfig.steps[" + i + "].target");
+            String stepKind = configuredStep.normalizedKind();
 
             if (!stepNames.add(stepName)) {
                 throw new ConfigException("JobConfig contains duplicate step name '" + stepName + "'. Step names must be unique.");
+            }
+
+            if (!"standard".equals(stepKind) && !"custom".equals(stepKind)) {
+                throw new ConfigException("JobConfig step '" + stepName + "' has unsupported kind '" + configuredStep.getKind()
+                        + "'. Supported values: standard, custom.");
+            }
+
+            JobConfig.JobStepConfig resolvedStep = new JobConfig.JobStepConfig();
+            resolvedStep.setName(stepName);
+            resolvedStep.setKind(stepKind);
+
+            if ("custom".equals(stepKind)) {
+                if (configuredStep.getCustom() == null) {
+                    throw new ConfigException("JobConfig step '" + stepName + "' with kind 'custom' must define steps[].custom.");
+                }
+                String customType = requireNonBlank(configuredStep.getCustom().getType(), "JobConfig step '" + stepName + "' custom.type");
+                if (hasText(configuredStep.getSource()) || hasText(configuredStep.getTarget())) {
+                    throw new ConfigException("JobConfig step '" + stepName + "' with kind 'custom' must not define source/target."
+                            + " Use standard steps for source-target mappings.");
+                }
+                if (configuredStep.getSkipPolicy() != null && configuredStep.getSkipPolicy().isEnabled()) {
+                    throw new ConfigException("JobConfig step '" + stepName + "' with kind 'custom' cannot enable skipPolicy in this slice.");
+                }
+                if (configuredStep.getRetryPolicy() != null && configuredStep.getRetryPolicy().isEnabled()) {
+                    throw new ConfigException("JobConfig step '" + stepName + "' with kind 'custom' cannot enable retryPolicy in this slice.");
+                }
+                JobConfig.CustomStepConfig customStepConfig = new JobConfig.CustomStepConfig();
+                customStepConfig.setType(customType);
+                customStepConfig.setPublish(configuredStep.getCustom().getPublish());
+                customStepConfig.setConsume(configuredStep.getCustom().getConsume());
+                customStepConfig.setOnResult(configuredStep.getCustom().getOnResult());
+                customStepConfig.setConfig(configuredStep.getCustom().getConfig());
+                resolvedStep.setCustom(customStepConfig);
+                resolvedSteps.add(resolvedStep);
+                continue;
+            }
+
+            String sourceName = requireNonBlank(configuredStep.getSource(), "JobConfig.steps[" + i + "].source");
+            String targetName = requireNonBlank(configuredStep.getTarget(), "JobConfig.steps[" + i + "].target");
+            if (configuredStep.getCustom() != null) {
+                throw new ConfigException("JobConfig step '" + stepName + "' with kind 'standard' must not define steps[].custom.");
             }
             if (!sourceNames.contains(sourceName)) {
                 throw new ConfigException("JobConfig step '" + stepName + "' references unknown source '" + sourceName + "'.");
@@ -72,8 +112,6 @@ final class RuntimeStepPolicyResolver {
                 throw new ConfigException("JobConfig step '" + stepName + "' configures both skipPolicy and retryPolicy. This B2 first slice does not support combining those modes.");
             }
 
-            JobConfig.JobStepConfig resolvedStep = new JobConfig.JobStepConfig();
-            resolvedStep.setName(stepName);
             resolvedStep.setSource(sourceName);
             resolvedStep.setTarget(targetName);
             resolvedStep.setSkipPolicy(normalizedSkipPolicy);
@@ -126,6 +164,10 @@ final class RuntimeStepPolicyResolver {
             throw new ConfigException("Missing required property '" + propertyName + "'.");
         }
         return value.trim();
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private static Map<String, SourceConfig> mapSourcesByName(SourceWrapper sourceWrapper) {

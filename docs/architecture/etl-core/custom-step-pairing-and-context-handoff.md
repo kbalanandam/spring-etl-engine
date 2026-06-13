@@ -6,8 +6,9 @@ Define a future-direction architecture contract that lets customer-owned custom 
 
 ## Status
 
-- Classification: **Future direction**
+- Classification: **Transition (phase-1 shipped)**
 - Backlog anchor: [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+- Shipped baseline: ordered `steps[]` now supports `kind: custom` with `custom.type` provider binding through `DynamicCustomStepFactory` while standard steps continue through existing reader/processor/writer factories
 
 ## Design goals
 
@@ -24,7 +25,7 @@ Define a future-direction architecture contract that lets customer-owned custom 
 
 ## Runtime model
 
-Conceptually, step resolution remains one path:
+Phase-1 shipped step resolution path:
 
 1. parse ordered `steps[]`
 2. for each step, resolve by `kind`
@@ -33,6 +34,13 @@ Conceptually, step resolution remains one path:
 3. build one ordered Spring Batch job from both step kinds
 
 This keeps custom and standard steps operationally equivalent at runtime (`Step` -> `Step` -> `Step`).
+
+Phase-1 constraints kept intentionally narrow:
+
+- `kind` omission defaults to `standard`
+- `kind: custom` rejects `source`/`target`, skip-policy, and retry-policy fields
+- provider conflicts resolve through shared `ExtensionConflictPolicy`
+- runtime descriptor generation may omit custom-only internals, but execution order still follows authored `steps[]`
 
 ## A7 Architecture Invariants
 

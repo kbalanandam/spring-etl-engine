@@ -37,6 +37,8 @@ import com.etl.runtime.job.JobStepModelDescriptor;
 import com.etl.runtime.job.JobSubFlowDescriptor;
 import com.etl.job.listener.FileIngestionHardeningStepListener;
 import com.etl.runtime.FileIngestionRuntimeSupport;
+import com.etl.step.CustomStepHandler;
+import com.etl.step.DynamicCustomStepFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
@@ -111,10 +113,11 @@ public class BatchConfig {
     private final JobCompletionNotificationListener listener;
     private final StepLoggingContextListener stepLoggingContextListener;
     private final ProcessorConfig processorConfig;
-      private final RunConfigurationMetadata runConfigurationMetadata;
-      private final JobRuntimeDescriptor jobRuntimeDescriptor;
+    private final RunConfigurationMetadata runConfigurationMetadata;
+    private final JobRuntimeDescriptor jobRuntimeDescriptor;
 	private final FileIngestionRuntimeSupport fileIngestionRuntimeSupport;
 	private final DuplicateResolverFactory duplicateResolverFactory;
+    private final DynamicCustomStepFactory customStepFactory;
 
     /**
      * The threshold for switching between chunk and tasklet processing.
@@ -146,6 +149,7 @@ public class BatchConfig {
                    JobRuntimeDescriptor jobRuntimeDescriptor,
              FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
               DuplicateResolverFactory duplicateResolverFactory,
+              DynamicCustomStepFactory customStepFactory,
               EtlBatchProperties etlBatchProperties) {
         this.sourceWrapper = sourceWrapper;
         this.readerFactory = readerFactory;
@@ -161,6 +165,7 @@ public class BatchConfig {
             this.jobRuntimeDescriptor = jobRuntimeDescriptor;
 		this.fileIngestionRuntimeSupport = fileIngestionRuntimeSupport;
     this.duplicateResolverFactory = duplicateResolverFactory;
+        this.customStepFactory = customStepFactory == null ? new DynamicCustomStepFactory(List.of()) : customStepFactory;
         this.chunkThreshold = Math.max(1, etlBatchProperties == null ? 10000 : etlBatchProperties.getThreshold());
 
         logger.info("EtlJobConfiguration initialized.");
@@ -190,6 +195,7 @@ public class BatchConfig {
                 jobRuntimeDescriptor,
                 fileIngestionRuntimeSupport,
                 duplicateResolverFactory,
+                null,
                 new EtlBatchProperties());
     }
 
@@ -216,6 +222,7 @@ public class BatchConfig {
         null,
         fileIngestionRuntimeSupport,
         duplicateResolverFactory,
+        null,
         new EtlBatchProperties());
   }
 
@@ -266,7 +273,7 @@ public class BatchConfig {
         List<TargetConfig> targets = targetWrapper.getTargets();
             List<JobConfig.JobStepConfig> configuredSteps = runConfigurationMetadata.steps();
             List<JobStepDescriptor> jobSteps = jobRuntimeDescriptor == null ? List.of() : jobRuntimeDescriptor.steps();
-            int resolvedStepCount = jobSteps.isEmpty() ? configuredSteps.size() : jobSteps.size();
+            int resolvedStepCount = configuredSteps.size();
 
         if (sources == null || sources.isEmpty()) {
             throw new IllegalStateException("No source configurations found.");
@@ -287,22 +294,35 @@ public class BatchConfig {
 
         Map<String, SourceConfig> sourceByName = mapSourcesByName(sources);
         Map<String, TargetConfig> targetByName = mapTargetsByName(targets);
+        Map<String, JobStepDescriptor> descriptorByStepName = new LinkedHashMap<>();
+        for (JobStepDescriptor jobStep : jobSteps) {
+            descriptorByStepName.put(jobStep.stepName(), jobStep);
+        }
 
                 for (int i = 0; i < resolvedStepCount; i++) {
-                  JobStepDescriptor jobStep = jobSteps.size() > i ? jobSteps.get(i) : null;
               JobConfig.JobStepConfig configuredStep = configuredSteps.size() > i ? configuredSteps.get(i) : null;
+              if (configuredStep == null) {
+                  throw new IllegalStateException("Encountered null configured step at index " + i + ".");
+              }
+              JobStepDescriptor jobStep = descriptorByStepName.get(configuredStep.getName());
+              String stepName = configuredStep.getName();
+              int stepOrder = jobStep == null ? i : jobStep.stepOrder();
+              JobSubFlowDescriptor stepSubFlow = jobStep == null ? null : JobHierarchyLoggingSupport.subFlowForStep(jobRuntimeDescriptor, stepName);
+              List<JobStepLinkDescriptor> inboundLinks = jobStep == null ? List.of() : JobHierarchyLoggingSupport.inboundLinks(jobRuntimeDescriptor, stepName);
+
+              if (configuredStep.isCustomStep()) {
+                  steps.add(buildCustomStep(configuredStep, stepName, stepSubFlow, inboundLinks));
+                  continue;
+              }
+
               SourceConfig s = jobStep == null ? requireSource(configuredStep, sourceByName) : jobStep.sourceConfig();
               TargetConfig t = jobStep == null ? requireTarget(configuredStep, targetByName) : jobStep.targetConfig();
               ProcessorConfig.EntityMapping mapping = jobStep == null ? requireProcessorMapping(configuredStep) : jobStep.processorMapping();
 
-              String stepName = jobStep == null ? configuredStep.getName() : jobStep.stepName();
-              int stepOrder = jobStep == null ? i : jobStep.stepOrder();
               String sourceName = jobStep == null ? configuredStep.getSource() : jobStep.sourceName();
               String targetName = jobStep == null ? configuredStep.getTarget() : jobStep.targetName();
                 JobConfig.SkipPolicyConfig configuredSkipPolicy = configuredStep == null ? null : configuredStep.getSkipPolicy();
                 JobConfig.RetryPolicyConfig configuredRetryPolicy = configuredStep == null ? null : configuredStep.getRetryPolicy();
-                JobSubFlowDescriptor stepSubFlow = jobStep == null ? null : JobHierarchyLoggingSupport.subFlowForStep(jobRuntimeDescriptor, stepName);
-                List<JobStepLinkDescriptor> inboundLinks = jobStep == null ? List.of() : JobHierarchyLoggingSupport.inboundLinks(jobRuntimeDescriptor, stepName);
                 logger.info("STEP_PLAN event=step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} stepOrder={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={} stepSummary={}",
                       runConfigurationMetadata.mainFlowName(),
                         stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
@@ -597,6 +617,60 @@ public class BatchConfig {
         }
 
         return steps;
+    }
+
+    private Step buildCustomStep(JobConfig.JobStepConfig configuredStep,
+                                 String stepName,
+                                 JobSubFlowDescriptor stepSubFlow,
+                                 List<JobStepLinkDescriptor> inboundLinks) {
+        String customType = configuredStep.getCustom() == null ? "" : configuredStep.getCustom().getType();
+        logger.info("STEP_PLAN event=custom_step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} stepKind=custom customType={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={}",
+                runConfigurationMetadata.mainFlowName(),
+                stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                stepName,
+                customType,
+                stepSubFlow == null ? -1 : stepSubFlow.subFlowOrder(),
+                JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.dependsOnSubFlowNames()),
+                JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.consumesHandoffAliases()),
+                JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.producesHandoffAliases()),
+                JobHierarchyLoggingSupport.formatList(inboundLinks.stream().map(JobStepLinkDescriptor::fromStepName).toList()),
+                JobHierarchyLoggingSupport.formatList(inboundLinks.stream().map(link -> link.linkType().name()).toList()),
+                JobHierarchyLoggingSupport.formatList(inboundLinks.stream().map(link -> link.control().summary()).toList()));
+
+        StepBuilder stepBuilder = new StepBuilder(stepName, jobRepository);
+        StepExecutionListener jobHierarchyContextListener = jobHierarchyContextListener(jobRuntimeDescriptor == null ? null : jobRuntimeDescriptor.stepsByName().get(stepName));
+        CustomStepHandler handler = customStepFactory.getHandler(stepName, configuredStep.getCustom());
+        if (jobHierarchyContextListener != null) {
+            stepBuilder.listener(jobHierarchyContextListener);
+        }
+        stepBuilder.listener(stepLoggingContextListener);
+        Step step = stepBuilder.tasklet((contribution, chunkContext) -> {
+                    logger.info("STEP_EVENT event=custom_step_started mainFlow={} subFlow={} recoveryPolicy={} stepName={} stepKind=custom customType={}",
+                            runConfigurationMetadata.mainFlowName(),
+                            stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                            runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                            stepName,
+                            customType);
+                    RepeatStatus status = handler.execute(contribution, chunkContext);
+                    logger.info("STEP_EVENT event=custom_step_finished mainFlow={} subFlow={} recoveryPolicy={} stepName={} stepKind=custom customType={} repeatStatus={}",
+                            runConfigurationMetadata.mainFlowName(),
+                            stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                            runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                            stepName,
+                            customType,
+                            status == null ? RepeatStatus.FINISHED : status);
+                    return status == null ? RepeatStatus.FINISHED : status;
+                }, transactionManager)
+                .build();
+
+        logger.info("STEP_READY event=step_ready mainFlow={} subFlow={} recoveryPolicy={} stepName={} stepKind=custom customType={} mode=custom",
+                runConfigurationMetadata.mainFlowName(),
+                stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
+                runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                stepName,
+                customType);
+        return step;
     }
 
     private Map<String, SourceConfig> mapSourcesByName(List<? extends SourceConfig> sources) {

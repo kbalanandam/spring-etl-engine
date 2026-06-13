@@ -492,8 +492,11 @@ public class ConfigLoader {
 				explicitTargetWrapper,
 				explicitProcessorConfig
 		);
-		SelectedJobNamingValidator.validate(scenarioName, explicitSourceWrapper, explicitTargetWrapper, resolvedSteps);
-		validateSelectedGeneratedModelClasses(explicitSourceWrapper, explicitTargetWrapper, resolvedSteps, scenarioName, jobConfigFile.getAbsolutePath());
+		List<JobConfig.JobStepConfig> standardSteps = resolvedSteps.stream()
+				.filter(JobConfig.JobStepConfig::isStandardStep)
+				.toList();
+		SelectedJobNamingValidator.validate(scenarioName, explicitSourceWrapper, explicitTargetWrapper, standardSteps);
+		validateSelectedGeneratedModelClasses(explicitSourceWrapper, explicitTargetWrapper, standardSteps, scenarioName, jobConfigFile.getAbsolutePath());
 
 		return new ResolvedRuntimeConfig(
 				resolvedSourceConfigPath,

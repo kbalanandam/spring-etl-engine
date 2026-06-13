@@ -8,7 +8,7 @@ Define one additive runtime contract that lets customer-owned custom steps run b
 
 - Epic: **[Epic A](../../epics/etl-core/epic-a-runtime-contract-and-model-governance.md)**
 - Priority: **P1**
-- Status: **Blocked**
+- Status: **In Progress**
 - Milestone: **M2**
 - Dependency: **A1, D1**
 
@@ -244,7 +244,7 @@ Keep the first slice narrow: one custom-step seam, one context-bridge rule set, 
 ## Status notes
 
 - Initial backlog proposal captured customer pre/post custom-step requests, FK handoff (`fileId`) patterns, and failure-finalization needs.
-- A7 is currently review-gated: implementation work should not start until the multi-review workflow and invariant checks are completed.
-- This remains a future-direction design track and not a shipped `job-config.yaml` runtime field contract yet.
+- Phase-1 runtime/config slice now supports ordered `steps[].kind` with `kind: custom` provider binding via `custom.type` while preserving standard-step defaults when `kind` is omitted.
+- Current shipped scope is intentionally narrow: custom steps do not yet include full context bridge, `CONTINUE/STOP/FAIL` outcome mapping, or failure finalizer hooks.
 
 
