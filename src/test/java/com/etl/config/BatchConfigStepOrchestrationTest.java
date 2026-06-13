@@ -577,6 +577,56 @@ class BatchConfigStepOrchestrationTest {
     }
 
     @Test
+    void buildStepsOverridesChunkToTaskletWhenOrderedDuplicateWinnerSelectionIsPresent() throws Exception {
+        SourceWrapper sourceWrapper = new SourceWrapper();
+        sourceWrapper.setSources(List.of(csvSource("Customers", tempCsv("customers.csv"))));
+
+        TargetWrapper targetWrapper = new TargetWrapper();
+        targetWrapper.setTargets(List.of(xmlTarget("Customers", "Customer")));
+
+        ProcessorConfig processorConfig = processorConfig(mappingWithOrderedDuplicateRule("Customers", "Customers"));
+        ListAppender<ILoggingEvent> appender = attachAppender();
+
+        BatchConfig batchConfig = new BatchConfig(
+                sourceWrapper,
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig,
+                targetWrapper,
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "customers-ordered-duplicate-forced-tasklet",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "customers-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        List.of(step("customers-step", "Customers", "Customers"))
+                ),
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory()
+        );
+        // Force initial mode decision to chunk so duplicate winner selection must override to tasklet.
+        ReflectionTestUtils.setField(batchConfig, "chunkThreshold", 0);
+
+        List<Step> steps = batchConfig.buildSteps();
+
+        assertEquals(List.of("customers-step"), steps.stream().map(Step::getName).toList());
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=step_mode_override")
+                && event.getFormattedMessage().contains("stepName=customers-step")
+                && event.getFormattedMessage().contains("originalMode=chunk")
+                && event.getFormattedMessage().contains("overriddenMode=tasklet")
+                && event.getFormattedMessage().contains("reason=ordered-duplicate-winner-selection-requires-final-buffering")));
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=step_ready")
+                && event.getFormattedMessage().contains("stepName=customers-step")
+                && event.getFormattedMessage().contains("mode=tasklet")));
+    }
+
+    @Test
     void configuredRetryPolicyRetriesMatchingRuntimeFailuresUntilBudgetIsExhausted() throws Exception {
         BatchConfig batchConfig = new BatchConfig(
                 new SourceWrapper(),
@@ -655,6 +705,60 @@ class BatchConfigStepOrchestrationTest {
         retryPolicy.registerThrowable(context, new ConfigException("deterministic config failure"));
 
         assertFalse(retryPolicy.canRetry(context));
+    }
+
+    @Test
+    void configuredRetryPolicyMatchesNestedCauseByCategoryAndExceptionClass() throws Exception {
+        BatchConfig batchConfig = new BatchConfig(
+                new SourceWrapper(),
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig(mapping("Customers", "Customers")),
+                new TargetWrapper(),
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "customers-retry-policy-nested-cause-matching",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "customers-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        List.of()
+                ),
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory()
+        );
+
+        JobConfig.RetryPolicyConfig retryPolicyConfig = stepWithRetryPolicy(
+                "customers-step",
+                "Customers",
+                "Customers",
+                3,
+                25L,
+                List.of("runtime"),
+                List.of(SourceReadException.class.getName())
+        ).getRetryPolicy();
+        RetryPolicy retryPolicy = ReflectionTestUtils.invokeMethod(batchConfig, "configuredRetryPolicy", retryPolicyConfig, "customers-step");
+        assertNotNull(retryPolicy);
+
+        RetryContext categoryMatchContext = retryPolicy.open(null);
+        retryPolicy.registerThrowable(categoryMatchContext,
+                new IllegalStateException("wrapper", new RuntimeEtlException("nested runtime failure")));
+        assertTrue(retryPolicy.canRetry(categoryMatchContext));
+
+        RetryContext exceptionMatchContext = retryPolicy.open(null);
+        retryPolicy.registerThrowable(exceptionMatchContext,
+                new IllegalStateException("wrapper", new SourceReadException("nested source read failure")));
+        assertTrue(retryPolicy.canRetry(exceptionMatchContext));
+
+        RetryContext mismatchContext = retryPolicy.open(null);
+        retryPolicy.registerThrowable(mismatchContext,
+                new IllegalStateException("wrapper", new ConfigException("nested config failure")));
+        assertFalse(retryPolicy.canRetry(mismatchContext));
     }
 
     @Test
@@ -931,6 +1035,7 @@ class BatchConfigStepOrchestrationTest {
         return step;
     }
 
+    @SuppressWarnings("SameParameterValue")
     private JobConfig.JobStepConfig customStep(String name, String customType) {
         JobConfig.JobStepConfig step = new JobConfig.JobStepConfig();
         step.setName(name);

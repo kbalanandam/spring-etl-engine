@@ -52,11 +52,17 @@ import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
 import org.springframework.batch.core.step.builder.FaultTolerantStepBuilder;
 import org.springframework.batch.core.step.skip.SkipPolicy;
-import org.springframework.batch.item.*;
+import org.springframework.batch.item.Chunk;
+import org.springframework.batch.item.ExecutionContext;
+import org.springframework.batch.item.ItemProcessor;
+import org.springframework.batch.item.ItemReader;
+import org.springframework.batch.item.ItemStream;
+import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.NonNull;
 import org.springframework.retry.RetryCallback;
 import org.springframework.retry.RetryContext;
 import org.springframework.retry.RetryListener;
@@ -123,7 +129,7 @@ public class BatchConfig {
      * The threshold for switching between chunk and tasklet processing.
      * If the source record count exceeds this value, chunk processing is used.
      */
-    private int chunkThreshold;
+    private final int chunkThreshold;
 
     /**
      * Constructs the BatchConfig with all required dependencies.
@@ -301,13 +307,13 @@ public class BatchConfig {
         }
 
                 for (int i = 0; i < resolvedStepCount; i++) {
-              JobConfig.JobStepConfig configuredStep = configuredSteps.size() > i ? configuredSteps.get(i) : null;
+              JobConfig.JobStepConfig configuredStep = configuredSteps.get(i);
               if (configuredStep == null) {
                   throw new IllegalStateException("Encountered null configured step at index " + i + ".");
               }
               JobStepDescriptor jobStep = descriptorByStepName.get(configuredStep.getName());
               String stepName = configuredStep.getName();
-              int stepOrder = jobStep == null ? i : jobStep.stepOrder();
+              Integer descriptorStepOrder = jobStep == null ? null : jobStep.stepOrder();
               JobSubFlowDescriptor stepSubFlow = jobStep == null ? null : JobHierarchyLoggingSupport.subFlowForStep(jobRuntimeDescriptor, stepName);
               List<JobStepLinkDescriptor> inboundLinks = jobStep == null ? List.of() : JobHierarchyLoggingSupport.inboundLinks(jobRuntimeDescriptor, stepName);
 
@@ -315,8 +321,8 @@ public class BatchConfig {
                   String normalizedCustomType = configuredStep.getCustom() == null || configuredStep.getCustom().getType() == null
                           ? ""
                           : configuredStep.getCustom().getType().trim();
-                  plannedStepSequence.add(stepOrder + ":" + stepName + ":custom(" + normalizedCustomType + ")");
-                  steps.add(buildCustomStep(configuredStep, stepName, stepOrder, stepSubFlow, inboundLinks));
+                  plannedStepSequence.add(i + ":" + stepName + ":custom(" + normalizedCustomType + ")");
+                  steps.add(buildCustomStep(configuredStep, stepName, i, descriptorStepOrder, stepSubFlow, inboundLinks));
                   continue;
               }
 
@@ -326,17 +332,18 @@ public class BatchConfig {
 
               String sourceName = jobStep == null ? configuredStep.getSource() : jobStep.sourceName();
               String targetName = jobStep == null ? configuredStep.getTarget() : jobStep.targetName();
-                plannedStepSequence.add(stepOrder + ":" + stepName + ":standard(" + sourceName + "->" + targetName + ")");
-                JobConfig.SkipPolicyConfig configuredSkipPolicy = configuredStep == null ? null : configuredStep.getSkipPolicy();
-                JobConfig.RetryPolicyConfig configuredRetryPolicy = configuredStep == null ? null : configuredStep.getRetryPolicy();
-                logger.info("STEP_PLAN event=step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} stepOrder={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={} stepSummary={}",
+                plannedStepSequence.add(i + ":" + stepName + ":standard(" + sourceName + "->" + targetName + ")");
+                JobConfig.SkipPolicyConfig configuredSkipPolicy = configuredStep.getSkipPolicy();
+                JobConfig.RetryPolicyConfig configuredRetryPolicy = configuredStep.getRetryPolicy();
+                logger.info("STEP_PLAN event=step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} configuredIndex={} descriptorStepOrder={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={} stepSummary={}",
                       runConfigurationMetadata.mainFlowName(),
                         stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
                       runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
                       stepName,
                       sourceName,
                       targetName,
-                        stepOrder,
+                        i,
+                        descriptorStepOrder == null ? -1 : descriptorStepOrder,
             stepSubFlow == null ? -1 : stepSubFlow.subFlowOrder(),
             JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.dependsOnSubFlowNames()),
             JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.consumesHandoffAliases()),
@@ -443,6 +450,9 @@ public class BatchConfig {
                     ? GeneratedModelClassResolver.resolveTargetProcessingClass(metadata)
                     : GeneratedModelClassResolver.resolveTargetWriteClass(metadata);
             ItemWriter<Object> writer = DynamicBatchUtils.getDynamicWriter(writerFactory, t, writerClass);
+            if (writer == null) {
+                throw new IllegalStateException("Step '" + stepName + "' resolved a null ItemWriter for target '" + t.getTargetName() + "'.");
+            }
             ItemProcessor<Object, Object> processor = processorFactory.getProcessor(processorConfig, s, t, metadata);
             FileIngestionHardeningStepListener fileIngestionHardeningStepListener =
 					new FileIngestionHardeningStepListener(s, processorConfig, mapping, fileIngestionRuntimeSupport);
@@ -508,17 +518,16 @@ public class BatchConfig {
                           runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
                           stepName, s.getSourceName(), t.getTargetName(), recordCount, chunkThreshold);
             } else {
-                var taskletStepBuilder = stepBuilder;
                   if (jobHierarchyContextListener != null) {
-                      taskletStepBuilder.listener(jobHierarchyContextListener);
+                      stepBuilder.listener(jobHierarchyContextListener);
                 }
-                taskletStepBuilder
+                stepBuilder
                         .listener(stepLoggingContextListener)
 						.listener(fileIngestionHardeningStepListener);
                 if (writerStepExecutionListener != null) {
-                    taskletStepBuilder.listener(writerStepExecutionListener);
+                    stepBuilder.listener(writerStepExecutionListener);
                 }
-                step = taskletStepBuilder.tasklet((contribution, chunkContext) -> {
+                step = stepBuilder.tasklet((contribution, chunkContext) -> {
                             Object item;
                             List<Object> buffer = new ArrayList<>();
                             int acceptedCount = 0;
@@ -538,7 +547,7 @@ public class BatchConfig {
                                     t,
                                     stepSubFlow
                             );
-                            ExecutionContext executionContext = new ExecutionContext();
+                            ExecutionContext executionContext = contribution.getStepExecution().getExecutionContext();
                             boolean isReaderStream = reader instanceof ItemStream;
                             boolean isWriterStream = writer instanceof ItemStream;
                             if (isReaderStream) {
@@ -634,17 +643,19 @@ public class BatchConfig {
 
     private Step buildCustomStep(JobConfig.JobStepConfig configuredStep,
                                  String stepName,
-                                 int stepOrder,
+                                 int configuredIndex,
+                                 Integer descriptorStepOrder,
                                  JobSubFlowDescriptor stepSubFlow,
                                  List<JobStepLinkDescriptor> inboundLinks) {
         String customType = configuredStep.getCustom() == null ? "" : configuredStep.getCustom().getType();
-        logger.info("STEP_PLAN event=custom_step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} stepKind=custom customType={} stepOrder={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={}",
+        logger.info("STEP_PLAN event=custom_step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} stepKind=custom customType={} configuredIndex={} descriptorStepOrder={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={}",
                 runConfigurationMetadata.mainFlowName(),
                 stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
                 runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
                 stepName,
                 customType,
-                stepOrder,
+                configuredIndex,
+                descriptorStepOrder == null ? -1 : descriptorStepOrder,
                 stepSubFlow == null ? -1 : stepSubFlow.subFlowOrder(),
                 JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.dependsOnSubFlowNames()),
                 JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.consumesHandoffAliases()),
@@ -661,17 +672,19 @@ public class BatchConfig {
         }
         stepBuilder.listener(stepLoggingContextListener);
         Step step = stepBuilder.tasklet((contribution, chunkContext) -> {
-                    logger.info("STEP_EVENT event=custom_step_started stepName={} stepExecutionId={} stepKind=custom customType={} stepOrder={}",
+                    logger.info("STEP_EVENT event=custom_step_started stepName={} stepExecutionId={} stepKind=custom customType={} configuredIndex={} descriptorStepOrder={}",
                             stepName,
                             contribution.getStepExecution().getId(),
                             customType,
-                            stepOrder);
+                            configuredIndex,
+                            descriptorStepOrder == null ? -1 : descriptorStepOrder);
                     RepeatStatus status = handler.execute(contribution, chunkContext);
-                    logger.info("STEP_EVENT event=custom_step_finished stepName={} stepExecutionId={} stepKind=custom customType={} stepOrder={} repeatStatus={}",
+                    logger.info("STEP_EVENT event=custom_step_finished stepName={} stepExecutionId={} stepKind=custom customType={} configuredIndex={} descriptorStepOrder={} repeatStatus={}",
                             stepName,
                             contribution.getStepExecution().getId(),
                             customType,
-                            stepOrder,
+                            configuredIndex,
+                            descriptorStepOrder == null ? -1 : descriptorStepOrder,
                             status == null ? RepeatStatus.FINISHED : status);
                     return status == null ? RepeatStatus.FINISHED : status;
                 }, transactionManager)
@@ -740,12 +753,12 @@ public class BatchConfig {
     }
     return new StepExecutionListener() {
       @Override
-      public void beforeStep(org.springframework.batch.core.StepExecution stepExecution) {
+      public void beforeStep(@NonNull org.springframework.batch.core.StepExecution stepExecution) {
           JobHierarchyLoggingSupport.populateStepExecutionContext(stepExecution.getExecutionContext(), jobRuntimeDescriptor, jobStep);
       }
 
       @Override
-      public org.springframework.batch.core.ExitStatus afterStep(org.springframework.batch.core.StepExecution stepExecution) {
+      public org.springframework.batch.core.ExitStatus afterStep(@NonNull org.springframework.batch.core.StepExecution stepExecution) {
         return stepExecution.getExitStatus();
       }
     };
@@ -1068,8 +1081,8 @@ public class BatchConfig {
     }
 
     @Override
-    public boolean shouldSkip(Throwable throwable, long skipCount) {
-      if (throwable == null || skipCount >= skipLimit) {
+    public boolean shouldSkip(@NonNull Throwable throwable, long skipCount) {
+      if (skipCount >= skipLimit) {
         return false;
       }
       if (matchesConfiguredCategory(throwable)) {
