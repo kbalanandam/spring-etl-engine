@@ -8,7 +8,7 @@ Define a future-direction architecture contract that lets customer-owned custom 
 
 - Classification: **Transition (phase-1 shipped)**
 - Backlog anchor: [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
-- Shipped baseline: ordered `steps[]` now supports `kind: custom` with `custom.type` provider binding through `DynamicCustomStepFactory` while standard steps continue through existing reader/processor/writer factories
+- Shipped baseline: ordered `steps[]` now supports `kind: custom` with `custom.type` provider binding through `DynamicCustomStepFactory` while standard steps continue through existing reader/processor/writer factories; preserved runnable bundle: `src/main/resources/config-jobs/customer-load-custom-steps/` using built-in `auditNoop`
 
 ## Design goals
 

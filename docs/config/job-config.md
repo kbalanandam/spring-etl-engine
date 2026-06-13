@@ -249,20 +249,20 @@ sourceConfigPath: source-config.yaml
 targetConfigPath: target-config.yaml
 processorConfigPath: processor-config.yaml
 steps:
-  - name: header-start
+  - name: run-start-audit
     kind: custom
     custom:
-      type: headerStart
+      type: auditNoop
       publish:
         fileId: header.fileId
   - name: detail-load
     kind: standard
     source: Customers
     target: CustomerDetail
-  - name: header-finalize
+  - name: run-finish-audit
     kind: custom
     custom:
-      type: headerFinalize
+      type: auditNoop
 ```
 
 `custom.publish`/`custom.consume`/`custom.onResult` fields are accepted as extension metadata in this slice but provider binding still keys on `custom.type` only.
@@ -308,6 +308,7 @@ The broader file-ingestion hardening direction beyond the first preserved CSV pr
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml`
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load/job-config.yaml`
+- `src/main/resources/config-jobs/customer-load-custom-steps/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load-skip-policy-category/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load-skip-policy-category-unclassified/job-config.yaml`
 - `src/main/resources/config-jobs/department-load/job-config.yaml`
