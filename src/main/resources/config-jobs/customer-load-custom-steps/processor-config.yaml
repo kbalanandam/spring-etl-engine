@@ -1,0 +1,17 @@
+type: default
+mappings:
+  - source: Customers
+    target: Customers
+    fields:
+      - from: id
+        to: id
+      - from: name
+        to: name
+      - from: email
+        to: email
+        transforms:
+          - type: conditional
+            cases:
+              - when: "#value == null or #value.trim().isEmpty()"
+                then: unknown@example.com
+

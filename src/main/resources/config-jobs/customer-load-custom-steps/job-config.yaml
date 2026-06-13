@@ -1,0 +1,23 @@
+name: customer-load-custom-steps
+isActive: true
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+recoveryPolicy: rerun-from-start
+steps:
+  - name: run-start-audit
+    kind: custom
+    custom:
+      type: auditNoop
+      config:
+        phase: start
+  - name: customers-step
+    source: Customers
+    target: Customers
+  - name: run-finish-audit
+    kind: custom
+    custom:
+      type: auditNoop
+      config:
+        phase: finish
+
