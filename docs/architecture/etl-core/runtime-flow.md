@@ -401,7 +401,7 @@ For XML sources, explicit startup always requires the generated record class. `X
 ### 3. Step strategy
 `BatchConfig` walks the explicit step list from `job-config.yaml`. For each step, it resolves the named source and target, verifies that a matching processor mapping exists, emits machine-readable step-planning logs such as `STEP_PLAN` and `STEP_READY`, projects synthesized hierarchy metadata into the step execution context for later `STEP_EVENT` evidence, and then calls `getRecordCount()` on the selected source to compare it to `etl.chunk.threshold`.
 
-As part of the bridge-slimming path, skip/retry policy construction and retry listener wiring now delegate through `BatchStepPolicySupport`, while `BatchConfig` remains the orchestration entrypoint that assembles the executable step plan.
+As part of the bridge-slimming path, skip/retry policy construction and retry listener wiring now delegate through `BatchStepPolicySupport`, and chunk/tasklet plus duplicate-resolver mode selection delegates through `BatchStepModePlanner`, while `BatchConfig` remains the orchestration entrypoint that assembles the executable step plan.
 
 Planning logs now separate execution order from descriptor metadata explicitly: `configuredIndex` reflects the real runtime sequence (the order of `steps[]` in `job-config.yaml`), while `descriptorStepOrder` captures optional synthesized descriptor ordering for diagnostics.
 
