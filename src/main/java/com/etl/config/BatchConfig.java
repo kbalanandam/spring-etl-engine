@@ -102,6 +102,7 @@ public class BatchConfig {
 	private final DuplicateResolverFactory duplicateResolverFactory;
     private final DynamicCustomStepFactory customStepFactory;
     private final BatchStepPolicySupport batchStepPolicySupport;
+    private final BatchStepModePlanner batchStepModePlanner;
 
     /**
      * The threshold for switching between chunk and tasklet processing.
@@ -152,6 +153,7 @@ public class BatchConfig {
         this.customStepFactory = customStepFactory == null ? new DynamicCustomStepFactory(List.of()) : customStepFactory;
         this.batchStepPolicySupport = new BatchStepPolicySupport(logger, runConfigurationMetadata);
         this.chunkThreshold = Math.max(1, etlBatchProperties == null ? 10000 : etlBatchProperties.getThreshold());
+        this.batchStepModePlanner = new BatchStepModePlanner(logger, runConfigurationMetadata);
 
         logger.info("EtlJobConfiguration initialized.");
     }
@@ -332,94 +334,23 @@ public class BatchConfig {
             JobHierarchyLoggingSupport.formatList(inboundLinks.stream().map(link -> link.control().summary()).toList()),
               jobStep == null ? "" : jobStep.flowSummary());
 
-            boolean useChunk;
-            int recordCount;
-            boolean recordCountUnknown = false;
-            try {
-                recordCount = s.getRecordCount();
-            } catch (Exception e) {
-                logger.warn("Could not count records for source: {}. Defaulting to chunk mode.", s.getSourceName(), e);
-                recordCountUnknown = true;
-                recordCount = chunkThreshold + 1;
-            }
-            if (recordCount < 0) {
-                logger.info("Record count is unknown for source: {}. Defaulting to chunk mode.", s.getSourceName());
-                recordCountUnknown = true;
-                recordCount = chunkThreshold + 1;
-            }
-            useChunk = recordCount > chunkThreshold;
-            if (configuredSkipPolicy != null && configuredSkipPolicy.isEnabled() && !useChunk) {
-                logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} originalMode=tasklet overriddenMode=chunk reason=skip-policy-requires-fault-tolerant-chunk",
-                        runConfigurationMetadata.mainFlowName(),
-                        stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
-                        runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
-                        stepName,
-                        s.getSourceName(),
-                        t.getTargetName());
-                useChunk = true;
-            }
-            if (configuredRetryPolicy != null && configuredRetryPolicy.isEnabled() && !useChunk) {
-                logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} originalMode=tasklet overriddenMode=chunk reason=retry-policy-requires-fault-tolerant-chunk",
-                        runConfigurationMetadata.mainFlowName(),
-                        stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
-                        runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
-                        stepName,
-                        s.getSourceName(),
-                        t.getTargetName());
-                useChunk = true;
-            }
-            DuplicateRule duplicateRule = DuplicateRule.resolveConfiguration(mapping).orElse(null);
-            DuplicateRule.StorageMode duplicateStorageMode = duplicateRule == null
-                    ? DuplicateRule.StorageMode.AUTO
-                    : duplicateRule.storageMode();
-            boolean useEmbeddedDbDuplicateResolver = duplicateRule != null && switch (duplicateStorageMode) {
-                case AUTO -> recordCount > chunkThreshold;
-                case MEMORY -> false;
-                case EMBEDDED_DB -> true;
-            };
-            String orderedDuplicateResolverMode = null;
-            String orderedDuplicateResolverReason = null;
-            if (duplicateRule != null) {
-                orderedDuplicateResolverMode = useEmbeddedDbDuplicateResolver ? "embeddedDb" : "inMemory";
-                orderedDuplicateResolverReason = switch (duplicateStorageMode) {
-                    case MEMORY -> "configured_storage_mode_memory";
-                    case EMBEDDED_DB -> "configured_storage_mode_embeddedDb";
-                    case AUTO -> useEmbeddedDbDuplicateResolver
-                            ? (recordCountUnknown ? "record_count_unknown_defaults_to_large_input_path" : "record_count_exceeds_chunk_threshold")
-                            : "record_count_within_chunk_threshold";
-                };
-            }
-            if (duplicateRule != null && useChunk) {
-                if (configuredSkipPolicy != null && configuredSkipPolicy.isEnabled()) {
-                    throw new IllegalStateException("Step '" + stepName + "' configures both ordered duplicate winner selection and skipPolicy. This first slice does not support combining those modes.");
-                }
-                if (configuredRetryPolicy != null && configuredRetryPolicy.isEnabled()) {
-                    throw new IllegalStateException("Step '" + stepName + "' configures both ordered duplicate winner selection and retryPolicy. This first slice does not support combining those modes.");
-                }
-                                  logger.info("STEP_READY event=step_mode_override mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy duplicateIdentityMode={} duplicateIdentityModeReason={} originalMode=chunk overriddenMode=tasklet reason=ordered-duplicate-winner-selection-requires-final-buffering",
-              runConfigurationMetadata.mainFlowName(), stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
-                          runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
-                           stepName, s.getSourceName(), t.getTargetName(), duplicateRule.identityMode().configValue(), duplicateRule.identityModeReason());
-                    useChunk = false;
-                  }
-            if (duplicateRule != null) {
-                logger.info("STEP_READY event=duplicate_resolver_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} duplicateStrategy=orderBy duplicateIdentityMode={} duplicateIdentityModeReason={} resolverMode={} resolverReason={} recordCount={} threshold={}",
-                        runConfigurationMetadata.mainFlowName(),
-                        stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
-                        runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
-                        stepName,
-                        s.getSourceName(),
-                        t.getTargetName(),
-                        duplicateRule.identityMode().configValue(),
-                        duplicateRule.identityModeReason(),
-                        orderedDuplicateResolverMode,
-                        orderedDuplicateResolverReason,
-                        recordCount,
-                        chunkThreshold);
-            }
-            final int resolvedRecordCount = recordCount;
-            final String resolvedOrderedDuplicateResolverMode = orderedDuplicateResolverMode;
-            final String resolvedOrderedDuplicateResolverReason = orderedDuplicateResolverReason;
+            BatchStepModePlanner.StepModePlan stepModePlan = batchStepModePlanner.plan(
+                    stepName,
+                    s,
+                    t,
+                    mapping,
+                    configuredSkipPolicy,
+                    configuredRetryPolicy,
+                    stepSubFlow,
+                    chunkThreshold
+            );
+            boolean useChunk = stepModePlan.useChunk();
+            int recordCount = stepModePlan.recordCount();
+            DuplicateRule duplicateRule = stepModePlan.duplicateRule();
+            boolean useEmbeddedDbDuplicateResolver = stepModePlan.useEmbeddedDbDuplicateResolver();
+            final int resolvedRecordCount = stepModePlan.recordCount();
+            final String resolvedOrderedDuplicateResolverMode = stepModePlan.orderedDuplicateResolverMode();
+            final String resolvedOrderedDuplicateResolverReason = stepModePlan.orderedDuplicateResolverReason();
 
               ResolvedModelMetadata metadata = jobStep == null
 					? GeneratedModelClassResolver.resolveMetadata(s, t)
