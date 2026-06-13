@@ -401,6 +401,8 @@ For XML sources, explicit startup always requires the generated record class. `X
 ### 3. Step strategy
 `BatchConfig` walks the explicit step list from `job-config.yaml`. For each step, it resolves the named source and target, verifies that a matching processor mapping exists, emits machine-readable step-planning logs such as `STEP_PLAN` and `STEP_READY`, projects synthesized hierarchy metadata into the step execution context for later `STEP_EVENT` evidence, and then calls `getRecordCount()` on the selected source to compare it to `etl.chunk.threshold`.
 
+Planning logs now separate execution order from descriptor metadata explicitly: `configuredIndex` reflects the real runtime sequence (the order of `steps[]` in `job-config.yaml`), while `descriptorStepOrder` captures optional synthesized descriptor ordering for diagnostics.
+
 Because those planning emits happen during runtime assembly, before the scenario-specific log key is attached to the active file route, they currently appear in `logs/startup/startup.log` rather than the scenario log. The subsequent step-started and step-finished `STEP_EVENT` entries appear in the scenario log after the listener layer restores scenario-scoped MDC values.
 
 This explicit ordered step list is the current shipped composition model for a scenario. A selected scenario may therefore already represent multiple individual flows executed in sequence, and together those steps form the full end-to-end run. Future richer chaining, handoff, or graph-style step relationships should still remain inside one selected scenario contract rather than introducing a separate runtime boundary.
