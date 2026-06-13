@@ -50,9 +50,6 @@ public class DynamicCustomStepFactory {
         this.providersByTypeCache = new ConcurrentHashMap<>();
         List<ExtensionConflictPolicy.Candidate<String, CustomStepProvider>> candidates = new ArrayList<>();
         for (CustomStepProvider provider : providers == null ? List.<CustomStepProvider>of() : providers) {
-            if (provider == null) {
-                continue;
-            }
             CustomStepBinding binding = provider.getClass().getAnnotation(CustomStepBinding.class);
             if (binding == null) {
                 throw new ConfigException("Custom step provider '" + provider.providerId()
@@ -155,7 +152,7 @@ public class DynamicCustomStepFactory {
      */
     private ProviderRegistration resolveProviderRegistration(String customType) {
         String[] beanNames = beanFactory.getBeanNamesForType(CustomStepProvider.class, true, false);
-        if (beanNames == null || beanNames.length == 0) {
+        if (beanNames.length == 0) {
             return null;
         }
 
