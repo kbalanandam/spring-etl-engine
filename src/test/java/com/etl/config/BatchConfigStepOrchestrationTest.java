@@ -29,6 +29,7 @@ import com.etl.runtime.job.JobRecoveryPolicy;
 import com.etl.runtime.job.JobRunMode;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.runtime.job.JobRuntimeDescriptorAssembler;
+import com.etl.step.CustomStepBinding;
 import com.etl.step.CustomStepHandler;
 import com.etl.step.CustomStepProvider;
 import com.etl.step.DynamicCustomStepFactory;
@@ -207,7 +208,7 @@ class BatchConfigStepOrchestrationTest {
         );
         ListAppender<ILoggingEvent> appender = attachAppender();
 
-        DynamicCustomStepFactory customStepFactory = new DynamicCustomStepFactory(List.of(new NoopCustomStepProvider("headerFinalize")));
+        DynamicCustomStepFactory customStepFactory = new DynamicCustomStepFactory(List.of(new NoopCustomStepProvider()));
         BatchConfig batchConfig = new BatchConfig(
                 sourceWrapper,
                 mockReaderFactory(),
@@ -241,6 +242,9 @@ class BatchConfigStepOrchestrationTest {
         assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=step_ready")
                 && event.getFormattedMessage().contains("stepKind=custom")
                 && event.getFormattedMessage().contains("stepName=header-finalize")));
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_SEQUENCE event=step_sequence")
+                && event.getFormattedMessage().contains("plannedStepCount=3")
+                && event.getFormattedMessage().contains("plannedSteps=0:customers-step:standard(Customers->Customers),1:header-finalize:custom(headerFinalize),2:departments-step:standard(Department->Departments)")));
     }
 
     @Test
@@ -937,18 +941,9 @@ class BatchConfigStepOrchestrationTest {
         return step;
     }
 
+    @CustomStepBinding(type = "headerFinalize")
     private static final class NoopCustomStepProvider implements CustomStepProvider {
 
-        private final String type;
-
-        private NoopCustomStepProvider(String type) {
-            this.type = type;
-        }
-
-        @Override
-        public String customType() {
-            return type;
-        }
 
         @Override
         public CustomStepHandler createHandler(JobConfig.CustomStepConfig config) {

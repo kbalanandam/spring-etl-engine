@@ -9,6 +9,7 @@ Define a future-direction architecture contract that lets customer-owned custom 
 - Classification: **Transition (phase-1 shipped)**
 - Backlog anchor: [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
 - Shipped baseline: ordered `steps[]` now supports `kind: custom` with `custom.type` provider binding through `DynamicCustomStepFactory` while standard steps continue through existing reader/processor/writer factories; preserved runnable bundle: `src/main/resources/config-jobs/customer-load-custom-steps/` using built-in `auditNoop`
+- Run-level step debugging now also emits `STEP_SEQUENCE event=step_sequence` with one ordered projection of all planned steps (`index:name:kind(...)`) so operators can confirm selected-step identity and order from a single evidence line before step execution begins.
 
 ## Design goals
 

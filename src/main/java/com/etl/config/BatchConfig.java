@@ -269,6 +269,7 @@ public class BatchConfig {
      */
     List<Step> buildSteps() throws Exception {
         List<Step> steps = new ArrayList<>();
+        List<String> plannedStepSequence = new ArrayList<>();
         List<? extends SourceConfig> sources = sourceWrapper.getSources();
         List<TargetConfig> targets = targetWrapper.getTargets();
             List<JobConfig.JobStepConfig> configuredSteps = runConfigurationMetadata.steps();
@@ -311,7 +312,11 @@ public class BatchConfig {
               List<JobStepLinkDescriptor> inboundLinks = jobStep == null ? List.of() : JobHierarchyLoggingSupport.inboundLinks(jobRuntimeDescriptor, stepName);
 
               if (configuredStep.isCustomStep()) {
-                  steps.add(buildCustomStep(configuredStep, stepName, stepSubFlow, inboundLinks));
+                  String normalizedCustomType = configuredStep.getCustom() == null || configuredStep.getCustom().getType() == null
+                          ? ""
+                          : configuredStep.getCustom().getType().trim();
+                  plannedStepSequence.add(stepOrder + ":" + stepName + ":custom(" + normalizedCustomType + ")");
+                  steps.add(buildCustomStep(configuredStep, stepName, stepOrder, stepSubFlow, inboundLinks));
                   continue;
               }
 
@@ -321,6 +326,7 @@ public class BatchConfig {
 
               String sourceName = jobStep == null ? configuredStep.getSource() : jobStep.sourceName();
               String targetName = jobStep == null ? configuredStep.getTarget() : jobStep.targetName();
+                plannedStepSequence.add(stepOrder + ":" + stepName + ":standard(" + sourceName + "->" + targetName + ")");
                 JobConfig.SkipPolicyConfig configuredSkipPolicy = configuredStep == null ? null : configuredStep.getSkipPolicy();
                 JobConfig.RetryPolicyConfig configuredRetryPolicy = configuredStep == null ? null : configuredStep.getRetryPolicy();
                 logger.info("STEP_PLAN event=step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} source={} target={} stepOrder={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={} stepSummary={}",
@@ -616,20 +622,29 @@ public class BatchConfig {
             steps.add(step);
         }
 
+        logger.info("STEP_SEQUENCE event=step_sequence mainFlow={} subFlow={} recoveryPolicy={} plannedStepCount={} plannedSteps={}",
+                runConfigurationMetadata.mainFlowName(),
+                runConfigurationMetadata.subFlowName(),
+                runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                plannedStepSequence.size(),
+                JobHierarchyLoggingSupport.formatList(plannedStepSequence));
+
         return steps;
     }
 
     private Step buildCustomStep(JobConfig.JobStepConfig configuredStep,
                                  String stepName,
+                                 int stepOrder,
                                  JobSubFlowDescriptor stepSubFlow,
                                  List<JobStepLinkDescriptor> inboundLinks) {
         String customType = configuredStep.getCustom() == null ? "" : configuredStep.getCustom().getType();
-        logger.info("STEP_PLAN event=custom_step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} stepKind=custom customType={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={}",
+        logger.info("STEP_PLAN event=custom_step_plan mainFlow={} subFlow={} recoveryPolicy={} stepName={} stepKind=custom customType={} stepOrder={} stepSubFlowOrder={} dependsOnSubFlows={} consumesHandoffAliases={} producesHandoffAliases={} upstreamSteps={} linkTypes={} linkControlSummary={}",
                 runConfigurationMetadata.mainFlowName(),
                 stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
                 runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
                 stepName,
                 customType,
+                stepOrder,
                 stepSubFlow == null ? -1 : stepSubFlow.subFlowOrder(),
                 JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.dependsOnSubFlowNames()),
                 JobHierarchyLoggingSupport.formatList(stepSubFlow == null ? List.of() : stepSubFlow.consumesHandoffAliases()),
@@ -646,19 +661,17 @@ public class BatchConfig {
         }
         stepBuilder.listener(stepLoggingContextListener);
         Step step = stepBuilder.tasklet((contribution, chunkContext) -> {
-                    logger.info("STEP_EVENT event=custom_step_started mainFlow={} subFlow={} recoveryPolicy={} stepName={} stepKind=custom customType={}",
-                            runConfigurationMetadata.mainFlowName(),
-                            stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
-                            runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
+                    logger.info("STEP_EVENT event=custom_step_started stepName={} stepExecutionId={} stepKind=custom customType={} stepOrder={}",
                             stepName,
-                            customType);
-                    RepeatStatus status = handler.execute(contribution, chunkContext);
-                    logger.info("STEP_EVENT event=custom_step_finished mainFlow={} subFlow={} recoveryPolicy={} stepName={} stepKind=custom customType={} repeatStatus={}",
-                            runConfigurationMetadata.mainFlowName(),
-                            stepSubFlow == null ? runConfigurationMetadata.subFlowName() : stepSubFlow.subFlowName(),
-                            runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue(),
-                            stepName,
+                            contribution.getStepExecution().getId(),
                             customType,
+                            stepOrder);
+                    RepeatStatus status = handler.execute(contribution, chunkContext);
+                    logger.info("STEP_EVENT event=custom_step_finished stepName={} stepExecutionId={} stepKind=custom customType={} stepOrder={} repeatStatus={}",
+                            stepName,
+                            contribution.getStepExecution().getId(),
+                            customType,
+                            stepOrder,
                             status == null ? RepeatStatus.FINISHED : status);
                     return status == null ? RepeatStatus.FINISHED : status;
                 }, transactionManager)
