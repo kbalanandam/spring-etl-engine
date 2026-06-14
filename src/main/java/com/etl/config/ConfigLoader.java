@@ -3,6 +3,11 @@ package com.etl.config;
 import com.etl.exception.config.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.config.runtime.RuntimeConfigIO;
+import com.etl.config.runtime.RuntimeConfigResolver;
+import com.etl.config.runtime.RuntimeConfigValidation;
+import com.etl.config.runtime.RuntimePackageDefaults;
+import com.etl.config.runtime.RuntimeStepPolicyResolver;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.common.util.ConfigPackageNamePropertyValidator;
@@ -118,7 +123,7 @@ public class ConfigLoader {
 		this.allowDemoFallback = properties.isAllowDemoFallback();
 	}
 
-	String runtimeConfigCacheKey() {
+	public String runtimeConfigCacheKey() {
 		return String.join("|",
 			normalizeCacheToken(sourceConfigPath),
 			normalizeCacheToken(targetConfigPath),
@@ -405,7 +410,7 @@ public class ConfigLoader {
 		return runtimeConfigResolver.resolveRuntimeConfig();
 	}
 
-	ResolvedRuntimeConfig buildRuntimeConfigInternal() throws IOException {
+	public ResolvedRuntimeConfig buildRuntimeConfigInternal() throws IOException {
 		// The shipped runtime chooses exactly one selected job bundle per run. When no explicit
 		// job-config is provided, demo fallback is allowed only if operators enabled it on purpose.
 		if (jobConfigPath == null || jobConfigPath.isBlank()) {
@@ -763,7 +768,7 @@ public class ConfigLoader {
 
 
 
-	record ResolvedRuntimeConfig(
+	public record ResolvedRuntimeConfig(
 			String sourceConfigPath,
 			String targetConfigPath,
 			String processorConfigPath,

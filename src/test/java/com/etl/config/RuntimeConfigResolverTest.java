@@ -1,6 +1,7 @@
 package com.etl.config;
 
 import com.etl.config.job.JobConfig;
+import com.etl.config.runtime.RuntimeConfigResolver;
 import com.etl.runtime.job.JobRecoveryPolicy;
 import org.junit.jupiter.api.Test;
 
@@ -86,12 +87,12 @@ class RuntimeConfigResolverTest {
         private int buildCount = 0;
 
         @Override
-        String runtimeConfigCacheKey() {
+        public String runtimeConfigCacheKey() {
             return cacheKey;
         }
 
         @Override
-        ResolvedRuntimeConfig buildRuntimeConfigInternal() {
+        public ResolvedRuntimeConfig buildRuntimeConfigInternal() {
             buildCount++;
             return new ResolvedRuntimeConfig(
                     "source.yaml",
