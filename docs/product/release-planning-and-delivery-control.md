@@ -37,6 +37,7 @@ Goal: ship **Scheduled Runs MVP** as one visible operational value jump.
 
 Planned scope:
 
+- `A7b` same-release ETL follow-on (typed custom-step context handoff, explicit `CONTINUE/STOP/FAIL` outcome mapping, bounded failure-finalization baseline)
 - `S1` contract freeze (single selected-job launch boundary, trigger-origin evidence, retry/restart separation)
 - first `S2` slice (time-based schedule definitions + pause/resume baseline)
 - first `S4` slice (scheduler data-model and table-structure evolution baseline for portable retained history)
@@ -148,6 +149,6 @@ Use this compact template for each new target version:
 
 ## Immediate next step
 
-`1.8.0` lane is now running `S1` contract freeze together with first implementation slices from `S2` and `S4`; continue using backend/runtime/UI stacked PRs against the frozen launch boundary.
+`1.8.0` lane is now running `A7b` + `S2` + `U4` as the balanced ETL/scheduler/UI trio while preserving the same selected-job launch boundary and the ongoing `S1`/`S4` scheduler foundation slices.
 
 
