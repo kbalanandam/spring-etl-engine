@@ -30,7 +30,6 @@ import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.builder.SimpleJobBuilder;
 import org.springframework.batch.core.repository.JobRepository;
 import org.springframework.batch.core.step.builder.StepBuilder;
-import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
@@ -38,8 +37,6 @@ import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.retry.RetryListener;
-import org.springframework.retry.RetryPolicy;
 import org.springframework.transaction.PlatformTransactionManager;
 
 import com.etl.config.processor.ProcessorConfig;
@@ -88,7 +85,6 @@ public class BatchConfig {
     private final DynamicCustomStepFactory customStepFactory;
     private final BatchStepModePlanner batchStepModePlanner;
     private final BatchStandardStepAssembler batchStandardStepAssembler;
-    private final BatchStepPolicySupport batchStepPolicySupport;
     private final BatchConfigStepResolutionSupport batchConfigStepResolutionSupport;
     private final BatchConfigRuntimeContextSupport batchConfigRuntimeContextSupport;
 
@@ -137,7 +133,7 @@ public class BatchConfig {
         this.runConfigurationMetadata = runConfigurationMetadata;
         this.jobRuntimeDescriptor = jobRuntimeDescriptor;
         this.customStepFactory = customStepFactory == null ? new DynamicCustomStepFactory(List.of()) : customStepFactory;
-        this.batchStepPolicySupport = new BatchStepPolicySupport(logger, runConfigurationMetadata);
+        BatchStepPolicySupport batchStepPolicySupport = new BatchStepPolicySupport(logger, runConfigurationMetadata);
         this.batchConfigStepResolutionSupport = new BatchConfigStepResolutionSupport(processorConfig);
         this.batchConfigRuntimeContextSupport = new BatchConfigRuntimeContextSupport();
         this.chunkThreshold = Math.max(1, etlBatchProperties == null ? 10000 : etlBatchProperties.getThreshold());
@@ -151,7 +147,7 @@ public class BatchConfig {
                 processorConfig,
                 fileIngestionRuntimeSupport,
                 duplicateResolverFactory,
-                this.batchStepPolicySupport
+                batchStepPolicySupport
         );
 
         logger.info("EtlJobConfiguration initialized.");
@@ -468,40 +464,5 @@ public class BatchConfig {
         return writer instanceof StepExecutionListener stepExecutionListener ? stepExecutionListener : null;
     }
 
-    // Compatibility shim while tests and call sites still reflect into BatchConfig private helpers.
-    @SuppressWarnings("unused")
-    private SkipPolicy configuredSkipPolicy(JobConfig.SkipPolicyConfig configuredSkipPolicy, String stepName) {
-        return batchStepPolicySupport.configuredSkipPolicy(configuredSkipPolicy, stepName);
-    }
-
-    // Compatibility shim while tests and call sites still reflect into BatchConfig private helpers.
-    @SuppressWarnings("unused")
-    private RetryPolicy configuredRetryPolicy(JobConfig.RetryPolicyConfig configuredRetryPolicy, String stepName) {
-        return batchStepPolicySupport.configuredRetryPolicy(configuredRetryPolicy, stepName);
-    }
-
-    // Keep Object for stepSubFlow to preserve existing reflection-based tests.
-    @SuppressWarnings("unused")
-    private RetryListener configuredRetryListener(JobConfig.RetryPolicyConfig configuredRetryPolicy,
-                                                  String stepName,
-                                                  SourceConfig sourceConfig,
-                                                  TargetConfig targetConfig,
-                                                  Object stepSubFlow) {
-        JobSubFlowDescriptor descriptor = stepSubFlow instanceof JobSubFlowDescriptor jobSubFlowDescriptor
-                ? jobSubFlowDescriptor
-                : null;
-        return batchStepPolicySupport.configuredRetryListener(
-                configuredRetryPolicy,
-                stepName,
-                sourceConfig,
-                targetConfig,
-                descriptor
-        );
-    }
-
-    @SuppressWarnings("unused")
-    private List<Class<? extends Throwable>> exceptionClassesForCategories(List<String> configuredCategories) {
-        return batchStepPolicySupport.exceptionClassesForCategories(configuredCategories);
-    }
 
 }

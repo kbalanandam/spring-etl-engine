@@ -11,8 +11,6 @@ import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.config.target.XmlTargetConfig;
-import com.etl.exception.TargetWriteException;
-import com.etl.exception.ValidationException;
 import com.etl.job.listener.JobCompletionNotificationListener;
 import com.etl.job.listener.StepLoggingContextListener;
 import com.etl.processor.DynamicProcessorFactory;
@@ -35,12 +33,9 @@ import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.repository.JobRepository;
-import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.retry.RetryListener;
-import org.springframework.retry.RetryPolicy;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.batch.repeat.RepeatStatus;
@@ -50,7 +45,6 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -476,66 +470,6 @@ class BatchConfigStepOrchestrationTest {
         assertTrue(exception.getMessage().contains("both ordered duplicate winner selection and retryPolicy"));
     }
 
-    @Test
-    void compatibilityShimMethodsRemainInvocableViaReflection() throws Exception {
-        SourceWrapper sourceWrapper = new SourceWrapper();
-        sourceWrapper.setSources(List.of(csvSource("Customers", tempCsv("customers-small.csv"))));
-
-        TargetWrapper targetWrapper = new TargetWrapper();
-        targetWrapper.setTargets(List.of(xmlTarget("Customers", "Customer")));
-
-        ProcessorConfig processorConfig = processorConfig(mapping("Customers", "Customers"));
-
-        BatchConfig batchConfig = new BatchConfig(
-                sourceWrapper,
-                mockReaderFactory(),
-                mockWriterFactory(),
-                mock(JobRepository.class),
-                mock(PlatformTransactionManager.class),
-                new JobCompletionNotificationListener(),
-                mockProcessorFactory(),
-                processorConfig,
-                targetWrapper,
-                new StepLoggingContextListener(),
-                new RunConfigurationMetadata(
-                        "customers-compat-shims",
-                        tempDir.resolve("job-config.yaml").toString(),
-                        false,
-                        "customers-main-flow",
-                        "default-subflow",
-                        JobRecoveryPolicy.RERUN_FROM_START,
-                        List.of(step("customers-step", "Customers", "Customers"))
-                ),
-                new FileIngestionRuntimeSupport(),
-                new DuplicateResolverFactory()
-        );
-
-        JobConfig.SkipPolicyConfig skipPolicyConfig = stepWithSkipPolicy("customers-step", "Customers", "Customers", 1,
-                List.of("runtime"), List.of()).getSkipPolicy();
-        SkipPolicy skipPolicy = ReflectionTestUtils.invokeMethod(batchConfig, "configuredSkipPolicy", skipPolicyConfig, "customers-step");
-        assertNotNull(skipPolicy);
-
-        JobConfig.RetryPolicyConfig retryPolicyConfig = stepWithRetryPolicy("customers-step", "Customers", "Customers", 3, 25L,
-                List.of("runtime"), List.of()).getRetryPolicy();
-        RetryPolicy retryPolicy = ReflectionTestUtils.invokeMethod(batchConfig, "configuredRetryPolicy", retryPolicyConfig, "customers-step");
-        assertNotNull(retryPolicy);
-
-        RetryListener retryListener = ReflectionTestUtils.invokeMethod(batchConfig, "configuredRetryListener",
-                retryPolicyConfig,
-                "customers-step",
-                csvSource("Customers", tempCsv("customers-retry.csv")),
-                xmlTarget("Customers", "Customer"),
-                null);
-        assertNotNull(retryListener);
-
-        List<Class<? extends Throwable>> exceptionClasses = ReflectionTestUtils.invokeMethod(
-                batchConfig,
-                "exceptionClassesForCategories",
-                List.of("validation", "target-write"));
-        assertNotNull(exceptionClasses);
-        assertTrue(exceptionClasses.contains(ValidationException.class));
-        assertTrue(exceptionClasses.contains(TargetWriteException.class));
-    }
 
     @Test
     void buildStepsHonorsConfiguredEmbeddedDbStorageModeForOrderedDuplicateSelection() throws Exception {
