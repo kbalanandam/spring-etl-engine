@@ -8,8 +8,8 @@ Follow-on to `A7` that delivers the deferred custom-step runtime contracts for t
 
 - Epic: **[Epic A](../../epics/etl-core/epic-a-runtime-contract-and-model-governance.md)**
 - Priority: **P1**
-- Status: **Ready**
-- Milestone: **M3**
+- Status: **In Progress**
+- Milestone: **M2**
 - Dependency: **A7, D1**
 
 ## Problem
