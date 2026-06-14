@@ -230,7 +230,8 @@ This table is the day-to-day execution view for the current product stage.
 | [A4](backlog-items/etl-core/A4-standardize-generated-model-naming-and-package-derivation.md) | Standardize generated-model naming and package derivation | Epic A | P1 | Done | M2 | A2 | Shipped selected-job contract: package-free source/target YAML, required non-blank job names, centralized package resolution, collision and handoff guardrails, standardized generated headers, and XML `XmlRecord` / `XmlRoot` class-shape separation on the active path |
 | [A5](backlog-items/etl-core/A5-relational-source-column-alias-contract.md) | Add relational source column alias contract and reader mapping | Epic A | P2 | Deferred | M2 | none | Parked for later review so relational reads can support source-column-to-property differences without disturbing the current phase-1 baseline |
 | [A6](backlog-items/etl-core/A6-retire-internal-generated-model-package-bridge.md) | Retire remaining internal generated-model package bridge | Epic A | P2 | Deferred | M2 | A4 | Parked for later as optional internal cleanup after higher-priority work; do not reopen authored `packageName` support while it is deferred |
-| [A7](backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md) | Add custom-step pairing, context handoff, and failure-contract baseline | Epic A | P1 | Blocked | M2 | A1, D1 | Blocked until pre-implementation multi-review artifacts (runtime, scheduler/control-plane, UI/operations) are completed; kickoff branch `feature/a7-custom-step-kickoff` is created and contract remains non-shipped until review artifacts are approved |
+| [A7](backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md) | Add custom-step pairing, context handoff, and failure-contract baseline | Epic A | P1 | Done | M2 | A1, D1 | Phase-1 shipped: ordered `steps[].kind` with `kind: custom` provider binding via `custom.type`, preserving standard-step defaults and one runtime assembly path |
+| [A7b](backlog-items/etl-core/A7b-custom-step-context-outcome-and-failure-finalization-follow-on.md) | Extend custom-step context bridge, outcome mapping, and failure-finalization contract | Epic A | P1 | Ready | M3 | A7, D1 | Follow-on delivery for typed context handoff validation, explicit `CONTINUE/STOP/FAIL` mapping, and bounded failure-finalizer hooks |
 | [T1](backlog-items/etl-core/T1-field-level-validation-and-first-reject-handling-slice.md) | Add field-level validation rules and first reject-handling slice for file scenarios | Epic T | P1 | Done | M1 | A1 | First shipped CSV-focused slice now supports `notNull`, `timeFormat`, duplicate handling, and controlled rejected-record output |
 | [T1a](backlog-items/etl-core/T1a-processor-transform-spi-and-first-cleaner-normalization-slice.md) | Define processor transform SPI and first cleaner/normalization slice | Epic T | P1 | Done | M2 | T1 | Ordered `transforms[]` now run before validation, with shipped `valueMap` support for normalization, fallbacks, and case-insensitive matching |
 | [T2](backlog-items/etl-core/T2-expression-based-derived-field-support.md) | Add expression-based derived field support | Epic T | P1 | Done | M2 | T1a | Shipped through processor-side `transforms[].type: expression`, including derived fields without a physical `from` property when expression is first |
@@ -295,9 +296,9 @@ This table is the day-to-day execution view for the current product stage.
 Use this section as the near-term sequencing view behind the execution board:
 
 1. Run the next balanced-growth lane as one ETL item, one scheduler item, and one UI item in parallel so boundary assumptions are exercised together rather than only serially.
-2. Use `A7` + `S2` + `U4` as the default balanced trio for that lane: ETL custom-step contract, scheduler pause/resume baseline, and UI schedule visibility/pause-resume controls.
-3. Keep `A7` near-term so custom-step pairing, context handoff, and failure finalization can be bounded before ad hoc customer hooks spread.
-4. Keep `T16` near-term with `A7` so customer-owned processor transforms and customer-owned job steps evolve as one bounded extension model, now building on the shipped D1 taxonomy baseline.
+2. Use `A7b` + `S2` + `U4` as the default balanced trio for that lane: ETL custom-step follow-on contract, scheduler pause/resume baseline, and UI schedule visibility/pause-resume controls.
+3. Keep `A7b` near-term so typed context handoff, outcome mapping, and failure finalization are bounded before ad hoc customer hooks spread.
+4. Keep `T16` near-term with `A7b` so customer-owned processor transforms and customer-owned job steps evolve as one bounded extension model, now building on the shipped D1 taxonomy baseline and A7 phase-1 baseline.
 5. Keep duplicate-handling follow-on split explicitly: `T15` is closed and larger duplicate-state scale redesign remains deferred under `T7`.
 6. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
 7. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
@@ -811,9 +812,9 @@ Exit signal:
 
 Use this as the condensed near-term priority order:
 
-1. balanced-growth lane - `A7` / `S2` / `U4` as one ETL + one scheduler + one UI slice delivered in parallel against the same selected-job and optional-control-plane boundaries
+1. balanced-growth lane - `A7b` / `S2` / `U4` as one ETL + one scheduler + one UI slice delivered in parallel against the same selected-job and optional-control-plane boundaries
 2. follow-on UI lane - `U5` schedule workbench plus run trigger-origin visibility (`Manual` / `Schedule` now, `Event` ready) after `U4`
-3. `A7` / `T16` - bounded customer extensibility through job-level custom steps plus processor-level custom transforms, now anchored to the shipped D1 taxonomy baseline and shipped `B1`/`B2` fault-tolerance baselines
+3. `A7b` / `T16` - bounded customer extensibility through job-level custom steps plus processor-level custom transforms, now anchored to the shipped D1 taxonomy baseline, shipped A7 phase-1 baseline, and shipped `B1`/`B2` fault-tolerance baselines
 4. duplicate follow-on - `T7` (larger duplicate-scale redesign)
 5. deferred `Epic T` advanced sequence - `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
 6. `Epic P` - first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
@@ -830,8 +831,8 @@ Use this week-by-week plan when the team wants a concrete 90-day lane against th
 
 | Week | Focus items | PR slices | Go / No-Go |
 |---|---|---|---|
-| 1 | `A7`, `F1`, `S2` | `A7` pre-review artifact package; `F1` recovery-evidence gap closure; `S2` transition hardening prep | Go if `A7` review owners and checkpoints are scheduled |
-| 2 | `A7`, `F1`, `S2`, `U4` | `A7` runtime+scheduler+UI review artifacts; `F1` handoff consistency fixes; `U4` UI readiness gap PR | Go if `A7` review artifacts are approved and blockers are explicit |
+| 1 | `A7b`, `F1`, `S2` | `A7b` scope kickoff package; `F1` recovery-evidence gap closure; `S2` transition hardening prep | Go if `A7b` implementation owners and checkpoints are scheduled |
+| 2 | `A7b`, `F1`, `S2`, `U4` | `A7b` runtime+scheduler+UI follow-on design artifacts; `F1` handoff consistency fixes; `U4` UI readiness gap PR | Go if `A7b` follow-on artifacts are approved and blockers are explicit |
 | 3 | `S2`, `U4`, `F1` | `S2` pause/resume API completion; `U4` schedule visibility + control wiring; focused regression suite update | Go if `S2`/`U4` acceptance tests pass and `F1` evidence remains green |
 | 4 | `U4`, `S2` | `U4` empty/error states + guardrail wording; scheduler evidence consistency hardening; docs/changelog sync | Go if `U4` and `S2` can move to Done without boundary drift |
 | 5 | `U5` | trigger-origin projection (`Manual`/`Schedule` baseline); schedule workbench route/actions; origin regression proof | Go if trigger-origin is deterministic end-to-end |
@@ -847,7 +848,7 @@ Execution guardrails for this plan:
 
 - keep no more than two major `In Progress` items per lane at once
 - do not start `R3` before `R1` and `R2` acceptance gates are complete
-- treat `A7` review completion as a hard gate before broader custom-step implementation
+- treat A7 phase-1 closure plus A7b scope approval as a hard gate before broader custom-step implementation
 - keep scheduler/control-plane optionality intact; direct selected-job ETL execution remains supported in every phase
 
 ---

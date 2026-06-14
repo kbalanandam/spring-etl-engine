@@ -25,6 +25,7 @@ This epic is **not** the place for transformation richness, retry/skip semantics
 - [`A5 - Add relational source column alias contract and reader mapping`](../../backlog-items/etl-core/A5-relational-source-column-alias-contract.md)
 - [`A6 - Retire remaining internal generated-model package bridge`](../../backlog-items/etl-core/A6-retire-internal-generated-model-package-bridge.md)
 - [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../../backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+- [`A7b - Extend custom-step context, outcome mapping, and failure-finalization contract`](../../backlog-items/etl-core/A7b-custom-step-context-outcome-and-failure-finalization-follow-on.md)
 
 ## Related docs
 
