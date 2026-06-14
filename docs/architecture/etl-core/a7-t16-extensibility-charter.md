@@ -11,9 +11,10 @@ The goal is to keep OneFlow scalable for customer-specific needs while preservin
 
 ## Status
 
-- Classification: **Future direction**
+- Classification: **Transition (A7 phase-1 shipped, A7b follow-on open)**
 - Backlog anchors:
   - [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+  - [`A7b - Extend custom-step context, outcome mapping, and failure-finalization contract`](../../product/backlog-items/etl-core/A7b-custom-step-context-outcome-and-failure-finalization-follow-on.md)
   - [`T16 - Define customer-owned processor transform extension seam`](../../product/backlog-items/etl-core/T16-customer-owned-processor-transform-extension-seam.md)
 
 ## Extensibility split
@@ -57,7 +58,8 @@ Use one shared vocabulary direction across both seams:
 
 Keep the first implementation slices narrow:
 
-- A7: custom step seam, context bridge, outcome mapping, failure finalizer
+- A7 (shipped): custom step seam with ordered `steps[].kind` and provider binding via `steps[].custom.type`
+- A7b (follow-on): typed context bridge, explicit outcome mapping, and failure finalizer
 - T16: field-scoped transform extensibility on existing transform SPI
 - Out of scope in phase-1: source-native transform seam (`T9`), record-level stage (`T10`), cross-record transforms (`T11`)
 
