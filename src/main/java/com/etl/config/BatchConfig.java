@@ -24,12 +24,14 @@ import com.etl.runtime.job.JobStepDescriptor;
 import com.etl.runtime.job.JobSubFlowDescriptor;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import com.etl.step.CustomStepHandler;
+import com.etl.step.CustomStepOutcomeMapper;
 import com.etl.step.DynamicCustomStepFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.StepExecutionListener;
+import org.springframework.batch.core.ExitStatus;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.job.builder.JobBuilder;
 import org.springframework.batch.core.job.builder.SimpleJobBuilder;
@@ -92,6 +94,7 @@ public class BatchConfig {
     private final BatchStandardStepAssembler batchStandardStepAssembler;
     private final BatchConfigStepResolutionSupport batchConfigStepResolutionSupport;
     private final BatchConfigRuntimeContextSupport batchConfigRuntimeContextSupport;
+    private final CustomStepOutcomeMapper customStepOutcomeMapper;
 
     /**
      * The threshold for switching between chunk and tasklet processing.
@@ -143,6 +146,7 @@ public class BatchConfig {
         this.batchConfigRuntimeContextSupport = new BatchConfigRuntimeContextSupport();
         this.chunkThreshold = Math.max(1, etlBatchProperties == null ? 10000 : etlBatchProperties.getThreshold());
         this.batchStepModePlanner = new BatchStepModePlanner(logger, runConfigurationMetadata);
+        this.customStepOutcomeMapper = new CustomStepOutcomeMapper();
         this.batchStandardStepAssembler = new BatchStandardStepAssembler(
                 logger,
                 runConfigurationMetadata,
@@ -452,6 +456,21 @@ public class BatchConfig {
                             configuredIndex,
                             descriptorStepOrder == null ? -1 : descriptorStepOrder,
                             status == null ? RepeatStatus.FINISHED : status);
+                    CustomStepOutcomeMapper.OutcomeAction outcomeAction = customStepOutcomeMapper.resolveAction(configuredStep.getCustom(), contribution);
+                    if (outcomeAction != null) {
+                        logger.info("STEP_EVENT event=custom_step_outcome_mapped stepName={} stepExecutionId={} customType={} mappedAction={} providerResult={}",
+                                stepName,
+                                contribution.getStepExecution().getId(),
+                                customType,
+                                outcomeAction,
+                                contribution.getExitStatus() == null ? "" : contribution.getExitStatus().getExitCode());
+                        if (outcomeAction == CustomStepOutcomeMapper.OutcomeAction.STOP) {
+                            contribution.setExitStatus(ExitStatus.STOPPED);
+                            contribution.getStepExecution().setTerminateOnly();
+                        } else if (outcomeAction == CustomStepOutcomeMapper.OutcomeAction.FAIL) {
+                            throw new IllegalStateException("Custom step '" + stepName + "' mapped provider result to FAIL via custom.onResult.");
+                        }
+                    }
                     return status == null ? RepeatStatus.FINISHED : status;
                 }, transactionManager)
                 .build();
