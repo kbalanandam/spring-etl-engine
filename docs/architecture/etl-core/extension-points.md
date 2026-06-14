@@ -97,9 +97,9 @@ Validation and field-level processing behavior now use both shipped and planned 
 - Shipped showcase processor extension provider (ServiceLoader): `ShowcaseProcessorExtensionProvider` contributing `PartnerStatusTranslateProcessorTransform`.
 - Processor transform extension point remains on the active runtime path with `ProcessorConfig`, `DefaultDynamicProcessor`, and mapping components under `src/main/java/com/etl/mapping/`.
 
-## Planned custom-step pairing seam (future direction)
+## Custom-step pairing seam (A7 phase-1 shipped)
 
-This seam is planned under backlog item [`A7`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md).
+Current shipped baseline is tracked under backlog item [`A7`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md), with deferred context/outcome/finalizer contracts tracked under [`A7b`](../../product/backlog-items/etl-core/A7b-custom-step-context-outcome-and-failure-finalization-follow-on.md).
 
 Detailed design note:
 
@@ -109,7 +109,7 @@ Goal: allow customer-owned custom behavior (for example relational header audit 
 
 Phase-1 identity split for this seam should stay fixed: `steps[].name` for operator-visible step identity and `steps[].custom.type` for provider binding identity.
 
-### Proposed class-level anchors
+### Class-level anchors
 
 - `JobConfig.JobStepConfig` extension for step `kind` and optional custom metadata block
 - `CustomStepConfig` for typed custom-step fields (`type`, optional context keys, optional result policy)

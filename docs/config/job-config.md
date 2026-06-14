@@ -227,11 +227,15 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - Processor-config validation failures in explicit runs are surfaced with the selected scenario name and processor-config path so operators can identify the broken scenario bundle quickly.
 - Generated-model naming/package failures in explicit runs are surfaced as config errors with the selected scenario name, job-config path, and the failing `step` / `source` / `target` so support can narrow model-resolution issues quickly.
 
-## Custom-step contract (A7 phase-1 slice)
+## Custom-step contract (A7 phase-1 shipped slice)
 
 Tracked backlog item:
 
 - [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+
+Deferred follow-on scope:
+
+- [`A7b - Extend custom-step context, outcome mapping, and failure-finalization contract`](../product/backlog-items/etl-core/A7b-custom-step-context-outcome-and-failure-finalization-follow-on.md)
 
 Current first-slice behavior:
 
