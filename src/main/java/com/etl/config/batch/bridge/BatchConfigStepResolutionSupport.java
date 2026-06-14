@@ -1,4 +1,4 @@
-package com.etl.config;
+package com.etl.config.batch.bridge;
 
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
@@ -15,15 +15,15 @@ import java.util.Map;
  * <p>This helper keeps explicit-step resolution behavior stable while reducing
  * orchestration weight in BatchConfig.</p>
  */
-final class BatchConfigStepResolutionSupport {
+public final class BatchConfigStepResolutionSupport {
 
     private final ProcessorConfig processorConfig;
 
-    BatchConfigStepResolutionSupport(ProcessorConfig processorConfig) {
+    public BatchConfigStepResolutionSupport(ProcessorConfig processorConfig) {
         this.processorConfig = processorConfig;
     }
 
-    Map<String, SourceConfig> mapSourcesByName(List<? extends SourceConfig> sources) {
+    public Map<String, SourceConfig> mapSourcesByName(List<? extends SourceConfig> sources) {
         Map<String, SourceConfig> sourceByName = new LinkedHashMap<>();
         for (SourceConfig source : sources) {
             if (source.getSourceName() == null || source.getSourceName().isBlank()) {
@@ -36,7 +36,7 @@ final class BatchConfigStepResolutionSupport {
         return sourceByName;
     }
 
-    Map<String, TargetConfig> mapTargetsByName(List<TargetConfig> targets) {
+    public Map<String, TargetConfig> mapTargetsByName(List<TargetConfig> targets) {
         Map<String, TargetConfig> targetByName = new LinkedHashMap<>();
         for (TargetConfig target : targets) {
             if (target.getTargetName() == null || target.getTargetName().isBlank()) {
@@ -49,7 +49,7 @@ final class BatchConfigStepResolutionSupport {
         return targetByName;
     }
 
-    SourceConfig requireSource(JobConfig.JobStepConfig configuredStep, Map<String, SourceConfig> sourceByName) {
+    public SourceConfig requireSource(JobConfig.JobStepConfig configuredStep, Map<String, SourceConfig> sourceByName) {
         SourceConfig sourceConfig = sourceByName.get(configuredStep.getSource());
         if (sourceConfig == null) {
             throw new IllegalStateException("Step '" + configuredStep.getName() + "' references unknown source '" + configuredStep.getSource() + "'.");
@@ -57,7 +57,7 @@ final class BatchConfigStepResolutionSupport {
         return sourceConfig;
     }
 
-    TargetConfig requireTarget(JobConfig.JobStepConfig configuredStep, Map<String, TargetConfig> targetByName) {
+    public TargetConfig requireTarget(JobConfig.JobStepConfig configuredStep, Map<String, TargetConfig> targetByName) {
         TargetConfig targetConfig = targetByName.get(configuredStep.getTarget());
         if (targetConfig == null) {
             throw new IllegalStateException("Step '" + configuredStep.getName() + "' references unknown target '" + configuredStep.getTarget() + "'.");
@@ -65,7 +65,7 @@ final class BatchConfigStepResolutionSupport {
         return targetConfig;
     }
 
-    ProcessorConfig.EntityMapping requireProcessorMapping(JobConfig.JobStepConfig configuredStep) {
+    public ProcessorConfig.EntityMapping requireProcessorMapping(JobConfig.JobStepConfig configuredStep) {
         ProcessorConfig.EntityMapping mapping = processorConfig.getMappings() == null ? null : processorConfig.getMappings().stream()
                 .filter(candidate -> configuredStep.getSource().equals(candidate.getSource())
                         && configuredStep.getTarget().equals(candidate.getTarget()))
@@ -78,4 +78,5 @@ final class BatchConfigStepResolutionSupport {
         return mapping;
     }
 }
+
 

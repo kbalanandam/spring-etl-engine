@@ -1,5 +1,6 @@
 package com.etl.config;
 
+import com.etl.config.batch.bridge.BatchConfigStepResolutionSupport;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;

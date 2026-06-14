@@ -3,6 +3,7 @@ package com.etl.config;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.etl.config.batch.bridge.BatchStepPolicySupport;
 import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.target.TargetConfig;

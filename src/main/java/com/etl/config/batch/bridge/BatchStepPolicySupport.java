@@ -1,5 +1,6 @@
-package com.etl.config;
+package com.etl.config.batch.bridge;
 
+import com.etl.config.RunConfigurationMetadata;
 import com.etl.config.job.JobConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.target.TargetConfig;
@@ -39,7 +40,7 @@ import java.util.Locale;
  *
  * <p>This helper keeps behavior stable while reducing orchestration weight in BatchConfig.</p>
  */
-final class BatchStepPolicySupport {
+public final class BatchStepPolicySupport {
 
     private static final String RETRY_FAILURE_COUNT_KEY = "configuredRetryFailureCount";
     private static final String RETRY_FIRST_FAILURE_CATEGORY_KEY = "configuredRetryFirstFailureCategory";
@@ -49,12 +50,12 @@ final class BatchStepPolicySupport {
     private final Logger logger;
     private final RunConfigurationMetadata runConfigurationMetadata;
 
-    BatchStepPolicySupport(Logger logger, RunConfigurationMetadata runConfigurationMetadata) {
+    public BatchStepPolicySupport(Logger logger, RunConfigurationMetadata runConfigurationMetadata) {
         this.logger = logger;
         this.runConfigurationMetadata = runConfigurationMetadata;
     }
 
-    SkipPolicy configuredSkipPolicy(JobConfig.SkipPolicyConfig skipPolicy, String stepName) {
+    public SkipPolicy configuredSkipPolicy(JobConfig.SkipPolicyConfig skipPolicy, String stepName) {
         return new ConfiguredSkipPolicy(
                 skipPolicy.getSkipLimit(),
                 resolveSkippableCategories(skipPolicy),
@@ -62,8 +63,8 @@ final class BatchStepPolicySupport {
         );
     }
 
-    RetryPolicy configuredRetryPolicy(JobConfig.RetryPolicyConfig retryPolicy,
-                                      String stepName) {
+    public RetryPolicy configuredRetryPolicy(JobConfig.RetryPolicyConfig retryPolicy,
+                                             String stepName) {
         List<String> retryableCategories = resolveRetryableCategories(retryPolicy);
         List<Class<? extends Throwable>> retryableExceptions = resolveRetryableExceptionClasses(retryPolicy, stepName);
         SimpleRetryPolicy matchingRetryPolicy = new SimpleRetryPolicy(retryPolicy.getMaxAttempts());
@@ -77,17 +78,17 @@ final class BatchStepPolicySupport {
         return retryClassifier;
     }
 
-    FixedBackOffPolicy configuredRetryBackOffPolicy(JobConfig.RetryPolicyConfig retryPolicy) {
+    public FixedBackOffPolicy configuredRetryBackOffPolicy(JobConfig.RetryPolicyConfig retryPolicy) {
         FixedBackOffPolicy backOffPolicy = new FixedBackOffPolicy();
         backOffPolicy.setBackOffPeriod(retryPolicy.getBackoffMs());
         return backOffPolicy;
     }
 
-    RetryListener configuredRetryListener(JobConfig.RetryPolicyConfig retryPolicy,
-                                          String stepName,
-                                          SourceConfig sourceConfig,
-                                          TargetConfig targetConfig,
-                                          JobSubFlowDescriptor stepSubFlow) {
+    public RetryListener configuredRetryListener(JobConfig.RetryPolicyConfig retryPolicy,
+                                                 String stepName,
+                                                 SourceConfig sourceConfig,
+                                                 TargetConfig targetConfig,
+                                                 JobSubFlowDescriptor stepSubFlow) {
         return new RetryListener() {
             @Override
             public <T, E extends Throwable> boolean open(RetryContext context, RetryCallback<T, E> callback) {
@@ -239,7 +240,7 @@ final class BatchStepPolicySupport {
         return List.copyOf(exceptionClasses);
     }
 
-    List<Class<? extends Throwable>> exceptionClassesForCategories(List<String> configuredCategories) {
+    public List<Class<? extends Throwable>> exceptionClassesForCategories(List<String> configuredCategories) {
         if (configuredCategories == null || configuredCategories.isEmpty()) {
             return List.of();
         }
@@ -364,5 +365,6 @@ final class BatchStepPolicySupport {
         }
     }
 }
+
 
 

@@ -1,7 +1,8 @@
-package com.etl.config;
+package com.etl.config.batch.bridge;
 
 import com.etl.common.util.GeneratedModelClassResolver;
 import com.etl.common.util.ResolvedModelMetadata;
+import com.etl.config.RunConfigurationMetadata;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.SourceConfig;
@@ -40,7 +41,7 @@ import java.util.List;
 /**
  * Bridge seam that assembles one resolved standard step (chunk or tasklet mode).
  */
-final class BatchStandardStepAssembler {
+public final class BatchStandardStepAssembler {
 
     private static final String ORDERED_DUPLICATE_RESOLVER_MODE_KEY = "orderedDuplicateResolverMode";
     private static final String ORDERED_DUPLICATE_RESOLVER_REASON_KEY = "orderedDuplicateResolverReason";
@@ -55,15 +56,15 @@ final class BatchStandardStepAssembler {
     private final DuplicateResolverFactory duplicateResolverFactory;
     private final BatchStepPolicySupport batchStepPolicySupport;
 
-    BatchStandardStepAssembler(Logger logger,
-                               RunConfigurationMetadata runConfigurationMetadata,
-                               JobRepository jobRepository,
-                               PlatformTransactionManager transactionManager,
-                               StepLoggingContextListener stepLoggingContextListener,
-                               ProcessorConfig processorConfig,
-                               FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
-                               DuplicateResolverFactory duplicateResolverFactory,
-                               BatchStepPolicySupport batchStepPolicySupport) {
+    public BatchStandardStepAssembler(Logger logger,
+                                      RunConfigurationMetadata runConfigurationMetadata,
+                                      JobRepository jobRepository,
+                                      PlatformTransactionManager transactionManager,
+                                      StepLoggingContextListener stepLoggingContextListener,
+                                      ProcessorConfig processorConfig,
+                                      FileIngestionRuntimeSupport fileIngestionRuntimeSupport,
+                                      DuplicateResolverFactory duplicateResolverFactory,
+                                      BatchStepPolicySupport batchStepPolicySupport) {
         this.logger = logger;
         this.runConfigurationMetadata = runConfigurationMetadata;
         this.jobRepository = jobRepository;
@@ -75,7 +76,7 @@ final class BatchStandardStepAssembler {
         this.batchStepPolicySupport = batchStepPolicySupport;
     }
 
-    Step assemble(StandardStepBuildContext context) {
+    public Step assemble(StandardStepBuildContext context) {
         FileIngestionHardeningStepListener fileIngestionHardeningStepListener =
                 new FileIngestionHardeningStepListener(
                         context.source(),
@@ -316,7 +317,7 @@ final class BatchStandardStepAssembler {
         return runConfigurationMetadata.recoveryPolicy() == null ? "" : runConfigurationMetadata.recoveryPolicy().logValue();
     }
 
-    record StandardStepBuildContext(
+    public record StandardStepBuildContext(
             String stepName,
             JobSubFlowDescriptor stepSubFlow,
             SourceConfig source,
@@ -341,5 +342,6 @@ final class BatchStandardStepAssembler {
     ) {
     }
 }
+
 
 

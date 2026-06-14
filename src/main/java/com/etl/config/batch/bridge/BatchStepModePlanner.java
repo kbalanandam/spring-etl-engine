@@ -1,5 +1,6 @@
-package com.etl.config;
+package com.etl.config.batch.bridge;
 
+import com.etl.config.RunConfigurationMetadata;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.SourceConfig;
@@ -14,25 +15,25 @@ import org.slf4j.Logger;
  * <p>This planner keeps mode-selection behavior stable while reducing orchestration weight.
  * It decides chunk/tasklet mode and duplicate resolver strategy for a standard step.</p>
  */
-final class BatchStepModePlanner {
+public final class BatchStepModePlanner {
 
     private final Logger logger;
     private final RunConfigurationMetadata runConfigurationMetadata;
 
-    BatchStepModePlanner(Logger logger,
-                         RunConfigurationMetadata runConfigurationMetadata) {
+    public BatchStepModePlanner(Logger logger,
+                                RunConfigurationMetadata runConfigurationMetadata) {
         this.logger = logger;
         this.runConfigurationMetadata = runConfigurationMetadata;
     }
 
-    StepModePlan plan(String stepName,
-                      SourceConfig sourceConfig,
-                      TargetConfig targetConfig,
-                      ProcessorConfig.EntityMapping mapping,
-                      JobConfig.SkipPolicyConfig configuredSkipPolicy,
-                      JobConfig.RetryPolicyConfig configuredRetryPolicy,
-                      JobSubFlowDescriptor stepSubFlow,
-                      int chunkThreshold) {
+    public StepModePlan plan(String stepName,
+                             SourceConfig sourceConfig,
+                             TargetConfig targetConfig,
+                             ProcessorConfig.EntityMapping mapping,
+                             JobConfig.SkipPolicyConfig configuredSkipPolicy,
+                             JobConfig.RetryPolicyConfig configuredRetryPolicy,
+                             JobSubFlowDescriptor stepSubFlow,
+                             int chunkThreshold) {
         boolean useChunk;
         int recordCount;
         boolean recordCountUnknown = false;
@@ -139,13 +140,14 @@ final class BatchStepModePlanner {
         );
     }
 
-    record StepModePlan(boolean useChunk,
-                        int recordCount,
-                        DuplicateRule duplicateRule,
-                        boolean useEmbeddedDbDuplicateResolver,
-                        String orderedDuplicateResolverMode,
-                        String orderedDuplicateResolverReason) {
+    public record StepModePlan(boolean useChunk,
+                               int recordCount,
+                               DuplicateRule duplicateRule,
+                               boolean useEmbeddedDbDuplicateResolver,
+                               String orderedDuplicateResolverMode,
+                               String orderedDuplicateResolverReason) {
     }
 }
+
 
 

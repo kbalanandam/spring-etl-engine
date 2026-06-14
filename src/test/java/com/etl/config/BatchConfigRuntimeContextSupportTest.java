@@ -1,6 +1,7 @@
 package com.etl.config;
 
 import com.etl.common.util.ResolvedModelMetadata;
+import com.etl.config.batch.bridge.BatchConfigRuntimeContextSupport;
 import com.etl.runtime.job.JobModelResolutionMode;
 import com.etl.runtime.job.JobStepModelDescriptor;
 import org.junit.jupiter.api.Test;

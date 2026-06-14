@@ -1,4 +1,4 @@
-package com.etl.config;
+package com.etl.config.batch.bridge;
 
 import com.etl.common.util.ResolvedModelMetadata;
 import com.etl.runtime.job.JobHierarchyLoggingSupport;
@@ -14,9 +14,9 @@ import org.springframework.lang.NonNull;
  *
  * <p>This helper keeps metadata/listener behavior stable while reducing orchestration weight.</p>
  */
-final class BatchConfigRuntimeContextSupport {
+public final class BatchConfigRuntimeContextSupport {
 
-    ResolvedModelMetadata toResolvedModelMetadata(JobStepModelDescriptor modelDescriptor) {
+    public ResolvedModelMetadata toResolvedModelMetadata(JobStepModelDescriptor modelDescriptor) {
         return new ResolvedModelMetadata(
                 modelDescriptor.sourceClassName(),
                 modelDescriptor.targetProcessingClassName(),
@@ -26,7 +26,7 @@ final class BatchConfigRuntimeContextSupport {
         );
     }
 
-    StepExecutionListener jobHierarchyContextListener(JobRuntimeDescriptor jobRuntimeDescriptor, JobStepDescriptor jobStep) {
+    public StepExecutionListener jobHierarchyContextListener(JobRuntimeDescriptor jobRuntimeDescriptor, JobStepDescriptor jobStep) {
         if (jobRuntimeDescriptor == null || jobStep == null) {
             return null;
         }
@@ -43,4 +43,5 @@ final class BatchConfigRuntimeContextSupport {
         };
     }
 }
+
 
