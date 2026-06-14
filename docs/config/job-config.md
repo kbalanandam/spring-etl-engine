@@ -249,8 +249,9 @@ Current shipped behavior:
   - `custom.onResult` actions must map to `CONTINUE`, `STOP`, or `FAIL`
 - runtime now maps custom-step `onResult` actions through one bounded path:
   - `CONTINUE` keeps normal step progression
-  - `STOP` sets step exit to `STOPPED` and requests job stop
+  - `STOP` sets step exit to `STOPPED`, requests job stop, and prevents downstream step execution in the current run
   - `FAIL` fails fast through one runtime exception path
+- failure-finalizers remain failure-scoped in this slice: they run on failed jobs (`FAILED`) and do not run for controlled `STOPPED` outcomes
 - bounded failure finalization is now available through provider SPI on failed jobs via `CustomStepProvider.createFailureFinalizer(...)` (no new `job-config.yaml` field required in this slice)
 - custom-step runtime evidence is additive; standard-step evidence remains stable
 
@@ -326,6 +327,7 @@ The broader file-ingestion hardening direction beyond the first preserved CSV pr
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load-custom-steps/job-config.yaml`
+- `src/main/resources/config-jobs/customer-load-custom-step-fail-finalizer/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load-skip-policy-category/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load-skip-policy-category-unclassified/job-config.yaml`
 - `src/main/resources/config-jobs/department-load/job-config.yaml`

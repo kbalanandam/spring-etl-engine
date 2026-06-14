@@ -50,11 +50,11 @@ This item covers:
 
 - [ ] context handoff validates required keys and type expectations before dependent step execution
 - [ ] context key ownership and overwrite behavior are deterministic and documented
-- [ ] custom-step outcomes map through one explicit `CONTINUE` / `STOP` / `FAIL` contract
-- [ ] job-level status implications for mapped outcomes are documented and tested
-- [ ] bounded failure-finalizer contract executes for upstream-failure paths
-- [ ] at least one preserved runnable bundle demonstrates header/detail with failure-finalization behavior
-- [ ] architecture/config docs are synchronized with shipped behavior
+- [x] custom-step outcomes map through one explicit `CONTINUE` / `STOP` / `FAIL` contract
+- [x] job-level status implications for mapped outcomes are documented and tested (`STOP` = controlled `STOPPED` halt, `FAIL` = `FAILED` + bounded failure-finalizer path)
+- [x] bounded failure-finalizer contract executes for upstream-failure paths
+- [x] at least one preserved runnable bundle demonstrates header/detail with failure-finalization behavior (`src/main/resources/config-jobs/customer-load-custom-step-fail-finalizer/`)
+- [x] architecture/config docs are synchronized with shipped behavior
 
 ## Related docs
 

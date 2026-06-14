@@ -11,6 +11,8 @@ Define a future-direction architecture contract that lets customer-owned custom 
 - Shipped baseline: ordered `steps[]` now supports `kind: custom` with `custom.type` provider binding through `DynamicCustomStepFactory` while standard steps continue through existing reader/processor/writer factories; preserved runnable bundle: `src/main/resources/config-jobs/customer-load-custom-steps/` using built-in `auditNoop`
 - Run-level step debugging now also emits `STEP_SEQUENCE event=step_sequence` with one ordered projection of all planned steps (`index:name:kind(...)`) so operators can confirm selected-step identity and order from a single evidence line before step execution begins.
 - Shipped A7b runtime slices now validate/normalize `custom.publish`/`custom.consume`/`custom.onResult`, map `onResult` to `CONTINUE|STOP|FAIL` in custom-step execution, and invoke provider-defined bounded failure finalizers on failed jobs.
+- `STOP` and `FAIL` remain intentionally distinct: `STOP` is a controlled halt (`STOPPED`) that blocks downstream execution for the current run, while `FAIL` produces failed-job semantics that trigger bounded failure finalization.
+- Preserved runnable A7b failure/finalizer proof bundle: `src/main/resources/config-jobs/customer-load-custom-step-fail-finalizer/`.
 
 ## Design goals
 
@@ -262,6 +264,7 @@ publish and consume actions should emit step-level structured logs, for example:
 For header/detail scenarios, preserve one bounded finalization seam:
 
 - `CustomStepFailureFinalizer` runs on failed jobs for configured custom steps through provider SPI (`CustomStepProvider.createFailureFinalizer(...)`)
+- `STOPPED` outcomes do not invoke failure finalizers in this slice; only `FAILED` jobs run them
 - finalizer should use an independent transaction for status updates
 - finalizer must not alter final job failure semantics (job stays failed unless step outcome mapping already requested `STOP`)
 - finalizer failures are logged as additive warning evidence and do not replace the original job failure

@@ -380,6 +380,44 @@ class LoggingContextListenerTest {
         verify(customStepFactory, never()).getFailureFinalizer("run-finish-audit", custom);
     }
 
+    @Test
+    void afterJobSkipsCustomFailureFinalizersWhenJobIsStopped() {
+        JobConfig.JobStepConfig customStep = new JobConfig.JobStepConfig();
+        customStep.setName("run-finish-audit");
+        customStep.setKind("custom");
+        JobConfig.CustomStepConfig custom = new JobConfig.CustomStepConfig();
+        custom.setType("auditNoop");
+        customStep.setCustom(custom);
+        RunConfigurationMetadata runMetadata = new RunConfigurationMetadata(
+                "customer-load",
+                CUSTOMER_LOAD_JOB_CONFIG,
+                false,
+                "customer-main-flow",
+                "default-subflow",
+                JobRecoveryPolicy.RERUN_FROM_START,
+                List.of(customStep)
+        );
+        DynamicCustomStepFactory customStepFactory = mock(DynamicCustomStepFactory.class);
+
+        JobCompletionNotificationListener listener = new JobCompletionNotificationListener(null, runMetadata, customStepFactory);
+
+        JobExecution jobExecution = mock(JobExecution.class);
+        JobInstance jobInstance = mock(JobInstance.class);
+        JobParameters jobParameters = new JobParametersBuilder().addString("scenario", "customer-load").toJobParameters();
+        when(jobExecution.getJobParameters()).thenReturn(jobParameters);
+        when(jobExecution.getJobInstance()).thenReturn(jobInstance);
+        when(jobInstance.getJobName()).thenReturn("etlJob");
+        when(jobExecution.getId()).thenReturn(203L);
+        when(jobExecution.getStatus()).thenReturn(BatchStatus.STOPPED);
+        when(jobExecution.getStartTime()).thenReturn(LocalDateTime.now().minusSeconds(1));
+        when(jobExecution.getEndTime()).thenReturn(LocalDateTime.now());
+        when(jobExecution.getAllFailureExceptions()).thenReturn(List.of());
+
+        listener.afterJob(jobExecution);
+
+        verify(customStepFactory, never()).getFailureFinalizer("run-finish-audit", custom);
+    }
+
   private ListAppender<ILoggingEvent> attachAppender(Logger logger) {
     logger.detachAndStopAllAppenders();
     ListAppender<ILoggingEvent> appender = new ListAppender<>();
