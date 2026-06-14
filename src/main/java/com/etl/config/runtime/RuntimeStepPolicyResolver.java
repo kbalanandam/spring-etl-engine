@@ -22,6 +22,8 @@ import java.util.Set;
  */
 public final class RuntimeStepPolicyResolver {
 
+    private final CustomStepContractValidator customStepContractValidator = new CustomStepContractValidator();
+
     public List<JobConfig.JobStepConfig> resolveExplicitSteps(JobConfig jobConfig,
                                                               SourceWrapper sourceWrapper,
                                                               TargetWrapper targetWrapper,
@@ -74,13 +76,7 @@ public final class RuntimeStepPolicyResolver {
                 if (configuredStep.getRetryPolicy() != null && configuredStep.getRetryPolicy().isEnabled()) {
                     throw new ConfigException("JobConfig step '" + stepName + "' with kind 'custom' cannot enable retryPolicy in this slice.");
                 }
-                JobConfig.CustomStepConfig customStepConfig = new JobConfig.CustomStepConfig();
-                customStepConfig.setType(customType);
-                customStepConfig.setPublish(configuredStep.getCustom().getPublish());
-                customStepConfig.setConsume(configuredStep.getCustom().getConsume());
-                customStepConfig.setOnResult(configuredStep.getCustom().getOnResult());
-                customStepConfig.setConfig(configuredStep.getCustom().getConfig());
-                resolvedStep.setCustom(customStepConfig);
+                resolvedStep.setCustom(customStepContractValidator.normalizeAndValidate(stepName, configuredStep.getCustom()));
                 resolvedSteps.add(resolvedStep);
                 continue;
             }

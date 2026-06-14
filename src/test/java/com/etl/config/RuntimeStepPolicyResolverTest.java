@@ -14,6 +14,7 @@ import com.etl.exception.config.ConfigException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -227,6 +228,91 @@ class RuntimeStepPolicyResolverTest {
         assertEquals("headerStart", resolved.getCustom().getType());
         assertNull(resolved.getSource());
         assertNull(resolved.getTarget());
+    }
+
+    @Test
+    void resolveExplicitStepsNormalizesCustomStepContractMetadata() {
+        JobConfig.JobStepConfig step = customStep("header-start", "headerStart");
+        JobConfig.CustomStepConfig custom = step.getCustom();
+        custom.setPublish(Map.of("fileId", " header.fileId "));
+        custom.setConsume(Map.of("headerId", " header.fileId:LONG "));
+        custom.setOnResult(Map.of("ok", "continue", "bad", "FAIL"));
+
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        List<JobConfig.JobStepConfig> resolvedSteps = resolver.resolveExplicitSteps(
+                jobConfig,
+                sourceWrapper(csvSource("Customers")),
+                targetWrapper(csvTarget("CustomersOut")),
+                processorConfig(mapping("Customers", "CustomersOut"))
+        );
+
+        JobConfig.CustomStepConfig resolvedCustom = resolvedSteps.get(0).getCustom();
+        assertEquals("header.fileId", resolvedCustom.getPublish().get("fileId"));
+        assertEquals("header.fileId:long", resolvedCustom.getConsume().get("headerId"));
+        assertEquals("CONTINUE", resolvedCustom.getOnResult().get("ok"));
+        assertEquals("FAIL", resolvedCustom.getOnResult().get("bad"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomConsumeTypeIsUnsupported() {
+        JobConfig.JobStepConfig step = customStep("header-start", "headerStart");
+        step.getCustom().setConsume(Map.of("headerId", "header.fileId:uuid"));
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("unsupported type"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomOnResultActionIsUnsupported() {
+        JobConfig.JobStepConfig step = customStep("header-start", "headerStart");
+        step.getCustom().setOnResult(Map.of("ok", "PAUSE"));
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("unsupported action"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomPublishUsesNonNamespacedKey() {
+        JobConfig.JobStepConfig step = customStep("header-start", "headerStart");
+        step.getCustom().setPublish(Map.of("fileId", "fileId"));
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("namespaced context key"));
     }
 
     @Test
