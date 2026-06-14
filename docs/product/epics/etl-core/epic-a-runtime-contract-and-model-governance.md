@@ -2,7 +2,7 @@
 
 ## Summary
 
-Epic A covers the core runtime contract that keeps one selected job run explicit, predictable, and safe to operate. It includes orchestration guardrails, selected-job activation/startup checks, and the generated-model naming/package rules that keep runtime and build-time behavior aligned.
+Epic A covers the core runtime contract that keeps one selected job run explicit, predictable, and safe to operate. It includes orchestration guardrails, selected-job activation/startup checks, generated-model naming/package rules, and the phased custom-step contract (`A7` baseline plus `A7b` completion work) so runtime and build-time behavior stay aligned.
 
 ## Scope
 
@@ -12,7 +12,7 @@ This epic is the home for work that:
 - validates selected-job completeness before execution starts
 - defines or hardens generated-model naming, package derivation, and handoff guardrails
 - keeps multi-step orchestration explicit rather than inferred from config ordering side effects
-- defines bounded pairing rules for customer-owned custom steps that run before/after standard steps without introducing a second orchestration model
+- defines bounded pairing rules for customer-owned custom steps that run before/after standard steps without introducing a second orchestration model, including typed context/outcome/finalizer follow-on hardening under `A7b`
 
 This epic is **not** the place for transformation richness, retry/skip semantics, scheduling, or transport-specific work.
 
