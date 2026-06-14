@@ -18,6 +18,7 @@ and this project adheres to **Semantic Versioning**.
 - Closed `A7` at the shipped phase-1 custom-step boundary: explicit ordered `steps[].kind` now supports `kind: custom` with provider binding via `custom.type`, while standard-step defaults remain backward compatible when `kind` is omitted.
 - Added follow-on backlog tracking under `A7b` for deferred custom-step typed context handoff, explicit `CONTINUE/STOP/FAIL` outcome mapping, and bounded failure-finalization contracts.
 - Updated product planning to execute `A7b` in the same `M2` / `1.8.0` release lane, with board status moved to `In Progress` for the active balanced delivery trio.
+- Shipped active A7b slices for custom-step contracts: startup validation/normalization of `custom.publish`/`custom.consume`/`custom.onResult`, runtime `onResult` mapping to `CONTINUE`/`STOP`/`FAIL`, and bounded provider-driven failure finalization on failed jobs.
 - Refined Spring stereotype boundaries across the control-plane backend by reclassifying orchestration/read-model beans to `@Service` and JDBC persistence adapters to `@Repository`, while preserving existing runtime behavior and conditional wiring.
 - Simplified worker bootstrap scanning by removing redundant `@ComponentScan(basePackages = "com.etl")` from `ETLEngineApplication`, relying on `@SpringBootApplication` default package scanning.
 - Updated control-plane architecture guidance with explicit backend stereotype intent (`@Service` vs `@Repository` vs `@Component`) so code and docs stay aligned during ongoing runtime refactoring.

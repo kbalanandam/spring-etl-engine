@@ -34,6 +34,12 @@ This item covers:
 - one preserved runnable scenario proving header/detail + failure-finalization behavior
 - focused startup/runtime tests and structured evidence expectations
 
+## Shipped slices to date
+
+- [x] startup validation/normalization for `custom.publish`/`custom.consume`/`custom.onResult` on the explicit job path
+- [x] runtime custom-step `onResult` mapping through one bounded `CONTINUE` / `STOP` / `FAIL` action path
+- [x] bounded provider-driven failure-finalizer hook on failed jobs through `CustomStepProvider.createFailureFinalizer(...)`
+
 ## Out of scope
 
 - introducing a second orchestration model

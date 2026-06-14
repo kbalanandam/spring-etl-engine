@@ -227,22 +227,31 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - Processor-config validation failures in explicit runs are surfaced with the selected scenario name and processor-config path so operators can identify the broken scenario bundle quickly.
 - Generated-model naming/package failures in explicit runs are surfaced as config errors with the selected scenario name, job-config path, and the failing `step` / `source` / `target` so support can narrow model-resolution issues quickly.
 
-## Custom-step contract (A7 phase-1 shipped slice)
+## Custom-step contract (A7 baseline + active A7b slices)
 
 Tracked backlog item:
 
 - [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
 
-Deferred follow-on scope:
+Active follow-on scope:
 
 - [`A7b - Extend custom-step context, outcome mapping, and failure-finalization contract`](../product/backlog-items/etl-core/A7b-custom-step-context-outcome-and-failure-finalization-follow-on.md)
 
-Current first-slice behavior:
+Current shipped behavior:
 
 - keep one explicit ordered `steps[]` contract; custom and standard steps run in authored order
 - `steps[].kind` is optional and defaults to `standard`
 - `kind: custom` requires `steps[].custom.type` and rejects `source`/`target`
 - `kind: standard` keeps existing `source`/`target` contract and rejects `custom`
+- startup now validates and normalizes custom metadata for active A7b slices:
+  - `custom.publish` values must be namespaced context keys (for example `header.fileId`)
+  - `custom.consume` supports `contextKey[:type]` (`string`, `int`, `long`, `double`, `decimal`, `boolean`, `object`)
+  - `custom.onResult` actions must map to `CONTINUE`, `STOP`, or `FAIL`
+- runtime now maps custom-step `onResult` actions through one bounded path:
+  - `CONTINUE` keeps normal step progression
+  - `STOP` sets step exit to `STOPPED` and requests job stop
+  - `FAIL` fails fast through one runtime exception path
+- bounded failure finalization is now available through provider SPI on failed jobs via `CustomStepProvider.createFailureFinalizer(...)` (no new `job-config.yaml` field required in this slice)
 - custom-step runtime evidence is additive; standard-step evidence remains stable
 
 Phase-1 example:
@@ -269,13 +278,17 @@ steps:
       type: auditNoop
 ```
 
-`custom.publish`/`custom.consume`/`custom.onResult` fields are accepted as extension metadata in this slice but provider binding still keys on `custom.type` only.
+`custom.publish`/`custom.consume`/`custom.onResult` fields are validated and normalized in this slice, while provider binding still keys on `custom.type` only.
 
 ## Validation / usage notes
 
 - Every `steps[].source` value must match a configured `sourceName` in the selected source config file.
 - Every `steps[].target` value must match a configured `targetName` in the selected target config file.
 - For `kind: custom` steps, do not set `source` or `target`; set `custom.type` instead.
+- For `kind: custom`, `custom.publish` values must be namespaced context keys (`namespace.key`).
+- For `kind: custom`, `custom.consume` values may be `namespace.key` or `namespace.key:type`; when `:type` is supplied, only `string|int|long|double|decimal|boolean|object` are accepted.
+- For `kind: custom`, `custom.onResult` action values must be `CONTINUE`, `STOP`, or `FAIL` (case-insensitive in authored YAML).
+- On failed jobs, configured custom steps may run provider-defined bounded failure finalizers through `createFailureFinalizer(...)`; this is provider-driven in the current slice.
 - If `isActive: false` is set on the selected explicit job, startup stops before downstream config resolution as a configuration failure rather than silently skipping execution.
 - In explicit job mode, selected source/target config files no longer support `packageName`. The runtime and build-time generation path derive package identity from the selected non-blank `job-config.yaml` name using a normalized lowercase alphanumeric segment.
 - Remove authored `packageName` from explicit bundles instead of trying to keep it aligned manually; selected-job startup now fails immediately when the property is present so naming cannot drift silently.

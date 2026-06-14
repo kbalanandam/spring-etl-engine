@@ -6,10 +6,11 @@ Define a future-direction architecture contract that lets customer-owned custom 
 
 ## Status
 
-- Classification: **Transition (phase-1 shipped)**
+- Classification: **Transition (phase-1 + active A7b slices shipped)**
 - Backlog anchor: [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
 - Shipped baseline: ordered `steps[]` now supports `kind: custom` with `custom.type` provider binding through `DynamicCustomStepFactory` while standard steps continue through existing reader/processor/writer factories; preserved runnable bundle: `src/main/resources/config-jobs/customer-load-custom-steps/` using built-in `auditNoop`
 - Run-level step debugging now also emits `STEP_SEQUENCE event=step_sequence` with one ordered projection of all planned steps (`index:name:kind(...)`) so operators can confirm selected-step identity and order from a single evidence line before step execution begins.
+- Shipped A7b runtime slices now validate/normalize `custom.publish`/`custom.consume`/`custom.onResult`, map `onResult` to `CONTINUE|STOP|FAIL` in custom-step execution, and invoke provider-defined bounded failure finalizers on failed jobs.
 
 ## Design goals
 
@@ -260,9 +261,10 @@ publish and consume actions should emit step-level structured logs, for example:
 
 For header/detail scenarios, preserve one bounded finalization seam:
 
-- `CustomStepFailureFinalizer` runs when any upstream step fails
+- `CustomStepFailureFinalizer` runs on failed jobs for configured custom steps through provider SPI (`CustomStepProvider.createFailureFinalizer(...)`)
 - finalizer should use an independent transaction for status updates
-- finalizer must not alter final job failure semantics (job stays failed unless action mapping explicitly stops)
+- finalizer must not alter final job failure semantics (job stays failed unless step outcome mapping already requested `STOP`)
+- finalizer failures are logged as additive warning evidence and do not replace the original job failure
 
 ## Example sequence: CSV -> relational with header/detail
 
@@ -275,7 +277,7 @@ For header/detail scenarios, preserve one bounded finalization seam:
 3. `custom header-finalize-success`
    - update header status to `SUCCESS`
 4. failure path
-   - `CustomStepFailureFinalizer` updates header status to `FAILED`
+   - failed job invokes provider-defined `CustomStepFailureFinalizer` to update header status to `FAILED`
 
 ## Compatibility and rollout
 
