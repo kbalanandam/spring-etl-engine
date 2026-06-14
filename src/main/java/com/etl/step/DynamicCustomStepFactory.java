@@ -127,6 +127,35 @@ public class DynamicCustomStepFactory {
     }
 
     /**
+     * Resolves and builds an optional failure finalizer for one configured custom step.
+     */
+    public CustomStepFailureFinalizer getFailureFinalizer(String stepName, JobConfig.CustomStepConfig customConfig) {
+        if (customConfig == null) {
+            throw new ConfigException("Job step '" + stepName + "' must define custom configuration.");
+        }
+        String customType = normalizeType(customConfig.getType());
+        if (customType.isBlank()) {
+            throw new ConfigException("Job step '" + stepName + "' custom.type must be non-blank.");
+        }
+
+        CustomStepProvider provider = resolveProvider(customType);
+        if (provider == null) {
+            throw new ConfigException("Job step '" + stepName + "' references unknown custom.type '" + customType + "'."
+                    + " Register a CustomStepProvider for that type.");
+        }
+
+        try {
+            CustomStepFailureFinalizer finalizer = provider.createFailureFinalizer(customConfig);
+            return finalizer == null ? CustomStepFailureFinalizer.NO_OP : finalizer;
+        } catch (ConfigException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ConfigException("Failed to create custom step failure finalizer for step '" + stepName
+                    + "' and type '" + customType + "'.", e);
+        }
+    }
+
+    /**
      * Converts configured type aliases into a canonical lowercase key.
      */
     private String normalizeType(String type) {

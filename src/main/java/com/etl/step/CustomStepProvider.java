@@ -16,6 +16,13 @@ public interface CustomStepProvider {
     CustomStepHandler createHandler(JobConfig.CustomStepConfig config);
 
     /**
+     * Optional hook invoked when a failed job needs custom failure finalization.
+     */
+    default CustomStepFailureFinalizer createFailureFinalizer(JobConfig.CustomStepConfig config) {
+        return CustomStepFailureFinalizer.NO_OP;
+    }
+
+    /**
      * Stable provider identity used in conflict/error reporting.
      */
     default String providerId() {

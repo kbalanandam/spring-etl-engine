@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.batch.repeat.RepeatStatus;
 import org.springframework.beans.factory.ListableBeanFactory;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -88,6 +90,33 @@ class DynamicCustomStepFactoryLazyBeanPathTest {
     }
 
     @Test
+    void getFailureFinalizerUsesBoundProviderForRequestedType() throws Exception {
+        ListableBeanFactory beanFactory = mock(ListableBeanFactory.class);
+        when(beanFactory.getBeanNamesForType(CustomStepProvider.class, true, false))
+                .thenReturn(new String[]{"wanted"});
+        when(beanFactory.findAnnotationOnBean("wanted", CustomStepBinding.class))
+                .thenReturn(WantedTypeProvider.class.getAnnotation(CustomStepBinding.class));
+
+        WantedTypeProvider wantedProvider = new WantedTypeProvider();
+        when(beanFactory.getBean("wanted", CustomStepProvider.class)).thenReturn(wantedProvider);
+
+        DynamicCustomStepFactory factory = new DynamicCustomStepFactory(beanFactory);
+
+        CustomStepFailureFinalizer finalizer = factory.getFailureFinalizer("wanted-step", customConfig("wantedType"));
+
+        assertSame(wantedProvider.expectedFinalizer(), finalizer);
+    }
+
+    @Test
+    void getFailureFinalizerReturnsNoOpWhenProviderDoesNotOverrideHook() {
+        DynamicCustomStepFactory factory = new DynamicCustomStepFactory(List.of(new BaseAuditProvider()));
+
+        CustomStepFailureFinalizer finalizer = factory.getFailureFinalizer("audit-step", customConfig("audit"));
+
+        assertSame(CustomStepFailureFinalizer.NO_OP, finalizer);
+    }
+
+    @Test
     void getHandlerFailsFastWhenDuplicateProvidersLackSingleOverrideWinner() {
         ListableBeanFactory beanFactory = mock(ListableBeanFactory.class);
         when(beanFactory.getBeanNamesForType(CustomStepProvider.class, true, false))
@@ -115,6 +144,8 @@ class DynamicCustomStepFactoryLazyBeanPathTest {
 
     private abstract static class BaseTestProvider implements CustomStepProvider {
         private final CustomStepHandler handler = (contribution, context) -> RepeatStatus.FINISHED;
+        private final CustomStepFailureFinalizer finalizer = (jobExecution, stepName, customConfig) -> {
+        };
 
         CustomStepHandler expectedHandler() {
             return handler;
@@ -123,6 +154,15 @@ class DynamicCustomStepFactoryLazyBeanPathTest {
         @Override
         public CustomStepHandler createHandler(JobConfig.CustomStepConfig config) {
             return handler;
+        }
+
+        CustomStepFailureFinalizer expectedFinalizer() {
+            return finalizer;
+        }
+
+        @Override
+        public CustomStepFailureFinalizer createFailureFinalizer(JobConfig.CustomStepConfig config) {
+            return finalizer;
         }
     }
 
@@ -140,6 +180,11 @@ class DynamicCustomStepFactoryLazyBeanPathTest {
 
     @CustomStepBinding(type = "audit")
     private static final class BaseAuditProvider extends BaseTestProvider {
+
+        @Override
+        public CustomStepFailureFinalizer createFailureFinalizer(JobConfig.CustomStepConfig config) {
+            return null;
+        }
     }
 
     @CustomStepBinding(type = "audit", override = true)
