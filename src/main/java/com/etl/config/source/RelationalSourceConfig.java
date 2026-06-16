@@ -19,6 +19,7 @@ import java.util.List;
 public class RelationalSourceConfig extends SourceConfig {
 
     private RelationalConnectionConfig connection;
+    private String connectionRef;
     private String table;
     private String schema;
     private String query;
@@ -34,6 +35,7 @@ public class RelationalSourceConfig extends SourceConfig {
                                   String packageName,
                                   List<ColumnConfig> fields,
                                   RelationalConnectionConfig connection,
+                                  String connectionRef,
                                   String table,
                                   String schema,
                                   String query,
@@ -42,6 +44,7 @@ public class RelationalSourceConfig extends SourceConfig {
                                   Integer maxRows) {
         super(sourceName, packageName, fields);
         this.connection = connection;
+        this.connectionRef = connectionRef;
         this.table = table;
         this.schema = schema;
         this.query = query;
@@ -55,6 +58,7 @@ public class RelationalSourceConfig extends SourceConfig {
             @JsonProperty("sourceName") String sourceName,
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("connection") RelationalConnectionConfig connection,
+            @JsonProperty("connectionRef") String connectionRef,
             @JsonProperty("table") String table,
             @JsonProperty("schema") String schema,
             @JsonProperty("query") String query,
@@ -62,7 +66,20 @@ public class RelationalSourceConfig extends SourceConfig {
             @JsonProperty("fetchSize") Integer fetchSize,
             @JsonProperty("maxRows") Integer maxRows
     ) {
-        this(sourceName, null, fields, connection, table, schema, query, countQuery, fetchSize, maxRows);
+        this(sourceName, null, fields, connection, connectionRef, table, schema, query, countQuery, fetchSize, maxRows);
+    }
+
+    public RelationalSourceConfig(String sourceName,
+                                  String packageName,
+                                  List<ColumnConfig> fields,
+                                  RelationalConnectionConfig connection,
+                                  String table,
+                                  String schema,
+                                  String query,
+                                  String countQuery,
+                                  Integer fetchSize,
+                                  Integer maxRows) {
+        this(sourceName, packageName, fields, connection, null, table, schema, query, countQuery, fetchSize, maxRows);
     }
 
     public RelationalConnectionConfig getConnection() {
@@ -71,6 +88,14 @@ public class RelationalSourceConfig extends SourceConfig {
 
     public void setConnection(RelationalConnectionConfig connection) {
         this.connection = connection;
+    }
+
+    public String getConnectionRef() {
+        return connectionRef;
+    }
+
+    public void setConnectionRef(String connectionRef) {
+        this.connectionRef = connectionRef;
     }
 
     public String getTable() {
@@ -147,10 +172,14 @@ public class RelationalSourceConfig extends SourceConfig {
     }
 
     public void validate() {
-        if (connection == null) {
-            throw new IllegalArgumentException("Relational source connection must be provided.");
+        boolean hasConnection = connection != null;
+        boolean hasConnectionRef = connectionRef != null && !connectionRef.isBlank();
+        if (hasConnection == hasConnectionRef) {
+            throw new IllegalArgumentException("Relational source must define exactly one of 'connection' or 'connectionRef'.");
         }
-        connection.validate();
+        if (hasConnection) {
+            connection.validate();
+        }
         if (getFields() == null || getFields().isEmpty()) {
             throw new IllegalArgumentException("Relational source fields must be provided.");
         }

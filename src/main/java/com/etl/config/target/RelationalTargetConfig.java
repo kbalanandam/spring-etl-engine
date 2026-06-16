@@ -11,7 +11,8 @@ import java.util.List;
 
 public class RelationalTargetConfig extends TargetConfig {
 
-    private final RelationalConnectionConfig connection;
+    private RelationalConnectionConfig connection;
+    private String connectionRef;
     private final String table;
     private final String schema;
     private final WriteMode writeMode;
@@ -21,12 +22,14 @@ public class RelationalTargetConfig extends TargetConfig {
                                   String packageName,
                                   List<ColumnConfig> fields,
                                   RelationalConnectionConfig connection,
+                                  String connectionRef,
                                   String table,
                                   String schema,
                                   String writeMode,
                                   Integer batchSize) {
         super(targetName, packageName, fields);
         this.connection = connection;
+        this.connectionRef = connectionRef;
         this.table = table;
         this.schema = schema;
         this.writeMode = writeMode == null || writeMode.isBlank() ? WriteMode.INSERT : WriteMode.fromString(writeMode);
@@ -38,16 +41,40 @@ public class RelationalTargetConfig extends TargetConfig {
             @JsonProperty("targetName") String targetName,
             @JsonProperty("fields") List<ColumnConfig> fields,
             @JsonProperty("connection") RelationalConnectionConfig connection,
+            @JsonProperty("connectionRef") String connectionRef,
             @JsonProperty("table") String table,
             @JsonProperty("schema") String schema,
             @JsonProperty("writeMode") String writeMode,
             @JsonProperty("batchSize") Integer batchSize
     ) {
-        this(targetName, null, fields, connection, table, schema, writeMode, batchSize);
+        this(targetName, null, fields, connection, connectionRef, table, schema, writeMode, batchSize);
+    }
+
+    public RelationalTargetConfig(String targetName,
+                                  String packageName,
+                                  List<ColumnConfig> fields,
+                                  RelationalConnectionConfig connection,
+                                  String table,
+                                  String schema,
+                                  String writeMode,
+                                  Integer batchSize) {
+        this(targetName, packageName, fields, connection, null, table, schema, writeMode, batchSize);
     }
 
   public RelationalConnectionConfig getConnection() {
     return connection;
+  }
+
+  public void setConnection(RelationalConnectionConfig connection) {
+    this.connection = connection;
+  }
+
+  public String getConnectionRef() {
+    return connectionRef;
+  }
+
+  public void setConnectionRef(String connectionRef) {
+    this.connectionRef = connectionRef;
   }
 
   public String getTable() {
@@ -84,10 +111,14 @@ public class RelationalTargetConfig extends TargetConfig {
     }
 
     public void validate() {
-        if (connection == null) {
-            throw new IllegalArgumentException("Relational target connection must be provided.");
+        boolean hasConnection = connection != null;
+        boolean hasConnectionRef = connectionRef != null && !connectionRef.isBlank();
+        if (hasConnection == hasConnectionRef) {
+            throw new IllegalArgumentException("Relational target must define exactly one of 'connection' or 'connectionRef'.");
         }
-        connection.validate();
+        if (hasConnection) {
+            connection.validate();
+        }
         if (table == null || table.isBlank()) {
             throw new IllegalArgumentException("Relational target table must be provided.");
         }

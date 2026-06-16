@@ -5,13 +5,7 @@ targets:
     table: Customers
     writeMode: insert
     batchSize: 100
-    connection:
-      vendor: sqlserver
-      jdbcUrl: jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true
-      schema: dbo
-      username: <SQLSERVER_USERNAME>
-      password: <SQLSERVER_PASSWORD>
-      driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    connectionRef: sqlserver-main
     fields:
       - name: id
         type: int

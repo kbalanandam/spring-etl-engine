@@ -3,11 +3,13 @@ package com.etl.config;
 import com.etl.exception.config.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.config.relational.RelationalConnectionConfig;
 import com.etl.config.runtime.RuntimeConfigIO;
 import com.etl.config.runtime.RuntimeConfigResolver;
 import com.etl.config.runtime.RuntimeConfigValidation;
 import com.etl.config.runtime.RuntimePackageDefaults;
 import com.etl.config.runtime.RuntimeStepPolicyResolver;
+import com.etl.config.source.RelationalSourceConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.common.util.ConfigPackageNamePropertyValidator;
@@ -19,6 +21,7 @@ import com.etl.config.source.validation.SourceValidationContext;
 import com.etl.config.source.validation.SourceValidationService;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
+import com.etl.config.target.RelationalTargetConfig;
 import com.etl.runtime.job.JobConfigPaths;
 import com.etl.runtime.job.JobRecoveryPolicy;
 import com.etl.runtime.job.JobRunMode;
@@ -71,6 +74,7 @@ public class ConfigLoader {
 	private String jobConfigPath;
 
 	private boolean allowDemoFallback;
+	private Map<String, RelationalConnectionConfig> relationalConnections = Map.of();
 
 	private final SourceValidationService sourceValidationService;
 	private final RuntimeConfigResolver runtimeConfigResolver;
@@ -121,6 +125,13 @@ public class ConfigLoader {
 		this.processorConfigPath = properties.getProcessor();
 		this.jobConfigPath = properties.getJob();
 		this.allowDemoFallback = properties.isAllowDemoFallback();
+		Map<String, RelationalConnectionConfig> configuredConnections = properties.getRelational() == null
+				? Map.of()
+				: properties.getRelational().getConnections();
+		this.relationalConnections = configuredConnections == null
+				? Map.of()
+				: new LinkedHashMap<>(configuredConnections);
+		validateConfiguredRelationalConnections();
 	}
 
 	public String runtimeConfigCacheKey() {
@@ -267,6 +278,7 @@ public class ConfigLoader {
 			);
 			normalizeSourceConfigPaths(sourceWrapper, parentDirectory(runtimeConfig.sourceConfigPath()));
 			RuntimePackageDefaults.applyDefaultSourcePackages(sourceWrapper, runtimeConfig.scenarioName());
+			resolveRelationalSourceConnections(sourceWrapper, runtimeConfig.scenarioName(), runtimeConfig.sourceConfigPath());
 			return sourceWrapper;
 		}
 
@@ -278,6 +290,7 @@ public class ConfigLoader {
 				directSourcePackageContract()
 		);
 		RuntimePackageDefaults.applyDirectConfigSourcePackages(sourceWrapper);
+		resolveRelationalSourceConnections(sourceWrapper, runtimeConfig.scenarioName(), runtimeConfig.sourceConfigPath());
 		return sourceWrapper;
 	}
 
@@ -291,6 +304,7 @@ public class ConfigLoader {
 			);
 			normalizeTargetConfigPaths(targetWrapper, parentDirectory(runtimeConfig.targetConfigPath()));
 			RuntimePackageDefaults.applyDefaultTargetPackages(targetWrapper, runtimeConfig.scenarioName());
+			resolveRelationalTargetConnections(targetWrapper, runtimeConfig.scenarioName(), runtimeConfig.targetConfigPath());
 			return targetWrapper;
 		}
 
@@ -302,6 +316,7 @@ public class ConfigLoader {
 				directTargetPackageContract()
 		);
 		RuntimePackageDefaults.applyDirectConfigTargetPackages(targetWrapper);
+		resolveRelationalTargetConnections(targetWrapper, runtimeConfig.scenarioName(), runtimeConfig.targetConfigPath());
 		return targetWrapper;
 	}
 
@@ -432,6 +447,7 @@ public class ConfigLoader {
 					buildYamlMapper(),
 					null
 			);
+			resolveRelationalConnectionReferences(demoSourceWrapper, demoTargetWrapper, "demo-fallback", "demo-fallback configuration");
 			runtimeConfigValidation.validateProcessorConfig(demoProcessorConfig, "demo-fallback", processorConfigPath, demoSourceWrapper);
 			return new ResolvedRuntimeConfig(
 					sourceConfigPath,
@@ -485,6 +501,7 @@ public class ConfigLoader {
 		normalizeTargetConfigPaths(explicitTargetWrapper, parentDirectory(resolvedTargetConfigPath));
 		applyJobScopedPackageDefaults(explicitSourceWrapper, explicitTargetWrapper, scenarioName);
 		normalizeProcessorConfigPaths(explicitProcessorConfig, parentDirectory(resolvedProcessorConfigPath));
+		resolveRelationalConnectionReferences(explicitSourceWrapper, explicitTargetWrapper, scenarioName, jobConfigFile.getAbsolutePath());
 		sourceValidationService.validateSelectedSources(
 				explicitSourceWrapper,
 				new SourceValidationContext(scenarioName, resolvedSourceConfigPath)
@@ -764,6 +781,128 @@ public class ConfigLoader {
 
 	private static String defaultName(String configuredName) {
 		return configuredName == null || configuredName.isBlank() ? "unnamed" : configuredName.trim();
+	}
+
+	private void validateConfiguredRelationalConnections() {
+		for (Map.Entry<String, RelationalConnectionConfig> entry : relationalConnections.entrySet()) {
+			String connectionName = entry.getKey() == null ? "" : entry.getKey().trim();
+			if (connectionName.isBlank()) {
+				throw new ConfigException("Invalid relational connection registry: connection name must be non-blank.");
+			}
+			RelationalConnectionConfig connection = entry.getValue();
+			if (connection == null) {
+				throw new ConfigException("Invalid relational connection registry: connection '" + connectionName + "' is null.");
+			}
+			try {
+				connection.validate();
+			} catch (IllegalArgumentException e) {
+				throw new ConfigException("Invalid relational connection registry entry '" + connectionName + "': " + e.getMessage(), e);
+			}
+		}
+	}
+
+	private void resolveRelationalConnectionReferences(SourceWrapper sourceWrapper,
+	                                                  TargetWrapper targetWrapper,
+	                                                  String scenarioName,
+	                                                  String configLocation) {
+		resolveRelationalSourceConnections(sourceWrapper, scenarioName, configLocation);
+		resolveRelationalTargetConnections(targetWrapper, scenarioName, configLocation);
+	}
+
+	private void resolveRelationalSourceConnections(SourceWrapper sourceWrapper,
+	                                               String scenarioName,
+	                                               String configLocation) {
+		if (sourceWrapper == null || sourceWrapper.getSources() == null) {
+			return;
+		}
+		for (SourceConfig sourceConfig : sourceWrapper.getSources()) {
+			if (sourceConfig instanceof RelationalSourceConfig relationalSourceConfig) {
+				resolveRelationalSourceConnection(relationalSourceConfig, scenarioName, configLocation);
+			}
+		}
+	}
+
+	private void resolveRelationalTargetConnections(TargetWrapper targetWrapper,
+	                                               String scenarioName,
+	                                               String configLocation) {
+		if (targetWrapper == null || targetWrapper.getTargets() == null) {
+			return;
+		}
+		for (TargetConfig targetConfig : targetWrapper.getTargets()) {
+			if (targetConfig instanceof RelationalTargetConfig relationalTargetConfig) {
+				resolveRelationalTargetConnection(relationalTargetConfig, scenarioName, configLocation);
+			}
+		}
+	}
+
+	private void resolveRelationalSourceConnection(RelationalSourceConfig config,
+	                                              String scenarioName,
+	                                              String configLocation) {
+		boolean hasInlineConnection = config.getConnection() != null;
+		String connectionRef = config.getConnectionRef() == null ? "" : config.getConnectionRef().trim();
+		boolean hasConnectionRef = !connectionRef.isBlank();
+		if (hasInlineConnection == hasConnectionRef) {
+			throw new ConfigException("Invalid relational source configuration for scenario '" + defaultName(scenarioName)
+					+ "' in " + configLocation + " (source='" + defaultName(config.getSourceName())
+					+ "'): define exactly one of 'connection' or 'connectionRef'.");
+		}
+		if (hasInlineConnection) {
+			return;
+		}
+		RelationalConnectionConfig resolved = requireRelationalConnectionByName(connectionRef, scenarioName, configLocation,
+				"source", defaultName(config.getSourceName()));
+		config.setConnection(copyConnection(resolved));
+		config.setConnectionRef(null);
+	}
+
+	private void resolveRelationalTargetConnection(RelationalTargetConfig config,
+	                                              String scenarioName,
+	                                              String configLocation) {
+		boolean hasInlineConnection = config.getConnection() != null;
+		String connectionRef = config.getConnectionRef() == null ? "" : config.getConnectionRef().trim();
+		boolean hasConnectionRef = !connectionRef.isBlank();
+		if (hasInlineConnection == hasConnectionRef) {
+			throw new ConfigException("Invalid relational target configuration for scenario '" + defaultName(scenarioName)
+					+ "' in " + configLocation + " (target='" + defaultName(config.getTargetName())
+					+ "'): define exactly one of 'connection' or 'connectionRef'.");
+		}
+		if (hasInlineConnection) {
+			return;
+		}
+		RelationalConnectionConfig resolved = requireRelationalConnectionByName(connectionRef, scenarioName, configLocation,
+				"target", defaultName(config.getTargetName()));
+		config.setConnection(copyConnection(resolved));
+		config.setConnectionRef(null);
+	}
+
+	private RelationalConnectionConfig requireRelationalConnectionByName(String connectionRef,
+	                                                                   String scenarioName,
+	                                                                   String configLocation,
+	                                                                   String configType,
+	                                                                   String configName) {
+		RelationalConnectionConfig connection = relationalConnections.get(connectionRef);
+		if (connection == null) {
+			throw new ConfigException("Missing relational connectionRef '" + connectionRef + "' for " + configType
+					+ " '" + configName + "' in scenario '" + defaultName(scenarioName) + "' (" + configLocation + ").");
+		}
+		return connection;
+	}
+
+	private static RelationalConnectionConfig copyConnection(RelationalConnectionConfig source) {
+		RelationalConnectionConfig copy = new RelationalConnectionConfig();
+		copy.setVendor(source.getVendor());
+		copy.setConnectionString(source.getConnectionString());
+		copy.setJdbcUrl(source.getJdbcUrl());
+		copy.setHost(source.getHost());
+		copy.setPort(source.getPort());
+		copy.setDatabase(source.getDatabase());
+		copy.setSchema(source.getSchema());
+		copy.setUsername(source.getUsername());
+		copy.setPassword(source.getPassword());
+		copy.setUsernameEnvVar(source.getUsernameEnvVar());
+		copy.setPasswordEnvVar(source.getPasswordEnvVar());
+		copy.setDriverClassName(source.getDriverClassName());
+		return copy;
 	}
 
 

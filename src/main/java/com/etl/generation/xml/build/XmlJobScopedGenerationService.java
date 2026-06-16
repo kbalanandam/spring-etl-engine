@@ -227,6 +227,7 @@ public class XmlJobScopedGenerationService {
                     defaultTargetPackage,
                     copyColumns(relationalTargetConfig.getFields()),
                     relationalTargetConfig.getConnection(),
+                    relationalTargetConfig.getConnectionRef(),
                     relationalTargetConfig.getTable(),
                     relationalTargetConfig.getSchema(),
                     relationalTargetConfig.getWriteMode().name(),

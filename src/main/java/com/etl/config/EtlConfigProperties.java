@@ -1,7 +1,11 @@
 package com.etl.config;
 
+import com.etl.config.relational.RelationalConnectionConfig;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Typed binding for selected-job and demo-fallback config paths.
@@ -19,6 +23,7 @@ public class EtlConfigProperties {
     private String processor = "src/main/resources/processor-config.yaml";
     private String job = "";
     private boolean allowDemoFallback = false;
+    private Relational relational = new Relational();
 
     public String getSource() {
         return source;
@@ -58,6 +63,26 @@ public class EtlConfigProperties {
 
     public void setAllowDemoFallback(boolean allowDemoFallback) {
         this.allowDemoFallback = allowDemoFallback;
+    }
+
+    public Relational getRelational() {
+        return relational;
+    }
+
+    public void setRelational(Relational relational) {
+        this.relational = relational == null ? new Relational() : relational;
+    }
+
+    public static class Relational {
+        private Map<String, RelationalConnectionConfig> connections = new LinkedHashMap<>();
+
+        public Map<String, RelationalConnectionConfig> getConnections() {
+            return connections;
+        }
+
+        public void setConnections(Map<String, RelationalConnectionConfig> connections) {
+            this.connections = connections == null ? new LinkedHashMap<>() : new LinkedHashMap<>(connections);
+        }
     }
 }
 

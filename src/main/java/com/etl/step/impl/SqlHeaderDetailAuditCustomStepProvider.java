@@ -1,6 +1,9 @@
 package com.etl.step.impl;
 
+import com.etl.config.EtlConfigProperties;
 import com.etl.config.job.JobConfig;
+import com.etl.config.relational.RelationalConnectionConfig;
+import com.etl.config.relational.RelationalDataSourceFactory;
 import com.etl.step.CustomStepBinding;
 import com.etl.step.CustomStepFailureFinalizer;
 import com.etl.step.CustomStepHandler;
@@ -9,6 +12,7 @@ import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.StepContribution;
 import org.springframework.batch.core.StepExecution;
 import org.springframework.batch.repeat.RepeatStatus;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.sql.Connection;
@@ -30,10 +34,23 @@ import java.util.Map;
 public class SqlHeaderDetailAuditCustomStepProvider implements CustomStepProvider {
 
     private static final String CONTEXT_RUN_ID_KEY = "custom.sqlHeaderDetailAudit.runId";
+    private final Map<String, RelationalConnectionConfig> relationalConnections;
+
+    public SqlHeaderDetailAuditCustomStepProvider() {
+        this(new EtlConfigProperties());
+    }
+
+    @Autowired
+    public SqlHeaderDetailAuditCustomStepProvider(EtlConfigProperties etlConfigProperties) {
+        Map<String, RelationalConnectionConfig> configured = etlConfigProperties == null || etlConfigProperties.getRelational() == null
+                ? Map.of()
+                : etlConfigProperties.getRelational().getConnections();
+        this.relationalConnections = configured == null ? Map.of() : Map.copyOf(configured);
+    }
 
     @Override
     public CustomStepHandler createHandler(JobConfig.CustomStepConfig config) {
-        StepConfig stepConfig = StepConfig.from(config);
+        StepConfig stepConfig = StepConfig.from(config, relationalConnections);
         return (contribution, chunkContext) -> {
             switch (stepConfig.action()) {
                 case "start" -> startHeader(contribution, stepConfig);
@@ -47,7 +64,7 @@ public class SqlHeaderDetailAuditCustomStepProvider implements CustomStepProvide
 
     @Override
     public CustomStepFailureFinalizer createFailureFinalizer(JobConfig.CustomStepConfig config) {
-        StepConfig stepConfig = StepConfig.from(config);
+        StepConfig stepConfig = StepConfig.from(config, relationalConnections);
         return (jobExecution, stepName, customConfig) -> markFailure(jobExecution, stepConfig);
     }
 
@@ -263,6 +280,7 @@ public class SqlHeaderDetailAuditCustomStepProvider implements CustomStepProvide
 
     private record StepConfig(
             String action,
+            String connectionRef,
             String jdbcUrl,
             String username,
             String password,
@@ -279,16 +297,15 @@ public class SqlHeaderDetailAuditCustomStepProvider implements CustomStepProvide
             List<String> prepareSql,
             List<Map<String, Object>> detailRows
     ) {
-        static StepConfig from(JobConfig.CustomStepConfig config) {
+        static StepConfig from(JobConfig.CustomStepConfig config,
+                               Map<String, RelationalConnectionConfig> relationalConnections) {
             if (config == null || config.getConfig() == null) {
                 throw new IllegalArgumentException("sqlHeaderDetailAudit requires custom.config.");
             }
             Map<String, Object> values = config.getConfig();
             String action = required(values, "action").toLowerCase(Locale.ROOT);
-            String jdbcUrl = required(values, "jdbcUrl");
-            String username = required(values, "username");
-            String password = requiredAllowBlank(values, "password");
-            String driverClassName = optional(values, "driverClassName");
+            String connectionRef = optional(values, "connectionRef");
+            ConnectionSettings connectionSettings = resolveConnectionSettings(values, connectionRef, relationalConnections);
             String schema = optional(values, "schema");
             String headerTable = optional(values, "headerTable");
             if (headerTable == null) {
@@ -321,10 +338,11 @@ public class SqlHeaderDetailAuditCustomStepProvider implements CustomStepProvide
 
             return new StepConfig(
                     action,
-                    jdbcUrl,
-                    username,
-                    password,
-                    driverClassName == null ? "" : driverClassName,
+                    connectionRef == null ? "" : connectionRef,
+                    connectionSettings.jdbcUrl(),
+                    connectionSettings.username(),
+                    connectionSettings.password(),
+                    connectionSettings.driverClassName(),
                     schema == null ? "" : schema,
                     headerTable,
                     detailTable,
@@ -337,6 +355,52 @@ public class SqlHeaderDetailAuditCustomStepProvider implements CustomStepProvide
                     prepareSql,
                     detailRows
             );
+        }
+
+        private static ConnectionSettings resolveConnectionSettings(Map<String, Object> values,
+                                                                    String connectionRef,
+                                                                    Map<String, RelationalConnectionConfig> relationalConnections) {
+            String jdbcUrl = optional(values, "jdbcUrl");
+            String username = optional(values, "username");
+            boolean passwordProvided = values.containsKey("password");
+            String password = passwordProvided ? requiredAllowBlank(values, "password") : null;
+            String driverClassName = optional(values, "driverClassName");
+
+            if (connectionRef == null) {
+                return new ConnectionSettings(
+                        required(values, "jdbcUrl"),
+                        required(values, "username"),
+                        requiredAllowBlank(values, "password"),
+                        driverClassName == null ? "" : driverClassName
+                );
+            }
+
+            if (jdbcUrl != null || username != null || passwordProvided || driverClassName != null) {
+                throw new IllegalArgumentException("sqlHeaderDetailAudit custom.config.connectionRef cannot be combined with jdbcUrl/username/password/driverClassName.");
+            }
+
+            RelationalConnectionConfig connection = relationalConnections == null ? null : relationalConnections.get(connectionRef);
+            if (connection == null) {
+                throw new IllegalArgumentException("sqlHeaderDetailAudit custom.config.connectionRef '" + connectionRef
+                        + "' is not configured in etl.config.relational.connections.*.");
+            }
+
+            try {
+                connection.validate();
+                String resolvedJdbcUrl = RelationalDataSourceFactory.resolveJdbcUrl(connection);
+                String resolvedUsername = connection.resolveUsername();
+                String resolvedPassword = connection.resolvePassword();
+                String resolvedDriverClassName = RelationalDataSourceFactory.resolveDriverClassName(connection);
+                return new ConnectionSettings(
+                        resolvedJdbcUrl,
+                        resolvedUsername,
+                        resolvedPassword,
+                        resolvedDriverClassName == null ? "" : resolvedDriverClassName
+                );
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("sqlHeaderDetailAudit custom.config.connectionRef '" + connectionRef
+                        + "' is invalid: " + e.getMessage(), e);
+            }
         }
 
         private static String required(Map<String, Object> values, String key) {
@@ -407,6 +471,9 @@ public class SqlHeaderDetailAuditCustomStepProvider implements CustomStepProvide
                 rows.add((Map<String, Object>) map);
             }
             return List.copyOf(rows);
+        }
+
+        private record ConnectionSettings(String jdbcUrl, String username, String password, String driverClassName) {
         }
     }
 }
