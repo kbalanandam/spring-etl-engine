@@ -34,6 +34,7 @@ Backed by:
 | `countQuery` | no | string | Explicit count query used by `getRecordCount()` |
 | `fetchSize` | no | integer | JDBC fetch size hint |
 | `maxRows` | no | integer | Maximum rows returned by the reader |
+| `connectionRef` | conditional | string | Named relational connection resolved from startup properties (`etl.config.relational.connections.<name>`) |
 | `fields` | yes | list | Fields expected on the generated source model and selected columns |
 
 ### Connection fields
@@ -41,13 +42,16 @@ Backed by:
 | Field | Required | Type | Description |
 |---|---|---|---|
 | `connection.vendor` | yes | string | Current values: `sqlserver`, test value `h2` |
+| `connection.connectionString` | optional | string | Alias for JDBC URL; supports single-string authoring (for example SQL Server URL with `;user=...;password=...`) |
 | `connection.jdbcUrl` | recommended | string | Explicit JDBC URL |
 | `connection.host` | conditional | string | Used when `jdbcUrl` is not provided |
 | `connection.port` | conditional | integer | Used when `jdbcUrl` is not provided |
 | `connection.database` | conditional | string | Used when `jdbcUrl` is not provided |
 | `connection.schema` | no | string | Default schema if top-level `schema` is omitted |
-| `connection.username` | yes | string | Database username |
-| `connection.password` | yes | string | Database password |
+| `connection.username` | conditional | string | Database username when not using `connection.usernameEnvVar` |
+| `connection.password` | conditional | string | Database password when not using `connection.passwordEnvVar` |
+| `connection.usernameEnvVar` | no | string | Environment variable or JVM system property name used when `connection.username` is omitted |
+| `connection.passwordEnvVar` | no | string | Environment variable or JVM system property name used when `connection.password` is omitted |
 | `connection.driverClassName` | no | string | Explicit JDBC driver class |
 
 ### Field entries
@@ -70,12 +74,7 @@ sources:
     table: Customers
     schema: dbo
     fetchSize: 500
-    connection:
-      vendor: sqlserver
-      jdbcUrl: jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true
-      username: <SQLSERVER_USERNAME>
-      password: <SQLSERVER_PASSWORD>
-      driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    connectionRef: sqlserver-main
     fields:
       - name: id
         type: int
@@ -93,10 +92,7 @@ sources:
 - `table` chooses direct table-based reads.
 - `schema` optionally overrides the schema for that table.
 - `fetchSize` provides a JDBC streaming hint for larger reads.
-- `connection` groups the database connection settings.
-- `connection.vendor` selects the relational dialect family.
-- `connection.jdbcUrl` is the preferred fully explicit connection string.
-- `connection.username`, `connection.password`, and `connection.driverClassName` provide the remaining JDBC details.
+- `connectionRef` points to a named relational connection configured in startup properties.
 - `fields` lists the columns selected into the generated source model.
 - `fields[].name` is both the current source column name and the generated property name in phase 1.
 - `fields[].type` is the logical type used by the generated model contract.
@@ -110,12 +106,7 @@ sources:
     query: SELECT id, name, email FROM dbo.Customers WHERE active = 1
     countQuery: SELECT COUNT(*) FROM dbo.Customers WHERE active = 1
     fetchSize: 500
-    connection:
-      vendor: sqlserver
-      jdbcUrl: jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true
-      username: <SQLSERVER_USERNAME>
-      password: <SQLSERVER_PASSWORD>
-      driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    connectionRef: sqlserver-main
     fields:
       - name: id
         type: int
@@ -158,7 +149,6 @@ sources:
 
 ### Not yet supported
 - per-field SQL column aliases in config
-- reusable named connection registries
 - incremental extraction columns/values
 - vendor-specific pagination/query rewriting
 - stored procedures
@@ -170,8 +160,11 @@ sources:
 - Use explicit `countQuery` when query sources need predictable chunk/tasklet selection.
 - Keep selected column names aligned with configured field names during phase 1.
 - If both top-level `schema` and `connection.schema` are provided, top-level `schema` wins.
+- For SQL Server, you can author a single connection string with embedded `;user=...;password=...` and omit separate username/password fields.
+- If `connectionRef` is configured but missing from the startup registry, startup fails fast before JDBC runtime.
 - For larger loads, tune `fetchSize` and keep the step chunk size aligned with the intended relational target write grouping.
 - Selected relational source configs are validated at startup, and placeholder tokens such as `<SQLSERVER_HOST>` or `<SQLSERVER_DATABASE>` are rejected before JDBC runtime.
+- If `connection.usernameEnvVar` or `connection.passwordEnvVar` is configured, the selected run fails fast when that referenced value is missing.
 
 ## Preserved examples
 

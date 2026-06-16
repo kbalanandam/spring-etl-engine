@@ -254,6 +254,7 @@ Current shipped behavior:
 - failure-finalizers remain failure-scoped in this slice: they run on failed jobs (`FAILED`) and do not run for controlled `STOPPED` outcomes
 - bounded failure finalization is now available through provider SPI on failed jobs via `CustomStepProvider.createFailureFinalizer(...)` (no new `job-config.yaml` field required in this slice)
 - custom-step runtime evidence is additive; standard-step evidence remains stable
+- the preserved `sqlHeaderDetailAudit` provider now also supports `steps[].custom.config.connectionRef` so custom SQL header/detail steps can reuse named startup connections from `etl.config.relational.connections.<name>.*` instead of repeating inline JDBC credentials
 
 Phase-1 example:
 
@@ -289,6 +290,7 @@ steps:
 - For `kind: custom`, `custom.publish` values must be namespaced context keys (`namespace.key`).
 - For `kind: custom`, `custom.consume` values may be `namespace.key` or `namespace.key:type`; when `:type` is supplied, only `string|int|long|double|decimal|boolean|object` are accepted.
 - For `kind: custom`, `custom.onResult` action values must be `CONTINUE`, `STOP`, or `FAIL` (case-insensitive in authored YAML).
+- For `kind: custom` steps bound to `sqlHeaderDetailAudit`, define exactly one connection mode: either inline `jdbcUrl`/`username`/`password` or `connectionRef`.
 - On failed jobs, configured custom steps may run provider-defined bounded failure finalizers through `createFailureFinalizer(...)`; this is provider-driven in the current slice.
 - If `isActive: false` is set on the selected explicit job, startup stops before downstream config resolution as a configuration failure rather than silently skipping execution.
 - In explicit job mode, selected source/target config files no longer support `packageName`. The runtime and build-time generation path derive package identity from the selected non-blank `job-config.yaml` name using a normalized lowercase alphanumeric segment.
