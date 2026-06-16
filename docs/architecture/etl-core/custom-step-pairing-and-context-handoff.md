@@ -13,6 +13,7 @@ Define a future-direction architecture contract that lets customer-owned custom 
 - Shipped A7b runtime slices now validate/normalize `custom.publish`/`custom.consume`/`custom.onResult`, map `onResult` to `CONTINUE|STOP|FAIL` in custom-step execution, and invoke provider-defined bounded failure finalizers on failed jobs.
 - `STOP` and `FAIL` remain intentionally distinct: `STOP` is a controlled halt (`STOPPED`) that blocks downstream execution for the current run, while `FAIL` produces failed-job semantics that trigger bounded failure finalization.
 - Preserved runnable A7b failure/finalizer proof bundle: `src/main/resources/config-jobs/customer-load-custom-step-fail-finalizer/`.
+- Preserved SQL Server header/detail proof bundles: `src/main/resources/config-jobs/sqlserver-header-detail-custom-positive/` and `src/main/resources/config-jobs/sqlserver-header-detail-custom-failure/`.
 
 ## Design goals
 

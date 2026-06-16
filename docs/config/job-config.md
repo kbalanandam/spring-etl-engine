@@ -328,6 +328,8 @@ The broader file-ingestion hardening direction beyond the first preserved CSV pr
 - `src/main/resources/config-jobs/customer-load/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load-custom-steps/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load-custom-step-fail-finalizer/job-config.yaml`
+- `src/main/resources/config-jobs/sqlserver-header-detail-custom-positive/job-config.yaml`
+- `src/main/resources/config-jobs/sqlserver-header-detail-custom-failure/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load-skip-policy-category/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load-skip-policy-category-unclassified/job-config.yaml`
 - `src/main/resources/config-jobs/department-load/job-config.yaml`

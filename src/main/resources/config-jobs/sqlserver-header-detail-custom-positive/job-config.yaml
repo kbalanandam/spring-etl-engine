@@ -1,0 +1,44 @@
+name: sqlserver-header-detail-custom-positive
+isActive: true
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+recoveryPolicy: rerun-from-start
+steps:
+  - name: header-start
+    kind: custom
+    custom:
+      type: sqlHeaderDetailAudit
+      config:
+        action: start
+        jdbcUrl: "jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true"
+        username: <SQLSERVER_USERNAME>
+        password: <SQLSERVER_PASSWORD>
+        driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+        schema: dbo
+        headerTable: etl_run_header
+        detailTable: etl_run_detail
+        countStepName: customers-file-load
+        prepareSql:
+          - "IF OBJECT_ID('dbo.CustomersAudit', 'U') IS NULL CREATE TABLE dbo.CustomersAudit (id INT NOT NULL PRIMARY KEY, name NVARCHAR(255) NOT NULL, email NVARCHAR(255) NULL)"
+          - "DELETE FROM dbo.CustomersAudit"
+  - name: customers-file-load
+    source: Customers
+    target: CustomersSqlAudit
+  - name: header-complete
+    kind: custom
+    custom:
+      type: sqlHeaderDetailAudit
+      config:
+        action: complete
+        jdbcUrl: "jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true"
+        username: <SQLSERVER_USERNAME>
+        password: <SQLSERVER_PASSWORD>
+        driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+        schema: dbo
+        headerTable: etl_run_header
+        detailTable: etl_run_detail
+        countStepName: customers-file-load
+
+
+
