@@ -29,6 +29,9 @@ The current phase-1 implementation now includes:
 - preserved scenario bundles for `csv-to-sqlserver` and `relational-to-relational`
 - H2-backed higher-volume relational source -> relational target validation
 - startup-time validation that rejects placeholder relational connection values in selected source/target configs before JDBC runtime
+- optional credential indirection through `usernameEnvVar` / `passwordEnvVar`, resolved from environment variables (with JVM system-property fallback for local/test runs)
+- `connection.connectionString` alias support for JDBC URL authoring, including SQL Server single-string credentials (`;user=...;password=...`) when teams prefer one connection field
+- named relational connection registry via startup properties (`etl.config.relational.connections.<name>.*`) with source/target `connectionRef` resolution and fail-fast missing-reference validation
 - record-count behavior that uses `countQuery` when provided, returns `-1` for query-based relational sources, and therefore falls back to chunk mode when count is unknown
 
 Current support remains intentionally narrow:
@@ -145,6 +148,7 @@ Suggested shape:
 - prefer `jdbcUrl` if explicitly supplied
 - otherwise build it from `vendor`, `host`, `port`, and `database`
 - keep credentials externalizable where possible
+- when credential references are used, fail fast during selected config validation if the referenced value is missing
 - do not copy the same connection fields into both source and target config types
 
 ## Relational source config
@@ -544,7 +548,7 @@ When relational implementation work begins or evolves, validate that changes sti
 
 ## Open questions for further hardening
 
-- Should connections be defined inline per source/target or support reusable named connection references?
+- Should future releases deprecate inline relational `connection` in explicit-job mode and enforce `connectionRef`-only authoring?
 - Should phase 1 include only reads, only writes, or both together?
 - Should `getRecordCount()` return `-1` for unknown relational counts and force chunk mode by default?
 - What minimum vendor list should phase 1 officially support?

@@ -19,8 +19,14 @@ public final class RelationalDataSourceFactory {
             DriverManagerDataSource dataSource = new DriverManagerDataSource();
             dataSource.setDriverClassName(resolveDriverClassName(connection));
             dataSource.setUrl(resolveJdbcUrl(connection));
-            dataSource.setUsername(connection.getUsername());
-            dataSource.setPassword(connection.getPassword());
+            String username = connection.resolveUsernameOrNull();
+            String password = connection.resolvePasswordOrNull();
+            if (username != null && !username.isBlank()) {
+                dataSource.setUsername(username);
+            }
+            if (password != null) {
+                dataSource.setPassword(password);
+            }
             return dataSource;
         } catch (RelationalException e) {
             throw e;

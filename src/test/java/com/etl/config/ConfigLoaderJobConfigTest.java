@@ -223,6 +223,76 @@ class ConfigLoaderJobConfigTest {
     assertTrue(failure.getMessage().contains("type: default"));
   }
 
+  @Test
+  void resolvesExplicitJobWithCustomAndStandardSteps() throws IOException {
+    Path sourceConfig = tempDir.resolve("source-config.yaml");
+    Path targetConfig = tempDir.resolve("target-config.yaml");
+    Path processorConfig = tempDir.resolve("processor-config.yaml");
+    Path jobConfig = tempDir.resolve("job-config.yaml");
+
+    Files.writeString(sourceConfig, """
+        sources:
+          - format: csv
+            sourceName: Customers
+            filePath: input/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+        """);
+
+    Files.writeString(targetConfig, """
+        targets:
+          - format: csv
+            targetName: CustomersOut
+            filePath: output/customers.csv
+            delimiter: ","
+            fields:
+              - name: id
+                type: int
+        """);
+
+    Files.writeString(processorConfig, """
+        type: default
+        mappings:
+          - source: Customers
+            target: CustomersOut
+            fields:
+              - from: id
+                to: id
+        """);
+
+    Files.writeString(jobConfig, """
+        name: custom-and-standard
+        sourceConfigPath: source-config.yaml
+        targetConfigPath: target-config.yaml
+        processorConfigPath: processor-config.yaml
+        steps:
+          - name: header-start
+            kind: custom
+            custom:
+              type: headerStart
+          - name: customers-step
+            source: Customers
+            target: CustomersOut
+        """);
+
+    ConfigLoader loader = new ConfigLoader();
+    ReflectionTestUtils.setField(loader, "jobConfigPath", jobConfig.toString());
+    ReflectionTestUtils.setField(loader, "allowDemoFallback", false);
+
+    ensureSelectedJobFlatModels("custom-and-standard", List.of("Customers"), List.of("CustomersOut"));
+
+    RunConfigurationMetadata metadata = loader.buildRunConfigurationMetadata();
+
+    assertEquals(2, metadata.steps().size());
+    assertTrue(metadata.steps().get(0).isCustomStep());
+    assertEquals("headerStart", metadata.steps().get(0).getCustom().getType());
+    assertEquals("customers-step", metadata.steps().get(1).getName());
+    assertEquals("Customers", metadata.steps().get(1).getSource());
+    assertEquals("CustomersOut", metadata.steps().get(1).getTarget());
+  }
+
     @Test
     void normalizesScenarioRelativePathsInsideReferencedConfigs() throws IOException {
         Path scenarioDir = tempDir.resolve("csv-roundtrip");

@@ -1,0 +1,30 @@
+name: customer-load-custom-step-fail-finalizer
+isActive: true
+sourceConfigPath: source-config.yaml
+targetConfigPath: target-config.yaml
+processorConfigPath: processor-config.yaml
+recoveryPolicy: rerun-from-start
+steps:
+  - name: run-start-audit
+    kind: custom
+    custom:
+      type: auditNoop
+      publish:
+        fileId: header.fileId
+      config:
+        phase: start
+  - name: customers-step
+    source: Customers
+    target: Customers
+  - name: run-finish-audit
+    kind: custom
+    custom:
+      type: auditNoop
+      consume:
+        fileId: header.fileId:string
+      onResult:
+        verify_failed: FAIL
+      config:
+        phase: finish
+        resultCode: verify_failed
+

@@ -28,6 +28,39 @@ function escapeHtml(value) {
     .replace(/'/g, "&#39;");
 }
 
+function populateRunsSelectOptions(elements) {
+  const jobSelect = elements.get("runs-job-select");
+  const runModeSelect = elements.get("runs-run-mode-select");
+  const recoveryPolicySelect = elements.get("runs-recovery-policy-select");
+
+  jobSelect.innerHTML = "";
+  const allJobs = globalThis.document.createElement("option");
+  allJobs.value = "";
+  jobSelect.appendChild(allJobs);
+  const customerJob = globalThis.document.createElement("option");
+  customerJob.value = "customer-load";
+  jobSelect.appendChild(customerJob);
+
+  runModeSelect.innerHTML = "";
+  const allModes = globalThis.document.createElement("option");
+  allModes.value = "";
+  runModeSelect.appendChild(allModes);
+  const explicitMode = globalThis.document.createElement("option");
+  explicitMode.value = "explicit-job";
+  runModeSelect.appendChild(explicitMode);
+  const demoMode = globalThis.document.createElement("option");
+  demoMode.value = "demo-fallback";
+  runModeSelect.appendChild(demoMode);
+
+  recoveryPolicySelect.innerHTML = "";
+  const allPolicies = globalThis.document.createElement("option");
+  allPolicies.value = "";
+  recoveryPolicySelect.appendChild(allPolicies);
+  const rerun = globalThis.document.createElement("option");
+  rerun.value = "rerun-from-start";
+  recoveryPolicySelect.appendChild(rerun);
+}
+
 test("runs list applies route state and renders sorted table", () => {
   const { elements, restore } = installDom(IDS);
   try {
@@ -69,7 +102,7 @@ test("runs list applies route state and renders sorted table", () => {
     const ui = createRunsListUi({
       getState: () => state,
       syncRouteHash: () => {},
-      renderJobOptions: () => {},
+      renderJobOptions: () => populateRunsSelectOptions(elements),
       formatDateForInput: () => "2026-06-03",
       escapeHtml,
     });
@@ -125,7 +158,7 @@ test("runs controls update state and request route sync", () => {
     const ui = createRunsListUi({
       getState: () => state,
       syncRouteHash: (routeKey) => syncCalls.push(routeKey),
-      renderJobOptions: () => {},
+      renderJobOptions: () => populateRunsSelectOptions(elements),
       formatDateForInput: () => "2026-06-03",
       escapeHtml,
     });
@@ -170,6 +203,51 @@ test("runs controls update state and request route sync", () => {
     filter.value = "explicit-job";
     filter.dispatch("input");
     assert.equal(elements.get("runs-body").children.length, 1);
+  } finally {
+    restore();
+  }
+});
+
+test("runs list clears stale route filters that are not present in UI options", () => {
+  const { elements, restore } = installDom(IDS);
+  try {
+    const state = {
+      items: [],
+      loaded: false,
+      filterText: "",
+      selectedJobKey: "",
+      runModeFilter: "",
+      recoveryPolicyFilter: "",
+      startDate: "",
+      timezone: "UTC",
+      browserTimezone: "UTC",
+      sortKey: "startTime",
+      sortDirection: "desc",
+    };
+
+    const ui = createRunsListUi({
+      getState: () => state,
+      syncRouteHash: () => {},
+      renderJobOptions: () => populateRunsSelectOptions(elements),
+      formatDateForInput: () => "2026-06-16",
+      escapeHtml,
+    });
+
+    ui.applyRouteState({
+      selectedJobKey: "missing-job",
+      runModeFilter: "legacy-mode",
+      recoveryPolicyFilter: "legacy-policy",
+      startDate: "202606-16",
+      timezone: "Asia/Kolkata",
+      sortKey: "startTime",
+      sortDirection: "desc",
+    });
+
+    assert.equal(state.selectedJobKey, "");
+    assert.equal(state.runModeFilter, "");
+    assert.equal(state.recoveryPolicyFilter, "");
+    assert.equal(state.startDate, "2026-06-16");
+    assert.equal(state.timezone, "Asia/Kolkata");
   } finally {
     restore();
   }

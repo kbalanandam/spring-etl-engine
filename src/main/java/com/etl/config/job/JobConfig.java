@@ -1,6 +1,7 @@
 package com.etl.config.job;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Explicit job-level config selection.
@@ -83,11 +84,29 @@ public class JobConfig {
 
 	public static class JobStepConfig {
 
+		private String kind;
+		private CustomStepConfig custom;
 		private String name;
 		private String source;
 		private String target;
 		private SkipPolicyConfig skipPolicy;
 		private RetryPolicyConfig retryPolicy;
+
+		public String getKind() {
+			return kind;
+		}
+
+		public void setKind(String kind) {
+			this.kind = kind;
+		}
+
+		public CustomStepConfig getCustom() {
+			return custom;
+		}
+
+		public void setCustom(CustomStepConfig custom) {
+			this.custom = custom;
+		}
 
 		public String getName() {
 			return name;
@@ -127,6 +146,70 @@ public class JobConfig {
 
 		public void setRetryPolicy(RetryPolicyConfig retryPolicy) {
 			this.retryPolicy = retryPolicy;
+		}
+
+		public boolean isCustomStep() {
+			return "custom".equalsIgnoreCase(normalizedKind());
+		}
+
+		public boolean isStandardStep() {
+			return "standard".equalsIgnoreCase(normalizedKind());
+		}
+
+		public String normalizedKind() {
+			if (kind == null || kind.isBlank()) {
+				return "standard";
+			}
+			return kind.trim().toLowerCase(java.util.Locale.ROOT);
+		}
+	}
+
+	public static class CustomStepConfig {
+
+		private String type;
+		private Map<String, String> publish;
+		private Map<String, String> consume;
+		private Map<String, String> onResult;
+		private Map<String, Object> config;
+
+		public String getType() {
+			return type;
+		}
+
+		public void setType(String type) {
+			this.type = type;
+		}
+
+		public Map<String, String> getPublish() {
+			return publish;
+		}
+
+		public void setPublish(Map<String, String> publish) {
+			this.publish = publish;
+		}
+
+		public Map<String, String> getConsume() {
+			return consume;
+		}
+
+		public void setConsume(Map<String, String> consume) {
+			this.consume = consume;
+		}
+
+		public Map<String, String> getOnResult() {
+			return onResult;
+		}
+
+		public void setOnResult(Map<String, String> onResult) {
+			this.onResult = onResult;
+		}
+
+		public Map<String, Object> getConfig() {
+			return config;
+		}
+
+		public void setConfig(Map<String, Object> config) {
+			this.config = config;
 		}
 	}
 

@@ -6,8 +6,16 @@ Define a future-direction architecture contract that lets customer-owned custom 
 
 ## Status
 
-- Classification: **Future direction**
+- Classification: **Transition (phase-1 + active A7b slices shipped)**
 - Backlog anchor: [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+- Shipped baseline: ordered `steps[]` now supports `kind: custom` with `custom.type` provider binding through `DynamicCustomStepFactory` while standard steps continue through existing reader/processor/writer factories; preserved runnable bundle: `src/main/resources/config-jobs/customer-load-custom-steps/` using built-in `auditNoop`
+- Run-level step debugging now also emits `STEP_SEQUENCE event=step_sequence` with one ordered projection of all planned steps (`index:name:kind(...)`) so operators can confirm selected-step identity and order from a single evidence line before step execution begins.
+- Shipped A7b runtime slices now validate/normalize `custom.publish`/`custom.consume`/`custom.onResult`, map `onResult` to `CONTINUE|STOP|FAIL` in custom-step execution, and invoke provider-defined bounded failure finalizers on failed jobs.
+- Shipped A7b context enforcement now also rejects duplicate published context keys across custom steps at explicit-job resolution time and enforces runtime consume-key presence/type plus write-once publish ownership in custom-step execution.
+- Validation timing is intentionally split: duplicate-key contract errors fail at selected-job startup, while missing/typed consume violations fail at the dependent step's runtime boundary so operators can distinguish config-shape failures from execution-state failures.
+- `STOP` and `FAIL` remain intentionally distinct: `STOP` is a controlled halt (`STOPPED`) that blocks downstream execution for the current run, while `FAIL` produces failed-job semantics that trigger bounded failure finalization.
+- Preserved runnable A7b failure/finalizer proof bundle: `src/main/resources/config-jobs/customer-load-custom-step-fail-finalizer/`.
+- Preserved SQL Server header/detail proof bundles: `src/main/resources/config-jobs/sqlserver-header-detail-custom-positive/` and `src/main/resources/config-jobs/sqlserver-header-detail-custom-failure/`.
 
 ## Design goals
 
@@ -24,7 +32,7 @@ Define a future-direction architecture contract that lets customer-owned custom 
 
 ## Runtime model
 
-Conceptually, step resolution remains one path:
+Phase-1 shipped step resolution path:
 
 1. parse ordered `steps[]`
 2. for each step, resolve by `kind`
@@ -33,6 +41,13 @@ Conceptually, step resolution remains one path:
 3. build one ordered Spring Batch job from both step kinds
 
 This keeps custom and standard steps operationally equivalent at runtime (`Step` -> `Step` -> `Step`).
+
+Phase-1 constraints kept intentionally narrow:
+
+- `kind` omission defaults to `standard`
+- `kind: custom` rejects `source`/`target`, skip-policy, and retry-policy fields
+- provider conflicts resolve through shared `ExtensionConflictPolicy`
+- runtime descriptor generation may omit custom-only internals, but execution order still follows authored `steps[]`
 
 ## A7 Architecture Invariants
 
@@ -237,6 +252,7 @@ Category meaning:
 ### Validation
 
 - required consumed keys must be validated before dependent step execution
+- consumed bindings authored as `contextKey:type` use one normalized primitive/object vocabulary (`string`, `int`, `long`, `double`, `decimal`, `boolean`, `object`)
 - type checks are mandatory on `require(key, type)` reads
 - missing/invalid keys fail fast through `CustomStepContextException`
 
@@ -251,9 +267,11 @@ publish and consume actions should emit step-level structured logs, for example:
 
 For header/detail scenarios, preserve one bounded finalization seam:
 
-- `CustomStepFailureFinalizer` runs when any upstream step fails
+- `CustomStepFailureFinalizer` runs on failed jobs for configured custom steps through provider SPI (`CustomStepProvider.createFailureFinalizer(...)`)
+- `STOPPED` outcomes do not invoke failure finalizers in this slice; only `FAILED` jobs run them
 - finalizer should use an independent transaction for status updates
-- finalizer must not alter final job failure semantics (job stays failed unless action mapping explicitly stops)
+- finalizer must not alter final job failure semantics (job stays failed unless step outcome mapping already requested `STOP`)
+- finalizer failures are logged as additive warning evidence and do not replace the original job failure
 
 ## Example sequence: CSV -> relational with header/detail
 
@@ -266,7 +284,7 @@ For header/detail scenarios, preserve one bounded finalization seam:
 3. `custom header-finalize-success`
    - update header status to `SUCCESS`
 4. failure path
-   - `CustomStepFailureFinalizer` updates header status to `FAILED`
+   - failed job invokes provider-defined `CustomStepFailureFinalizer` to update header status to `FAILED`
 
 ## Compatibility and rollout
 

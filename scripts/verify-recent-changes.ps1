@@ -73,7 +73,9 @@ function Invoke-MavenWithTimeout {
             throw "TIMED_OUT: $OperationLabel forced timeout for test coverage. See $CaptureFile"
         }
 
-        $process = Start-Process -FilePath 'mvn' -ArgumentList $Arguments -PassThru -NoNewWindow -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
+        # Route Maven through cmd.exe so ExitCode is consistently available on Windows.
+        $commandArgs = @('/d', '/c', 'mvn') + $Arguments
+        $process = Start-Process -FilePath 'cmd.exe' -ArgumentList $commandArgs -PassThru -NoNewWindow -RedirectStandardOutput $stdoutFile -RedirectStandardError $stderrFile
         $timedOut = -not $process.WaitForExit($TimeoutMinutes * 60 * 1000)
 
         if ($timedOut) {
@@ -96,7 +98,19 @@ function Invoke-MavenWithTimeout {
             throw "TIMED_OUT: $OperationLabel exceeded timeout of $TimeoutMinutes minute(s). See $CaptureFile"
         }
 
-        return $process.ExitCode
+        $exitCode = $process.ExitCode
+        if ($null -eq $exitCode) {
+            $capturedText = if (Test-Path $CaptureFile) { Get-Content -Path $CaptureFile -Raw } else { '' }
+            if ($capturedText -match 'BUILD SUCCESS' -and $capturedText -notmatch 'BUILD FAILURE') {
+                $exitCode = 0
+            } elseif ($capturedText -match 'BUILD FAILURE') {
+                $exitCode = 1
+            } else {
+                throw "$OperationLabel did not produce a usable process exit code or recognizable Maven build marker. See $CaptureFile"
+            }
+        }
+
+        return $exitCode
     }
     finally {
         Remove-Item $stdoutFile, $stderrFile -Force -ErrorAction SilentlyContinue

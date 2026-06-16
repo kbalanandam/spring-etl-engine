@@ -2,6 +2,7 @@ package com.etl.config;
 
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
+import com.etl.config.runtime.RuntimeStepPolicyResolver;
 import com.etl.config.source.CsvSourceConfig;
 import com.etl.config.source.SourceConfig;
 import com.etl.config.source.SourceWrapper;
@@ -13,6 +14,7 @@ import com.etl.exception.config.ConfigException;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -186,11 +188,299 @@ class RuntimeStepPolicyResolverTest {
         assertTrue(exception.getMessage().contains("configures both skipPolicy and retryPolicy"));
     }
 
+    @Test
+    void resolveExplicitStepsFailsFastWhenStepKindIsUnsupported() {
+        JobConfig.JobStepConfig step = step("customers-step", "Customers", "CustomersOut");
+        step.setKind("scripted");
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("unsupported kind"));
+    }
+
+    @Test
+    void resolveExplicitStepsAcceptsCustomStepWithTypeAndPreservesKind() {
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(customStep("header-start", "headerStart")));
+
+        List<JobConfig.JobStepConfig> resolvedSteps = resolver.resolveExplicitSteps(
+                jobConfig,
+                sourceWrapper(csvSource("Customers")),
+                targetWrapper(csvTarget("CustomersOut")),
+                processorConfig(mapping("Customers", "CustomersOut"))
+        );
+
+        assertEquals(1, resolvedSteps.size());
+        JobConfig.JobStepConfig resolved = resolvedSteps.get(0);
+        assertTrue(resolved.isCustomStep());
+        assertEquals("custom", resolved.getKind());
+        assertNotNull(resolved.getCustom());
+        assertEquals("headerStart", resolved.getCustom().getType());
+        assertNull(resolved.getSource());
+        assertNull(resolved.getTarget());
+    }
+
+    @Test
+    void resolveExplicitStepsNormalizesCustomStepContractMetadata() {
+        JobConfig.JobStepConfig publishStep = customStep("header-start", "headerStart");
+        publishStep.getCustom().setPublish(Map.of("fileId", " header.fileId "));
+
+        JobConfig.JobStepConfig consumeStep = customStep("header-complete", "headerComplete");
+        JobConfig.CustomStepConfig custom = consumeStep.getCustom();
+        custom.setConsume(Map.of("headerId", " header.fileId:LONG "));
+        custom.setOnResult(Map.of("ok", "continue", "bad", "FAIL"));
+
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(publishStep, consumeStep));
+
+        List<JobConfig.JobStepConfig> resolvedSteps = resolver.resolveExplicitSteps(
+                jobConfig,
+                sourceWrapper(csvSource("Customers")),
+                targetWrapper(csvTarget("CustomersOut")),
+                processorConfig(mapping("Customers", "CustomersOut"))
+        );
+
+        JobConfig.CustomStepConfig resolvedPublish = resolvedSteps.get(0).getCustom();
+        JobConfig.CustomStepConfig resolvedCustom = resolvedSteps.get(1).getCustom();
+        assertEquals("header.fileId", resolvedPublish.getPublish().get("fileId"));
+        assertEquals("header.fileId:long", resolvedCustom.getConsume().get("headerId"));
+        assertEquals("CONTINUE", resolvedCustom.getOnResult().get("ok"));
+        assertEquals("FAIL", resolvedCustom.getOnResult().get("bad"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenTwoCustomStepsPublishSameContextKey() {
+        JobConfig.JobStepConfig step1 = customStep("header-start", "headerStart");
+        step1.getCustom().setPublish(Map.of("runId", "header.runId"));
+
+        JobConfig.JobStepConfig step2 = customStep("header-complete", "headerComplete");
+        step2.getCustom().setPublish(Map.of("runId", "header.runId"));
+
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step1, step2));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("already published by step 'header-start'"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomStepConsumesKeyBeforePublish() {
+        JobConfig.JobStepConfig step = customStep("header-complete", "headerComplete");
+        step.getCustom().setConsume(Map.of("runId", "header.runId:long"));
+
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("before any earlier step publishes it"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomConsumeTypeIsUnsupported() {
+        JobConfig.JobStepConfig step = customStep("header-start", "headerStart");
+        step.getCustom().setConsume(Map.of("headerId", "header.fileId:uuid"));
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("unsupported type"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomOnResultActionIsUnsupported() {
+        JobConfig.JobStepConfig step = customStep("header-start", "headerStart");
+        step.getCustom().setOnResult(Map.of("ok", "PAUSE"));
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("unsupported action"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomPublishUsesNonNamespacedKey() {
+        JobConfig.JobStepConfig step = customStep("header-start", "headerStart");
+        step.getCustom().setPublish(Map.of("fileId", "fileId"));
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("namespaced context key"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomStepOmitsCustomType() {
+        JobConfig.JobStepConfig step = customStep("header-start", " ");
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("custom.type"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomStepDefinesSourceOrTarget() {
+        JobConfig.JobStepConfig step = customStep("header-start", "headerStart");
+        step.setSource("Customers");
+        step.setTarget("CustomersOut");
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("must not define source/target"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenStandardStepDefinesCustomBlock() {
+        JobConfig.JobStepConfig step = step("customers-step", "Customers", "CustomersOut");
+        step.setKind("standard");
+        JobConfig.CustomStepConfig custom = new JobConfig.CustomStepConfig();
+        custom.setType("auditNoop");
+        step.setCustom(custom);
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("must not define steps[].custom"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomStepEnablesSkipPolicy() {
+        JobConfig.JobStepConfig step = customStep("header-start", "headerStart");
+        step.setSkipPolicy(enabledSkipPolicy(2, List.of("runtime"), List.of()));
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("cannot enable skipPolicy"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomStepEnablesRetryPolicy() {
+        JobConfig.JobStepConfig step = customStep("header-start", "headerStart");
+        step.setRetryPolicy(enabledRetryPolicy(3, 100L, List.of("runtime"), List.of()));
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("cannot enable retryPolicy"));
+    }
+
     private JobConfig.JobStepConfig step(String name, String source, String target) {
         JobConfig.JobStepConfig step = new JobConfig.JobStepConfig();
         step.setName(name);
         step.setSource(source);
         step.setTarget(target);
+        return step;
+    }
+
+    private JobConfig.JobStepConfig customStep(String name, String customType) {
+        JobConfig.JobStepConfig step = new JobConfig.JobStepConfig();
+        step.setName(name);
+        step.setKind("custom");
+        JobConfig.CustomStepConfig custom = new JobConfig.CustomStepConfig();
+        custom.setType(customType);
+        step.setCustom(custom);
         return step;
     }
 

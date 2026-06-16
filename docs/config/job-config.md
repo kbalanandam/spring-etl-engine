@@ -29,8 +29,10 @@ Backed by:
 | `recoveryPolicy` | no | string | Optional selected-run restart policy evidence (`rerun-from-start` default). Short aliases are accepted in authored YAML (`rerun` -> `rerun-from-start`, `restart` -> `resume-from-checkpoint`), while runtime evidence remains canonical. `resume-from-checkpoint` is recognized but currently fails fast as unsupported in the shipped runtime |
 | `steps` | yes | list | Explicit ordered ETL steps for this run |
 | `steps[].name` | yes | string | Step name used for plan/logging/runtime identity |
-| `steps[].source` | yes | string | Must match a configured `sourceName` from the selected source config |
-| `steps[].target` | yes | string | Must match a configured `targetName` from the selected target config |
+| `steps[].kind` | no | string | Step discriminator. Omitted defaults to `standard`. Supported values in this slice: `standard`, `custom` |
+| `steps[].source` | conditional | string | Required for `kind: standard`; must match a configured `sourceName` from the selected source config |
+| `steps[].target` | conditional | string | Required for `kind: standard`; must match a configured `targetName` from the selected target config |
+| `steps[].custom.type` | conditional | string | Required for `kind: custom`; runtime binding key used to resolve a registered custom-step provider |
 | `steps[].skipPolicy.enabled` | no | boolean | Optional step-level B1 slice flag. When `true`, enables bounded skip behavior for supported CSV steps; runtime may override tasklet planning to chunk mode for this slice |
 | `steps[].skipPolicy.skipLimit` | conditional | int | Required positive integer when `steps[].skipPolicy.enabled: true` |
 | `steps[].skipPolicy.skippableCategories[]` | conditional | list[string] | Preferred when skip policy is enabled; each value must be a supported ETL error category (`config`, `validation`, `transformation`, `source-read`, `target-write`, `runtime`, `factory`, `listener`, `relational`, `unclassified`) |
@@ -225,29 +227,37 @@ The longer-term direction is for `MainFlow` descriptor context to carry small cr
 - Processor-config validation failures in explicit runs are surfaced with the selected scenario name and processor-config path so operators can identify the broken scenario bundle quickly.
 - Generated-model naming/package failures in explicit runs are surfaced as config errors with the selected scenario name, job-config path, and the failing `step` / `source` / `target` so support can narrow model-resolution issues quickly.
 
-## Planned enhancement: custom-step pairing with standard steps
-
-This is a future-direction enhancement, not a shipped runtime field set today.
+## Custom-step contract (A7 baseline + active A7b slices)
 
 Tracked backlog item:
 
 - [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](../product/backlog-items/etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
 
-Design intent:
+Active follow-on scope:
 
-- keep one explicit ordered `steps[]` contract
-- add bounded customer-owned `custom` steps before/after standard steps
-- allow controlled context handoff (for example `header.fileId`) from custom to standard steps
-- preserve one shared continuation/failure model across both step kinds
+- [`A7b - Extend custom-step context, outcome mapping, and failure-finalization contract`](../product/backlog-items/etl-core/A7b-custom-step-context-outcome-and-failure-finalization-follow-on.md)
 
-Backward-compatibility guardrails for the planned first slice:
+Current shipped behavior:
 
-- `steps[].kind` stays optional; omission continues to mean `standard`
-- existing standard-only jobs require no config migration and keep current runtime semantics
-- existing standard step fields (`name`, `source`, `target`) stay unchanged for `kind: standard`
-- custom-step evidence is additive; existing standard-step evidence remains stable
+- keep one explicit ordered `steps[]` contract; custom and standard steps run in authored order
+- `steps[].kind` is optional and defaults to `standard`
+- `kind: custom` requires `steps[].custom.type` and rejects `source`/`target`
+- `kind: standard` keeps existing `source`/`target` contract and rejects `custom`
+- startup now validates and normalizes custom metadata for active A7b slices:
+  - `custom.publish` values must be namespaced context keys (for example `header.fileId`)
+  - `custom.consume` supports `contextKey[:type]` (`string`, `int`, `long`, `double`, `decimal`, `boolean`, `object`)
+  - `custom.onResult` actions must map to `CONTINUE`, `STOP`, or `FAIL`
+- enforcement timing is split by intent: duplicate `custom.publish` keys fail at selected-job startup, while missing/typed consume violations fail when the dependent step executes
+- runtime now maps custom-step `onResult` actions through one bounded path:
+  - `CONTINUE` keeps normal step progression
+  - `STOP` sets step exit to `STOPPED`, requests job stop, and prevents downstream step execution in the current run
+  - `FAIL` fails fast through one runtime exception path
+- failure-finalizers remain failure-scoped in this slice: they run on failed jobs (`FAILED`) and do not run for controlled `STOPPED` outcomes
+- bounded failure finalization is now available through provider SPI on failed jobs via `CustomStepProvider.createFailureFinalizer(...)` (no new `job-config.yaml` field required in this slice)
+- custom-step runtime evidence is additive; standard-step evidence remains stable
+- the preserved `sqlHeaderDetailAudit` provider now also supports `steps[].custom.config.connectionRef` so custom SQL header/detail steps can reuse named startup connections from `etl.config.relational.connections.<name>.*` instead of repeating inline JDBC credentials
 
-Conceptual example (future contract shape):
+Phase-1 example:
 
 ```yaml
 name: csv-to-relational-with-header-status
@@ -255,33 +265,36 @@ sourceConfigPath: source-config.yaml
 targetConfigPath: target-config.yaml
 processorConfigPath: processor-config.yaml
 steps:
-  - name: header-start
+  - name: run-start-audit
     kind: custom
     custom:
-      type: headerStart
+      type: auditNoop
       publish:
         fileId: header.fileId
   - name: detail-load
     kind: standard
     source: Customers
     target: CustomerDetail
-  - name: header-finalize
+  - name: run-finish-audit
     kind: custom
     custom:
-      type: headerFinalize
+      type: auditNoop
 ```
 
-In this planned shape, `custom.publish` maps custom-handler output fields to shared context keys consumed by downstream steps (for example `fileId -> header.fileId`).
-
-Planned preserved examples for this enhancement:
-
-- `src/main/resources/config-jobs/csv-to-relational-with-header-status/`
-- `src/main/resources/config-jobs/xml-to-csv-with-custom-run-audit/`
+`custom.publish`/`custom.consume`/`custom.onResult` fields are validated and normalized in this slice, while provider binding still keys on `custom.type` only.
 
 ## Validation / usage notes
 
 - Every `steps[].source` value must match a configured `sourceName` in the selected source config file.
 - Every `steps[].target` value must match a configured `targetName` in the selected target config file.
+- For `kind: custom` steps, do not set `source` or `target`; set `custom.type` instead.
+- For `kind: custom`, `custom.publish` values must be namespaced context keys (`namespace.key`).
+- For `kind: custom`, `custom.consume` values may be `namespace.key` or `namespace.key:type`; when `:type` is supplied, only `string|int|long|double|decimal|boolean|object` are accepted.
+- For `kind: custom`, consumed context keys must already be published by earlier custom steps in the ordered plan; missing keys fail fast before dependent execution.
+- For `kind: custom`, published context keys are write-once in this slice; duplicate key publication across steps is rejected at startup, and runtime publish overwrite attempts from non-owner steps fail fast.
+- For `kind: custom`, `custom.onResult` action values must be `CONTINUE`, `STOP`, or `FAIL` (case-insensitive in authored YAML).
+- For `kind: custom` steps bound to `sqlHeaderDetailAudit`, define exactly one connection mode: either inline `jdbcUrl`/`username`/`password` or `connectionRef`.
+- On failed jobs, configured custom steps may run provider-defined bounded failure finalizers through `createFailureFinalizer(...)`; this is provider-driven in the current slice.
 - If `isActive: false` is set on the selected explicit job, startup stops before downstream config resolution as a configuration failure rather than silently skipping execution.
 - In explicit job mode, selected source/target config files no longer support `packageName`. The runtime and build-time generation path derive package identity from the selected non-blank `job-config.yaml` name using a normalized lowercase alphanumeric segment.
 - Remove authored `packageName` from explicit bundles instead of trying to keep it aligned manually; selected-job startup now fails immediately when the property is present so naming cannot drift silently.
@@ -318,6 +331,10 @@ The broader file-ingestion hardening direction beyond the first preserved CSV pr
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml/job-config.yaml`
 - `src/main/resources/config-jobs/xml-nested-to-csv-to-nested-xml-archive-e2e/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load/job-config.yaml`
+- `src/main/resources/config-jobs/customer-load-custom-steps/job-config.yaml`
+- `src/main/resources/config-jobs/customer-load-custom-step-fail-finalizer/job-config.yaml`
+- `src/main/resources/config-jobs/sqlserver-header-detail-custom-positive/job-config.yaml`
+- `src/main/resources/config-jobs/sqlserver-header-detail-custom-failure/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load-skip-policy-category/job-config.yaml`
 - `src/main/resources/config-jobs/customer-load-skip-policy-category-unclassified/job-config.yaml`
 - `src/main/resources/config-jobs/department-load/job-config.yaml`

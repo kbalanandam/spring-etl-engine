@@ -3,7 +3,9 @@ package com.etl.job.listener;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
+import com.etl.config.RunConfigurationMetadata;
 import com.etl.exception.config.ConfigException;
+import com.etl.config.job.JobConfig;
 import com.etl.config.ColumnConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
@@ -18,6 +20,8 @@ import com.etl.runtime.job.JobRecoveryPolicy;
 import com.etl.runtime.job.JobRunMode;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.runtime.job.JobRuntimeDescriptorAssembler;
+import com.etl.step.CustomStepFailureFinalizer;
+import com.etl.step.DynamicCustomStepFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.slf4j.LoggerFactory;
@@ -43,7 +47,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class LoggingContextListenerTest {
@@ -293,6 +300,123 @@ class LoggingContextListenerTest {
         && event.getFormattedMessage().contains("executedStepCount=2")
         && event.getFormattedMessage().contains("rollupMode=operator-oriented")));
   }
+
+    @Test
+    void afterJobInvokesCustomFailureFinalizersWhenJobFails() throws Exception {
+        JobConfig.JobStepConfig customStep = new JobConfig.JobStepConfig();
+        customStep.setName("run-finish-audit");
+        customStep.setKind("custom");
+        JobConfig.CustomStepConfig custom = new JobConfig.CustomStepConfig();
+        custom.setType("auditNoop");
+        customStep.setCustom(custom);
+        RunConfigurationMetadata runMetadata = new RunConfigurationMetadata(
+                "customer-load",
+                CUSTOMER_LOAD_JOB_CONFIG,
+                false,
+                "customer-main-flow",
+                "default-subflow",
+                JobRecoveryPolicy.RERUN_FROM_START,
+                List.of(customStep)
+        );
+        DynamicCustomStepFactory customStepFactory = mock(DynamicCustomStepFactory.class);
+        CustomStepFailureFinalizer finalizer = mock(CustomStepFailureFinalizer.class);
+        when(customStepFactory.getFailureFinalizer("run-finish-audit", custom)).thenReturn(finalizer);
+
+        JobCompletionNotificationListener listener = new JobCompletionNotificationListener(null, runMetadata, customStepFactory);
+
+        JobExecution jobExecution = mock(JobExecution.class);
+        JobInstance jobInstance = mock(JobInstance.class);
+        JobParameters jobParameters = new JobParametersBuilder().addString("scenario", "customer-load").toJobParameters();
+        when(jobExecution.getJobParameters()).thenReturn(jobParameters);
+        when(jobExecution.getJobInstance()).thenReturn(jobInstance);
+        when(jobInstance.getJobName()).thenReturn("etlJob");
+        when(jobExecution.getId()).thenReturn(201L);
+        when(jobExecution.getStatus()).thenReturn(BatchStatus.FAILED);
+        when(jobExecution.getStartTime()).thenReturn(LocalDateTime.now().minusSeconds(1));
+        when(jobExecution.getEndTime()).thenReturn(LocalDateTime.now());
+        when(jobExecution.getAllFailureExceptions()).thenReturn(List.of(new IllegalStateException("boom")));
+
+        listener.afterJob(jobExecution);
+
+        verify(customStepFactory, times(1)).getFailureFinalizer("run-finish-audit", custom);
+        verify(finalizer, times(1)).onFailure(jobExecution, "run-finish-audit", custom);
+    }
+
+    @Test
+    void afterJobSkipsCustomFailureFinalizersWhenJobIsNotFailed() {
+        JobConfig.JobStepConfig customStep = new JobConfig.JobStepConfig();
+        customStep.setName("run-finish-audit");
+        customStep.setKind("custom");
+        JobConfig.CustomStepConfig custom = new JobConfig.CustomStepConfig();
+        custom.setType("auditNoop");
+        customStep.setCustom(custom);
+        RunConfigurationMetadata runMetadata = new RunConfigurationMetadata(
+                "customer-load",
+                CUSTOMER_LOAD_JOB_CONFIG,
+                false,
+                "customer-main-flow",
+                "default-subflow",
+                JobRecoveryPolicy.RERUN_FROM_START,
+                List.of(customStep)
+        );
+        DynamicCustomStepFactory customStepFactory = mock(DynamicCustomStepFactory.class);
+
+        JobCompletionNotificationListener listener = new JobCompletionNotificationListener(null, runMetadata, customStepFactory);
+
+        JobExecution jobExecution = mock(JobExecution.class);
+        JobInstance jobInstance = mock(JobInstance.class);
+        JobParameters jobParameters = new JobParametersBuilder().addString("scenario", "customer-load").toJobParameters();
+        when(jobExecution.getJobParameters()).thenReturn(jobParameters);
+        when(jobExecution.getJobInstance()).thenReturn(jobInstance);
+        when(jobInstance.getJobName()).thenReturn("etlJob");
+        when(jobExecution.getId()).thenReturn(202L);
+        when(jobExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
+        when(jobExecution.getStartTime()).thenReturn(LocalDateTime.now().minusSeconds(1));
+        when(jobExecution.getEndTime()).thenReturn(LocalDateTime.now());
+        when(jobExecution.getAllFailureExceptions()).thenReturn(List.of());
+
+        listener.afterJob(jobExecution);
+
+        verify(customStepFactory, never()).getFailureFinalizer("run-finish-audit", custom);
+    }
+
+    @Test
+    void afterJobSkipsCustomFailureFinalizersWhenJobIsStopped() {
+        JobConfig.JobStepConfig customStep = new JobConfig.JobStepConfig();
+        customStep.setName("run-finish-audit");
+        customStep.setKind("custom");
+        JobConfig.CustomStepConfig custom = new JobConfig.CustomStepConfig();
+        custom.setType("auditNoop");
+        customStep.setCustom(custom);
+        RunConfigurationMetadata runMetadata = new RunConfigurationMetadata(
+                "customer-load",
+                CUSTOMER_LOAD_JOB_CONFIG,
+                false,
+                "customer-main-flow",
+                "default-subflow",
+                JobRecoveryPolicy.RERUN_FROM_START,
+                List.of(customStep)
+        );
+        DynamicCustomStepFactory customStepFactory = mock(DynamicCustomStepFactory.class);
+
+        JobCompletionNotificationListener listener = new JobCompletionNotificationListener(null, runMetadata, customStepFactory);
+
+        JobExecution jobExecution = mock(JobExecution.class);
+        JobInstance jobInstance = mock(JobInstance.class);
+        JobParameters jobParameters = new JobParametersBuilder().addString("scenario", "customer-load").toJobParameters();
+        when(jobExecution.getJobParameters()).thenReturn(jobParameters);
+        when(jobExecution.getJobInstance()).thenReturn(jobInstance);
+        when(jobInstance.getJobName()).thenReturn("etlJob");
+        when(jobExecution.getId()).thenReturn(203L);
+        when(jobExecution.getStatus()).thenReturn(BatchStatus.STOPPED);
+        when(jobExecution.getStartTime()).thenReturn(LocalDateTime.now().minusSeconds(1));
+        when(jobExecution.getEndTime()).thenReturn(LocalDateTime.now());
+        when(jobExecution.getAllFailureExceptions()).thenReturn(List.of());
+
+        listener.afterJob(jobExecution);
+
+        verify(customStepFactory, never()).getFailureFinalizer("run-finish-audit", custom);
+    }
 
   private ListAppender<ILoggingEvent> attachAppender(Logger logger) {
     logger.detachAndStopAllAppenders();

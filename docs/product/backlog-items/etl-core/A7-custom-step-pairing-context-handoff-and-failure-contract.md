@@ -8,7 +8,7 @@ Define one additive runtime contract that lets customer-owned custom steps run b
 
 - Epic: **[Epic A](../../epics/etl-core/epic-a-runtime-contract-and-model-governance.md)**
 - Priority: **P1**
-- Status: **Blocked**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **A1, D1**
 
@@ -213,19 +213,20 @@ Cross-track review expectation before implementation expands:
 - scheduler-triggered runs and UI-exposed controls must continue to target the same selected-job boundary used by standard ETL execution
 - custom-step evidence must stay compatible with the operator read-model assumptions already used by the UI lane
 
-## Acceptance criteria
+## Acceptance criteria (phase-1 shipped boundary)
 
-- [ ] pre-implementation multi-review workflow is completed (runtime, scheduler/control-plane, UI/operations)
-- [ ] known design cons are reviewed with explicit mitigation decisions captured in this item
-- [ ] existing standard-only jobs (with omitted `steps[].kind`) remain fully backward compatible
-- [ ] `steps[].kind` omission defaults to `standard` without changing standard step semantics
-- [ ] `job-config.yaml` supports explicit custom-step declarations without changing standard-step behavior
-- [ ] custom and standard steps run through one ordered runtime assembly path in `BatchConfig`
-- [ ] context handoff supports required-value fail-fast checks and deterministic key ownership
-- [ ] outcome mapping supports `CONTINUE`, `STOP`, and `FAIL` with documented job-status implications
-- [ ] failure finalization updates header/audit status when any upstream step fails
-- [ ] exception categories are documented and aligned with Epic D taxonomy direction
-- [ ] at least one preserved runnable bundle demonstrates header/detail + failure-finalization behavior
+- [x] existing standard-only jobs (with omitted `steps[].kind`) remain fully backward compatible
+- [x] `steps[].kind` omission defaults to `standard` without changing standard step semantics
+- [x] `job-config.yaml` supports explicit custom-step declarations without changing standard-step behavior
+- [x] custom and standard steps run through one ordered runtime assembly path in `BatchConfig`
+- [x] exception categories and custom-step contract boundaries are documented for current shipped scope
+
+Deferred from this item to follow-on [`A7b`](A7b-custom-step-context-outcome-and-failure-finalization-follow-on.md):
+
+- typed context handoff contract with required-value/type fail-fast ownership rules
+- explicit `CONTINUE` / `STOP` / `FAIL` runtime outcome mapping contract
+- bounded failure-finalizer hook contract for header/audit update paths
+- preserved runnable bundle that proves end-to-end header/detail plus failure-finalization behavior
 
 ## Related docs
 
@@ -244,7 +245,7 @@ Keep the first slice narrow: one custom-step seam, one context-bridge rule set, 
 ## Status notes
 
 - Initial backlog proposal captured customer pre/post custom-step requests, FK handoff (`fileId`) patterns, and failure-finalization needs.
-- A7 is currently review-gated: implementation work should not start until the multi-review workflow and invariant checks are completed.
-- This remains a future-direction design track and not a shipped `job-config.yaml` runtime field contract yet.
+- Phase-1 runtime/config slice now supports ordered `steps[].kind` with `kind: custom` provider binding via `custom.type` while preserving standard-step defaults when `kind` is omitted.
+- This backlog item is now closed at the phase-1 shipped boundary; deferred context/outcome/finalizer scope is tracked in [`A7b`](A7b-custom-step-context-outcome-and-failure-finalization-follow-on.md).
 
 

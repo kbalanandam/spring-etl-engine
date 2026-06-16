@@ -6,6 +6,8 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.9.1] - 2026-06-16
+
 ### Added
 - Added Operator Run Detail advisory recovery diagnostics panel with dedicated renderer wiring and smoke coverage for populated, empty, and missing-recovery states.
 - Added `scripts/cleanup-controlplane-duplicate-steps.ps1` plus operations runbook guidance for audit/cleanup of duplicate `controlplane_step_record` rows in local SQLite control-plane history.
@@ -15,6 +17,10 @@ and this project adheres to **Semantic Versioning**.
 - Added `.github/workflows/scripts-tests.yml` to run scripts-focused Python tests on Ubuntu plus Windows timeout-exit coverage for `verify-recent-changes.ps1`.
 
 ### Changed
+- Closed `A7` at the shipped phase-1 custom-step boundary: explicit ordered `steps[].kind` now supports `kind: custom` with provider binding via `custom.type`, while standard-step defaults remain backward compatible when `kind` is omitted.
+- Added follow-on backlog tracking under `A7b` for deferred custom-step typed context handoff, explicit `CONTINUE/STOP/FAIL` outcome mapping, and bounded failure-finalization contracts.
+- Updated product planning to execute `A7b` in the same `M2` / `1.8.0` release lane, with board status moved to `In Progress` for the active balanced delivery trio.
+- Shipped active A7b slices for custom-step contracts: startup validation/normalization of `custom.publish`/`custom.consume`/`custom.onResult`, runtime `onResult` mapping to `CONTINUE`/`STOP`/`FAIL`, and bounded provider-driven failure finalization on failed jobs.
 - Refined Spring stereotype boundaries across the control-plane backend by reclassifying orchestration/read-model beans to `@Service` and JDBC persistence adapters to `@Repository`, while preserving existing runtime behavior and conditional wiring.
 - Simplified worker bootstrap scanning by removing redundant `@ComponentScan(basePackages = "com.etl")` from `ETLEngineApplication`, relying on `@SpringBootApplication` default package scanning.
 - Updated control-plane architecture guidance with explicit backend stereotype intent (`@Service` vs `@Repository` vs `@Component`) so code and docs stay aligned during ongoing runtime refactoring.
@@ -28,6 +34,8 @@ and this project adheres to **Semantic Versioning**.
 - Hardened Operator UI monitoring route behavior to ignore stale async responses, deduplicate in-flight job step-name requests, and reconcile per-job preview/step-name caches against the latest jobs payload.
 - Hardened Operator Schedules workbench async handling to ignore stale trigger-evidence responses and guard pause/resume/trigger actions against duplicate in-flight requests.
 - Hardened Operator Runs filtering with bounded/expiring per-filter cache entries and improved route-safe run-detail sequencing so run-scoped log loading is skipped when the active route changes.
+- Hardened custom-step context contracts (`A7b`) by rejecting duplicate `custom.publish` keys at selected-job startup, enforcing typed `custom.consume` requirements at runtime, and preventing non-owner/duplicate publish overwrites through write-once ownership guardrails.
+- Hardened `/api/v1/runs` filter handling by normalizing optional `job`/`runMode`/`recoveryPolicy` inputs and failing fast on invalid `startDate` formats (`yyyy-MM-dd`) before timezone/date parsing.
 - Hardened guarded job-detail trigger-now behavior to ignore accidental repeat clicks in the UI and suppress short-window duplicate manual trigger requests on the backend, returning `DUPLICATE_SUPPRESSED` with the existing `triggerEventId` instead of recording a second trigger event.
 - Added optional scheduler-triggered ETL launch support behind `controlplane.scheduler.launch-enabled`, including schedule launch start/finish evidence logs while preserving trigger-event recording as the scheduler baseline.
 - Updated the Operator Jobs list readiness label to show `SCHEDULED` when one enabled native schedule exists for a ready job, while preserving `INVALID`/`INACTIVE` statuses.

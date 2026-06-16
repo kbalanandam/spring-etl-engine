@@ -305,6 +305,17 @@ For the target direction where scenario descriptors and step links become the st
 
 ## Important runtime decisions
 
+### A7b custom-step context enforcement baseline
+
+The shipped custom-step path now enforces one split guardrail model for context handoff:
+
+- startup (`ConfigLoader`) rejects duplicate `custom.publish` context keys across custom steps in the selected ordered plan
+- runtime (`CustomStepContextBridge`) enforces consume-key presence and declared consume type compatibility when dependent steps execute
+- publish ownership is write-once by default; non-owner overwrite attempts fail fast as context errors
+- `custom.consume` typed bindings use normalized tokens (`string`, `int`, `long`, `double`, `decimal`, `boolean`, `object`)
+
+This split keeps static config-shape violations distinct from runtime context-state violations in operator evidence and failure categorization.
+
 ### F1 restart semantics baseline
 
 The current F1 baseline keeps restart behavior explicit and conservative for shipped execution modes:
@@ -400,6 +411,10 @@ For XML sources, explicit startup always requires the generated record class. `X
 
 ### 3. Step strategy
 `BatchConfig` walks the explicit step list from `job-config.yaml`. For each step, it resolves the named source and target, verifies that a matching processor mapping exists, emits machine-readable step-planning logs such as `STEP_PLAN` and `STEP_READY`, projects synthesized hierarchy metadata into the step execution context for later `STEP_EVENT` evidence, and then calls `getRecordCount()` on the selected source to compare it to `etl.chunk.threshold`.
+
+As part of the bridge-slimming path, source/target/mapping step resolution now delegates through `BatchConfigStepResolutionSupport`, runtime metadata projection plus hierarchy listener creation delegate through `BatchConfigRuntimeContextSupport`, skip/retry policy construction and retry listener wiring delegate through `BatchStepPolicySupport`, chunk/tasklet plus duplicate-resolver mode selection delegates through `BatchStepModePlanner`, and standard step construction delegates through `BatchStandardStepAssembler`; these extracted seams now live under `com.etl.config.batch.bridge`, while `BatchConfig` remains the orchestration entrypoint that assembles the executable step plan.
+
+Planning logs now separate execution order from descriptor metadata explicitly: `configuredIndex` reflects the real runtime sequence (the order of `steps[]` in `job-config.yaml`), while `descriptorStepOrder` captures optional synthesized descriptor ordering for diagnostics.
 
 Because those planning emits happen during runtime assembly, before the scenario-specific log key is attached to the active file route, they currently appear in `logs/startup/startup.log` rather than the scenario log. The subsequent step-started and step-finished `STEP_EVENT` entries appear in the scenario log after the listener layer restores scenario-scoped MDC values.
 

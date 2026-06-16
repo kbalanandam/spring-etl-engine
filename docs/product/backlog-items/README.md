@@ -31,6 +31,7 @@ Use this page as the main browse index when you want to navigate backlog items b
 - [`A5 - Add relational source column alias contract and reader mapping`](etl-core/A5-relational-source-column-alias-contract.md)
 - [`A6 - Retire remaining internal generated-model package bridge`](etl-core/A6-retire-internal-generated-model-package-bridge.md)
 - [`A7 - Add custom-step pairing, context handoff, and failure-contract baseline`](etl-core/A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+- [`A7b - Extend custom-step context, outcome mapping, and failure-finalization contract`](etl-core/A7b-custom-step-context-outcome-and-failure-finalization-follow-on.md)
 
 ### Epic B - Runtime hardening and file behavior
 

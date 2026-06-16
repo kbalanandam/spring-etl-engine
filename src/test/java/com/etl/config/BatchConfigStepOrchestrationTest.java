@@ -3,7 +3,6 @@ package com.etl.config;
 import ch.qos.logback.classic.Logger;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
-import com.etl.exception.config.ConfigException;
 import com.etl.config.job.JobConfig;
 import com.etl.config.processor.ProcessorConfig;
 import com.etl.config.source.CsvSourceConfig;
@@ -12,12 +11,6 @@ import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.TargetConfig;
 import com.etl.config.target.TargetWrapper;
 import com.etl.config.target.XmlTargetConfig;
-import com.etl.exception.RuntimeEtlException;
-import com.etl.exception.SourceReadException;
-import com.etl.exception.TargetWriteException;
-import com.etl.exception.TransformationException;
-import com.etl.exception.ValidationException;
-import com.etl.exception.reader.ReaderException;
 import com.etl.job.listener.JobCompletionNotificationListener;
 import com.etl.job.listener.StepLoggingContextListener;
 import com.etl.processor.DynamicProcessorFactory;
@@ -29,6 +22,10 @@ import com.etl.runtime.job.JobRecoveryPolicy;
 import com.etl.runtime.job.JobRunMode;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.runtime.job.JobRuntimeDescriptorAssembler;
+import com.etl.step.CustomStepBinding;
+import com.etl.step.CustomStepHandler;
+import com.etl.step.CustomStepProvider;
+import com.etl.step.DynamicCustomStepFactory;
 import com.etl.writer.DynamicWriterFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -36,24 +33,18 @@ import org.junit.jupiter.api.io.TempDir;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.repository.JobRepository;
-import org.springframework.batch.core.step.skip.SkipPolicy;
 import org.springframework.batch.item.ItemProcessor;
 import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.ItemWriter;
-import org.springframework.retry.RetryCallback;
-import org.springframework.retry.RetryContext;
-import org.springframework.retry.RetryListener;
-import org.springframework.retry.RetryPolicy;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.batch.repeat.RepeatStatus;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -176,6 +167,70 @@ class BatchConfigStepOrchestrationTest {
 
         IllegalStateException exception = assertThrows(IllegalStateException.class, batchConfig::buildSteps);
         assertEquals("Step 'customers-step' does not have a matching processor mapping for source 'Customers' and target 'Customers'.", exception.getMessage());
+    }
+
+    @Test
+    void buildStepsInterleavesCustomAndStandardStepsByConfiguredOrder() throws Exception {
+        SourceWrapper sourceWrapper = new SourceWrapper();
+        sourceWrapper.setSources(List.of(
+                csvSource("Customers", tempCsv("customers.csv")),
+                csvSource("Department", tempCsv("departments.csv"))
+        ));
+
+        TargetWrapper targetWrapper = new TargetWrapper();
+        targetWrapper.setTargets(List.of(
+                xmlTarget("Customers", "Customer"),
+                xmlTarget("Departments", "Department")
+        ));
+
+        ProcessorConfig processorConfig = processorConfig(
+                mapping("Customers", "Customers"),
+                mapping("Department", "Departments")
+        );
+        List<JobConfig.JobStepConfig> configuredSteps = List.of(
+                step("customers-step", "Customers", "Customers"),
+                customStep("header-finalize", "headerFinalize"),
+                step("departments-step", "Department", "Departments")
+        );
+        ListAppender<ILoggingEvent> appender = attachAppender();
+
+        DynamicCustomStepFactory customStepFactory = new DynamicCustomStepFactory(List.of(new NoopCustomStepProvider()));
+        BatchConfig batchConfig = new BatchConfig(
+                sourceWrapper,
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig,
+                targetWrapper,
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "custom-step-ordering",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "custom-step-ordering-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        configuredSteps
+                ),
+                null,
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory(),
+                customStepFactory,
+                new EtlBatchProperties()
+        );
+
+        List<Step> steps = batchConfig.buildSteps();
+
+        assertEquals(List.of("customers-step", "header-finalize", "departments-step"), steps.stream().map(Step::getName).toList());
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=step_ready")
+                && event.getFormattedMessage().contains("stepKind=custom")
+                && event.getFormattedMessage().contains("stepName=header-finalize")));
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_SEQUENCE event=step_sequence")
+                && event.getFormattedMessage().contains("plannedStepCount=3")
+                && event.getFormattedMessage().contains("plannedSteps=0:customers-step:standard(Customers->Customers),1:header-finalize:custom(headerFinalize),2:departments-step:standard(Department->Departments)")));
     }
 
     @Test
@@ -415,51 +470,6 @@ class BatchConfigStepOrchestrationTest {
         assertTrue(exception.getMessage().contains("both ordered duplicate winner selection and retryPolicy"));
     }
 
-    @Test
-    void configuredSkipPolicyStopsSkippingWhenSkipLimitIsReached() throws Exception {
-        SourceWrapper sourceWrapper = new SourceWrapper();
-        sourceWrapper.setSources(List.of(csvSource("Customers", tempCsv("customers-small.csv"))));
-
-        TargetWrapper targetWrapper = new TargetWrapper();
-        targetWrapper.setTargets(List.of(xmlTarget("Customers", "Customer")));
-
-        ProcessorConfig processorConfig = processorConfig(mapping("Customers", "Customers"));
-
-        BatchConfig batchConfig = new BatchConfig(
-                sourceWrapper,
-                mockReaderFactory(),
-                mockWriterFactory(),
-                mock(JobRepository.class),
-                mock(PlatformTransactionManager.class),
-                new JobCompletionNotificationListener(),
-                mockProcessorFactory(),
-                processorConfig,
-                targetWrapper,
-                new StepLoggingContextListener(),
-                new RunConfigurationMetadata(
-                        "customers-skip-policy-limit",
-                        tempDir.resolve("job-config.yaml").toString(),
-                        false,
-                        "customers-main-flow",
-                        "default-subflow",
-                        JobRecoveryPolicy.RERUN_FROM_START,
-                        List.of(stepWithSkipPolicy("customers-step", "Customers", "Customers", 1,
-                                List.of("runtime"),
-                                List.of()))
-                ),
-                new FileIngestionRuntimeSupport(),
-                new DuplicateResolverFactory()
-        );
-
-        JobConfig.SkipPolicyConfig skipPolicyConfig = stepWithSkipPolicy("customers-step", "Customers", "Customers", 1,
-                List.of("runtime"),
-                List.of()).getSkipPolicy();
-        SkipPolicy skipPolicy = ReflectionTestUtils.invokeMethod(batchConfig, "configuredSkipPolicy", skipPolicyConfig, "customers-step");
-        assertNotNull(skipPolicy);
-
-        assertTrue(skipPolicy.shouldSkip(new RuntimeEtlException("first runtime failure"), 0));
-        assertFalse(skipPolicy.shouldSkip(new RuntimeEtlException("second runtime failure"), 1));
-    }
 
     @Test
     void buildStepsHonorsConfiguredEmbeddedDbStorageModeForOrderedDuplicateSelection() throws Exception {
@@ -508,274 +518,55 @@ class BatchConfigStepOrchestrationTest {
     }
 
     @Test
-    void configuredRetryPolicyRetriesMatchingRuntimeFailuresUntilBudgetIsExhausted() throws Exception {
-        BatchConfig batchConfig = new BatchConfig(
-                new SourceWrapper(),
-                mockReaderFactory(),
-                mockWriterFactory(),
-                mock(JobRepository.class),
-                mock(PlatformTransactionManager.class),
-                new JobCompletionNotificationListener(),
-                mockProcessorFactory(),
-                processorConfig(mapping("Customers", "Customers")),
-                new TargetWrapper(),
-                new StepLoggingContextListener(),
-                new RunConfigurationMetadata(
-                        "customers-retry-policy-runtime-category",
-                        tempDir.resolve("job-config.yaml").toString(),
-                        false,
-                        "customers-main-flow",
-                        "default-subflow",
-                        JobRecoveryPolicy.RERUN_FROM_START,
-                        List.of()
-                ),
-                new FileIngestionRuntimeSupport(),
-                new DuplicateResolverFactory()
-        );
+    void buildStepsOverridesChunkToTaskletWhenOrderedDuplicateWinnerSelectionIsPresent() throws Exception {
+        SourceWrapper sourceWrapper = new SourceWrapper();
+        sourceWrapper.setSources(List.of(csvSource("Customers", tempCsv("customers.csv"))));
 
-        JobConfig.RetryPolicyConfig retryPolicyConfig = stepWithRetryPolicy("customers-step", "Customers", "Customers", 3, 25L,
-                List.of("runtime"), List.of()).getRetryPolicy();
-        RetryPolicy retryPolicy = ReflectionTestUtils.invokeMethod(batchConfig, "configuredRetryPolicy", retryPolicyConfig, "customers-step");
-        assertNotNull(retryPolicy);
+        TargetWrapper targetWrapper = new TargetWrapper();
+        targetWrapper.setTargets(List.of(xmlTarget("Customers", "Customer")));
 
-        RetryContext context = retryPolicy.open(null);
-        assertTrue(retryPolicy.canRetry(context));
-
-        retryPolicy.registerThrowable(context, new RuntimeEtlException("first runtime failure"));
-        assertTrue(retryPolicy.canRetry(context));
-
-        retryPolicy.registerThrowable(context, new RuntimeEtlException("second runtime failure"));
-        assertTrue(retryPolicy.canRetry(context));
-
-        retryPolicy.registerThrowable(context, new RuntimeEtlException("third runtime failure"));
-        assertFalse(retryPolicy.canRetry(context));
-    }
-
-    @Test
-    void configuredRetryPolicyDoesNotRetryMismatchedCategories() throws Exception {
-        BatchConfig batchConfig = new BatchConfig(
-                new SourceWrapper(),
-                mockReaderFactory(),
-                mockWriterFactory(),
-                mock(JobRepository.class),
-                mock(PlatformTransactionManager.class),
-                new JobCompletionNotificationListener(),
-                mockProcessorFactory(),
-                processorConfig(mapping("Customers", "Customers")),
-                new TargetWrapper(),
-                new StepLoggingContextListener(),
-                new RunConfigurationMetadata(
-                        "customers-retry-policy-mismatch",
-                        tempDir.resolve("job-config.yaml").toString(),
-                        false,
-                        "customers-main-flow",
-                        "default-subflow",
-                        JobRecoveryPolicy.RERUN_FROM_START,
-                        List.of()
-                ),
-                new FileIngestionRuntimeSupport(),
-                new DuplicateResolverFactory()
-        );
-
-        JobConfig.RetryPolicyConfig retryPolicyConfig = stepWithRetryPolicy("customers-step", "Customers", "Customers", 3, 25L,
-                List.of("runtime"), List.of()).getRetryPolicy();
-        RetryPolicy retryPolicy = ReflectionTestUtils.invokeMethod(batchConfig, "configuredRetryPolicy", retryPolicyConfig, "customers-step");
-        assertNotNull(retryPolicy);
-
-        RetryContext context = retryPolicy.open(null);
-        retryPolicy.registerThrowable(context, new ConfigException("deterministic config failure"));
-
-        assertFalse(retryPolicy.canRetry(context));
-    }
-
-    @Test
-    void exceptionClassesForCategoriesIncludesDedicatedProcessorAndWriterExceptions() throws Exception {
-        BatchConfig batchConfig = new BatchConfig(
-                new SourceWrapper(),
-                mockReaderFactory(),
-                mockWriterFactory(),
-                mock(JobRepository.class),
-                mock(PlatformTransactionManager.class),
-                new JobCompletionNotificationListener(),
-                mockProcessorFactory(),
-                processorConfig(mapping("Customers", "Customers")),
-                new TargetWrapper(),
-                new StepLoggingContextListener(),
-                new RunConfigurationMetadata(
-                        "customers-category-resolution",
-                        tempDir.resolve("job-config.yaml").toString(),
-                        false,
-                        "customers-main-flow",
-                        "default-subflow",
-                        JobRecoveryPolicy.RERUN_FROM_START,
-                        List.of()
-                ),
-                new FileIngestionRuntimeSupport(),
-                new DuplicateResolverFactory()
-        );
-
-        List<Class<? extends Throwable>> exceptionClasses = ReflectionTestUtils.invokeMethod(
-                batchConfig,
-                "exceptionClassesForCategories",
-                List.of("validation", "transformation", "target-write"));
-
-        assertNotNull(exceptionClasses);
-        assertTrue(exceptionClasses.contains(ValidationException.class));
-        assertTrue(exceptionClasses.contains(TransformationException.class));
-        assertTrue(exceptionClasses.contains(TargetWriteException.class));
-    }
-
-    @Test
-    void exceptionClassesForCategoriesResolvesSourceReadAliasesToReaderExceptions() throws Exception {
-        BatchConfig batchConfig = new BatchConfig(
-                new SourceWrapper(),
-                mockReaderFactory(),
-                mockWriterFactory(),
-                mock(JobRepository.class),
-                mock(PlatformTransactionManager.class),
-                new JobCompletionNotificationListener(),
-                mockProcessorFactory(),
-                processorConfig(mapping("Customers", "Customers")),
-                new TargetWrapper(),
-                new StepLoggingContextListener(),
-                new RunConfigurationMetadata(
-                        "customers-source-read-category-resolution",
-                        tempDir.resolve("job-config.yaml").toString(),
-                        false,
-                        "customers-main-flow",
-                        "default-subflow",
-                        JobRecoveryPolicy.RERUN_FROM_START,
-                        List.of()
-                ),
-                new FileIngestionRuntimeSupport(),
-                new DuplicateResolverFactory()
-        );
-
-        List<Class<? extends Throwable>> exceptionClasses = ReflectionTestUtils.invokeMethod(
-                batchConfig,
-                "exceptionClassesForCategories",
-                List.of("source-read", "read", "source_read"));
-
-        assertNotNull(exceptionClasses);
-        assertTrue(exceptionClasses.contains(SourceReadException.class));
-        assertTrue(exceptionClasses.contains(ReaderException.class));
-    }
-
-    @Test
-    void configuredRetryListenerLogsSucceededAfterRetrySummary() throws Exception {
-        BatchConfig batchConfig = new BatchConfig(
-                new SourceWrapper(),
-                mockReaderFactory(),
-                mockWriterFactory(),
-                mock(JobRepository.class),
-                mock(PlatformTransactionManager.class),
-                new JobCompletionNotificationListener(),
-                mockProcessorFactory(),
-                processorConfig(mapping("Customers", "Customers")),
-                new TargetWrapper(),
-                new StepLoggingContextListener(),
-                new RunConfigurationMetadata(
-                        "customers-retry-policy-listener-success",
-                        tempDir.resolve("job-config.yaml").toString(),
-                        false,
-                        "customers-main-flow",
-                        "default-subflow",
-                        JobRecoveryPolicy.RERUN_FROM_START,
-                        List.of()
-                ),
-                new FileIngestionRuntimeSupport(),
-                new DuplicateResolverFactory()
-        );
-        JobConfig.RetryPolicyConfig retryPolicyConfig = stepWithRetryPolicy("customers-step", "Customers", "Customers", 3, 25L,
-                List.of("runtime"), List.of()).getRetryPolicy();
-        RetryListener retryListener = ReflectionTestUtils.invokeMethod(batchConfig, "configuredRetryListener",
-                retryPolicyConfig,
-                "customers-step",
-                csvSource("Customers", tempCsv("customers-retry.csv")),
-                xmlTarget("Customers", "Customer"),
-                null);
-        assertNotNull(retryListener);
-
+        ProcessorConfig processorConfig = processorConfig(mappingWithOrderedDuplicateRule("Customers", "Customers"));
         ListAppender<ILoggingEvent> appender = attachAppender();
-        RetryPolicy retryPolicy = ReflectionTestUtils.invokeMethod(batchConfig, "configuredRetryPolicy", retryPolicyConfig, "customers-step");
-        assertNotNull(retryPolicy);
-        RetryContext context = retryPolicy.open(null);
-        RetryCallback<Object, Throwable> callback = retryContext -> null;
 
-        assertTrue(retryListener.open(context, callback));
-        retryListener.onError(context, callback, new RuntimeEtlException("transient runtime failure"));
-        retryListener.close(context, callback, null);
+        BatchConfig batchConfig = new BatchConfig(
+                sourceWrapper,
+                mockReaderFactory(),
+                mockWriterFactory(),
+                mock(JobRepository.class),
+                mock(PlatformTransactionManager.class),
+                new JobCompletionNotificationListener(),
+                mockProcessorFactory(),
+                processorConfig,
+                targetWrapper,
+                new StepLoggingContextListener(),
+                new RunConfigurationMetadata(
+                        "customers-ordered-duplicate-forced-tasklet",
+                        tempDir.resolve("job-config.yaml").toString(),
+                        false,
+                        "customers-main-flow",
+                        "default-subflow",
+                        JobRecoveryPolicy.RERUN_FROM_START,
+                        List.of(step("customers-step", "Customers", "Customers"))
+                ),
+                new FileIngestionRuntimeSupport(),
+                new DuplicateResolverFactory()
+        );
+        // Force initial mode decision to chunk so duplicate winner selection must override to tasklet.
+        ReflectionTestUtils.setField(batchConfig, "chunkThreshold", 0);
 
-        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_EVENT event=retry_attempt")
+        List<Step> steps = batchConfig.buildSteps();
+
+        assertEquals(List.of("customers-step"), steps.stream().map(Step::getName).toList());
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=step_mode_override")
                 && event.getFormattedMessage().contains("stepName=customers-step")
-                && event.getFormattedMessage().contains("attemptNumber=1")
-                && event.getFormattedMessage().contains("action=retry_scheduled")
-                && event.getFormattedMessage().contains("failureCategory=runtime")));
-        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_EVENT event=retry_summary")
-                && event.getFormattedMessage().contains("outcome=succeeded_after_retry")
-                && event.getFormattedMessage().contains("totalAttempts=2")
-                && event.getFormattedMessage().contains("firstFailureCategory=runtime")
-                && event.getFormattedMessage().contains("firstExceptionType=RuntimeEtlException")));
+                && event.getFormattedMessage().contains("originalMode=chunk")
+                && event.getFormattedMessage().contains("overriddenMode=tasklet")
+                && event.getFormattedMessage().contains("reason=ordered-duplicate-winner-selection-requires-final-buffering")));
+        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_READY event=step_ready")
+                && event.getFormattedMessage().contains("stepName=customers-step")
+                && event.getFormattedMessage().contains("mode=tasklet")));
     }
 
-    @Test
-    void configuredRetryListenerLogsFailedAfterRetriesSummary() throws Exception {
-        BatchConfig batchConfig = new BatchConfig(
-                new SourceWrapper(),
-                mockReaderFactory(),
-                mockWriterFactory(),
-                mock(JobRepository.class),
-                mock(PlatformTransactionManager.class),
-                new JobCompletionNotificationListener(),
-                mockProcessorFactory(),
-                processorConfig(mapping("Customers", "Customers")),
-                new TargetWrapper(),
-                new StepLoggingContextListener(),
-                new RunConfigurationMetadata(
-                        "customers-retry-policy-listener-failure",
-                        tempDir.resolve("job-config.yaml").toString(),
-                        false,
-                        "customers-main-flow",
-                        "default-subflow",
-                        JobRecoveryPolicy.RERUN_FROM_START,
-                        List.of()
-                ),
-                new FileIngestionRuntimeSupport(),
-                new DuplicateResolverFactory()
-        );
-        JobConfig.RetryPolicyConfig retryPolicyConfig = stepWithRetryPolicy("customers-step", "Customers", "Customers", 3, 25L,
-                List.of("runtime"), List.of()).getRetryPolicy();
-        RetryListener retryListener = ReflectionTestUtils.invokeMethod(batchConfig, "configuredRetryListener",
-                retryPolicyConfig,
-                "customers-step",
-                csvSource("Customers", tempCsv("customers-retry-failure.csv")),
-                xmlTarget("Customers", "Customer"),
-                null);
-        assertNotNull(retryListener);
-
-        ListAppender<ILoggingEvent> appender = attachAppender();
-        RetryPolicy retryPolicy = ReflectionTestUtils.invokeMethod(batchConfig, "configuredRetryPolicy", retryPolicyConfig, "customers-step");
-        assertNotNull(retryPolicy);
-        RetryContext context = retryPolicy.open(null);
-        RetryCallback<Object, Throwable> callback = retryContext -> null;
-
-        assertTrue(retryListener.open(context, callback));
-        retryListener.onError(context, callback, new RuntimeEtlException("first runtime failure"));
-        retryListener.onError(context, callback, new RuntimeEtlException("second runtime failure"));
-        retryListener.onError(context, callback, new RuntimeEtlException("third runtime failure"));
-        retryListener.close(context, callback, new RuntimeEtlException("terminal runtime failure"));
-
-        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_EVENT event=retry_attempt")
-                && event.getFormattedMessage().contains("attemptNumber=3")
-                && event.getFormattedMessage().contains("action=retry_exhausted")
-                && event.getFormattedMessage().contains("failureCategory=runtime")));
-        assertTrue(appender.list.stream().anyMatch(event -> event.getFormattedMessage().contains("STEP_EVENT event=retry_summary")
-                && event.getFormattedMessage().contains("outcome=failed_after_retries")
-                && event.getFormattedMessage().contains("totalAttempts=3")
-                && event.getFormattedMessage().contains("firstFailureCategory=runtime")
-                && event.getFormattedMessage().contains("terminalFailureCategory=runtime")
-                && event.getFormattedMessage().contains("terminalExceptionType=RuntimeEtlException")));
-    }
 
     private CsvSourceConfig csvSource(String sourceName, Path filePath) {
         CsvSourceConfig config = new CsvSourceConfig();
@@ -860,6 +651,27 @@ class BatchConfigStepOrchestrationTest {
         step.setSource(source);
         step.setTarget(target);
         return step;
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    private JobConfig.JobStepConfig customStep(String name, String customType) {
+        JobConfig.JobStepConfig step = new JobConfig.JobStepConfig();
+        step.setName(name);
+        step.setKind("custom");
+        JobConfig.CustomStepConfig custom = new JobConfig.CustomStepConfig();
+        custom.setType(customType);
+        step.setCustom(custom);
+        return step;
+    }
+
+    @CustomStepBinding(type = "headerFinalize")
+    private static final class NoopCustomStepProvider implements CustomStepProvider {
+
+
+        @Override
+        public CustomStepHandler createHandler(JobConfig.CustomStepConfig config) {
+            return (contribution, chunkContext) -> RepeatStatus.FINISHED;
+        }
     }
 
     @SuppressWarnings("SameParameterValue")

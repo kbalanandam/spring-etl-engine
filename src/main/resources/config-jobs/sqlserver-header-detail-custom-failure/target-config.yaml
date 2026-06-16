@@ -1,0 +1,18 @@
+targets:
+  - format: relational
+    targetName: CustomersSqlAudit
+    schema: dbo
+    table: CustomersAuditFailure
+    writeMode: insert
+    batchSize: 100
+    connectionRef: sqlserver-main
+    fields:
+      - name: id
+        type: int
+      - name: name
+        type: String
+      - name: email
+        type: String
+
+
+

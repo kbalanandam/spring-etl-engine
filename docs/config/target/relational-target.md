@@ -31,6 +31,7 @@ Backed by:
 | `table` | yes | string | Target table name |
 | `writeMode` | no | string | Currently only `insert` is supported |
 | `batchSize` | no | integer | Hint for intended relational batch sizing; defaults to `100` |
+| `connectionRef` | conditional | string | Named relational connection resolved from startup properties (`etl.config.relational.connections.<name>`) |
 | `fields` | yes | list | Field/property names expected on the target object and table columns |
 
 ### Connection fields
@@ -38,13 +39,16 @@ Backed by:
 | Field | Required | Type | Description |
 |---|---|---|---|
 | `connection.vendor` | yes | string | Current values: `sqlserver`, test value `h2` |
+| `connection.connectionString` | optional | string | Alias for JDBC URL; supports single-string authoring (for example SQL Server URL with `;user=...;password=...`) |
 | `connection.jdbcUrl` | recommended | string | Explicit JDBC URL |
 | `connection.host` | conditional | string | Used when `jdbcUrl` is not provided |
 | `connection.port` | conditional | integer | Used when `jdbcUrl` is not provided |
 | `connection.database` | conditional | string | Used when `jdbcUrl` is not provided |
 | `connection.schema` | no | string | Default schema if target-level `schema` is omitted |
-| `connection.username` | yes | string | Database username |
-| `connection.password` | yes | string | Database password |
+| `connection.username` | conditional | string | Database username when not using `connection.usernameEnvVar` |
+| `connection.password` | conditional | string | Database password when not using `connection.passwordEnvVar` |
+| `connection.usernameEnvVar` | no | string | Environment variable or JVM system property name used when `connection.username` is omitted |
+| `connection.passwordEnvVar` | no | string | Environment variable or JVM system property name used when `connection.password` is omitted |
 | `connection.driverClassName` | no | string | Explicit JDBC driver class |
 
 ### Field entries
@@ -66,13 +70,7 @@ targets:
     table: Customers
     writeMode: insert
     batchSize: 100
-    connection:
-      vendor: sqlserver
-      jdbcUrl: jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true
-      schema: dbo
-      username: <SQLSERVER_USERNAME>
-      password: <SQLSERVER_PASSWORD>
-      driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+    connectionRef: sqlserver-main
     fields:
       - name: id
         type: int
@@ -94,11 +92,7 @@ Read the example in target-contract order:
 - `table` is the relational table written by the step.
 - `writeMode: insert` selects the only shipped relational write mode today.
 - `batchSize` is the intended relational write-grouping hint.
-- `connection` groups the JDBC settings for this target.
-- `connection.vendor` selects the relational dialect family.
-- `connection.jdbcUrl` is the preferred explicit connection string.
-- `connection.schema` is the connection-level schema fallback when top-level `schema` is omitted.
-- `connection.username`, `connection.password`, and `connection.driverClassName` provide the remaining JDBC details.
+- `connectionRef` points to a named relational connection configured in startup properties.
 - `fields` lists the target object properties and database columns written in phase 1.
 - `fields[].name` is both the generated target property name and the current assumed database column name.
 - `fields[].type` is the logical type stored in the generated target model contract.
@@ -136,7 +130,6 @@ Phase-1 relational target support is intentionally narrow.
 - per-field database column aliases
 - stored procedures
 - richer transaction/restart semantics
-- reusable named connection registries
 
 ## Validation / usage notes
 
@@ -146,6 +139,9 @@ Phase-1 relational target support is intentionally narrow.
 - Use explicit `jdbcUrl` for the first live test when possible.
 - Keep DB column names aligned with configured field names during phase 1.
 - Keep credentials out of committed real environment configs where possible; use placeholders in committed scenario YAMLs.
+- If `connection.usernameEnvVar` or `connection.passwordEnvVar` is configured, startup fails fast when that referenced value is missing.
+- For SQL Server, you can author a single connection string with embedded `;user=...;password=...` and omit separate username/password fields.
+- If `connectionRef` is configured but missing from the startup registry, startup fails fast before the job reaches JDBC runtime.
 - If both top-level `schema` and `connection.schema` are provided, target-level `schema` wins.
 - Treat `batchSize` as the relational write-grouping value to mirror in higher-volume chunk-oriented jobs.
 - Selected relational target configs are validated at startup, and placeholder tokens such as `<SQLSERVER_HOST>`, `<SQLSERVER_DATABASE>`, `<SQLSERVER_USERNAME>`, and `<SQLSERVER_PASSWORD>` are rejected before the job reaches JDBC runtime.

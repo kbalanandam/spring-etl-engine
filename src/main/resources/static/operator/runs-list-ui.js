@@ -97,12 +97,15 @@ export function createRunsListUi(options) {
 
   function applyRouteState(routeState) {
     const state = getState();
-    state.filterText = routeState.filterText || "";
-    state.selectedJobKey = routeState.selectedJobKey || "";
-    state.runModeFilter = routeState.runModeFilter || "";
-    state.recoveryPolicyFilter = routeState.recoveryPolicyFilter || "";
-    state.startDate = routeState.startDate || state.startDate || formatDateForInput(new Date());
-    state.timezone = routeState.timezone || state.timezone || state.browserTimezone || "UTC";
+    state.filterText = String(routeState.filterText || "").trim();
+    state.startDate = normalizeDateInput(
+      routeState.startDate,
+      state.startDate || formatDateForInput(new Date())
+    );
+    state.timezone = normalizeToken(routeState.timezone)
+      || normalizeToken(state.timezone)
+      || normalizeToken(state.browserTimezone)
+      || "UTC";
     state.sortKey = routeState.sortKey || "startTime";
     state.sortDirection = routeState.sortDirection || "desc";
 
@@ -117,6 +120,13 @@ export function createRunsListUi(options) {
     const filter = document.getElementById("runs-filter-input");
     const sort = document.getElementById("runs-sort-select");
     const direction = document.getElementById("runs-sort-dir-btn");
+
+    state.selectedJobKey = normalizeSelectValue(routeState.selectedJobKey, jobSelect);
+    state.runModeFilter = normalizeSelectValue(routeState.runModeFilter, runModeSelect);
+    state.recoveryPolicyFilter = normalizeSelectValue(routeState.recoveryPolicyFilter, recoveryPolicySelect);
+    state.timezone = normalizeSelectValue(state.timezone, timezone)
+      || normalizeToken(state.browserTimezone)
+      || "UTC";
 
     if (startDate) {
       startDate.value = state.startDate;
@@ -143,6 +153,47 @@ export function createRunsListUi(options) {
       direction.textContent = labelDirection(state.sortDirection);
     }
     clearInstanceOptions();
+  }
+
+  function normalizeToken(value) {
+    return String(value || "").trim();
+  }
+
+  function normalizeDateInput(value, fallback) {
+    const candidate = normalizeToken(value);
+    if (isIsoDate(candidate)) {
+      return candidate;
+    }
+    return isIsoDate(fallback) ? fallback : "";
+  }
+
+  function isIsoDate(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) {
+      return false;
+    }
+    const [yearText, monthText, dayText] = String(value).split("-");
+    const year = Number.parseInt(yearText, 10);
+    const month = Number.parseInt(monthText, 10);
+    const day = Number.parseInt(dayText, 10);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+      return false;
+    }
+    const date = new Date(Date.UTC(year, month - 1, day));
+    return date.getUTCFullYear() === year
+      && date.getUTCMonth() + 1 === month
+      && date.getUTCDate() === day;
+  }
+
+  function normalizeSelectValue(value, selectElement) {
+    const candidate = normalizeToken(value);
+    if (!candidate) {
+      return "";
+    }
+    if (!selectElement || !Array.isArray(selectElement.children)) {
+      return candidate;
+    }
+    const optionValues = selectElement.children.map((child) => normalizeToken(child?.value)).filter(Boolean);
+    return optionValues.includes(candidate) ? candidate : "";
   }
 
   function renderTimezoneOptions() {

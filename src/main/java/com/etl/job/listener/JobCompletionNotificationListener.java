@@ -1,11 +1,15 @@
 package com.etl.job.listener;
 
+import com.etl.config.RunConfigurationMetadata;
+import com.etl.config.job.JobConfig;
 import com.etl.exception.EtlExceptionDetails;
 import com.etl.logging.RunLoggingContext;
 import com.etl.runtime.job.JobHierarchyLoggingSupport;
 import com.etl.runtime.job.JobRunCountRollup;
 import com.etl.runtime.job.JobRuntimeDescriptor;
 import com.etl.runtime.job.JobSubFlowDescriptor;
+import com.etl.step.CustomStepFailureFinalizer;
+import com.etl.step.DynamicCustomStepFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -34,14 +38,24 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 
 	private static final Logger logger = LoggerFactory.getLogger(JobCompletionNotificationListener.class);
 	private final JobRuntimeDescriptor jobRuntimeDescriptor;
+	private final RunConfigurationMetadata runConfigurationMetadata;
+	private final DynamicCustomStepFactory customStepFactory;
 
 	public JobCompletionNotificationListener() {
-		this(null);
+		this(null, null, null);
+	}
+
+	public JobCompletionNotificationListener(@Nullable JobRuntimeDescriptor jobRuntimeDescriptor) {
+		this(jobRuntimeDescriptor, null, null);
 	}
 
 	@Autowired
-	public JobCompletionNotificationListener(@Nullable JobRuntimeDescriptor jobRuntimeDescriptor) {
+	public JobCompletionNotificationListener(@Nullable JobRuntimeDescriptor jobRuntimeDescriptor,
+	                                        @Nullable RunConfigurationMetadata runConfigurationMetadata,
+	                                        @Nullable DynamicCustomStepFactory customStepFactory) {
 		this.jobRuntimeDescriptor = jobRuntimeDescriptor;
+		this.runConfigurationMetadata = runConfigurationMetadata;
+		this.customStepFactory = customStepFactory;
 	}
 
 	@Override
@@ -113,6 +127,7 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 			if (jobExecution.getStatus() == BatchStatus.COMPLETED) {
 				logger.info("Job completed successfully in {} seconds.", durationSeconds == null ? "unknown" : durationSeconds);
 			} else if (jobExecution.getStatus() == BatchStatus.FAILED) {
+				invokeCustomFailureFinalizers(jobExecution);
 				logger.error("Job failed after {} seconds.", durationSeconds == null ? "unknown" : durationSeconds);
 				jobExecution.getAllFailureExceptions().forEach(
 						failure -> logger.error(
@@ -134,6 +149,44 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 			RunLoggingContext.clearJobScope();
 		}
 
+	}
+
+	private void invokeCustomFailureFinalizers(JobExecution jobExecution) {
+		if (customStepFactory == null || runConfigurationMetadata == null || runConfigurationMetadata.steps() == null) {
+			return;
+		}
+		for (JobConfig.JobStepConfig configuredStep : runConfigurationMetadata.steps()) {
+			if (configuredStep == null || !configuredStep.isCustomStep() || configuredStep.getCustom() == null) {
+				continue;
+			}
+			String stepName = configuredStep.getName() == null ? "" : configuredStep.getName().trim();
+			if (stepName.isBlank()) {
+				continue;
+			}
+			try {
+				CustomStepFailureFinalizer finalizer = customStepFactory.getFailureFinalizer(stepName, configuredStep.getCustom());
+				finalizer.onFailure(jobExecution, stepName, configuredStep.getCustom());
+				logger.info("RUN_EVENT event=custom_step_failure_finalized scenario={} mainFlow={} subFlow={} recoveryPolicy={} stepName={} customType={} jobExecutionId={}",
+						mdcValueOrDefault(RunLoggingContext.SCENARIO, "unknown-scenario"),
+						mdcValueOrDefault(RunLoggingContext.MAIN_FLOW, ""),
+						mdcValueOrDefault(RunLoggingContext.SUB_FLOW, ""),
+						mdcValueOrDefault(RunLoggingContext.RECOVERY_POLICY, ""),
+						stepName,
+						configuredStep.getCustom().getType() == null ? "" : configuredStep.getCustom().getType(),
+						jobExecution.getId());
+			} catch (Exception e) {
+				logger.warn("RUN_EVENT event=custom_step_failure_finalizer_failed scenario={} mainFlow={} subFlow={} recoveryPolicy={} stepName={} customType={} jobExecutionId={} message={}",
+						mdcValueOrDefault(RunLoggingContext.SCENARIO, "unknown-scenario"),
+						mdcValueOrDefault(RunLoggingContext.MAIN_FLOW, ""),
+						mdcValueOrDefault(RunLoggingContext.SUB_FLOW, ""),
+						mdcValueOrDefault(RunLoggingContext.RECOVERY_POLICY, ""),
+						stepName,
+						configuredStep.getCustom().getType() == null ? "" : configuredStep.getCustom().getType(),
+						jobExecution.getId(),
+						e.getMessage(),
+						e);
+			}
+		}
 	}
 
 	private String mdcValueOrDefault(String key, String defaultValue) {

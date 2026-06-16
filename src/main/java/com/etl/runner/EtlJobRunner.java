@@ -130,7 +130,9 @@ public class EtlJobRunner implements CommandLineRunner {
 
 	private String formatPlannedSteps(List<com.etl.config.job.JobConfig.JobStepConfig> steps) {
 		return steps.stream()
-				.map(step -> step.getName() + ":" + step.getSource() + "->" + step.getTarget())
+				.map(step -> step.isCustomStep()
+						? step.getName() + ":custom(" + (step.getCustom() == null ? "" : step.getCustom().getType()) + ")"
+						: step.getName() + ":" + step.getSource() + "->" + step.getTarget())
 				.reduce((left, right) -> left + "," + right)
 				.orElse("none");
 	}

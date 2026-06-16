@@ -1,0 +1,65 @@
+# A7b - Extend custom-step context, outcome mapping, and failure-finalization contract
+
+## Summary
+
+Follow-on to `A7` that delivers the deferred custom-step runtime contracts for typed context handoff, explicit outcome mapping, and bounded failure-finalization behavior.
+
+## Current board status
+
+- Epic: **[Epic A](../../epics/etl-core/epic-a-runtime-contract-and-model-governance.md)**
+- Priority: **P1**
+- Status: **Done**
+- Milestone: **M2**
+- Dependency: **A7, D1**
+
+## Problem
+
+`A7` phase-1 shipped custom-step declarations and ordered execution, but intentionally deferred typed cross-step context validation, explicit `CONTINUE/STOP/FAIL` semantics, and generalized failure-finalization callbacks.
+
+## Goal
+
+Complete the deferred runtime contracts so custom and standard steps share one explicit operator-visible behavior model for:
+
+- context publish/consume ownership and fail-fast validation
+- deterministic outcome mapping and job-status implications
+- bounded failure-finalization hooks for audit/header update patterns
+
+## Scope
+
+This item covers:
+
+- typed context handoff contract (`publish`/`consume`) with required-key/type checks
+- explicit `CONTINUE`, `STOP`, and `FAIL` outcome mapping semantics
+- bounded custom failure-finalizer contract invoked on upstream failures
+- one preserved runnable scenario proving header/detail + failure-finalization behavior
+- focused startup/runtime tests and structured evidence expectations
+
+## Shipped slices to date
+
+- [x] startup validation/normalization for `custom.publish`/`custom.consume`/`custom.onResult` on the explicit job path
+- [x] runtime custom-step `onResult` mapping through one bounded `CONTINUE` / `STOP` / `FAIL` action path
+- [x] bounded provider-driven failure-finalizer hook on failed jobs through `CustomStepProvider.createFailureFinalizer(...)`
+
+## Out of scope
+
+- introducing a second orchestration model
+- replacing the explicit ordered `steps[]` runtime contract
+- scheduler/control-plane feature expansion beyond launch parity
+
+## Acceptance criteria
+
+- [x] context handoff validates required keys and type expectations before dependent step execution
+- [x] context key ownership and overwrite behavior are deterministic and documented
+- [x] custom-step outcomes map through one explicit `CONTINUE` / `STOP` / `FAIL` contract
+- [x] job-level status implications for mapped outcomes are documented and tested (`STOP` = controlled `STOPPED` halt, `FAIL` = `FAILED` + bounded failure-finalizer path)
+- [x] bounded failure-finalizer contract executes for upstream-failure paths
+- [x] at least one preserved runnable bundle demonstrates header/detail with failure-finalization behavior (`src/main/resources/config-jobs/customer-load-custom-step-fail-finalizer/`)
+- [x] architecture/config docs are synchronized with shipped behavior
+
+## Related docs
+
+- [`A7`](A7-custom-step-pairing-context-handoff-and-failure-contract.md)
+- [`Product backlog`](../../product-backlog.md)
+- [`Custom-step pairing and context handoff`](../../../architecture/etl-core/custom-step-pairing-and-context-handoff.md)
+- [`Runtime flow`](../../../architecture/etl-core/runtime-flow.md)
+
