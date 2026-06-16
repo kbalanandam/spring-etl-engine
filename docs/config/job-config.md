@@ -247,6 +247,7 @@ Current shipped behavior:
   - `custom.publish` values must be namespaced context keys (for example `header.fileId`)
   - `custom.consume` supports `contextKey[:type]` (`string`, `int`, `long`, `double`, `decimal`, `boolean`, `object`)
   - `custom.onResult` actions must map to `CONTINUE`, `STOP`, or `FAIL`
+- enforcement timing is split by intent: duplicate `custom.publish` keys fail at selected-job startup, while missing/typed consume violations fail when the dependent step executes
 - runtime now maps custom-step `onResult` actions through one bounded path:
   - `CONTINUE` keeps normal step progression
   - `STOP` sets step exit to `STOPPED`, requests job stop, and prevents downstream step execution in the current run
@@ -290,7 +291,7 @@ steps:
 - For `kind: custom`, `custom.publish` values must be namespaced context keys (`namespace.key`).
 - For `kind: custom`, `custom.consume` values may be `namespace.key` or `namespace.key:type`; when `:type` is supplied, only `string|int|long|double|decimal|boolean|object` are accepted.
 - For `kind: custom`, consumed context keys must already be published by earlier custom steps in the ordered plan; missing keys fail fast before dependent execution.
-- For `kind: custom`, published context keys are write-once in this slice; duplicate key publication across steps is rejected.
+- For `kind: custom`, published context keys are write-once in this slice; duplicate key publication across steps is rejected at startup, and runtime publish overwrite attempts from non-owner steps fail fast.
 - For `kind: custom`, `custom.onResult` action values must be `CONTINUE`, `STOP`, or `FAIL` (case-insensitive in authored YAML).
 - For `kind: custom` steps bound to `sqlHeaderDetailAudit`, define exactly one connection mode: either inline `jdbcUrl`/`username`/`password` or `connectionRef`.
 - On failed jobs, configured custom steps may run provider-defined bounded failure finalizers through `createFailureFinalizer(...)`; this is provider-driven in the current slice.

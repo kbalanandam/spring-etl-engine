@@ -305,6 +305,17 @@ For the target direction where scenario descriptors and step links become the st
 
 ## Important runtime decisions
 
+### A7b custom-step context enforcement baseline
+
+The shipped custom-step path now enforces one split guardrail model for context handoff:
+
+- startup (`ConfigLoader`) rejects duplicate `custom.publish` context keys across custom steps in the selected ordered plan
+- runtime (`CustomStepContextBridge`) enforces consume-key presence and declared consume type compatibility when dependent steps execute
+- publish ownership is write-once by default; non-owner overwrite attempts fail fast as context errors
+- `custom.consume` typed bindings use normalized tokens (`string`, `int`, `long`, `double`, `decimal`, `boolean`, `object`)
+
+This split keeps static config-shape violations distinct from runtime context-state violations in operator evidence and failure categorization.
+
 ### F1 restart semantics baseline
 
 The current F1 baseline keeps restart behavior explicit and conservative for shipped execution modes:

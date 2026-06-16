@@ -13,6 +13,7 @@ This note describes the current client-side hardening applied in `src/main/resou
 - guarded duplicate-click suppression for ad hoc trigger-now requests
 - cache reconciliation for jobs-scoped preview state
 - bounded and expiring runs-filter response caching
+- normalized runs-filter query shaping with fail-fast date-input validation
 - route-safe sequencing for run-scoped log loading
 - control-plane profile static-resource no-cache defaults for faster local UI iteration
 
@@ -43,8 +44,10 @@ flowchart TD
 
     S[Runs filter request] --> T{Fresh cache hit?}
     T -- Yes --> U[Use cached response]
-    T -- No --> V[Fetch runs API and cache with TTL]
-    V --> W[Bound cache size and evict oldest]
+    T -- No --> V[Normalize filters and validate startDate]
+    V --> W[Fetch runs API and cache with TTL]
+    W --> AB[Bound cache size and evict oldest]
+    
 
     X[Run detail async fan-out settled] --> Y{Route still active?}
     Y -- Yes --> Z[Load run-scoped log viewer]
@@ -59,6 +62,8 @@ flowchart TD
 - Step preview caching: parsed step names are cached per `jobKey` to reduce repeated YAML fetch/parse work.
 - Cache reconciliation: when a new jobs payload arrives, stale per-job preview and step-name entries are pruned so removed jobs do not leave stale UI state.
 - Runs filter cache hardening: runs responses are now cached with TTL and bounded entry count to reduce repeated fetches while preventing unbounded in-memory growth during long operator sessions.
+- Runs filter normalization hardening: optional `job`, `runMode`, and `recoveryPolicy` filters are normalized before request-key generation/API calls so equivalent filter states map to one stable fetch/cache path.
+- Runs date-input hardening: authored/route `startDate` values now use fail-fast `yyyy-MM-dd` validation before timezone/date parsing so malformed values are rejected deterministically instead of silently drifting query behavior.
 - Run log sequencing hardening: run-scoped log loading now starts only after other run-detail async updates settle and only when the same run route is still active.
 - Static asset refresh hardening: `application-controlplane.properties` disables Spring static-resource cache (`spring.web.resources.cache.period=0`, `spring.web.resources.chain.cache=false`) so Operator UI updates are reflected without stale bundled JS/CSS responses during control-plane sessions.
 

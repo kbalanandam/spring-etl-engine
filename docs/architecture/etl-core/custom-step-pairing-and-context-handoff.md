@@ -12,6 +12,7 @@ Define a future-direction architecture contract that lets customer-owned custom 
 - Run-level step debugging now also emits `STEP_SEQUENCE event=step_sequence` with one ordered projection of all planned steps (`index:name:kind(...)`) so operators can confirm selected-step identity and order from a single evidence line before step execution begins.
 - Shipped A7b runtime slices now validate/normalize `custom.publish`/`custom.consume`/`custom.onResult`, map `onResult` to `CONTINUE|STOP|FAIL` in custom-step execution, and invoke provider-defined bounded failure finalizers on failed jobs.
 - Shipped A7b context enforcement now also rejects duplicate published context keys across custom steps at explicit-job resolution time and enforces runtime consume-key presence/type plus write-once publish ownership in custom-step execution.
+- Validation timing is intentionally split: duplicate-key contract errors fail at selected-job startup, while missing/typed consume violations fail at the dependent step's runtime boundary so operators can distinguish config-shape failures from execution-state failures.
 - `STOP` and `FAIL` remain intentionally distinct: `STOP` is a controlled halt (`STOPPED`) that blocks downstream execution for the current run, while `FAIL` produces failed-job semantics that trigger bounded failure finalization.
 - Preserved runnable A7b failure/finalizer proof bundle: `src/main/resources/config-jobs/customer-load-custom-step-fail-finalizer/`.
 - Preserved SQL Server header/detail proof bundles: `src/main/resources/config-jobs/sqlserver-header-detail-custom-positive/` and `src/main/resources/config-jobs/sqlserver-header-detail-custom-failure/`.
@@ -251,6 +252,7 @@ Category meaning:
 ### Validation
 
 - required consumed keys must be validated before dependent step execution
+- consumed bindings authored as `contextKey:type` use one normalized primitive/object vocabulary (`string`, `int`, `long`, `double`, `decimal`, `boolean`, `object`)
 - type checks are mandatory on `require(key, type)` reads
 - missing/invalid keys fail fast through `CustomStepContextException`
 

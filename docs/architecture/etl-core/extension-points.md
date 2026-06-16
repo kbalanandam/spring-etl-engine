@@ -21,7 +21,7 @@ If your change touches runtime contracts, config shape, or dispatch behavior, re
 ### Quick navigation
 
 - Add a new format (reader/writer): [Implementer quickstart](#implementer-quickstart) -> [How to add a new source/target format](#how-to-add-a-new-sourcetarget-format)
-- Add processor behavior: [Processor cutover note](#processor-cutover-note) -> [How to add a new processor cleaner--normalization capability](#how-to-add-a-new-processor-cleaner--normalization-capability)
+- Add processor behavior: [Processor cutover note](#processor-cutover-note) -> [How to add a new processor cleaner / normalization capability](#how-to-add-a-new-processor-cleaner-normalization-capability)
 - Review architecture impact: [Architecture rationale](#architecture-rationale) -> [Design guardrails](#design-guardrails)
 - Check runtime rules before coding: [Current behavior contracts (high-impact)](#current-behavior-contracts-high-impact)
 
@@ -123,8 +123,9 @@ Phase-1 identity split for this seam should stay fixed: `steps[].name` for opera
 ### Context handoff rule set
 
 - publish shared values through explicit namespaced keys (example: `header.fileId`)
-- consume shared values only through declared bindings
+- consume shared values only through declared bindings (`contextKey` or `contextKey:type`)
 - keep key ownership write-once by default to avoid silent overwrite drift
+- reject duplicate published keys across custom steps during selected-job startup
 - fail fast before dependent step execution when required keys are missing or type-incompatible
 - emit structured evidence when keys are published or consumed
 
