@@ -1,6 +1,8 @@
 package com.etl.step.impl;
 
+import com.etl.config.EtlConfigProperties;
 import com.etl.config.job.JobConfig;
+import com.etl.config.relational.RelationalConnectionConfig;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.batch.core.JobExecution;
@@ -133,6 +135,39 @@ class SqlHeaderDetailAuditCustomStepProviderTest {
         }
     }
 
+    @Test
+    void startAndCompleteSupportConnectionRefForCustomStepJdbcSettings() throws Exception {
+        setupSchema();
+        SqlHeaderDetailAuditCustomStepProvider connectionRefProvider = new SqlHeaderDetailAuditCustomStepProvider(propertiesWithConnection("sqlserver-main"));
+        JobExecution jobExecution = MetaDataInstanceFactory.createJobExecution();
+        StepContribution startContribution = contribution(jobExecution, "header-start");
+        StepContribution completeContribution = contribution(jobExecution, "header-complete");
+
+        connectionRefProvider.createHandler(configWithConnectionRef("start", "sqlserver-main", false, List.of(), "", List.of()))
+                .execute(startContribution, null);
+        connectionRefProvider.createHandler(configWithConnectionRef("complete", "sqlserver-main", false, List.of(), "", List.of()))
+                .execute(completeContribution, null);
+
+        try (Connection connection = DriverManager.getConnection(JDBC_URL, "sa", "");
+             Statement statement = connection.createStatement()) {
+            try (ResultSet header = statement.executeQuery("SELECT status FROM dbo.etl_run_header")) {
+                header.next();
+                assertEquals("SUCCESS", header.getString("status"));
+            }
+        }
+    }
+
+    @Test
+    void connectionRefFailsFastWhenRegistryEntryIsMissing() {
+        JobConfig.CustomStepConfig config = configWithConnectionRef("start", "missing-connection", false, List.of(), "", List.of());
+
+        IllegalArgumentException ex = assertThrows(
+                IllegalArgumentException.class,
+                () -> provider.createHandler(config)
+        );
+        assertEquals("sqlHeaderDetailAudit custom.config.connectionRef 'missing-connection' is not configured in etl.config.relational.connections.*.", ex.getMessage());
+    }
+
     private StepContribution contribution(JobExecution jobExecution, String stepName) {
         StepExecution stepExecution = MetaDataInstanceFactory.createStepExecution(jobExecution, stepName, 1L);
         return new StepContribution(stepExecution);
@@ -164,6 +199,42 @@ class SqlHeaderDetailAuditCustomStepProviderTest {
         values.put("detailRows", detailRows);
         config.setConfig(values);
         return config;
+    }
+
+    private JobConfig.CustomStepConfig configWithConnectionRef(String action,
+                                                              String connectionRef,
+                                                              boolean failAfterInsert,
+                                                              List<Map<String, Object>> detailRows,
+                                                              String countStepName,
+                                                              List<String> prepareSql) {
+        JobConfig.CustomStepConfig config = new JobConfig.CustomStepConfig();
+        config.setType("sqlHeaderDetailAudit");
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("action", action);
+        values.put("connectionRef", connectionRef);
+        values.put("schema", "dbo");
+        values.put("headerTable", "etl_run_header");
+        values.put("detailTable", "etl_run_detail");
+        values.put("failAfterInsert", failAfterInsert);
+        values.put("countStepName", countStepName);
+        values.put("prepareSql", prepareSql);
+        values.put("detailRows", detailRows);
+        config.setConfig(values);
+        return config;
+    }
+
+    private EtlConfigProperties propertiesWithConnection(String connectionName) {
+        EtlConfigProperties properties = new EtlConfigProperties();
+        EtlConfigProperties.Relational relational = new EtlConfigProperties.Relational();
+        RelationalConnectionConfig connection = new RelationalConnectionConfig();
+        connection.setVendor("h2");
+        connection.setJdbcUrl(JDBC_URL);
+        connection.setUsername("sa");
+        connection.setPassword("");
+        connection.setDriverClassName("org.h2.Driver");
+        relational.setConnections(Map.of(connectionName, connection));
+        properties.setRelational(relational);
+        return properties;
     }
 
     private void setupSchema() throws Exception {

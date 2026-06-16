@@ -1,19 +1,42 @@
 package com.etl.config.relational;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RelationalConnectionConfigTest {
+
+    private static final String USERNAME_PROP = "etl.test.sql.username";
+    private static final String PASSWORD_PROP = "etl.test.sql.password";
 
     @Test
     void validateRejectsMissingVendor() {
         RelationalConnectionConfig connection = sqlServerConnection();
         connection.setVendor(null);
+        connection.setJdbcUrl(null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, connection::validate);
-        assertEquals("Relational connection vendor must be provided.", ex.getMessage());
+        assertEquals("Relational connection vendor must be provided (or inferable from jdbcUrl/connectionString).", ex.getMessage());
+    }
+
+    @Test
+    void validateAllowsVendorInferenceFromConnectionString() {
+        RelationalConnectionConfig connection = sqlServerConnection();
+        connection.setVendor(null);
+        connection.setHost(null);
+        connection.setDatabase(null);
+        connection.setUsername(null);
+        connection.setPassword(null);
+        connection.setConnectionString("jdbc:sqlserver://localhost:1433;databaseName=testdb;encrypt=true;trustServerCertificate=true;user=sa;password=secret");
+
+        connection.validate();
+
+        assertEquals(DatabaseVendor.SQLSERVER, connection.getResolvedVendor());
+        assertEquals("sa", connection.resolveUsername());
+        assertEquals("secret", connection.resolvePassword());
     }
 
     @Test
@@ -56,6 +79,53 @@ class RelationalConnectionConfigTest {
                 "jdbc:sqlserver://localhost:1433;databaseName=testdb;encrypt=true;trustServerCertificate=true",
                 RelationalDataSourceFactory.resolveJdbcUrl(connection)
         );
+    }
+
+    @Test
+    void validateAllowsCredentialsFromConfiguredEnvVarReferences() {
+        RelationalConnectionConfig connection = sqlServerConnection();
+        connection.setUsername(null);
+        connection.setPassword(null);
+        connection.setUsernameEnvVar(USERNAME_PROP);
+        connection.setPasswordEnvVar(PASSWORD_PROP);
+
+        System.setProperty(USERNAME_PROP, "env-user");
+        System.setProperty(PASSWORD_PROP, "env-pass");
+        try {
+            connection.validate();
+            assertEquals("env-user", connection.resolveUsername());
+            assertEquals("env-pass", connection.resolvePassword());
+        } finally {
+            System.clearProperty(USERNAME_PROP);
+            System.clearProperty(PASSWORD_PROP);
+        }
+    }
+
+    @Test
+    void validateRejectsMissingCredentialEnvVarReference() {
+        RelationalConnectionConfig connection = sqlServerConnection();
+        connection.setUsername(null);
+        connection.setUsernameEnvVar("etl.test.missing.username");
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, connection::validate);
+        assertTrue(ex.getMessage().contains("usernameEnvVar 'etl.test.missing.username'"));
+    }
+
+    @Test
+    void buildDataSourceAllowsConnectionStringOnlyCredentials() {
+        RelationalConnectionConfig connection = sqlServerConnection();
+        connection.setVendor(null);
+        connection.setHost(null);
+        connection.setDatabase(null);
+        connection.setUsername(null);
+        connection.setPassword(null);
+        connection.setConnectionString("jdbc:sqlserver://localhost:1433;databaseName=testdb;encrypt=true;trustServerCertificate=true;user=sa;password=secret");
+
+        DriverManagerDataSource dataSource = (DriverManagerDataSource) RelationalDataSourceFactory.buildDataSource(connection);
+
+        assertEquals("jdbc:sqlserver://localhost:1433;databaseName=testdb;encrypt=true;trustServerCertificate=true;user=sa;password=secret", dataSource.getUrl());
+        assertEquals("sa", dataSource.getUsername());
+        assertEquals("secret", dataSource.getPassword());
     }
 
     private static RelationalConnectionConfig sqlServerConnection() {

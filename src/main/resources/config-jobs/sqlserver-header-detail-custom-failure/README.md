@@ -10,7 +10,8 @@ Preserved A7/A7b SQL Server proof bundle for a real file-load failure flow with 
 
 ## Prerequisites
 
-- SQL Server reachable with valid connection values in `job-config.yaml` and `target-config.yaml`
+- SQL Server reachable with named startup connection `sqlserver-main` configured under `etl.config.relational.connections.sqlserver-main.*`
+- `target-config.yaml` and `job-config.yaml` custom steps both reference `connectionRef: sqlserver-main`
 - Existing table:
   - `dbo.etl_run_header`
 - `dbo.CustomersAuditFailure` is created on demand by the `header-start` custom step if it does not exist

@@ -11,10 +11,7 @@ steps:
       type: sqlHeaderDetailAudit
       config:
         action: start
-        jdbcUrl: "jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true"
-        username: <SQLSERVER_USERNAME>
-        password: <SQLSERVER_PASSWORD>
-        driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+        connectionRef: sqlserver-main
         schema: dbo
         headerTable: etl_run_header
         detailTable: etl_run_detail
@@ -31,10 +28,7 @@ steps:
       type: sqlHeaderDetailAudit
       config:
         action: complete
-        jdbcUrl: "jdbc:sqlserver://<SQLSERVER_HOST>:1433;databaseName=<SQLSERVER_DATABASE>;encrypt=true;trustServerCertificate=true"
-        username: <SQLSERVER_USERNAME>
-        password: <SQLSERVER_PASSWORD>
-        driverClassName: com.microsoft.sqlserver.jdbc.SQLServerDriver
+        connectionRef: sqlserver-main
         schema: dbo
         headerTable: etl_run_header
         detailTable: etl_run_detail

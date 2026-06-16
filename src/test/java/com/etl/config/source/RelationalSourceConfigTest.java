@@ -55,9 +55,19 @@ class RelationalSourceConfigTest {
     void validateRejectsMissingConnectionVendor() {
         RelationalSourceConfig config = relationalTableConfig();
         config.getConnection().setVendor(null);
+        config.getConnection().setJdbcUrl(null);
 
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, config::validate);
-        assertEquals("Relational connection vendor must be provided.", ex.getMessage());
+        assertEquals("Relational connection vendor must be provided (or inferable from jdbcUrl/connectionString).", ex.getMessage());
+    }
+
+    @Test
+    void validateAllowsConnectionRefWithoutInlineConnection() {
+        RelationalSourceConfig config = relationalTableConfig();
+        config.setConnection(null);
+        config.setConnectionRef("sqlserver-main");
+
+        config.validate();
     }
 
     @Test
