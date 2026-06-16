@@ -122,6 +122,8 @@ const SORT_KEYS = {
 
 const RUNS_FILTER_CACHE_MAX_ENTRIES = 30;
 const RUNS_FILTER_CACHE_TTL_MS = 5 * 60 * 1000;
+const SUPPORTED_RUN_MODES = new Set(["explicit-job", "demo-fallback"]);
+const SUPPORTED_RECOVERY_POLICIES = new Set(["rerun-from-start", "resume-from-checkpoint"]);
 const TRIGGER_NOW_DUPLICATE_WINDOW_MS = 5 * 1000;
 const DEFAULT_SCHEDULE_LOOKUP_LIMIT = 200;
 const JOB_DETAIL_RECENT_RUNS_LIMIT = 10;
@@ -1377,11 +1379,17 @@ async function loadRuns() {
   const state = document.getElementById("runs-state");
   const table = document.getElementById("runs-table");
   const body = document.getElementById("runs-body");
-  const selectedJobKey = viewState.runs.selectedJobKey || "";
-  const selectedRunMode = viewState.runs.runModeFilter || "";
-  const selectedRecoveryPolicy = viewState.runs.recoveryPolicyFilter || "";
-  const selectedStartDate = viewState.runs.startDate || "";
-  const selectedTimezone = viewState.runs.timezone || viewState.runs.browserTimezone || "UTC";
+  const selectedJobKey = String(viewState.runs.selectedJobKey || "").trim();
+  const selectedRunMode = normalizeSupportedFilter(viewState.runs.runModeFilter, SUPPORTED_RUN_MODES);
+  const selectedRecoveryPolicy = normalizeSupportedFilter(viewState.runs.recoveryPolicyFilter, SUPPORTED_RECOVERY_POLICIES);
+  const selectedStartDate = normalizeIsoDate(viewState.runs.startDate);
+  const selectedTimezone = String(viewState.runs.timezone || viewState.runs.browserTimezone || "UTC").trim() || "UTC";
+
+  viewState.runs.selectedJobKey = selectedJobKey;
+  viewState.runs.runModeFilter = selectedRunMode;
+  viewState.runs.recoveryPolicyFilter = selectedRecoveryPolicy;
+  viewState.runs.startDate = selectedStartDate;
+  viewState.runs.timezone = selectedTimezone;
   const loadKey = `${selectedJobKey || "__all__"}|${selectedRunMode || "__all_mode__"}|${selectedRecoveryPolicy || "__all_policy__"}|${selectedStartDate || "__no_date__"}|${selectedTimezone}`;
 
   if (viewState.runs.loaded && viewState.runs.loadedForKey === loadKey) {
@@ -1418,6 +1426,33 @@ async function loadRuns() {
     state.className = "state error";
     state.textContent = `Unable to load runs: ${error.message}`;
   }
+}
+
+function normalizeSupportedFilter(value, supportedValues) {
+  const normalized = String(value || "").trim();
+  if (normalized === "") {
+    return "";
+  }
+  return supportedValues.has(normalized) ? normalized : "";
+}
+
+function normalizeIsoDate(value) {
+  const normalized = String(value || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
+    return "";
+  }
+  const [yearText, monthText, dayText] = normalized.split("-");
+  const year = Number.parseInt(yearText, 10);
+  const month = Number.parseInt(monthText, 10);
+  const day = Number.parseInt(dayText, 10);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return "";
+  }
+  const date = new Date(Date.UTC(year, month - 1, day));
+  const matches = date.getUTCFullYear() === year
+    && date.getUTCMonth() + 1 === month
+    && date.getUTCDate() === day;
+  return matches ? normalized : "";
 }
 
 function initializeRunsDefaults() {
