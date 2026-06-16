@@ -8,7 +8,7 @@ Follow-on to `A7` that delivers the deferred custom-step runtime contracts for t
 
 - Epic: **[Epic A](../../epics/etl-core/epic-a-runtime-contract-and-model-governance.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **A7, D1**
 
@@ -48,8 +48,8 @@ This item covers:
 
 ## Acceptance criteria
 
-- [ ] context handoff validates required keys and type expectations before dependent step execution
-- [ ] context key ownership and overwrite behavior are deterministic and documented
+- [x] context handoff validates required keys and type expectations before dependent step execution
+- [x] context key ownership and overwrite behavior are deterministic and documented
 - [x] custom-step outcomes map through one explicit `CONTINUE` / `STOP` / `FAIL` contract
 - [x] job-level status implications for mapped outcomes are documented and tested (`STOP` = controlled `STOPPED` halt, `FAIL` = `FAILED` + bounded failure-finalizer path)
 - [x] bounded failure-finalizer contract executes for upstream-failure paths

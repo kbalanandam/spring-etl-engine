@@ -232,14 +232,16 @@ class RuntimeStepPolicyResolverTest {
 
     @Test
     void resolveExplicitStepsNormalizesCustomStepContractMetadata() {
-        JobConfig.JobStepConfig step = customStep("header-start", "headerStart");
-        JobConfig.CustomStepConfig custom = step.getCustom();
-        custom.setPublish(Map.of("fileId", " header.fileId "));
+        JobConfig.JobStepConfig publishStep = customStep("header-start", "headerStart");
+        publishStep.getCustom().setPublish(Map.of("fileId", " header.fileId "));
+
+        JobConfig.JobStepConfig consumeStep = customStep("header-complete", "headerComplete");
+        JobConfig.CustomStepConfig custom = consumeStep.getCustom();
         custom.setConsume(Map.of("headerId", " header.fileId:LONG "));
         custom.setOnResult(Map.of("ok", "continue", "bad", "FAIL"));
 
         JobConfig jobConfig = new JobConfig();
-        jobConfig.setSteps(List.of(step));
+        jobConfig.setSteps(List.of(publishStep, consumeStep));
 
         List<JobConfig.JobStepConfig> resolvedSteps = resolver.resolveExplicitSteps(
                 jobConfig,
@@ -248,11 +250,57 @@ class RuntimeStepPolicyResolverTest {
                 processorConfig(mapping("Customers", "CustomersOut"))
         );
 
-        JobConfig.CustomStepConfig resolvedCustom = resolvedSteps.get(0).getCustom();
-        assertEquals("header.fileId", resolvedCustom.getPublish().get("fileId"));
+        JobConfig.CustomStepConfig resolvedPublish = resolvedSteps.get(0).getCustom();
+        JobConfig.CustomStepConfig resolvedCustom = resolvedSteps.get(1).getCustom();
+        assertEquals("header.fileId", resolvedPublish.getPublish().get("fileId"));
         assertEquals("header.fileId:long", resolvedCustom.getConsume().get("headerId"));
         assertEquals("CONTINUE", resolvedCustom.getOnResult().get("ok"));
         assertEquals("FAIL", resolvedCustom.getOnResult().get("bad"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenTwoCustomStepsPublishSameContextKey() {
+        JobConfig.JobStepConfig step1 = customStep("header-start", "headerStart");
+        step1.getCustom().setPublish(Map.of("runId", "header.runId"));
+
+        JobConfig.JobStepConfig step2 = customStep("header-complete", "headerComplete");
+        step2.getCustom().setPublish(Map.of("runId", "header.runId"));
+
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step1, step2));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("already published by step 'header-start'"));
+    }
+
+    @Test
+    void resolveExplicitStepsFailsFastWhenCustomStepConsumesKeyBeforePublish() {
+        JobConfig.JobStepConfig step = customStep("header-complete", "headerComplete");
+        step.getCustom().setConsume(Map.of("runId", "header.runId:long"));
+
+        JobConfig jobConfig = new JobConfig();
+        jobConfig.setSteps(List.of(step));
+
+        ConfigException exception = assertThrows(
+                ConfigException.class,
+                () -> resolver.resolveExplicitSteps(
+                        jobConfig,
+                        sourceWrapper(csvSource("Customers")),
+                        targetWrapper(csvTarget("CustomersOut")),
+                        processorConfig(mapping("Customers", "CustomersOut"))
+                )
+        );
+
+        assertTrue(exception.getMessage().contains("before any earlier step publishes it"));
     }
 
     @Test

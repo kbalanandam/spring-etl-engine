@@ -289,6 +289,8 @@ steps:
 - For `kind: custom` steps, do not set `source` or `target`; set `custom.type` instead.
 - For `kind: custom`, `custom.publish` values must be namespaced context keys (`namespace.key`).
 - For `kind: custom`, `custom.consume` values may be `namespace.key` or `namespace.key:type`; when `:type` is supplied, only `string|int|long|double|decimal|boolean|object` are accepted.
+- For `kind: custom`, consumed context keys must already be published by earlier custom steps in the ordered plan; missing keys fail fast before dependent execution.
+- For `kind: custom`, published context keys are write-once in this slice; duplicate key publication across steps is rejected.
 - For `kind: custom`, `custom.onResult` action values must be `CONTINUE`, `STOP`, or `FAIL` (case-insensitive in authored YAML).
 - For `kind: custom` steps bound to `sqlHeaderDetailAudit`, define exactly one connection mode: either inline `jdbcUrl`/`username`/`password` or `connectionRef`.
 - On failed jobs, configured custom steps may run provider-defined bounded failure finalizers through `createFailureFinalizer(...)`; this is provider-driven in the current slice.

@@ -37,6 +37,7 @@ public final class RuntimeStepPolicyResolver {
         Set<String> sourceNames = sourceNames(sourceWrapper);
         Set<String> targetNames = targetNames(targetWrapper);
         Map<String, SourceConfig> sourcesByName = mapSourcesByName(sourceWrapper);
+        Map<String, String> publishedContextKeyOwners = new LinkedHashMap<>();
         List<JobConfig.JobStepConfig> resolvedSteps = new ArrayList<>();
 
         for (int i = 0; i < configuredSteps.size(); i++) {
@@ -76,7 +77,9 @@ public final class RuntimeStepPolicyResolver {
                 if (configuredStep.getRetryPolicy() != null && configuredStep.getRetryPolicy().isEnabled()) {
                     throw new ConfigException("JobConfig step '" + stepName + "' with kind 'custom' cannot enable retryPolicy in this slice.");
                 }
-                resolvedStep.setCustom(customStepContractValidator.normalizeAndValidate(stepName, configuredStep.getCustom()));
+                JobConfig.CustomStepConfig normalizedCustom = customStepContractValidator.normalizeAndValidate(stepName, configuredStep.getCustom());
+                validateCustomContextContracts(stepName, normalizedCustom, publishedContextKeyOwners);
+                resolvedStep.setCustom(normalizedCustom);
                 resolvedSteps.add(resolvedStep);
                 continue;
             }
@@ -116,6 +119,36 @@ public final class RuntimeStepPolicyResolver {
         }
 
         return List.copyOf(resolvedSteps);
+    }
+
+    private static void validateCustomContextContracts(String stepName,
+                                                       JobConfig.CustomStepConfig custom,
+                                                       Map<String, String> publishedContextKeyOwners) {
+        if (custom.getConsume() != null) {
+            for (Map.Entry<String, String> consumeEntry : custom.getConsume().entrySet()) {
+                String consumeName = consumeEntry.getKey();
+                String consumeSpec = consumeEntry.getValue();
+                String consumeKey = consumeSpec.split(":", 2)[0].trim();
+                String ownerStep = publishedContextKeyOwners.get(consumeKey);
+                if (ownerStep == null) {
+                    throw new ConfigException("JobConfig step '" + stepName + "' consumes key '" + consumeKey
+                            + "' through custom.consume['" + consumeName + "'] before any earlier step publishes it.");
+                }
+            }
+        }
+
+        if (custom.getPublish() != null) {
+            for (Map.Entry<String, String> publishEntry : custom.getPublish().entrySet()) {
+                String publishName = publishEntry.getKey();
+                String publishKey = publishEntry.getValue();
+                String ownerStep = publishedContextKeyOwners.putIfAbsent(publishKey, stepName);
+                if (ownerStep != null) {
+                    throw new ConfigException("JobConfig step '" + stepName + "' publishes key '" + publishKey
+                            + "' through custom.publish['" + publishName + "'], but that key is already published by step '"
+                            + ownerStep + "'. Context keys are write-once in this slice.");
+                }
+            }
+        }
     }
 
     public void ensureProcessorMappingExists(ProcessorConfig processorConfig,

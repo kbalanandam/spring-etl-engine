@@ -14,6 +14,7 @@ import com.etl.config.batch.bridge.BatchConfigStepResolutionSupport;
 import com.etl.config.batch.bridge.BatchStandardStepAssembler;
 import com.etl.config.batch.bridge.BatchStepModePlanner;
 import com.etl.config.batch.bridge.BatchStepPolicySupport;
+import com.etl.config.runtime.CustomStepRuntimeContextGuard;
 import com.etl.config.source.SourceConfig;
 import com.etl.runtime.DuplicateResolverFactory;
 import com.etl.runtime.DuplicateRule;
@@ -95,6 +96,7 @@ public class BatchConfig {
     private final BatchConfigStepResolutionSupport batchConfigStepResolutionSupport;
     private final BatchConfigRuntimeContextSupport batchConfigRuntimeContextSupport;
     private final CustomStepOutcomeMapper customStepOutcomeMapper;
+    private final CustomStepRuntimeContextGuard customStepRuntimeContextGuard;
 
     /**
      * The threshold for switching between chunk and tasklet processing.
@@ -147,6 +149,7 @@ public class BatchConfig {
         this.chunkThreshold = Math.max(1, etlBatchProperties == null ? 10000 : etlBatchProperties.getThreshold());
         this.batchStepModePlanner = new BatchStepModePlanner(logger, runConfigurationMetadata);
         this.customStepOutcomeMapper = new CustomStepOutcomeMapper();
+        this.customStepRuntimeContextGuard = new CustomStepRuntimeContextGuard();
         this.batchStandardStepAssembler = new BatchStandardStepAssembler(
                 logger,
                 runConfigurationMetadata,
@@ -442,6 +445,11 @@ public class BatchConfig {
         }
         stepBuilder.listener(stepLoggingContextListener);
         Step step = stepBuilder.tasklet((contribution, chunkContext) -> {
+                    customStepRuntimeContextGuard.validateBeforeExecution(
+                            stepName,
+                            configuredStep.getCustom(),
+                            contribution.getStepExecution().getJobExecution().getExecutionContext()
+                    );
                     logger.info("STEP_EVENT event=custom_step_started stepName={} stepExecutionId={} stepKind=custom customType={} configuredIndex={} descriptorStepOrder={}",
                             stepName,
                             contribution.getStepExecution().getId(),
@@ -471,6 +479,11 @@ public class BatchConfig {
                             throw new IllegalStateException("Custom step '" + stepName + "' mapped provider result to FAIL via custom.onResult.");
                         }
                     }
+                    customStepRuntimeContextGuard.validateAfterExecution(
+                            stepName,
+                            configuredStep.getCustom(),
+                            contribution.getStepExecution().getJobExecution().getExecutionContext()
+                    );
                     return status == null ? RepeatStatus.FINISHED : status;
                 }, transactionManager)
                 .build();
