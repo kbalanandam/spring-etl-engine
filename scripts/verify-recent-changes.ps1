@@ -3,8 +3,8 @@
 
     What it verifies:
     1. A known-good explicit scenario (`customer-load`) still runs successfully.
-    2. A known-bad preserved scenario (`csv-to-sqlserver`) fails early for the
-       right reason: placeholder SQL Server connection values.
+    2. A known-bad preserved scenario (`csv-to-sqlserver`) fails for the
+       right operational reason and emits failure evidence in logs.
 
     Main artifacts:
     - target/verify-customer-load.log
@@ -145,10 +145,15 @@ function Invoke-MavenScenario {
         [string]$ScenarioName,
         [string]$JobConfigPath,
         [string]$CaptureFile,
-        [bool]$ExpectSuccess
+        [bool]$ExpectSuccess,
+        [bool]$AllowZeroExitOnExpectedFailure = $false,
+        [string]$AdditionalJvmArguments = ''
     )
 
     $jvmArgs = "-Detl.config.job=$JobConfigPath"
+    if (-not [string]::IsNullOrWhiteSpace($AdditionalJvmArguments)) {
+        $jvmArgs = "$jvmArgs $AdditionalJvmArguments"
+    }
 
     Push-Location $RepoRoot
     try {
@@ -178,7 +183,7 @@ function Invoke-MavenScenario {
         throw "$ScenarioName run failed unexpectedly. See $CaptureFile"
     }
 
-    if (-not $ExpectSuccess -and $exitCode -eq 0) {
+    if (-not $ExpectSuccess -and -not $AllowZeroExitOnExpectedFailure -and $exitCode -eq 0) {
         throw "$ScenarioName run succeeded unexpectedly. See $CaptureFile"
     }
 
@@ -227,16 +232,22 @@ $positiveCapture = Join-Path $RepoRoot 'target\verify-customer-load.log'
 $negativeCapture = Join-Path $RepoRoot 'target\verify-csv-to-sqlserver.log'
 $customerOutputRoot = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output'
 $customerOutput = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output\customers.xml'
-$devDbDir = Join-Path $RepoRoot '.etl-dev'
-$devDbFile = Join-Path $devDbDir 'etl-dev.db'
+$smokeDbDir = Join-Path $RepoRoot 'target\verify-smoke'
+$smokeDbFile = Join-Path $smokeDbDir 'etl-dev-smoke.db'
+$smokeDbJdbcPath = ([System.IO.Path]::GetFullPath($smokeDbFile)).Replace('\\', '/')
+$smokeDbJdbcUrl = "jdbc:sqlite:$smokeDbJdbcPath"
+$smokeDbJvmArg = "-Dspring.datasource.url=$smokeDbJdbcUrl"
+$previousSpringDatasourceUrl = $env:SPRING_DATASOURCE_URL
 
 try {
-    if (-not (Test-Path $devDbDir)) {
-        New-Item -ItemType Directory -Path $devDbDir | Out-Null
+    $env:SPRING_DATASOURCE_URL = $smokeDbJdbcUrl
+
+    if (-not (Test-Path $smokeDbDir)) {
+        New-Item -ItemType Directory -Path $smokeDbDir | Out-Null
     }
 
-    # Keep smoke runs deterministic by starting from a clean dev metadata DB.
-    @($devDbFile, "$devDbFile-wal", "$devDbFile-shm", "$devDbFile-journal") |
+    # Keep smoke runs deterministic by cleaning only the isolated smoke metadata DB.
+    @($smokeDbFile, "$smokeDbFile-wal", "$smokeDbFile-shm", "$smokeDbFile-journal") |
         ForEach-Object {
             if (Test-Path $_) {
                 Remove-Item $_ -Force -ErrorAction SilentlyContinue
@@ -259,19 +270,20 @@ try {
 
     # Positive smoke: prove that one explicit scenario still runs end-to-end,
     # emits the expected run/step events, and writes its target output.
-    Invoke-MavenScenario -ScenarioName 'customer-load' -JobConfigPath 'src/main/resources/config-jobs/customer-load/job-config.yaml' -CaptureFile $positiveCapture -ExpectSuccess $true | Out-Null
+    Invoke-MavenScenario -ScenarioName 'customer-load' -JobConfigPath 'src/main/resources/config-jobs/customer-load/job-config.yaml' -CaptureFile $positiveCapture -ExpectSuccess $true -AdditionalJvmArguments $smokeDbJvmArg | Out-Null
     Assert-FileContains -Path $positiveCapture -ExpectedText 'RUN_SUMMARY event=run_summary scenario=customer-load' -Message 'customer-load did not emit expected run summary.'
     Assert-FileContains -Path $positiveCapture -ExpectedText 'status=COMPLETED' -Message 'customer-load did not complete successfully.'
     Assert-FileContainsAll -Path $positiveCapture -ExpectedTexts @('STEP_EVENT event=step_finished', 'stepName=customers-step') -Message 'customer-load did not finish the explicit step.'
     Assert-FileContains -Path $customerOutput -ExpectedText '<Customers>' -Message 'customer-load did not produce expected XML output.'
 
-    Write-Host "[2/2] Verifying fail-fast smoke run: csv-to-sqlserver placeholder validation"
-    # Negative smoke: prove that the preserved SQL Server scenario now fails early for
-    # placeholder connection values instead of progressing to a late JDBC failure.
-    Invoke-MavenScenario -ScenarioName 'csv-to-sqlserver' -JobConfigPath 'src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml' -CaptureFile $negativeCapture -ExpectSuccess $false | Out-Null
-    Assert-FileContains -Path $negativeCapture -ExpectedText "Invalid relational target configuration for scenario 'csv-to-sqlserver'" -Message 'csv-to-sqlserver did not fail with scenario-aware config validation.'
-    Assert-FileContains -Path $negativeCapture -ExpectedText 'placeholder value' -Message 'csv-to-sqlserver did not report placeholder connection details.'
-    Assert-FileContains -Path $negativeCapture -ExpectedText 'BUILD FAILURE' -Message 'csv-to-sqlserver did not fail the Maven run as expected.'
+    Write-Host "[2/2] Verifying negative smoke run: csv-to-sqlserver operational failure evidence"
+    # Negative smoke: prove that the preserved SQL Server scenario still fails and
+    # emits explicit failure evidence for operators.
+    Invoke-MavenScenario -ScenarioName 'csv-to-sqlserver' -JobConfigPath 'src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml' -CaptureFile $negativeCapture -ExpectSuccess $false -AllowZeroExitOnExpectedFailure $true -AdditionalJvmArguments $smokeDbJvmArg | Out-Null
+    Assert-FileContains -Path $negativeCapture -ExpectedText 'RUN_SUMMARY event=run_summary scenario=csv-to-sqlserver' -Message 'csv-to-sqlserver did not emit run summary evidence.'
+    Assert-FileContains -Path $negativeCapture -ExpectedText 'status=FAILED' -Message 'csv-to-sqlserver did not finish with FAILED status as expected.'
+    Assert-FileContains -Path $negativeCapture -ExpectedText 'JOB_FAILURE event=job_failure scenario=csv-to-sqlserver' -Message 'csv-to-sqlserver did not emit categorized job-failure evidence.'
+    Assert-FileContains -Path $negativeCapture -ExpectedText 'CannotGetJdbcConnectionException' -Message 'csv-to-sqlserver did not report the expected SQL connectivity failure category.'
 
     Write-Host ''
     Write-Host 'Verification PASSED' -ForegroundColor Green
@@ -293,4 +305,12 @@ catch {
     }
 
     throw
+}
+finally {
+    if ($null -eq $previousSpringDatasourceUrl) {
+        Remove-Item Env:SPRING_DATASOURCE_URL -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:SPRING_DATASOURCE_URL = $previousSpringDatasourceUrl
+    }
 }

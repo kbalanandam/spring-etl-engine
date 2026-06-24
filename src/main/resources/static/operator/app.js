@@ -9,6 +9,67 @@ import {
   normalizeDocumentKey,
   pickJobConfigDocument,
 } from "./job-config-files.js";
+import {
+  extractStepNamesFromRawYaml,
+} from "./job-step-names.js";
+import {
+  createAppRouteHelpers,
+} from "./app-route-helpers.js";
+import {
+  createAppRouteUpdateGuards,
+} from "./app-route-update-guards.js";
+import {
+  createAppRunsBridgeHelpers,
+} from "./app-runs-bridge-helpers.js";
+import {
+  createAppScheduleDetailHelpers,
+} from "./app-schedule-detail-helpers.js";
+import {
+  createAppRunDetailHelpers,
+} from "./app-run-detail-helpers.js";
+import {
+  createAppScheduleEditorHelpers,
+} from "./app-schedule-editor-helpers.js";
+import {
+  defaultJobsPageSize as defaultJobsPageSizeValue,
+  defaultSchedulesPageSize as defaultSchedulesPageSizeValue,
+} from "./route-state.js";
+import {
+  describeScheduleExpression,
+  validateScheduleExpression,
+} from "./schedule-expression.js";
+import {
+  filterSchedulesItems,
+  sortSchedulesItems,
+} from "./schedule-list-helpers.js";
+import {
+  formatScheduleStatus,
+  formatScheduleTriggerOriginToken,
+  formatTriggerOriginToken,
+  getScheduleControlState,
+  selectScheduleForJobDetail,
+} from "./schedule-ui-helpers.js";
+import {
+  formatDateForInput as formatDateForInputValue,
+  normalizeIsoDate as normalizeIsoDateValue,
+  normalizeSupportedFilter as normalizeSupportedFilterValue,
+} from "./runs-route-state.js";
+import {
+  fetchRunsForFilters as fetchRunsForFiltersValue,
+} from "./runs-data.js";
+import {
+  fetchJobsForRunsScope as fetchJobsForRunsScopeValue,
+  mapJobsToRunsJobOptions,
+} from "./runs-jobs-data.js";
+import {
+  applyJobsItems as applyJobsItemsValue,
+} from "./jobs-scoped-state.js";
+import {
+  categorizeTriggerFailure,
+  escapeHtml,
+  formatJobDetailRecentRunLabel,
+  valueOrDash,
+} from "./operator-text-utils.js";
 
 const routes = {
   jobs: {
@@ -66,8 +127,19 @@ const viewState = {
   schedules: {
     loaded: false,
     items: [],
+    filterText: "",
+    sortKey: "scheduleKey",
+    sortDirection: "asc",
+    page: 1,
+    pageSize: defaultSchedulesPageSize(),
     selectedScheduleId: "",
+    pendingEditScheduleId: "",
+    editCancelReturnHash: "",
+    refreshDetailInPlace: false,
+    triggersExpanded: false,
     evidenceRequestId: 0,
+    editorMode: "create",
+    editingScheduleId: "",
   },
   runs: {
     loaded: false,
@@ -117,16 +189,22 @@ const runsListUi = createRunsListUi({
 
 const SORT_KEYS = {
   jobs: ["jobKey", "displayName", "readinessStatus"],
+  schedules: ["scheduleKey", "selectedJobKey", "status", "nextDueAt"],
   runs: ["startTime", "jobExecutionId", "scenario", "status", "triggerOrigin", "runMode", "recoveryPolicy"],
 };
 
-const RUNS_FILTER_CACHE_MAX_ENTRIES = 30;
-const RUNS_FILTER_CACHE_TTL_MS = 5 * 60 * 1000;
+const routeHelpers = createAppRouteHelpers({
+  viewState,
+  sortKeys: SORT_KEYS,
+  jobsPageSizeOptions: JOBS_PAGE_SIZE_OPTIONS,
+});
+
 const SUPPORTED_RUN_MODES = new Set(["explicit-job", "demo-fallback"]);
 const SUPPORTED_RECOVERY_POLICIES = new Set(["rerun-from-start", "resume-from-checkpoint"]);
 const TRIGGER_NOW_DUPLICATE_WINDOW_MS = 5 * 1000;
 const DEFAULT_SCHEDULE_LOOKUP_LIMIT = 200;
 const JOB_DETAIL_RECENT_RUNS_LIMIT = 10;
+const SCHEDULE_STATE_CHANGE_ACTIONS = new Set(["enable", "disable", "pause", "resume"]);
 
 const loadRequestTracker = {
   jobs: 0,
@@ -138,7 +216,22 @@ const loadRequestTracker = {
   runDetail: 0,
 };
 
+const routeUpdateGuards = createAppRouteUpdateGuards({
+  loadRequestTracker,
+  getCurrentRouteState: currentRouteState,
+});
+
 const inFlightStepNamesByJobKey = {};
+const runsBridgeHelpers = createAppRunsBridgeHelpers({
+  viewState,
+  inFlightStepNamesByJobKey,
+  applyJobsItemsValue,
+  fetchJobsForRunsScopeValue,
+  fetchRunsForFiltersValue,
+  normalizeSupportedFilterValue,
+  normalizeIsoDateValue,
+  formatDateForInputValue,
+});
 const triggerNowRequestState = {
   inFlightByJobKey: {},
   cooldownUntilByJobKey: {},
@@ -147,6 +240,22 @@ const scheduleRequestState = {
   inFlightActionByScheduleId: {},
   inFlightTriggerByScheduleId: {},
 };
+const scheduleDetailHelpers = createAppScheduleDetailHelpers({
+  valueOrDash,
+  formatScheduleTriggerOriginToken,
+});
+const runDetailHelpers = createAppRunDetailHelpers({
+  coalesceRunSteps,
+  escapeHtml,
+  focusScopedLogViewer: () => runLogViewer.focus(),
+  valueOrDash,
+});
+const scheduleEditorHelpers = createAppScheduleEditorHelpers({
+  describeScheduleExpression,
+  validateScheduleExpression,
+  valueOrDash,
+  viewState,
+});
 
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("DOMContentLoaded", () => {
@@ -195,7 +304,13 @@ function currentRouteState() {
       jobExecutionId: null,
       jobKey: null,
       query: parsed.query,
+      filterText: parsed.query.f || "",
+      page: normalizePositiveInteger(parsed.query.page, 1),
+      pageSize: normalizePageSize(parsed.query.pageSize, defaultSchedulesPageSize()),
+      sortKey: normalizeSortKey("schedules", parsed.query.sort, "scheduleKey"),
+      sortDirection: normalizeDirection(parsed.query.dir, "asc"),
       selectedScheduleId: parsed.query.scheduleId || "",
+      editScheduleId: parsed.query.editScheduleId || "",
     };
   }
   if (normalized === "runs") {
@@ -231,11 +346,8 @@ function renderRoute() {
   const routeState = currentRouteState();
   const routeKey = routeState.key;
 
-  if (routeKey === "jobs" || routeKey === "runs") {
+  if (routeKey === "jobs" || routeKey === "runs" || routeKey === "schedules") {
     applyRouteStateToListView(routeState);
-  }
-  if (routeKey === "schedules") {
-    viewState.schedules.selectedScheduleId = String(routeState.selectedScheduleId || "").trim() || viewState.schedules.selectedScheduleId;
   }
 
   Object.entries(routes).forEach(([key, route]) => {
@@ -372,53 +484,6 @@ async function loadJobStepNames(jobKey) {
   return requestPromise;
 }
 
-function extractStepNamesFromRawYaml(rawYaml) {
-  const text = typeof rawYaml === "string" ? rawYaml : "";
-  if (text.trim() === "") {
-    return [];
-  }
-
-  const lines = text.split(/\r?\n/);
-  const stepNames = [];
-  let inStepsBlock = false;
-  let stepsIndent = 0;
-
-  for (const line of lines) {
-    const trimmed = line.trim();
-    if (trimmed === "" || trimmed.startsWith("#")) {
-      continue;
-    }
-
-    if (!inStepsBlock) {
-      const stepsMatch = line.match(/^(\s*)steps\s*:\s*$/);
-      if (stepsMatch) {
-        inStepsBlock = true;
-        stepsIndent = stepsMatch[1].length;
-      }
-      continue;
-    }
-
-    const indent = line.length - line.trimStart().length;
-    if (indent <= stepsIndent && !line.trimStart().startsWith("-")) {
-      break;
-    }
-
-    const stepNameMatch = line.match(/^\s*-\s*name\s*:\s*(.+)\s*$/);
-    if (!stepNameMatch) {
-      continue;
-    }
-
-    let stepName = stepNameMatch[1].trim();
-    if ((stepName.startsWith('"') && stepName.endsWith('"')) || (stepName.startsWith("'") && stepName.endsWith("'"))) {
-      stepName = stepName.substring(1, stepName.length - 1).trim();
-    }
-    if (stepName !== "") {
-      stepNames.push(stepName);
-    }
-  }
-
-  return Array.from(new Set(stepNames));
-}
 
 async function loadJobDetailPlaceholder(routeState) {
   const requestId = ++loadRequestTracker.jobDetail;
@@ -437,6 +502,7 @@ async function loadJobDetailPlaceholder(routeState) {
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
   const navigationSource = String(routeState?.query?.from || "").trim().toLowerCase();
   const sourceScheduleId = String(routeState?.query?.scheduleId || "").trim();
+  const sourceScheduleListQuery = String(routeState?.query?.scheduleListQuery || "").trim();
   const jobsRouteQuerySuffix = getQuerySuffix(routeState && routeState.query);
 
   state.className = "state";
@@ -475,7 +541,7 @@ async function loadJobDetailPlaceholder(routeState) {
   }
   if (backLink) {
     if (navigationSource === "schedule" && sourceScheduleId !== "") {
-      backLink.setAttribute("href", `#/schedules/${encodeURIComponent(sourceScheduleId)}`);
+      backLink.setAttribute("href", buildSchedulesListHash(sourceScheduleId, sourceScheduleListQuery));
       backLink.textContent = "Back to schedules";
     } else {
       backLink.setAttribute("href", `#/jobs${jobsRouteQuerySuffix}`);
@@ -556,8 +622,12 @@ function renderJobDetailRecentRuns(recentRuns, jobKeyValue, query) {
       params.set("job", String(jobKeyValue || ""));
       const source = String(query?.from || "").trim().toLowerCase();
       const sourceScheduleId = String(query?.scheduleId || "").trim();
+      const sourceScheduleListQuery = String(query?.scheduleListQuery || "").trim();
       if (source === "schedule" && sourceScheduleId !== "") {
         params.set("scheduleId", sourceScheduleId);
+        if (sourceScheduleListQuery !== "") {
+          params.set("scheduleListQuery", sourceScheduleListQuery);
+        }
       }
       anchor.href = `#/runs/${encodeURIComponent(runId)}?${params.toString()}`;
       anchor.textContent = formatJobDetailRecentRunLabel(run);
@@ -571,13 +641,6 @@ function renderJobDetailRecentRuns(recentRuns, jobKeyValue, query) {
   recentRunsState.className = "state";
   recentRunsState.textContent = `Showing ${visibleRuns.length} recent run(s).`;
   recentRunsList.hidden = false;
-}
-
-function formatJobDetailRecentRunLabel(run) {
-  const runId = valueOrDash(run?.jobExecutionId);
-  const status = valueOrDash(run?.status);
-  const start = valueOrDash(run?.startTime);
-  return `runId=${runId} | status=${status} | start=${start}`;
 }
 
 async function loadJobConfig(routeState) {
@@ -806,8 +869,8 @@ async function loadJobDetailSchedulePanel(jobKeyValue, requestId) {
       scheduleFeedback.textContent = "";
     }
 
-    if (scheduleControlState.toggleDisabled) {
-      scheduleActionButton.textContent = scheduleControlState.detailToggleLabel;
+    if (scheduleControlState.pauseResumeDisabled) {
+      scheduleActionButton.textContent = scheduleControlState.detailPauseResumeLabel;
       scheduleActionButton.disabled = true;
       scheduleActionButton.onclick = null;
       scheduleFeedback.className = "state";
@@ -816,8 +879,8 @@ async function loadJobDetailSchedulePanel(jobKeyValue, requestId) {
       return;
     }
 
-    const action = scheduleControlState.toggleAction;
-    scheduleActionButton.textContent = scheduleControlState.detailToggleLabel;
+    const action = scheduleControlState.pauseResumeAction;
+    scheduleActionButton.textContent = scheduleControlState.detailPauseResumeLabel;
     scheduleActionButton.disabled = false;
     scheduleActionButton.onclick = () => requestScheduleStateChange(jobKeyValue, selectedSchedule.scheduleId, action, requestId);
   } catch (error) {
@@ -887,45 +950,6 @@ async function requestScheduleStateChange(jobKeyValue, scheduleId, action, reque
       scheduleActionButton.disabled = false;
     }
   }
-}
-
-function pickNewestSchedule(schedules) {
-  return [...schedules].sort((left, right) => {
-    const leftUpdated = String(left?.updatedAt || "");
-    const rightUpdated = String(right?.updatedAt || "");
-    return rightUpdated.localeCompare(leftUpdated);
-  })[0];
-}
-
-function selectScheduleForJobDetail(schedules, preferredScheduleId) {
-  const list = Array.isArray(schedules) ? schedules : [];
-  const preferredId = String(preferredScheduleId || "").trim();
-  if (preferredId !== "") {
-    const preferred = list.find((schedule) => String(schedule?.scheduleId || "").trim() === preferredId);
-    if (preferred) {
-      return preferred;
-    }
-  }
-  return pickNewestSchedule(list);
-}
-
-function formatScheduleStatus(schedule) {
-  return getScheduleControlState(schedule).statusLabel;
-}
-
-function getScheduleControlState(schedule) {
-  const enabled = Boolean(schedule?.enabled);
-  const paused = enabled && Boolean(schedule?.paused);
-
-  return {
-    enabled,
-    paused,
-    statusLabel: !enabled ? "Disabled" : paused ? "Paused" : "Active",
-    toggleAction: enabled ? (paused ? "resume" : "pause") : null,
-    toggleLabel: paused ? "Resume" : "Pause",
-    detailToggleLabel: paused ? "Resume schedule" : "Pause schedule",
-    toggleDisabled: !enabled,
-  };
 }
 
 async function requestTriggerNow(jobKeyValue) {
@@ -1032,8 +1056,10 @@ async function loadSchedules() {
   state.textContent = "Loading schedules...";
   table.hidden = true;
   body.innerHTML = "";
+  syncSchedulesControlsFromState();
 
   try {
+    await ensureScheduleEditorJobOptions();
     const response = await fetch(`/api/v1/schedules?limit=${DEFAULT_SCHEDULE_LOOKUP_LIMIT}`, {
       headers: { Accept: "application/json" },
     });
@@ -1048,15 +1074,27 @@ async function loadSchedules() {
     const items = Array.isArray(payload.items) ? payload.items : [];
     viewState.schedules.items = items;
     viewState.schedules.loaded = true;
+    if (viewState.schedules.editingScheduleId) {
+      const editingExists = items.some((item) => String(item?.scheduleId || "").trim() === viewState.schedules.editingScheduleId);
+      if (!editingExists && viewState.schedules.editorMode === "edit") {
+        closeScheduleEditor({ navigateToReturnHash: false });
+      }
+    }
 
     if (items.length === 0) {
       state.textContent = "No schedules found.";
+      renderSchedulesTable([], requestId);
+      table.hidden = false;
       return;
     }
 
-    renderSchedulesTable(items, requestId);
-    state.textContent = `Loaded ${items.length} schedule(s).`;
+    const visibleCount = renderSchedulesTable(items, requestId);
+    state.textContent = visibleCount === 0
+      ? `Loaded ${items.length} schedule(s). No schedules match the current filters.`
+      : `Loaded ${items.length} schedule(s).`;
     table.hidden = false;
+    focusSelectedScheduleRow();
+    consumePendingScheduleEditIntent(items);
   } catch (error) {
     if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
       return;
@@ -1066,24 +1104,83 @@ async function loadSchedules() {
   }
 }
 
+function consumePendingScheduleEditIntent(items) {
+  const pendingEditScheduleId = String(viewState.schedules.pendingEditScheduleId || "").trim();
+  if (pendingEditScheduleId === "") {
+    return;
+  }
+
+  viewState.schedules.pendingEditScheduleId = "";
+  const routeState = currentRouteState();
+  const editReturn = String(routeState?.query?.editReturn || "").trim().toLowerCase();
+  const scheduleListQuery = buildSchedulesListQueryFromRouteQuery(routeState?.query);
+  viewState.schedules.editCancelReturnHash = editReturn === "detail"
+    ? buildScheduleDetailHash(pendingEditScheduleId, scheduleListQuery)
+    : "";
+
+  const schedule = (Array.isArray(items) ? items : []).find((item) => String(item?.scheduleId || "").trim() === pendingEditScheduleId);
+  if (schedule) {
+    openScheduleEditor({ mode: "edit", schedule });
+  }
+
+  if (routeState.key === "schedules" && String(routeState?.query?.editScheduleId || "").trim() !== "") {
+    syncListRouteHash("schedules");
+  }
+}
+
 function renderSchedulesTable(items, requestId) {
   const body = document.getElementById("schedules-body");
   if (!body) {
     return;
   }
   body.innerHTML = "";
+  const pageStatus = document.getElementById("schedules-page-status");
+  const prevButton = document.getElementById("schedules-page-prev-btn");
+  const nextButton = document.getElementById("schedules-page-next-btn");
 
-  items.forEach((schedule) => {
+  const sorted = sortSchedulesItems(
+    filterSchedulesItems(items, viewState.schedules.filterText, formatScheduleStatus),
+    viewState.schedules.sortKey,
+    viewState.schedules.sortDirection,
+    {
+      normalizeSortKey,
+      normalizeDirection,
+      formatScheduleStatus,
+    }
+  );
+  const pageSize = normalizePageSize(viewState.schedules.pageSize, defaultSchedulesPageSize());
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const page = Math.min(Math.max(1, viewState.schedules.page), totalPages);
+  viewState.schedules.page = page;
+  viewState.schedules.pageSize = pageSize;
+
+  const startIndex = (page - 1) * pageSize;
+  const pageItems = sorted.slice(startIndex, startIndex + pageSize);
+
+  if (pageStatus) {
+    pageStatus.textContent = `Page ${page} of ${totalPages}`;
+  }
+  if (prevButton) {
+    prevButton.disabled = page <= 1;
+  }
+  if (nextButton) {
+    nextButton.disabled = page >= totalPages;
+  }
+
+  pageItems.forEach((schedule) => {
     const row = document.createElement("tr");
-    const scheduleControlState = getScheduleControlState(schedule);
+    const scheduleId = String(schedule?.scheduleId || "").trim();
     row.className = "clickable-row";
+    row.dataset.scheduleId = scheduleId;
     row.title = "Open schedule detail";
     row.addEventListener("click", () => {
-      const scheduleId = String(schedule?.scheduleId || "").trim();
       if (scheduleId === "") {
         return;
       }
-      location.hash = `#/schedules/${encodeURIComponent(scheduleId)}`;
+      const scheduleQuerySuffix = getSchedulesRouteQuerySuffix();
+      location.hash = scheduleQuerySuffix === ""
+        ? `#/schedules/${encodeURIComponent(scheduleId)}`
+        : `#/schedules/${encodeURIComponent(scheduleId)}${scheduleQuerySuffix}`;
     });
 
     const actions = document.createElement("td");
@@ -1099,22 +1196,12 @@ function renderSchedulesTable(items, requestId) {
       }
       viewState.schedules.selectedScheduleId = String(schedule?.scheduleId || "").trim();
       const selectedScheduleId = viewState.schedules.selectedScheduleId;
+      const scheduleListQuery = buildSchedulesRouteQuery(viewState.schedules, { includeSelectedScheduleId: false });
       location.hash = selectedScheduleId === ""
         ? `#/jobs/${encodeURIComponent(selectedJobKey)}`
-        : `#/jobs/${encodeURIComponent(selectedJobKey)}?from=schedule&scheduleId=${encodeURIComponent(selectedScheduleId)}`;
-    });
-
-    const toggleButton = document.createElement("button");
-    toggleButton.type = "button";
-    toggleButton.textContent = scheduleControlState.toggleLabel;
-    toggleButton.disabled = scheduleControlState.toggleDisabled;
-    toggleButton.addEventListener("click", async (event) => {
-      event.stopPropagation();
-      const action = scheduleControlState.toggleAction;
-      if (!action) {
-        return;
-      }
-      await requestScheduleWorkbenchStateChange(schedule, action, requestId);
+        : scheduleListQuery === ""
+          ? `#/jobs/${encodeURIComponent(selectedJobKey)}?from=schedule&scheduleId=${encodeURIComponent(selectedScheduleId)}`
+          : `#/jobs/${encodeURIComponent(selectedJobKey)}?from=schedule&scheduleId=${encodeURIComponent(selectedScheduleId)}&scheduleListQuery=${encodeURIComponent(scheduleListQuery)}`;
     });
 
     const triggerNowButton = document.createElement("button");
@@ -1125,7 +1212,11 @@ function renderSchedulesTable(items, requestId) {
       await requestScheduleWorkbenchTriggerNow(schedule, requestId);
     });
 
-    actions.append(openJobButton, document.createTextNode(" "), toggleButton, document.createTextNode(" "), triggerNowButton);
+    actions.append(
+      openJobButton,
+      document.createTextNode(" "),
+      triggerNowButton
+    );
     row.innerHTML = `
       <td>${escapeHtml(valueOrDash(schedule.scheduleKey))}</td>
       <td>${escapeHtml(valueOrDash(schedule.selectedJobKey))}</td>
@@ -1134,45 +1225,199 @@ function renderSchedulesTable(items, requestId) {
     row.appendChild(actions);
     body.appendChild(row);
   });
+
+  return pageItems.length;
 }
 
-async function requestScheduleWorkbenchStateChange(schedule, action, requestId) {
-  const state = document.getElementById("schedules-state");
-  const scheduleId = String(schedule?.scheduleId || "").trim();
-  if (!state || !scheduleId) {
-    return;
-  }
-  if (scheduleRequestState.inFlightActionByScheduleId[scheduleId]) {
-    state.className = "state";
-    state.textContent = "Schedule action already in progress. Please wait for the current response.";
+function focusSelectedScheduleRow() {
+  const selectedScheduleId = String(viewState.schedules.selectedScheduleId || "").trim();
+  const body = document.getElementById("schedules-body");
+  if (!body) {
     return;
   }
 
-  scheduleRequestState.inFlightActionByScheduleId[scheduleId] = true;
+  const rows = Array.from(body.querySelectorAll("tr[data-schedule-id]"));
+  if (rows.length === 0) {
+    return;
+  }
+
+  let selectedRow = null;
+  rows.forEach((row) => {
+    const rowScheduleId = String(row.dataset.scheduleId || "").trim();
+    const isSelected = selectedScheduleId !== "" && rowScheduleId === selectedScheduleId;
+    row.classList.toggle("schedule-selected-row", isSelected);
+    if (isSelected) {
+      selectedRow = row;
+    }
+  });
+
+  if (!selectedRow) {
+    return;
+  }
+
+  if (typeof selectedRow.scrollIntoView === "function") {
+    selectedRow.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+}
+
+async function ensureScheduleEditorJobOptions() {
+  const select = document.getElementById("schedules-editor-job-select");
+  if (!select) {
+    return;
+  }
+  await ensureRunsJobOptions();
+
+  const currentValue = String(select.value || "").trim();
+  select.innerHTML = '<option value="">Select job</option>';
+
+  const options = [...viewState.runs.jobOptions].sort((left, right) =>
+    String(left.displayName || left.jobKey || "").localeCompare(String(right.displayName || right.jobKey || ""))
+  );
+
+  options.forEach((job) => {
+    const option = document.createElement("option");
+    option.value = String(job.jobKey || "").trim();
+    option.textContent = job.displayName
+      ? `${job.displayName} (${job.jobKey})`
+      : valueOrDash(job.jobKey);
+    select.appendChild(option);
+  });
+
+  if (currentValue !== "") {
+    select.value = currentValue;
+  }
+
+  updateScheduleEditorExpressionValidation();
+}
+
+function updateScheduleEditorExpressionValidation() {
+  return scheduleEditorHelpers.updateScheduleEditorExpressionValidation();
+}
+
+function openScheduleEditor({ mode, schedule } = {}) {
+  const prepared = scheduleEditorHelpers.prepareScheduleEditorForOpen({ mode, schedule });
+  if (!prepared) {
+    return;
+  }
+
+  const { editor, jobSelect, normalizedMode, currentSchedule } = prepared;
+  updateScheduleEditorExpressionValidation();
+
+  ensureScheduleEditorJobOptions().then(() => {
+    if (normalizedMode === "edit") {
+      jobSelect.value = String(currentSchedule?.selectedJobKey || "");
+    }
+    updateScheduleEditorExpressionValidation();
+  });
+
+  if (typeof editor.scrollIntoView === "function") {
+    editor.scrollIntoView({ block: "start", behavior: "smooth" });
+  }
+}
+
+function closeScheduleEditor(options = {}) {
+  const navigateToReturnHash = options.navigateToReturnHash !== false;
+  const returnHash = String(viewState.schedules.editCancelReturnHash || "").trim();
+  if (!scheduleEditorHelpers.closeScheduleEditorUi()) {
+    return;
+  }
+
+  if (navigateToReturnHash && returnHash !== "" && location.hash !== returnHash) {
+    location.hash = returnHash;
+  }
+}
+
+async function submitScheduleEditor() {
+  const state = document.getElementById("schedules-editor-state");
+  const saveButton = document.getElementById("schedules-editor-save-btn");
+  const keyInput = document.getElementById("schedules-editor-key-input");
+  const jobSelect = document.getElementById("schedules-editor-job-select");
+  const expressionInput = document.getElementById("schedules-editor-expression-input");
+  const timezoneInput = document.getElementById("schedules-editor-timezone-input");
+  const descriptionInput = document.getElementById("schedules-editor-description-input");
+  const enabledInput = document.getElementById("schedules-editor-enabled-input");
+  if (!state || !saveButton || !keyInput || !jobSelect || !expressionInput || !timezoneInput || !descriptionInput || !enabledInput) {
+    return;
+  }
+
+  const mode = viewState.schedules.editorMode === "edit" ? "edit" : "create";
+  const scheduleKey = String(keyInput.value || "").trim();
+  const selectedJobKey = String(jobSelect.value || "").trim();
+  const expression = String(expressionInput.value || "").trim();
+  const timezone = String(timezoneInput.value || "").trim() || "UTC";
+  const description = String(descriptionInput.value || "").trim();
+  const enabled = Boolean(enabledInput.checked);
+
+  if (mode === "create" && scheduleKey === "") {
+    state.className = "state error";
+    state.textContent = "Schedule key is required for create.";
+    return;
+  }
+  const expressionCheck = validateScheduleExpression(expression);
+  if (selectedJobKey === "" || !expressionCheck.valid) {
+    state.className = "state error";
+    state.textContent = selectedJobKey === "" ? "Job is required." : expressionCheck.message;
+    updateScheduleEditorExpressionValidation();
+    return;
+  }
+
+  const requestBody = {
+    selectedJobKey,
+    expression,
+    timezone,
+    enabled,
+    description: description === "" ? null : description,
+  };
+  if (mode === "create") {
+    requestBody.scheduleKey = scheduleKey;
+  }
+
+  const editingScheduleId = String(viewState.schedules.editingScheduleId || "").trim();
+  const editCancelReturnHash = String(viewState.schedules.editCancelReturnHash || "").trim();
+  const returnToDetailAfterSave = mode === "edit" && editCancelReturnHash !== "";
+  const method = mode === "edit" ? "PUT" : "POST";
+  const target = mode === "edit"
+    ? `/api/v1/schedules/${encodeURIComponent(editingScheduleId)}`
+    : "/api/v1/schedules";
+
+  saveButton.disabled = true;
   state.className = "state";
-  state.textContent = `Submitting schedule ${action} request...`;
+  state.textContent = mode === "edit" ? "Updating schedule..." : "Creating schedule...";
 
   try {
-    const response = await fetch(`/api/v1/schedules/${encodeURIComponent(scheduleId)}:${action}`, {
-      method: "POST",
-      headers: { Accept: "application/json" },
+    const response = await fetch(target, {
+      method,
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(requestBody),
     });
+    const payload = await response.json().catch(() => ({}));
     if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
       state.className = "state error";
-      state.textContent = `Schedule ${action} failed: ${valueOrDash(payload.message)}`;
+      state.textContent = `${mode === "edit" ? "Update" : "Create"} failed: ${valueOrDash(payload.message)}`;
       return;
     }
-    if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
+
+    state.className = "state";
+    state.textContent = mode === "edit" ? "Schedule updated." : "Schedule created.";
+    closeScheduleEditor({ navigateToReturnHash: returnToDetailAfterSave });
+    viewState.schedules.loaded = false;
+    if (returnToDetailAfterSave) {
       return;
     }
-    viewState.schedules.selectedScheduleId = scheduleId;
+    const activeRoute = currentRouteState();
+    if (activeRoute.key === "scheduleDetail") {
+      await loadScheduleDetail(activeRoute);
+      return;
+    }
     await loadSchedules();
   } catch (error) {
     state.className = "state error";
-    state.textContent = `Schedule ${action} failed [runtime]: ${error.message}`;
+    state.textContent = `${mode === "edit" ? "Update" : "Create"} failed [runtime]: ${error.message}`;
   } finally {
-    delete scheduleRequestState.inFlightActionByScheduleId[scheduleId];
+    saveButton.disabled = false;
   }
 }
 
@@ -1230,23 +1475,53 @@ async function loadScheduleDetail(routeState) {
   const requestId = ++loadRequestTracker.scheduleDetail;
   const state = document.getElementById("schedule-detail-state");
   const summary = document.getElementById("schedule-detail-summary");
+  const actionState = document.getElementById("schedule-detail-action-state");
+  const editButton = document.getElementById("schedule-detail-edit-btn");
+  const enableDisableButton = document.getElementById("schedule-detail-enable-disable-btn");
+  const pauseResumeButton = document.getElementById("schedule-detail-pause-resume-btn");
+  const triggerToggleButton = document.getElementById("schedule-detail-triggers-toggle-btn");
+  const triggerPanel = document.getElementById("schedule-detail-triggers-panel");
   const triggerState = document.getElementById("schedule-detail-triggers-state");
   const triggerList = document.getElementById("schedule-detail-triggers-list");
   const backLink = document.getElementById("schedule-detail-back-link");
   const scheduleId = String(routeState?.selectedScheduleId || "").trim();
+  const scheduleListQuery = buildSchedulesListQueryFromRouteQuery(routeState?.query);
+  const preserveLayout = Boolean(viewState.schedules.refreshDetailInPlace);
 
-  if (!state || !summary || !triggerState || !triggerList || !backLink) {
+  if (!state || !summary || !actionState || !editButton || !enableDisableButton || !pauseResumeButton || !triggerToggleButton || !triggerPanel || !triggerState || !triggerList || !backLink) {
     return;
   }
 
-  backLink.setAttribute("href", "#/schedules");
-  state.className = "state";
-  state.textContent = "Loading schedule detail...";
-  summary.hidden = true;
-  triggerState.className = "state";
-  triggerState.textContent = "Loading triggers...";
-  triggerList.hidden = true;
-  triggerList.innerHTML = "";
+  if (!preserveLayout) {
+    viewState.schedules.triggersExpanded = false;
+  }
+  triggerToggleButton.onclick = () => {
+    viewState.schedules.triggersExpanded = !viewState.schedules.triggersExpanded;
+    setScheduleDetailTriggersExpanded(viewState.schedules.triggersExpanded);
+  };
+  setScheduleDetailTriggersExpanded(viewState.schedules.triggersExpanded);
+
+  backLink.setAttribute("href", buildSchedulesListHash(scheduleId, scheduleListQuery));
+  if (!preserveLayout) {
+    state.className = "state";
+    state.textContent = "Loading schedule detail...";
+    summary.hidden = true;
+    actionState.className = "state";
+    actionState.textContent = "";
+    actionState.hidden = true;
+  }
+  editButton.disabled = true;
+  editButton.onclick = null;
+  enableDisableButton.disabled = true;
+  pauseResumeButton.disabled = true;
+  if (!preserveLayout) {
+    triggerState.className = "state";
+    triggerState.textContent = "Loading triggers...";
+  }
+  if (!preserveLayout) {
+    triggerList.hidden = true;
+    triggerList.innerHTML = "";
+  }
 
   if (scheduleId === "") {
     state.className = "state error";
@@ -1257,22 +1532,14 @@ async function loadScheduleDetail(routeState) {
   viewState.schedules.selectedScheduleId = scheduleId;
 
   try {
-    const response = await fetch(`/api/v1/schedules?limit=${DEFAULT_SCHEDULE_LOOKUP_LIMIT}`, {
+    const response = await fetch(`/api/v1/schedules/${encodeURIComponent(scheduleId)}`, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) {
       throw new Error(`Schedule API returned ${response.status}`);
     }
-    const payload = await response.json();
+    const selected = await response.json();
     if (!shouldApplyRouteScopedUpdate("scheduleDetail", requestId)) {
-      return;
-    }
-
-    const items = Array.isArray(payload.items) ? payload.items : [];
-    const selected = items.find((item) => String(item?.scheduleId || "").trim() === scheduleId);
-    if (!selected) {
-      state.className = "state error";
-      state.textContent = `Schedule ${scheduleId} was not found.`;
       return;
     }
 
@@ -1282,7 +1549,25 @@ async function loadScheduleDetail(routeState) {
     document.getElementById("schedule-detail-status").textContent = formatScheduleStatus(selected);
     document.getElementById("schedule-detail-timezone").textContent = valueOrDash(selected.timezone);
     document.getElementById("schedule-detail-expression").textContent = valueOrDash(selected.expression);
+    document.getElementById("schedule-detail-description").textContent = valueOrDash(selected.description);
+    document.getElementById("schedule-detail-last-accepted-due").textContent = valueOrDash(selected.lastAcceptedDueAt);
     document.getElementById("schedule-detail-next-due").textContent = valueOrDash(selected.nextDueAt);
+
+    editButton.disabled = false;
+    editButton.onclick = () => {
+      viewState.schedules.editCancelReturnHash = "";
+      openScheduleEditor({ mode: "edit", schedule: selected });
+    };
+
+    const scheduleControlState = getScheduleControlState(selected);
+    enableDisableButton.textContent = scheduleControlState.enableDisableLabel;
+    enableDisableButton.disabled = false;
+    enableDisableButton.onclick = () => requestScheduleDetailStateChange(scheduleId, scheduleControlState.enableDisableAction, requestId);
+
+    pauseResumeButton.textContent = scheduleControlState.pauseResumeLabel;
+    pauseResumeButton.disabled = scheduleControlState.pauseResumeDisabled;
+    pauseResumeButton.onclick = () => requestScheduleDetailStateChange(scheduleId, scheduleControlState.pauseResumeAction, requestId);
+
     summary.hidden = false;
 
     const triggerResponse = await fetch(`/api/v1/schedules/${encodeURIComponent(scheduleId)}/trigger-events?limit=20`, {
@@ -1298,16 +1583,23 @@ async function loadScheduleDetail(routeState) {
 
     const triggerItems = Array.isArray(triggerPayload.items) ? triggerPayload.items : [];
     if (triggerItems.length === 0) {
+      triggerList.hidden = true;
+      triggerList.innerHTML = "";
       triggerState.textContent = "No trigger events recorded for this schedule yet.";
     } else {
+      const triggerNodes = document.createDocumentFragment();
       triggerItems.forEach((item) => {
-        triggerList.appendChild(buildScheduleTriggerEventLine(item, scheduleId));
+        triggerNodes.appendChild(scheduleDetailHelpers.buildScheduleTriggerEventLine(item, scheduleId, scheduleListQuery));
       });
+      triggerList.innerHTML = "";
+      triggerList.appendChild(triggerNodes);
       triggerState.textContent = `Showing ${triggerItems.length} trigger event(s).`;
       triggerList.hidden = false;
     }
 
-    state.textContent = "Schedule detail loaded.";
+    if (!preserveLayout) {
+      state.textContent = "Schedule detail loaded.";
+    }
   } catch (error) {
     if (!shouldApplyRouteScopedUpdate("scheduleDetail", requestId)) {
       return;
@@ -1317,62 +1609,64 @@ async function loadScheduleDetail(routeState) {
   }
 }
 
-function buildScheduleTriggerEventLine(item, scheduleId) {
-  const line = document.createElement("li");
-  const requestedAt = valueOrDash(item?.requestedAt);
-  const origin = formatScheduleTriggerOriginToken(item?.triggerOrigin);
-  const decision = valueOrDash(item?.decisionStatus);
-  const triggerEventId = valueOrDash(item?.triggerEventId);
-  const launchedRunId = String(item?.launchedRunId || "").trim();
+function setScheduleDetailTriggersExpanded(expanded) {
+  return scheduleDetailHelpers.setScheduleDetailTriggersExpanded(expanded);
+}
 
-  line.appendChild(document.createTextNode(`${requestedAt} | origin=${origin} | decision=${decision} | triggerEventId=${triggerEventId} | launchedRunId=`));
-
-  if (launchedRunId !== "") {
-    const runLink = document.createElement("a");
-    runLink.href = `#/runs/${encodeURIComponent(launchedRunId)}?from=schedule&scheduleId=${encodeURIComponent(scheduleId)}`;
-    runLink.textContent = launchedRunId;
-    line.appendChild(runLink);
-  } else {
-    line.appendChild(document.createTextNode("-"));
+async function requestScheduleDetailStateChange(scheduleId, action, requestId) {
+  const state = document.getElementById("schedule-detail-action-state");
+  const normalizedScheduleId = String(scheduleId || "").trim();
+  const normalizedAction = String(action || "").trim().toLowerCase();
+  if (!state || normalizedScheduleId === "" || !SCHEDULE_STATE_CHANGE_ACTIONS.has(normalizedAction)) {
+    return;
+  }
+  if (scheduleRequestState.inFlightActionByScheduleId[normalizedScheduleId]) {
+    state.className = "state";
+    state.textContent = "Schedule action already in progress. Please wait for the current response.";
+    state.hidden = false;
+    return;
   }
 
-  return line;
+  scheduleRequestState.inFlightActionByScheduleId[normalizedScheduleId] = true;
+  viewState.schedules.refreshDetailInPlace = true;
+  const previousScrollY = typeof window !== "undefined" && Number.isFinite(window.scrollY)
+    ? window.scrollY
+    : null;
+  state.className = "state";
+  state.textContent = `Submitting schedule ${normalizedAction} request...`;
+  state.hidden = false;
+
+  try {
+    const response = await fetch(`/api/v1/schedules/${encodeURIComponent(normalizedScheduleId)}:${normalizedAction}`, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      state.className = "state error";
+      state.textContent = `Schedule ${normalizedAction} failed: ${valueOrDash(payload.message)}`;
+      return;
+    }
+
+    state.className = "state";
+    state.textContent = `Schedule ${normalizedAction} accepted.`;
+    viewState.schedules.loaded = false;
+    await loadScheduleDetail(currentRouteState());
+    if (previousScrollY !== null && typeof window.scrollTo === "function") {
+      window.scrollTo({ top: previousScrollY, left: 0, behavior: "auto" });
+    }
+  } catch (error) {
+    state.className = "state error";
+    state.textContent = `Schedule ${normalizedAction} failed [runtime]: ${error.message}`;
+  } finally {
+    viewState.schedules.refreshDetailInPlace = false;
+    delete scheduleRequestState.inFlightActionByScheduleId[normalizedScheduleId];
+  }
 }
 
 // schedule detail now uses a dedicated route (`#/schedules/{scheduleId}`), so
 // list-selection hash syncing is intentionally not used.
 
-function formatTriggerOriginToken(token) {
-  const normalized = String(token || "").trim().toUpperCase();
-  if (normalized === "SCHEDULE") {
-    return "SCHEDULE";
-  }
-  if (normalized === "EVENT") {
-    return "EVENT";
-  }
-  return "MANUAL";
-}
-
-function formatScheduleTriggerOriginToken(token) {
-  const normalized = String(token || "").trim().toUpperCase();
-  if (normalized === "EVENT") {
-    return "EVENT";
-  }
-  if (normalized === "MANUAL") {
-    return "MANUAL";
-  }
-  return "SCHEDULE";
-}
-
-function categorizeTriggerFailure(statusCode) {
-  if (statusCode === 404 || statusCode === 409) {
-    return "config";
-  }
-  if (statusCode >= 400 && statusCode < 500) {
-    return "validation";
-  }
-  return "runtime";
-}
 
 async function loadRuns() {
   const requestId = ++loadRequestTracker.runs;
@@ -1429,30 +1723,11 @@ async function loadRuns() {
 }
 
 function normalizeSupportedFilter(value, supportedValues) {
-  const normalized = String(value || "").trim();
-  if (normalized === "") {
-    return "";
-  }
-  return supportedValues.has(normalized) ? normalized : "";
+  return runsBridgeHelpers.normalizeSupportedFilter(value, supportedValues);
 }
 
 function normalizeIsoDate(value) {
-  const normalized = String(value || "").trim();
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
-    return "";
-  }
-  const [yearText, monthText, dayText] = normalized.split("-");
-  const year = Number.parseInt(yearText, 10);
-  const month = Number.parseInt(monthText, 10);
-  const day = Number.parseInt(dayText, 10);
-  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
-    return "";
-  }
-  const date = new Date(Date.UTC(year, month - 1, day));
-  const matches = date.getUTCFullYear() === year
-    && date.getUTCMonth() + 1 === month
-    && date.getUTCDate() === day;
-  return matches ? normalized : "";
+  return runsBridgeHelpers.normalizeIsoDate(value);
 }
 
 function initializeRunsDefaults() {
@@ -1467,10 +1742,7 @@ function initializeRunsDefaults() {
 }
 
 function formatDateForInput(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return runsBridgeHelpers.formatDateForInput(date);
 }
 
 function initializeControls() {
@@ -1480,16 +1752,75 @@ function initializeControls() {
 }
 
 function initializeScheduleControls() {
+  const newButton = document.getElementById("schedules-new-btn");
   const refreshButton = document.getElementById("schedules-refresh-btn");
-  if (!refreshButton) {
+  const filterInput = document.getElementById("schedules-filter-input");
+  const sortSelect = document.getElementById("schedules-sort-select");
+  const sortDirectionButton = document.getElementById("schedules-sort-dir-btn");
+  const pageSizeSelect = document.getElementById("schedules-page-size-select");
+  const pagePrevButton = document.getElementById("schedules-page-prev-btn");
+  const pageNextButton = document.getElementById("schedules-page-next-btn");
+  const saveButton = document.getElementById("schedules-editor-save-btn");
+  const cancelButton = document.getElementById("schedules-editor-cancel-btn");
+  const expressionInput = document.getElementById("schedules-editor-expression-input");
+  const scheduleKeyInput = document.getElementById("schedules-editor-key-input");
+  const jobSelect = document.getElementById("schedules-editor-job-select");
+  if (!refreshButton || !newButton || !filterInput || !sortSelect || !sortDirectionButton || !pageSizeSelect || !pagePrevButton || !pageNextButton || !saveButton || !cancelButton || !expressionInput || !scheduleKeyInput || !jobSelect) {
     return;
   }
+
+  filterInput.value = viewState.schedules.filterText;
+  sortSelect.value = viewState.schedules.sortKey;
+  sortDirectionButton.textContent = viewState.schedules.sortDirection === "desc" ? "Desc" : "Asc";
+  pageSizeSelect.value = String(viewState.schedules.pageSize);
+
+  filterInput.addEventListener("input", () => {
+    viewState.schedules.filterText = String(filterInput.value || "");
+    viewState.schedules.page = 1;
+    syncListRouteHash("schedules");
+  });
+  sortSelect.addEventListener("change", () => {
+    viewState.schedules.sortKey = normalizeSortKey("schedules", sortSelect.value, "scheduleKey");
+    viewState.schedules.page = 1;
+    syncListRouteHash("schedules");
+  });
+  sortDirectionButton.addEventListener("click", () => {
+    viewState.schedules.sortDirection = viewState.schedules.sortDirection === "asc" ? "desc" : "asc";
+    sortDirectionButton.textContent = viewState.schedules.sortDirection === "desc" ? "Desc" : "Asc";
+    syncListRouteHash("schedules");
+  });
+  pageSizeSelect.addEventListener("change", () => {
+    viewState.schedules.pageSize = normalizePageSize(pageSizeSelect.value, defaultSchedulesPageSize());
+    pageSizeSelect.value = String(viewState.schedules.pageSize);
+    viewState.schedules.page = 1;
+    syncListRouteHash("schedules");
+  });
+  pagePrevButton.addEventListener("click", () => {
+    if (viewState.schedules.page <= 1) {
+      return;
+    }
+    viewState.schedules.page -= 1;
+    syncListRouteHash("schedules");
+  });
+  pageNextButton.addEventListener("click", () => {
+    viewState.schedules.page += 1;
+    syncListRouteHash("schedules");
+  });
+
+  newButton.addEventListener("click", () => {
+    openScheduleEditor({ mode: "create" });
+  });
   refreshButton.addEventListener("click", () => {
     viewState.schedules.loaded = false;
     if (currentRouteState().key === "schedules") {
       loadSchedules();
     }
   });
+  saveButton.addEventListener("click", submitScheduleEditor);
+  cancelButton.addEventListener("click", () => closeScheduleEditor());
+  expressionInput.addEventListener("input", updateScheduleEditorExpressionValidation);
+  scheduleKeyInput.addEventListener("input", updateScheduleEditorExpressionValidation);
+  jobSelect.addEventListener("change", updateScheduleEditorExpressionValidation);
 }
 
 function applyRouteStateToListView(routeState) {
@@ -1498,160 +1829,110 @@ function applyRouteStateToListView(routeState) {
     return;
   }
 
+  if (routeState.key === "schedules") {
+    applySchedulesRouteState(routeState);
+    return;
+  }
+
   runsListUi.applyRouteState(routeState);
 }
 
-function syncListRouteHash(routeKey) {
-  const hash = routeKey === "jobs"
-    ? getJobsRouteHash()
-    : getRunsRouteHash();
-  if (location.hash !== hash) {
-    location.hash = hash;
+function applySchedulesRouteState(routeState) {
+  viewState.schedules.filterText = String(routeState.filterText || "");
+  viewState.schedules.page = normalizePositiveInteger(routeState.page, 1);
+  viewState.schedules.pageSize = normalizePageSize(routeState.pageSize, defaultSchedulesPageSize());
+  viewState.schedules.sortKey = normalizeSortKey("schedules", routeState.sortKey, "scheduleKey");
+  viewState.schedules.sortDirection = normalizeDirection(routeState.sortDirection, "asc");
+  const selectedScheduleId = String(routeState.selectedScheduleId || "").trim();
+  if (selectedScheduleId !== "") {
+    viewState.schedules.selectedScheduleId = selectedScheduleId;
+  }
+  viewState.schedules.pendingEditScheduleId = String(routeState.editScheduleId || "").trim();
+  syncSchedulesControlsFromState();
+}
+
+function syncSchedulesControlsFromState() {
+  const filterInput = document.getElementById("schedules-filter-input");
+  const sortSelect = document.getElementById("schedules-sort-select");
+  const sortDirectionButton = document.getElementById("schedules-sort-dir-btn");
+  const pageSizeSelect = document.getElementById("schedules-page-size-select");
+  if (filterInput) {
+    filterInput.value = viewState.schedules.filterText;
+  }
+  if (sortSelect) {
+    sortSelect.value = viewState.schedules.sortKey;
+  }
+  if (sortDirectionButton) {
+    sortDirectionButton.textContent = viewState.schedules.sortDirection === "desc" ? "Desc" : "Asc";
+  }
+  if (pageSizeSelect) {
+    pageSizeSelect.value = String(viewState.schedules.pageSize);
   }
 }
 
-function getJobsRouteHash() {
-  const query = buildJobsRouteQuery(viewState.jobs);
-  return query ? `#/jobs?${query}` : "#/jobs";
+function syncListRouteHash(routeKey) {
+  return routeHelpers.syncListRouteHash(routeKey);
 }
 
 function getJobsRouteQuerySuffix() {
-  const query = buildJobsRouteQuery(viewState.jobs);
-  return query ? `?${query}` : "";
+  return routeHelpers.getJobsRouteQuerySuffix();
 }
 
-function buildJobsRouteQuery(source) {
-  const params = new URLSearchParams();
-  if (source.filterText.trim() !== "") {
-    params.set("f", source.filterText.trim());
-  }
-  if ((source.page || 1) > 1) {
-    params.set("page", String(source.page));
-  }
-  if ((source.pageSize || defaultJobsPageSize()) !== defaultJobsPageSize()) {
-    params.set("pageSize", String(source.pageSize));
-  }
-  params.set("sort", source.sortKey);
-  params.set("dir", source.sortDirection);
-  return params.toString();
+function getSchedulesRouteQuerySuffix() {
+  return routeHelpers.getSchedulesRouteQuerySuffix();
 }
 
-function getRunsRouteHash() {
-  const source = viewState.runs;
-  const params = new URLSearchParams();
+function buildSchedulesRouteQuery(source, options = {}) {
+  return routeHelpers.buildSchedulesRouteQuery(source, options);
+}
 
-  if (source.filterText.trim() !== "") {
-    params.set("f", source.filterText.trim());
-  }
-  if (source.selectedJobKey && source.selectedJobKey.trim() !== "") {
-    params.set("job", source.selectedJobKey.trim());
-  }
-  if (source.runModeFilter && source.runModeFilter.trim() !== "") {
-    params.set("runMode", source.runModeFilter.trim());
-  }
-  if (source.recoveryPolicyFilter && source.recoveryPolicyFilter.trim() !== "") {
-    params.set("recoveryPolicy", source.recoveryPolicyFilter.trim());
-  }
-  if (source.startDate && source.startDate.trim() !== "") {
-    params.set("startDate", source.startDate.trim());
-  }
-  if (source.timezone && source.timezone.trim() !== "") {
-    params.set("timezone", source.timezone.trim());
-  }
-  params.set("sort", source.sortKey);
-  params.set("dir", source.sortDirection);
-  return `#/runs?${params.toString()}`;
+function buildSchedulesListQueryFromRouteQuery(query) {
+  return routeHelpers.buildSchedulesListQueryFromRouteQuery(query);
+}
+
+function buildSchedulesListHash(scheduleId, scheduleListQuery) {
+  return routeHelpers.buildSchedulesListHash(scheduleId, scheduleListQuery);
+}
+
+function buildScheduleDetailHash(scheduleId, scheduleListQuery) {
+  return routeHelpers.buildScheduleDetailHash(scheduleId, scheduleListQuery);
 }
 
 function parseHashRoute() {
-  const raw = location.hash.replace(/^#\/?/, "");
-  const separatorIndex = raw.indexOf("?");
-
-  if (separatorIndex < 0) {
-    return { path: raw, query: {} };
-  }
-
-  const path = raw.substring(0, separatorIndex);
-  const queryString = raw.substring(separatorIndex + 1);
-  const query = {};
-  const params = new URLSearchParams(queryString);
-  params.forEach((value, key) => {
-    query[key] = value;
-  });
-  return { path, query };
-}
-
-function isLatestRequest(scope, requestId) {
-  return loadRequestTracker[scope] === requestId;
+  return routeHelpers.parseHashRoute();
 }
 
 function shouldApplyRouteScopedUpdate(routeKey, requestId, routeValue) {
-  return isLatestRequest(routeKey, requestId) && isActiveRoute(routeKey, routeValue);
+  return routeUpdateGuards.shouldApplyRouteScopedUpdate(routeKey, requestId, routeValue);
 }
 
-function isActiveRoute(routeKey, routeValue) {
-  const routeState = currentRouteState();
-  if (routeState.key !== routeKey) {
-    return false;
-  }
-  if (routeKey === "jobDetail" || routeKey === "jobConfig") {
-    return String(routeState.jobKey || "") === String(routeValue || "");
-  }
-  if (routeKey === "runDetail") {
-    return String(routeState.jobExecutionId || "") === String(routeValue || "");
-  }
-  return true;
-}
 
 function normalizeSortKey(routeKey, value, fallback) {
-  if (!value) {
-    return fallback;
-  }
-  return SORT_KEYS[routeKey].includes(value) ? value : fallback;
+  return routeHelpers.normalizeSortKey(routeKey, value, fallback);
 }
 
 function normalizeDirection(value, fallback) {
-  if (value === "asc" || value === "desc") {
-    return value;
-  }
-  return fallback;
+  return routeHelpers.normalizeDirection(value, fallback);
 }
 
 function normalizePositiveInteger(value, fallback) {
-  const parsed = Number.parseInt(value, 10);
-  if (Number.isFinite(parsed) && parsed > 0) {
-    return parsed;
-  }
-  return fallback;
+  return routeHelpers.normalizePositiveInteger(value, fallback);
 }
 
 function normalizePageSize(value, fallback) {
-  const parsed = normalizePositiveInteger(value, fallback);
-  return JOBS_PAGE_SIZE_OPTIONS.includes(parsed) ? parsed : fallback;
+  return routeHelpers.normalizePageSize(value, fallback);
 }
 
 function defaultJobsPageSize() {
-  const viewportHeight = typeof window !== "undefined" && Number.isFinite(window.innerHeight)
-    ? window.innerHeight
-    : 900;
-  if (viewportHeight >= 1200) {
-    return 15;
-  }
-  if (viewportHeight >= 900) {
-    return 10;
-  }
-  return 8;
+  return defaultJobsPageSizeValue();
+}
+
+function defaultSchedulesPageSize() {
+  return defaultSchedulesPageSizeValue();
 }
 
 function getQuerySuffix(query) {
-  const params = new URLSearchParams();
-  Object.entries(query || {}).forEach(([key, value]) => {
-    if (value !== null && value !== undefined && String(value) !== "") {
-      params.set(key, String(value));
-    }
-  });
-  const serialized = params.toString();
-  return serialized ? `?${serialized}` : "";
+  return routeHelpers.getQuerySuffix(query);
 }
 
 async function ensureRunsJobOptions() {
@@ -1661,12 +1942,9 @@ async function ensureRunsJobOptions() {
 
   const jobs = viewState.jobs.loaded
     ? viewState.jobs.items
-    : await fetchJobsForRunsScope();
+    : await runsBridgeHelpers.fetchJobsForRunsScope();
 
-  viewState.runs.jobOptions = jobs.map((job) => ({
-    jobKey: job.jobKey,
-    displayName: job.displayName,
-  }));
+  viewState.runs.jobOptions = mapJobsToRunsJobOptions(jobs);
   renderRunsJobOptions();
 }
 
@@ -1695,133 +1973,13 @@ function renderRunsJobOptions() {
   select.value = selected;
 }
 
-async function fetchJobsForRunsScope() {
-  const response = await fetch("/api/v1/jobs", { headers: { Accept: "application/json" } });
-  if (!response.ok) {
-    throw new Error(`Jobs API returned ${response.status}`);
-  }
-  const payload = await response.json();
-  const jobs = Array.isArray(payload.items) ? payload.items : [];
-  applyJobsItems(jobs);
-  viewState.jobs.loaded = true;
-  return jobs;
-}
 
 function applyJobsItems(items) {
-  const jobs = Array.isArray(items) ? items : [];
-  const validKeys = new Set(
-    jobs
-      .map((job) => String(job?.jobKey || "").trim())
-      .filter((jobKey) => jobKey !== "")
-  );
-
-  viewState.jobs.items = jobs;
-  reconcileJobsScopedCaches(validKeys);
-}
-
-function reconcileJobsScopedCaches(validJobKeys) {
-  const validKeys = validJobKeys instanceof Set ? validJobKeys : new Set();
-
-  if (!validKeys.has(viewState.jobs.expandedJobKey)) {
-    viewState.jobs.expandedJobKey = "";
-  }
-
-  pruneObjectKeys(viewState.jobs.jobStepPreviewByJobKey, validKeys);
-  pruneObjectKeys(viewState.jobs.stepNamesByJobKey, validKeys);
-  pruneObjectKeys(inFlightStepNamesByJobKey, validKeys);
-}
-
-function pruneObjectKeys(source, validKeys) {
-  if (!source || typeof source !== "object") {
-    return;
-  }
-
-  Object.keys(source).forEach((key) => {
-    if (!validKeys.has(key)) {
-      delete source[key];
-    }
-  });
+  return runsBridgeHelpers.applyJobsItems(items);
 }
 
 async function fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, startDate, timezone) {
-  const cacheKey = `${selectedJobKey || ""}|${runMode || ""}|${recoveryPolicy || ""}|${startDate || ""}|${timezone || ""}`;
-  const cached = getCachedRunsByFilter(cacheKey);
-  if (cached) {
-    return cached;
-  }
-
-  const params = new URLSearchParams();
-  params.set("limit", "200");
-  if (selectedJobKey) {
-    params.set("job", selectedJobKey);
-  }
-  if (runMode) {
-    params.set("runMode", runMode);
-  }
-  if (recoveryPolicy) {
-    params.set("recoveryPolicy", recoveryPolicy);
-  }
-  if (startDate) {
-    params.set("startDate", startDate);
-  }
-  if (timezone) {
-    params.set("timezone", timezone);
-  }
-
-  const response = await fetch(`/api/v1/runs?${params.toString()}`, { headers: { Accept: "application/json" } });
-  if (!response.ok) {
-    throw new Error(`Runs API returned ${response.status}`);
-  }
-  const payload = await response.json();
-  const items = Array.isArray(payload.items) ? payload.items : [];
-  setCachedRunsByFilter(cacheKey, items);
-  return items;
-}
-
-function getCachedRunsByFilter(cacheKey) {
-  const cache = viewState.runs.cache;
-  const entry = cache.byFilter[cacheKey];
-  if (!entry) {
-    return null;
-  }
-
-  if (Array.isArray(entry)) {
-    return entry;
-  }
-
-  if (!Array.isArray(entry.items) || !Number.isFinite(entry.cachedAt)) {
-    delete cache.byFilter[cacheKey];
-    cache.order = cache.order.filter((key) => key !== cacheKey);
-    return null;
-  }
-
-  if (Date.now() - entry.cachedAt > RUNS_FILTER_CACHE_TTL_MS) {
-    delete cache.byFilter[cacheKey];
-    cache.order = cache.order.filter((key) => key !== cacheKey);
-    return null;
-  }
-
-  cache.order = cache.order.filter((key) => key !== cacheKey);
-  cache.order.push(cacheKey);
-  return entry.items;
-}
-
-function setCachedRunsByFilter(cacheKey, items) {
-  const cache = viewState.runs.cache;
-  cache.byFilter[cacheKey] = {
-    items,
-    cachedAt: Date.now(),
-  };
-
-  cache.order = cache.order.filter((key) => key !== cacheKey);
-  cache.order.push(cacheKey);
-
-  while (cache.order.length > RUNS_FILTER_CACHE_MAX_ENTRIES) {
-    const staleKey = cache.order.shift();
-    if (staleKey) {
-      delete cache.byFilter[staleKey];
-    }
-  }
+  return runsBridgeHelpers.fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, startDate, timezone);
 }
 
 async function loadRunDetail(routeState) {
@@ -1833,6 +1991,7 @@ async function loadRunDetail(routeState) {
   const source = String(routeState?.query?.from || "").trim().toLowerCase();
   const sourceJobKey = String(routeState?.query?.job || "").trim();
   const sourceScheduleId = String(routeState?.query?.scheduleId || "").trim();
+  const sourceScheduleListQuery = String(routeState?.query?.scheduleListQuery || "").trim();
 
   state.className = "state";
   summary.hidden = true;
@@ -1845,7 +2004,7 @@ async function loadRunDetail(routeState) {
       backLink.setAttribute("href", returnHash);
       backLink.textContent = "Back to job detail";
     } else if (source === "schedule" && sourceScheduleId !== "") {
-      backLink.setAttribute("href", `#/schedules/${encodeURIComponent(sourceScheduleId)}`);
+      backLink.setAttribute("href", buildSchedulesListHash(sourceScheduleId, sourceScheduleListQuery));
       backLink.textContent = "Back to schedules";
     } else {
       backLink.setAttribute("href", "#/runs");
@@ -1886,10 +2045,10 @@ async function loadRunDetail(routeState) {
     document.getElementById("run-detail-duration").textContent = String(run.durationSeconds ?? "-");
     document.getElementById("run-detail-counts").textContent = `${valueOrDash(run.sourceCount)} / ${valueOrDash(run.writtenCount)} / ${valueOrDash(run.rejectedCount)}`;
 
-    renderRunSteps(payload.steps);
-    renderRunFailureSummary(payload.failureSummary);
-    renderRunArtifacts(payload.artifacts);
-    renderRunEvidenceLinks(payload.evidenceLinks);
+    runDetailHelpers.renderRunSteps(payload.steps);
+    runDetailHelpers.renderRunFailureSummary(payload.failureSummary);
+    runDetailHelpers.renderRunArtifacts(payload.artifacts);
+    runDetailHelpers.renderRunEvidenceLinks(payload.evidenceLinks);
 
     state.textContent = "Run detail loaded.";
     summary.hidden = false;
@@ -1939,142 +2098,5 @@ async function fetchRunRecovery(runIdValue) {
 }
 
 
-function focusRunScopedLogViewer() {
-  runLogViewer.focus();
-}
-
-function renderRunSteps(steps) {
-  const table = document.getElementById("run-detail-steps-table");
-  const body = document.getElementById("run-detail-steps-body");
-  const empty = document.getElementById("run-detail-steps-empty");
-  const list = coalesceRunSteps(steps);
-
-  body.innerHTML = "";
-  if (list.length === 0) {
-    table.hidden = true;
-    empty.hidden = false;
-    return;
-  }
-
-  list.forEach((step) => {
-    const row = document.createElement("tr");
-    row.innerHTML = `
-      <td>${escapeHtml(step.stepName || "-")}</td>
-      <td>${escapeHtml(step.status || "-")}</td>
-      <td>${escapeHtml(valueOrDash(step.readCount))}</td>
-      <td>${escapeHtml(valueOrDash(step.writeCount))}</td>
-      <td>${escapeHtml(valueOrDash(step.rejectedCount))}</td>`;
-    body.appendChild(row);
-  });
-
-  empty.hidden = true;
-  table.hidden = false;
-}
-
-function renderRunFailureSummary(failureSummary) {
-  const empty = document.getElementById("run-detail-failure-empty");
-  const box = document.getElementById("run-detail-failure-box");
-
-  if (!failureSummary) {
-    box.hidden = true;
-    empty.hidden = false;
-    return;
-  }
-
-  document.getElementById("run-detail-failure-category").textContent = valueOrDash(failureSummary.category);
-  document.getElementById("run-detail-failure-type").textContent = valueOrDash(failureSummary.exceptionType);
-  document.getElementById("run-detail-failure-message").textContent = valueOrDash(failureSummary.message);
-
-  empty.hidden = true;
-  box.hidden = false;
-}
-
-function renderRunArtifacts(artifacts) {
-  const listElement = document.getElementById("run-detail-artifacts-list");
-  const empty = document.getElementById("run-detail-artifacts-empty");
-  const list = Array.isArray(artifacts) ? artifacts : [];
-
-  listElement.innerHTML = "";
-  if (list.length === 0) {
-    listElement.hidden = true;
-    empty.hidden = false;
-    return;
-  }
-
-  list.forEach((artifact) => {
-    const item = document.createElement("li");
-    const parts = [valueOrDash(artifact.role), valueOrDash(artifact.path)];
-    if (artifact.recordCount !== null && artifact.recordCount !== undefined) {
-      parts.push(`records=${artifact.recordCount}`);
-    }
-    item.textContent = parts.join(" | ");
-    listElement.appendChild(item);
-  });
-
-  empty.hidden = true;
-  listElement.hidden = false;
-}
-
-function renderRunEvidenceLinks(evidenceLinks) {
-  const listElement = document.getElementById("run-detail-evidence-list");
-  const empty = document.getElementById("run-detail-evidence-empty");
-  const list = Array.isArray(evidenceLinks) ? evidenceLinks : [];
-
-  listElement.innerHTML = "";
-  if (list.length === 0) {
-    listElement.hidden = true;
-    empty.hidden = false;
-    return;
-  }
-
-  list.forEach((link) => {
-    const item = document.createElement("li");
-    const href = (link.href || "").trim();
-    if (href && String(link.type || "").toLowerCase() === "log-file") {
-      const scopedAnchor = document.createElement("a");
-      scopedAnchor.href = "#";
-      scopedAnchor.textContent = "Run log (scoped viewer)";
-      scopedAnchor.addEventListener("click", (event) => {
-        event.preventDefault();
-        focusRunScopedLogViewer();
-      });
-      item.appendChild(scopedAnchor);
-
-      item.appendChild(document.createTextNode(" | "));
-
-      const rawAnchor = document.createElement("a");
-      rawAnchor.href = href;
-      rawAnchor.textContent = "Full scenario log (raw file)";
-      rawAnchor.target = "_blank";
-      rawAnchor.rel = "noreferrer";
-      item.appendChild(rawAnchor);
-    } else if (href) {
-      const anchor = document.createElement("a");
-      anchor.href = href;
-      anchor.textContent = `${valueOrDash(link.label)} (${valueOrDash(link.type)})`;
-      anchor.target = "_blank";
-      anchor.rel = "noreferrer";
-      item.appendChild(anchor);
-    } else {
-      item.textContent = `${valueOrDash(link.label)} (${valueOrDash(link.type)}) - no link target`;
-    }
-    listElement.appendChild(item);
-  });
-
-  empty.hidden = true;
-  listElement.hidden = false;
-}
 
 
-function valueOrDash(value) {
-  return value === null || value === undefined || value === "" ? "-" : String(value);
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/\"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}

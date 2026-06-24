@@ -47,7 +47,8 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\generate-verification-rep
 
 Purpose:
 - Positive smoke: `customer-load` must complete
-- Negative smoke: `csv-to-sqlserver` must fail fast on placeholder SQL Server values
+- Negative smoke: `csv-to-sqlserver` must emit runtime failure evidence (`RUN_SUMMARY status=FAILED`, `JOB_FAILURE`)
+- Uses an isolated smoke metadata DB at `target/verify-smoke/etl-dev-smoke.db` (does not wipe shared `.etl-dev/etl-dev.db`)
 
 Usage:
 

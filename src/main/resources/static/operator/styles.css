@@ -113,6 +113,11 @@ body {
   align-items: center;
 }
 
+.schedules-controls,
+.schedules-pagination {
+  align-items: center;
+}
+
 .jobs-pagination {
   margin-top: -2px;
 }
@@ -347,6 +352,10 @@ body {
   color: #b91c1c;
 }
 
+.state.success {
+  color: #166534;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -370,6 +379,11 @@ th {
 
 .clickable-row:hover {
   background: #eff6ff;
+}
+
+.schedule-selected-row,
+.schedule-selected-row:hover {
+  background: #dbeafe;
 }
 
 #run-detail-summary,
@@ -590,6 +604,38 @@ th {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.link-toggle-btn {
+  margin-top: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #2563eb;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.link-toggle-btn:hover {
+  color: #1d4ed8;
+}
+
+#schedules-editor {
+  margin-top: 12px;
+}
+
+#schedules-editor .control-row input[type="text"] {
+  min-width: 210px;
+}
+
+#schedules-editor .control-row select {
+  min-width: 240px;
+}
+
+#schedules-editor-expression-input.expression-invalid {
+  border-color: #dc2626;
+  background: #fef2f2;
 }
 
 #job-detail-trigger-now-btn {
