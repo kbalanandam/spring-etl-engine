@@ -6,6 +6,7 @@ export function createAppJobDetailHelpers(options = {}) {
 
   function buildJobTriggerEventLine(item, jobKey, query) {
     const line = document.createElement("li");
+    line.className = "job-trigger-event-item";
     const requestedAt = valueOrDash(item?.requestedAt);
     const origin = formatTriggerOriginToken(item?.triggerOrigin);
     const decision = valueOrDash(item?.decisionStatus);
@@ -15,7 +16,22 @@ export function createAppJobDetailHelpers(options = {}) {
     const launchedRunId = String(item?.launchedRunId || "").trim();
     const message = String(item?.message || "").trim();
 
-    line.appendChild(document.createTextNode(`${requestedAt} | origin=${origin} | decision=${decision} | reason=${reason} | requestedBy=${requestedBy} | triggerEventId=${triggerEventId} | launchedRunId=`));
+    const decisionToken = String(item?.decisionStatus || "").trim().toUpperCase();
+    const decisionChip = document.createElement("span");
+    decisionChip.className = "decision-chip";
+    if (decisionToken === "DUPLICATE_SUPPRESSED") {
+      decisionChip.classList.add("decision-chip-warning");
+    } else if (decisionToken === "ACCEPTED") {
+      decisionChip.classList.add("decision-chip-success");
+    }
+    decisionChip.textContent = decision;
+
+    const metadata = document.createElement("span");
+    metadata.textContent = `${requestedAt} | origin=${origin} | reason=${reason} | requestedBy=${requestedBy} | triggerEventId=${triggerEventId} | launchedRunId=`;
+
+    line.appendChild(decisionChip);
+    line.appendChild(document.createTextNode(" "));
+    line.appendChild(metadata);
 
     if (launchedRunId !== "") {
       const runLink = document.createElement("a");
@@ -76,3 +92,5 @@ export function createAppJobDetailHelpers(options = {}) {
     renderJobTriggerEvents,
   };
 }
+
+

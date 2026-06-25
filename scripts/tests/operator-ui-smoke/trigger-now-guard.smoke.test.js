@@ -11,7 +11,9 @@ test("operator app trigger-now flow includes in-flight and cooldown guards", asy
   assert.match(source, /TRIGGER_NOW_DUPLICATE_WINDOW_MS\s*=\s*5\s*\*\s*1000/);
   assert.match(source, /triggerNowRequestState\s*=\s*\{/);
   assert.match(source, /Trigger request already in progress\. Please wait for the current response\./);
-  assert.match(source, /Trigger already accepted recently\. Please wait a few seconds before retrying\./);
+  assert.match(source, /Trigger already accepted recently in this browser tab\. Please wait a few seconds before retrying\./);
   assert.match(source, /decisionStatus === "DUPLICATE_SUPPRESSED"/);
+  assert.match(source, /triggerFeedback\.className = "state state-warning"/);
+  assert.match(source, /triggerFeedback\.className = duplicateSuppressed \? "state state-warning" : "state state-success"/);
 });
 

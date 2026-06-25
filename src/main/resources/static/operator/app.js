@@ -28,6 +28,9 @@ import {
   createAppRunDetailHelpers,
 } from "./app-run-detail-helpers.js";
 import {
+  createAppJobDetailHelpers,
+} from "./app-job-detail-helpers.js";
+import {
   createAppScheduleEditorHelpers,
 } from "./app-schedule-editor-helpers.js";
 import {
@@ -249,6 +252,10 @@ const runDetailHelpers = createAppRunDetailHelpers({
   escapeHtml,
   focusScopedLogViewer: () => runLogViewer.focus(),
   valueOrDash,
+});
+const jobDetailHelpers = createAppJobDetailHelpers({
+  valueOrDash,
+  formatTriggerOriginToken,
 });
 const scheduleEditorHelpers = createAppScheduleEditorHelpers({
   describeScheduleExpression,
@@ -497,6 +504,8 @@ async function loadJobDetailPlaceholder(routeState) {
   const scheduleFeedback = document.getElementById("job-detail-schedule-feedback");
   const recentRunsState = document.getElementById("job-detail-recent-runs-state");
   const recentRunsList = document.getElementById("job-detail-recent-runs-list");
+  const triggerEventsState = document.getElementById("job-detail-trigger-events-state");
+  const triggerEventsList = document.getElementById("job-detail-trigger-events-list");
   const viewConfigLink = document.getElementById("job-detail-view-config-link");
   const backLink = document.getElementById("job-detail-back-link");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
@@ -539,6 +548,14 @@ async function loadJobDetailPlaceholder(routeState) {
     recentRunsList.hidden = true;
     recentRunsList.innerHTML = "";
   }
+  if (triggerEventsState) {
+    triggerEventsState.className = "state";
+    triggerEventsState.textContent = "Loading recent trigger events...";
+  }
+  if (triggerEventsList) {
+    triggerEventsList.hidden = true;
+    triggerEventsList.innerHTML = "";
+  }
   if (backLink) {
     if (navigationSource === "schedule" && sourceScheduleId !== "") {
       backLink.setAttribute("href", buildSchedulesListHash(sourceScheduleId, sourceScheduleListQuery));
@@ -573,8 +590,9 @@ async function loadJobDetailPlaceholder(routeState) {
     document.getElementById("job-detail-name").textContent = job.displayName || "-";
     document.getElementById("job-detail-readiness").textContent = job.readinessStatus || "-";
     document.getElementById("job-detail-recent-run-count").textContent = String(Array.isArray(payload.recentRuns) ? payload.recentRuns.length : 0);
-    document.getElementById("job-detail-trigger-count").textContent = String(Array.isArray(payload.triggerEvents) ? payload.triggerEvents.length : 0);
+    document.getElementById("job-detail-trigger-count").textContent = String(Array.isArray(payload.recentTriggerEvents) ? payload.recentTriggerEvents.length : 0);
     renderJobDetailRecentRuns(payload.recentRuns, jobKeyValue, routeState?.query);
+    jobDetailHelpers.renderJobTriggerEvents(payload.recentTriggerEvents, jobKeyValue, routeState?.query);
     if (viewConfigLink) {
       viewConfigLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}/config${jobsRouteQuerySuffix}`);
     }
@@ -591,6 +609,33 @@ async function loadJobDetailPlaceholder(routeState) {
     }
     state.className = "state error";
     state.textContent = `Unable to load job detail placeholder: ${error.message}`;
+  }
+}
+
+async function refreshJobDetailRecentTriggerEvents(jobKeyValue, query) {
+  const normalizedJobKey = String(jobKeyValue || "").trim();
+  const triggerCount = document.getElementById("job-detail-trigger-count");
+  const triggerEventsState = document.getElementById("job-detail-trigger-events-state");
+  const triggerEventsList = document.getElementById("job-detail-trigger-events-list");
+  if (normalizedJobKey === "" || !triggerCount || !triggerEventsState || !triggerEventsList) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(normalizedJobKey)}/trigger-events?limit=${DEFAULT_TRIGGER_EVENT_LIMIT}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Trigger events API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    const items = Array.isArray(payload.items) ? payload.items : [];
+    triggerCount.textContent = String(items.length);
+    jobDetailHelpers.renderJobTriggerEvents(items, normalizedJobKey, query);
+  } catch (error) {
+    triggerEventsState.className = "state error";
+    triggerEventsState.textContent = `Unable to refresh trigger events: ${error.message}`;
+    triggerEventsList.hidden = true;
   }
 }
 
@@ -975,8 +1020,8 @@ async function requestTriggerNow(jobKeyValue) {
 
   const cooldownUntil = Number(triggerNowRequestState.cooldownUntilByJobKey[normalizedJobKey] || 0);
   if (cooldownUntil > now) {
-    triggerFeedback.className = "state";
-    triggerFeedback.textContent = "Trigger already accepted recently. Please wait a few seconds before retrying.";
+    triggerFeedback.className = "state state-warning";
+    triggerFeedback.textContent = "Trigger already accepted recently in this browser tab. Please wait a few seconds before retrying.";
     triggerFeedback.hidden = false;
     return;
   }
@@ -1012,19 +1057,16 @@ async function requestTriggerNow(jobKeyValue) {
     const payload = await response.json().catch(() => ({}));
     if (response.ok || response.status === 202) {
       const eventId = valueOrDash(payload.triggerEventId);
-      triggerFeedback.className = "state";
       const decisionStatus = String(payload.decisionStatus || "").trim();
       const duplicateSuppressed = decisionStatus === "DUPLICATE_SUPPRESSED";
+      triggerFeedback.className = duplicateSuppressed ? "state state-warning" : "state state-success";
       triggerFeedback.textContent = duplicateSuppressed
         ? `Trigger already accepted recently. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`
         : `Trigger accepted. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`;
       triggerFeedback.hidden = false;
       triggerNowRequestState.cooldownUntilByJobKey[normalizedJobKey] = Date.now() + TRIGGER_NOW_DUPLICATE_WINDOW_MS;
 
-      const current = Number(triggerCount.textContent);
-      if (!duplicateSuppressed && !Number.isNaN(current)) {
-        triggerCount.textContent = String(current + 1);
-      }
+      await refreshJobDetailRecentTriggerEvents(normalizedJobKey, currentRouteState()?.query);
       return;
     }
 

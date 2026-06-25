@@ -12,6 +12,11 @@ class FakeElement {
     this.innerHTML = "";
     this.children = [];
     this.title = "";
+    const classValues = new Set();
+    this.classList = {
+      add: (...tokens) => tokens.forEach((token) => classValues.add(String(token))),
+      contains: (token) => classValues.has(String(token)),
+    };
   }
 
   appendChild(child) {
@@ -109,8 +114,13 @@ test("job detail helpers render trigger evidence with launched run link and mess
     assert.equal(list.children.length, 1);
     const item = list.children[0];
     assert.equal(item.title, "Accepted trigger");
-    assert.match(item.children[0].textContent, /decision=ACCEPTED/);
-    const runLink = item.children[1];
+    const decisionChip = item.children[0];
+    assert.equal(decisionChip.tagName, "SPAN");
+    assert.equal(decisionChip.textContent, "ACCEPTED");
+    assert.equal(decisionChip.className, "decision-chip");
+    assert.equal(decisionChip.classList.contains("decision-chip-success"), true);
+    assert.match(item.children[2].textContent, /origin=MANUAL/);
+    const runLink = item.children[3];
     assert.equal(runLink.tagName, "A");
     assert.equal(runLink.textContent, "42");
     assert.match(runLink.href, /#\/runs\/42\?from=job&job=customer-load&scheduleId=sch-1&scheduleListQuery=sort%3DscheduleKey/);
@@ -118,4 +128,6 @@ test("job detail helpers render trigger evidence with launched run link and mess
     dom.restore();
   }
 });
+
+
 

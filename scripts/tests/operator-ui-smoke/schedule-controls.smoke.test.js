@@ -11,6 +11,9 @@ test("operator job detail includes native schedule panel markup", async () => {
   assert.match(source, /id="job-detail-schedule-state"/);
   assert.match(source, /id="job-detail-schedule-summary"/);
   assert.match(source, /id="job-detail-schedule-action-btn"/);
+  assert.match(source, /id="job-detail-trigger-events-state"/);
+  assert.match(source, /id="job-detail-trigger-events-list"/);
+  assert.match(source, /Recent trigger events/);
   assert.match(source, /Native scheduler controls only\./);
 });
 
@@ -47,6 +50,8 @@ test("operator app wires schedule editor and schedule state-change actions", asy
   const detailHelpersSource = await readFile(detailHelpersPath, "utf8");
   const editorHelpersPath = resolve(process.cwd(), "src/main/resources/static/operator/app-schedule-editor-helpers.js");
   const editorHelpersSource = await readFile(editorHelpersPath, "utf8");
+  const stylesPath = resolve(process.cwd(), "src/main/resources/static/operator/styles.css");
+  const stylesSource = await readFile(stylesPath, "utf8");
 
   assert.match(source, /DEFAULT_SCHEDULE_LOOKUP_LIMIT\s*=\s*200/);
   assert.match(source, /\/api\/v1\/schedules\?limit=\$\{DEFAULT_SCHEDULE_LOOKUP_LIMIT\}/);
@@ -90,6 +95,14 @@ test("operator app wires schedule editor and schedule state-change actions", asy
   assert.match(source, /params\.set\("scheduleId", sourceScheduleId\);/);
   assert.match(source, /params\.set\("scheduleListQuery", sourceScheduleListQuery\);/);
   assert.match(source, /Back to schedules/);
+  assert.match(source, /createAppJobDetailHelpers/);
+  assert.match(source, /payload\.recentTriggerEvents/);
+  assert.match(source, /function refreshJobDetailRecentTriggerEvents\(jobKeyValue, query\)/);
+  assert.match(stylesSource, /\.decision-chip/);
+  assert.match(stylesSource, /\.decision-chip-success/);
+  assert.match(stylesSource, /\.decision-chip-warning/);
+  assert.match(stylesSource, /\.state\.state-success/);
+  assert.match(stylesSource, /\.state\.state-warning/);
   assert.match(source, /const scheduleControlState = getScheduleControlState\(selectedSchedule\);/);
   assert.match(source, /scheduleActionButton\.textContent = scheduleControlState\.detailPauseResumeLabel/);
   assert.match(source, /closeScheduleEditor\(\{ navigateToReturnHash: returnToDetailAfterSave \}\);/);

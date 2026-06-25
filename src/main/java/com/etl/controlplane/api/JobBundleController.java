@@ -3,6 +3,7 @@ package com.etl.controlplane.api;
 import com.etl.controlplane.jobs.JobBundleReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.triggers.TriggerEventRegistry;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 
@@ -28,13 +30,23 @@ public class JobBundleController {
 	private final JobBundleReadModelService jobBundleReadModelService;
 	private final RunSummaryReadModelService runSummaryReadModelService;
 	private final TriggerEventRegistry triggerEventRegistry;
+	private final Clock clock;
 
+	@Autowired
 	public JobBundleController(JobBundleReadModelService jobBundleReadModelService,
 	                           RunSummaryReadModelService runSummaryReadModelService,
 	                           TriggerEventRegistry triggerEventRegistry) {
+		this(jobBundleReadModelService, runSummaryReadModelService, triggerEventRegistry, Clock.systemUTC());
+	}
+
+	JobBundleController(JobBundleReadModelService jobBundleReadModelService,
+	                   RunSummaryReadModelService runSummaryReadModelService,
+	                   TriggerEventRegistry triggerEventRegistry,
+	                   Clock clock) {
 		this.jobBundleReadModelService = jobBundleReadModelService;
 		this.runSummaryReadModelService = runSummaryReadModelService;
 		this.triggerEventRegistry = triggerEventRegistry;
+		this.clock = clock == null ? Clock.systemUTC() : clock;
 	}
 
 	@GetMapping
@@ -103,12 +115,14 @@ public class JobBundleController {
 		String requestedBy = request == null || request.requestedBy() == null || request.requestedBy().isBlank()
 				? "operator"
 				: request.requestedBy().trim();
+		Instant now = Instant.now(clock);
 
 		var recentDuplicate = triggerEventRegistry.listByJobKey(jobKey, RECENT_TRIGGER_SCAN_LIMIT).stream()
 				.filter(event -> "ACCEPTED".equalsIgnoreCase(event.decisionStatus()))
 				.filter(event -> reason.equals(event.reason()))
 				.filter(event -> requestedBy.equals(event.requestedBy()))
-				.filter(event -> Duration.between(event.requestedAt(), Instant.now()).compareTo(MANUAL_TRIGGER_DUPLICATE_SUPPRESSION_WINDOW) < 0)
+				.filter(event -> event.requestedAt() != null)
+				.filter(event -> Duration.between(event.requestedAt(), now).compareTo(MANUAL_TRIGGER_DUPLICATE_SUPPRESSION_WINDOW) < 0)
 				.findFirst();
 		if (recentDuplicate.isPresent()) {
 			var duplicate = recentDuplicate.get();

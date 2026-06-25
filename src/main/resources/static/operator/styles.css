@@ -356,6 +356,14 @@ body {
   color: #166534;
 }
 
+.state.state-success {
+  color: #166534;
+}
+
+.state.state-warning {
+  color: #92400e;
+}
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -669,6 +677,38 @@ th {
 .boundary-note {
   color: #475569;
   font-size: 11px;
+}
+
+.job-trigger-event-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.decision-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  border: 1px solid #cbd5e1;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #1f2937;
+  background: #f8fafc;
+}
+
+.decision-chip-success {
+  border-color: #86efac;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.decision-chip-warning {
+  border-color: #fcd34d;
+  color: #92400e;
+  background: #fffbeb;
 }
 
 .footnote {
