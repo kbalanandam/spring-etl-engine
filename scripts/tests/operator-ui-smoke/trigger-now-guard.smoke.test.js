@@ -13,7 +13,14 @@ test("operator app trigger-now flow includes in-flight and cooldown guards", asy
   assert.match(source, /Trigger request already in progress\. Please wait for the current response\./);
   assert.match(source, /Trigger already accepted recently in this browser tab\. Please wait a few seconds before retrying\./);
   assert.match(source, /decisionStatus === "DUPLICATE_SUPPRESSED"/);
+  assert.match(source, /decisionStatus === "LAUNCH_SKIPPED"/);
   assert.match(source, /triggerFeedback\.className = "state state-warning"/);
-  assert.match(source, /triggerFeedback\.className = duplicateSuppressed \? "state state-warning" : "state state-success"/);
+  assert.match(source, /triggerFeedback\.className = duplicateSuppressed \|\| launchSkipped \? "state state-warning" : "state state-success"/);
+  assert.match(source, /function invalidateRunsState\(\)/);
+  assert.match(source, /function refreshRunsAfterTriggerAccepted\(\)/);
+  assert.match(source, /function scheduleFollowUpRunsRefresh\(\)/);
+  assert.match(source, /await refreshJobDetailRecentRuns\(normalizedJobKey, currentRouteState\(\)\?\.query\);/);
+  assert.match(source, /await refreshRunsAfterTriggerAccepted\(\);/);
+  assert.match(source, /scheduleFollowUpRunsRefresh\(\);/);
 });
 

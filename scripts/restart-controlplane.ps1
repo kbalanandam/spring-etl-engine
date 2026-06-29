@@ -3,6 +3,7 @@ param(
     [string]$Action = "Restart",
     [int]$Port = 8081,
     [string]$Profile = "controlplane",
+    [switch]$Clean,
     [switch]$NoClean,
     [int]$StartupTimeoutSec = 90,
     [switch]$SkipHealthCheck
@@ -56,11 +57,11 @@ function Start-ControlPlane {
     param(
         [string]$WorkingDirectory,
         [string]$ActiveProfile,
-        [switch]$DisableClean
+        [switch]$EnableClean
     )
 
     $mvnArgs = @("--no-transfer-progress")
-    if (-not $DisableClean) {
+    if ($EnableClean) {
         $mvnArgs += @("clean", "resources:resources")
     }
     $mvnArgs += @(
@@ -76,12 +77,20 @@ function Start-ControlPlane {
 
     $stdoutPath = Join-Path $logDir "restart-controlplane.stdout.log"
     $stderrPath = Join-Path $logDir "restart-controlplane.stderr.log"
+    $startupAppLogPath = Join-Path $logDir "startup.log"
     Remove-Item -ErrorAction SilentlyContinue $stdoutPath, $stderrPath
+    # Keep startup logs bounded to the current session for easier troubleshooting.
+    Remove-Item -ErrorAction SilentlyContinue $startupAppLogPath
 
     $joinedArgs = ($mvnArgs | ForEach-Object { '"' + $_ + '"' }) -join " "
     $cmdLine = "mvn $joinedArgs"
 
     Write-Host "Starting control-plane from $WorkingDirectory ..."
+    if ($EnableClean) {
+        Write-Host "Startup mode: CLEAN (target/ will be rebuilt; generated model classes must be regenerated afterward)."
+    } else {
+        Write-Host "Startup mode: PRESERVE (skips clean to keep generated model classes under target/classes)."
+    }
     $process = Start-Process -FilePath "cmd.exe" -ArgumentList @("/c", $cmdLine) -WorkingDirectory $WorkingDirectory -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -PassThru
     Write-Host "Started Maven PID $($process.Id)."
 
@@ -90,6 +99,28 @@ function Start-ControlPlane {
         StdoutPath = $stdoutPath
         StderrPath = $stderrPath
     }
+}
+
+function Resolve-CleanMode {
+    param(
+        [switch]$RequestedClean,
+        [switch]$RequestedNoClean,
+        [hashtable]$BoundParameters
+    )
+
+    if ($BoundParameters.ContainsKey("Clean") -and $BoundParameters.ContainsKey("NoClean")) {
+        throw "Use either -Clean or -NoClean, not both."
+    }
+
+    if ($BoundParameters.ContainsKey("Clean")) {
+        return $true
+    }
+    if ($BoundParameters.ContainsKey("NoClean")) {
+        return $false
+    }
+
+    # Default to preserve generated model classes so explicit-job runs remain launch-ready.
+    return $false
 }
 
 function Wait-ForHealth {
@@ -134,7 +165,8 @@ switch ($Action) {
         Stop-ControlPlane -TargetPort $Port
     }
     "Start" {
-        $startInfo = Start-ControlPlane -WorkingDirectory $repoRoot -ActiveProfile $Profile -DisableClean:$NoClean
+        $cleanMode = Resolve-CleanMode -RequestedClean:$Clean -RequestedNoClean:$NoClean -BoundParameters $PSBoundParameters
+        $startInfo = Start-ControlPlane -WorkingDirectory $repoRoot -ActiveProfile $Profile -EnableClean:$cleanMode
         if (-not $SkipHealthCheck) {
             $health = Wait-ForHealth -Url $systemInfoUrl -TimeoutSec $StartupTimeoutSec -StartupProcess $startInfo.Process -StdoutPath $startInfo.StdoutPath -StderrPath $startInfo.StderrPath
             Write-Host "Healthy profile=$($health.profile) schedulerEnabled=$($health.schedulerEnabled)"
@@ -142,7 +174,8 @@ switch ($Action) {
     }
     "Restart" {
         Stop-ControlPlane -TargetPort $Port
-        $startInfo = Start-ControlPlane -WorkingDirectory $repoRoot -ActiveProfile $Profile -DisableClean:$NoClean
+        $cleanMode = Resolve-CleanMode -RequestedClean:$Clean -RequestedNoClean:$NoClean -BoundParameters $PSBoundParameters
+        $startInfo = Start-ControlPlane -WorkingDirectory $repoRoot -ActiveProfile $Profile -EnableClean:$cleanMode
         if (-not $SkipHealthCheck) {
             $health = Wait-ForHealth -Url $systemInfoUrl -TimeoutSec $StartupTimeoutSec -StartupProcess $startInfo.Process -StdoutPath $startInfo.StdoutPath -StderrPath $startInfo.StderrPath
             Write-Host "Healthy profile=$($health.profile) schedulerEnabled=$($health.schedulerEnabled)"

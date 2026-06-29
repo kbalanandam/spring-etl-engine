@@ -11,6 +11,12 @@ class FakeElement {
     this.textContent = "";
     this.href = "";
     this.children = [];
+    this.className = "";
+    const classes = new Set();
+    this.classList = {
+      add: (...tokens) => tokens.forEach((token) => classes.add(String(token))),
+      contains: (token) => classes.has(String(token)),
+    };
   }
 
   appendChild(child) {
@@ -92,14 +98,18 @@ test("schedule detail helpers build trigger event line with run link and schedul
     );
 
     assert.equal(line.tagName, "LI");
-    assert.equal(line.children.length, 2);
-    assert.match(line.children[0].textContent, /origin=EVENT/);
-    assert.equal(line.children[1].tagName, "A");
-    assert.equal(line.children[1].textContent, "42");
-    assert.match(line.children[1].href, /^#\/runs\/42\?/);
-    assert.match(line.children[1].href, /from=schedule/);
-    assert.match(line.children[1].href, /scheduleId=sched-1/);
-    assert.match(line.children[1].href, /scheduleListQuery=f%3Dnightly/);
+    assert.equal(line.className, "job-trigger-event-item");
+    assert.equal(line.children.length, 4);
+    assert.equal(line.children[0].tagName, "SPAN");
+    assert.equal(line.children[0].className, "decision-chip");
+    assert.equal(line.children[0].classList.contains("decision-chip-success"), true);
+    assert.match(line.children[2].textContent, /origin=EVENT/);
+    assert.equal(line.children[3].tagName, "A");
+    assert.equal(line.children[3].textContent, "42");
+    assert.match(line.children[3].href, /^#\/runs\/42\?/);
+    assert.match(line.children[3].href, /from=schedule/);
+    assert.match(line.children[3].href, /scheduleId=sched-1/);
+    assert.match(line.children[3].href, /scheduleListQuery=f%3Dnightly/);
   } finally {
     dom.restore();
   }

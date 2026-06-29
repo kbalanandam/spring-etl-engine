@@ -16,29 +16,61 @@ final class RunSummaryLogParser {
 		}
 
 		StructuredLogEvent event = maybeEvent.orElseThrow();
-		if (!"RUN_SUMMARY".equals(event.recordType()) || !"run_summary".equalsIgnoreCase(event.event())) {
-			return Optional.empty();
+		if ("RUN_SUMMARY".equals(event.recordType()) && "run_summary".equalsIgnoreCase(event.event())) {
+			var fields = event.fields();
+			String scenario = field(fields, "scenario", "unknown-scenario");
+			String status = field(fields, "status", "UNKNOWN");
+
+			return Optional.of(new RunSummaryView(
+					scenario,
+					toLong(fields.get("jobExecutionId")),
+					status,
+					toDateTime(fields.get("startTime")),
+					toDateTime(fields.get("endTime")),
+					toLong(fields.get("durationSeconds")),
+					toLong(fields.get("sourceCount")),
+					toLong(fields.get("writtenCount")),
+					toLong(fields.get("rejectedCount")),
+					nullIfBlank(fields.get("runMode")),
+					nullIfBlank(fields.get("recoveryPolicy")),
+					nullIfBlank(fields.get("triggerOrigin")),
+					logPath.toString()
+			));
 		}
 
-		var fields = event.fields();
-		String scenario = field(fields, "scenario", "unknown-scenario");
-		String status = field(fields, "status", "UNKNOWN");
+		if ("RUN_EVENT".equals(event.recordType()) && "job_started".equalsIgnoreCase(event.event())) {
+			var fields = event.fields();
+			Long jobExecutionId = toLong(fields.get("jobExecutionId"));
+			if (jobExecutionId == null) {
+				jobExecutionId = event.jobExecutionId();
+			}
+			if (jobExecutionId == null) {
+				return Optional.empty();
+			}
+			LocalDateTime startTime = toDateTime(fields.get("startTime"));
+			if (startTime == null) {
+				startTime = event.loggedAt();
+			}
+			String scenario = field(fields, "scenario", nullIfBlank(event.scenario()) == null ? "unknown-scenario" : event.scenario());
 
-		return Optional.of(new RunSummaryView(
-				scenario,
-				toLong(fields.get("jobExecutionId")),
-				status,
-				toDateTime(fields.get("startTime")),
-				toDateTime(fields.get("endTime")),
-				toLong(fields.get("durationSeconds")),
-				toLong(fields.get("sourceCount")),
-				toLong(fields.get("writtenCount")),
-				toLong(fields.get("rejectedCount")),
-				nullIfBlank(fields.get("runMode")),
-				nullIfBlank(fields.get("recoveryPolicy")),
-				nullIfBlank(fields.get("triggerOrigin")),
-				logPath.toString()
-		));
+			return Optional.of(new RunSummaryView(
+					scenario,
+					jobExecutionId,
+					"STARTED",
+					startTime,
+					null,
+					null,
+					null,
+					null,
+					null,
+					nullIfBlank(fields.get("runMode")),
+					nullIfBlank(fields.get("recoveryPolicy")),
+					nullIfBlank(fields.get("triggerOrigin")),
+					logPath.toString()
+			));
+		}
+
+		return Optional.empty();
 	}
 
 	private static String nullIfBlank(String value) {

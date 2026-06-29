@@ -16,6 +16,7 @@ import com.etl.controlplane.monitoring.RunArtifactRecordView;
 import com.etl.controlplane.monitoring.RunCheckpointAnchorView;
 import com.etl.controlplane.monitoring.RunRecoveryView;
 import com.etl.controlplane.monitoring.RunSummaryView;
+import com.etl.controlplane.triggers.TriggerSourceCatalog;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -57,6 +58,9 @@ class RunSummaryControllerTest {
 
 	@MockitoBean
 	private RunScopedLogReadModelService runScopedLogReadModelService;
+
+	@MockitoBean
+	private TriggerSourceCatalog triggerSourceCatalog;
 
 	@Test
 	void returnsRunsUsingDefaultLimit() throws Exception {
@@ -122,6 +126,38 @@ class RunSummaryControllerTest {
 				.andExpect(jsonPath("$.size").value(25));
 
 		verify(runSummaryReadModelService).latestRunsFiltered(eq(25), isNull(), eq("explicit-job"), eq("rerun-from-start"), isNull(), eq(ZoneId.systemDefault()));
+	}
+
+	@Test
+	void passesTriggerSourceFilterToService() throws Exception {
+		when(runSummaryReadModelService.latestRunsFiltered(eq(Integer.MAX_VALUE), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault())))
+				.thenReturn(List.of(
+						new RunSummaryView("customer-load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
+								LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L,
+								"explicit-job", "rerun-from-start", "SCHEDULE", "logs/2026-05-27/customer-load.log"),
+						new RunSummaryView("customer-load", 102L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:10:00"),
+								LocalDateTime.parse("2026-05-27T10:10:10"), 10L, 10L, 10L, 0L,
+								"explicit-job", "rerun-from-start", "MANUAL", "logs/2026-05-27/customer-load.log")
+				));
+
+		mockMvc.perform(get("/api/v1/runs")
+				.param("triggerSource", "SCHEDULE"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.totalItems").value(1))
+				.andExpect(jsonPath("$.items[0].jobExecutionId").value(101));
+
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(Integer.MAX_VALUE), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()));
+	}
+
+	@Test
+	void returnsTriggerSourceOptions() throws Exception {
+		when(triggerSourceCatalog.listActiveSources()).thenReturn(List.of(
+				new com.etl.controlplane.triggers.TriggerSourceOptionView("MANUAL", "Manual", "desc")
+		));
+
+		mockMvc.perform(get("/api/v1/runs/trigger-sources"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items[0].sourceCode").value("MANUAL"));
 	}
 
 	@Test

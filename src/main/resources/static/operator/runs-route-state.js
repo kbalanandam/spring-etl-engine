@@ -47,6 +47,9 @@ export function buildRunsRouteHash(source) {
   if (String(source?.recoveryPolicyFilter || "").trim() !== "") {
     params.set("recoveryPolicy", String(source.recoveryPolicyFilter).trim());
   }
+  if (String(source?.triggerSourceFilter || "").trim() !== "") {
+    params.set("triggerSource", String(source.triggerSourceFilter).trim());
+  }
   if (String(source?.startDate || "").trim() !== "") {
     params.set("startDate", String(source.startDate).trim());
   }

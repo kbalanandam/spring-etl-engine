@@ -17,13 +17,29 @@ export function createAppScheduleDetailHelpers(options = {}) {
 
   function buildScheduleTriggerEventLine(item, scheduleId, scheduleListQuery) {
     const line = document.createElement("li");
+    line.className = "job-trigger-event-item";
     const requestedAt = valueOrDash(item?.requestedAt);
     const origin = formatScheduleTriggerOriginToken(item?.triggerOrigin);
     const decision = valueOrDash(item?.decisionStatus);
     const triggerEventId = valueOrDash(item?.triggerEventId);
     const launchedRunId = String(item?.launchedRunId || "").trim();
 
-    line.appendChild(document.createTextNode(`${requestedAt} | origin=${origin} | decision=${decision} | triggerEventId=${triggerEventId} | launchedRunId=`));
+    const decisionToken = String(item?.decisionStatus || "").trim().toUpperCase();
+    const decisionChip = document.createElement("span");
+    decisionChip.className = "decision-chip";
+    if (decisionToken === "DUPLICATE_SUPPRESSED") {
+      decisionChip.classList.add("decision-chip-warning");
+    } else if (decisionToken === "ACCEPTED") {
+      decisionChip.classList.add("decision-chip-success");
+    }
+    decisionChip.textContent = decision;
+
+    const metadata = document.createElement("span");
+    metadata.textContent = `${requestedAt} | origin=${origin} | triggerEventId=${triggerEventId} | launchedRunId=`;
+
+    line.appendChild(decisionChip);
+    line.appendChild(document.createTextNode(" "));
+    line.appendChild(metadata);
 
     if (launchedRunId !== "") {
       const runLink = document.createElement("a");

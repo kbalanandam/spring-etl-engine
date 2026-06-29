@@ -4,6 +4,7 @@ export function createRunsListUi(options) {
   const getState = options.getState;
   const syncRouteHash = options.syncRouteHash;
   const renderJobOptions = options.renderJobOptions;
+  const renderTriggerSourceOptions = options.renderTriggerSourceOptions;
   const formatDateForInput = options.formatDateForInput;
   const escapeHtml = options.escapeHtml;
 
@@ -14,6 +15,7 @@ export function createRunsListUi(options) {
     const runsJobSelect = document.getElementById("runs-job-select");
     const runsRunModeSelect = document.getElementById("runs-run-mode-select");
     const runsRecoveryPolicySelect = document.getElementById("runs-recovery-policy-select");
+    const runsTriggerSourceSelect = document.getElementById("runs-trigger-source-select");
     const runsInstanceSelect = document.getElementById("runs-instance-select");
     const runsSort = document.getElementById("runs-sort-select");
     const runsDirection = document.getElementById("runs-sort-dir-btn");
@@ -57,6 +59,14 @@ export function createRunsListUi(options) {
       runsRecoveryPolicySelect.addEventListener("change", (event) => {
         const state = getState();
         state.recoveryPolicyFilter = event.target.value || "";
+        state.loaded = false;
+        syncRouteHash("runs");
+      });
+    }
+    if (runsTriggerSourceSelect) {
+      runsTriggerSourceSelect.addEventListener("change", (event) => {
+        const state = getState();
+        state.triggerSourceFilter = event.target.value || "";
         state.loaded = false;
         syncRouteHash("runs");
       });
@@ -111,12 +121,14 @@ export function createRunsListUi(options) {
 
     renderTimezoneOptions();
     renderJobOptions();
+    renderTriggerSourceOptions();
 
     const startDate = document.getElementById("runs-start-date-input");
     const timezone = document.getElementById("runs-timezone-select");
     const jobSelect = document.getElementById("runs-job-select");
     const runModeSelect = document.getElementById("runs-run-mode-select");
     const recoveryPolicySelect = document.getElementById("runs-recovery-policy-select");
+    const triggerSourceSelect = document.getElementById("runs-trigger-source-select");
     const filter = document.getElementById("runs-filter-input");
     const sort = document.getElementById("runs-sort-select");
     const direction = document.getElementById("runs-sort-dir-btn");
@@ -124,6 +136,7 @@ export function createRunsListUi(options) {
     state.selectedJobKey = normalizeSelectValue(routeState.selectedJobKey, jobSelect);
     state.runModeFilter = normalizeSelectValue(routeState.runModeFilter, runModeSelect);
     state.recoveryPolicyFilter = normalizeSelectValue(routeState.recoveryPolicyFilter, recoveryPolicySelect);
+    state.triggerSourceFilter = normalizeSelectValue(routeState.triggerSourceFilter, triggerSourceSelect);
     state.timezone = normalizeSelectValue(state.timezone, timezone)
       || normalizeToken(state.browserTimezone)
       || "UTC";
@@ -142,6 +155,9 @@ export function createRunsListUi(options) {
     }
     if (recoveryPolicySelect) {
       recoveryPolicySelect.value = state.recoveryPolicyFilter;
+    }
+    if (triggerSourceSelect) {
+      triggerSourceSelect.value = state.triggerSourceFilter;
     }
     if (filter) {
       filter.value = state.filterText;
@@ -236,6 +252,9 @@ export function createRunsListUi(options) {
     }
     if (state.selectedJobKey) {
       bits.push(`job='${state.selectedJobKey}'`);
+    }
+    if (state.triggerSourceFilter) {
+      bits.push(`triggerSource=${state.triggerSourceFilter}`);
     }
     if (bits.length === 0) {
       return `${totalCount} run(s)`;

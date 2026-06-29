@@ -1,7 +1,7 @@
 package com.etl.controlplane.api;
 
 /**
- * Placeholder trigger-now decision envelope until launch orchestration is wired.
+ * Trigger-now decision envelope returned by job/schedule trigger endpoints.
  */
 public record TriggerNowDecisionResponse(
 		String jobKey,

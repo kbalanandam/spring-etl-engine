@@ -3,6 +3,7 @@ package com.etl.controlplane.api;
 import com.etl.controlplane.jobs.JobBundleReadModelService;
 import com.etl.controlplane.jobs.JobBundleConfigView;
 import com.etl.controlplane.jobs.JobBundleSummaryView;
+import com.etl.controlplane.jobs.SelectedJobLaunchService;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryView;
 import com.etl.controlplane.triggers.TriggerEventRegistry;
@@ -46,6 +47,9 @@ class JobBundleControllerTest {
 
 	@MockitoBean
 	private TriggerEventRegistry triggerEventRegistry;
+
+	@MockitoBean
+	private SelectedJobLaunchService selectedJobLaunchService;
 
 	@Test
 	void returnsBundleList() throws Exception {
@@ -143,13 +147,15 @@ class JobBundleControllerTest {
 	}
 
 	@Test
-	void triggerNowReturnsAcceptedPlaceholderForKnownJob() throws Exception {
+	void triggerNowReturnsAcceptedAndLaunchesWorkerForKnownJob() throws Exception {
 		when(jobBundleReadModelService.findBundle(eq("customer-load"))).thenReturn(Optional.of(
 				new JobBundleSummaryView("customer-load", "Customer Load",
 						"src/main/resources/config-jobs/customer-load/job-config.yaml", "READY", List.of())
 		));
-		when(triggerEventRegistry.recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator@example"), eq("Trigger request accepted as placeholder for reason='manual_operator_request' requestedBy='operator@example'.")))
-				.thenReturn(new TriggerEventView("te-123", "customer-load", "ACCEPTED", "manual_operator_request", "operator@example", Instant.parse("2026-05-27T10:15:30Z"), null, "Trigger request accepted as placeholder for reason='manual_operator_request' requestedBy='operator@example'."));
+		when(triggerEventRegistry.recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator@example"), eq("Trigger request accepted for reason='manual_operator_request' requestedBy='operator@example'.")))
+				.thenReturn(new TriggerEventView("te-123", "customer-load", "ACCEPTED", "manual_operator_request", "operator@example", Instant.parse("2026-05-27T10:15:30Z"), null, "Trigger request accepted for reason='manual_operator_request' requestedBy='operator@example'."));
+		when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null)))
+				.thenReturn(new SelectedJobLaunchService.LaunchResult(true, "Worker launch started [pid=2222]."));
 
 		mockMvc.perform(post("/api/v1/jobs/customer-load:trigger-now")
 						.contentType("application/json")
@@ -160,7 +166,8 @@ class JobBundleControllerTest {
 				.andExpect(jsonPath("$.triggerEventId").value("te-123"));
 
 		verify(jobBundleReadModelService).findBundle(eq("customer-load"));
-		verify(triggerEventRegistry).recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator@example"), eq("Trigger request accepted as placeholder for reason='manual_operator_request' requestedBy='operator@example'."));
+		verify(triggerEventRegistry).recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator@example"), eq("Trigger request accepted for reason='manual_operator_request' requestedBy='operator@example'."));
+		verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null));
 	}
 
 	@Test
@@ -195,6 +202,7 @@ class JobBundleControllerTest {
 		verify(jobBundleReadModelService).findBundle(eq("customer-load"));
 		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(5));
 		verify(triggerEventRegistry, never()).recordAccepted(any(), any(), any(), any());
+		verify(selectedJobLaunchService, never()).launchSelectedJob(any(), any(), any());
 	}
 
 	@Test

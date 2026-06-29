@@ -58,6 +58,7 @@ import {
   normalizeSupportedFilter as normalizeSupportedFilterValue,
 } from "./runs-route-state.js";
 import {
+  fetchTriggerSourceOptions as fetchTriggerSourceOptionsValue,
   fetchRunsForFilters as fetchRunsForFiltersValue,
 } from "./runs-data.js";
 import {
@@ -153,9 +154,11 @@ const viewState = {
       order: [],
     },
     jobOptions: [],
+    triggerSourceOptions: [],
     selectedJobKey: "",
     runModeFilter: "",
     recoveryPolicyFilter: "",
+    triggerSourceFilter: "",
     startDate: "",
     timezone: "",
     browserTimezone: "UTC",
@@ -186,6 +189,7 @@ const runsListUi = createRunsListUi({
   getState: () => viewState.runs,
   syncRouteHash: syncListRouteHash,
   renderJobOptions: renderRunsJobOptions,
+  renderTriggerSourceOptions: renderRunsTriggerSourceOptions,
   formatDateForInput,
   escapeHtml,
 });
@@ -329,6 +333,7 @@ function currentRouteState() {
       selectedJobKey: parsed.query.job || "",
       runModeFilter: parsed.query.runMode || "",
       recoveryPolicyFilter: parsed.query.recoveryPolicy || "",
+      triggerSourceFilter: parsed.query.triggerSource || "",
       startDate: parsed.query.startDate || "",
       timezone: parsed.query.timezone || "",
       filterText: parsed.query.f || "",
@@ -637,6 +642,58 @@ async function refreshJobDetailRecentTriggerEvents(jobKeyValue, query) {
     triggerEventsState.textContent = `Unable to refresh trigger events: ${error.message}`;
     triggerEventsList.hidden = true;
   }
+}
+
+async function refreshJobDetailRecentRuns(jobKeyValue, query) {
+  const normalizedJobKey = String(jobKeyValue || "").trim();
+  const runCount = document.getElementById("job-detail-recent-run-count");
+  const recentRunsState = document.getElementById("job-detail-recent-runs-state");
+  const recentRunsList = document.getElementById("job-detail-recent-runs-list");
+  if (normalizedJobKey === "" || !runCount || !recentRunsState || !recentRunsList) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(normalizedJobKey)}`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`Job detail API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    const recentRuns = Array.isArray(payload.recentRuns) ? payload.recentRuns : [];
+    runCount.textContent = String(recentRuns.length);
+    renderJobDetailRecentRuns(recentRuns, normalizedJobKey, query);
+  } catch (error) {
+    recentRunsState.className = "state error";
+    recentRunsState.textContent = `Unable to refresh recent runs: ${error.message}`;
+    recentRunsList.hidden = true;
+  }
+}
+
+function invalidateRunsState() {
+  viewState.runs.loaded = false;
+  viewState.runs.loadedForKey = "";
+  viewState.runs.cache.byFilter = {};
+  viewState.runs.cache.order = [];
+}
+
+async function refreshRunsAfterTriggerAccepted() {
+  invalidateRunsState();
+  if (currentRouteState().key === "runs") {
+    await loadRuns({ forceRefresh: true });
+  }
+}
+
+function scheduleFollowUpRunsRefresh() {
+  // Runs projection can lag initial launch; staggered refresh helps surface new runs.
+  [2000, 5000, 9000, 15000].forEach((delayMs) => {
+    window.setTimeout(() => {
+      refreshRunsAfterTriggerAccepted().catch(() => {
+        // Primary feedback already shown; ignore follow-up refresh failures.
+      });
+    }, delayMs);
+  });
 }
 
 function renderJobDetailRecentRuns(recentRuns, jobKeyValue, query) {
@@ -1059,14 +1116,24 @@ async function requestTriggerNow(jobKeyValue) {
       const eventId = valueOrDash(payload.triggerEventId);
       const decisionStatus = String(payload.decisionStatus || "").trim();
       const duplicateSuppressed = decisionStatus === "DUPLICATE_SUPPRESSED";
-      triggerFeedback.className = duplicateSuppressed ? "state state-warning" : "state state-success";
+      const launchSkipped = decisionStatus === "LAUNCH_SKIPPED";
+      triggerFeedback.className = duplicateSuppressed || launchSkipped ? "state state-warning" : "state state-success";
       triggerFeedback.textContent = duplicateSuppressed
         ? `Trigger already accepted recently. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`
-        : `Trigger accepted. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`;
+        : launchSkipped
+          ? `Trigger accepted but launch skipped. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}. ${valueOrDash(payload.message)}`
+          : `Trigger accepted. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`;
       triggerFeedback.hidden = false;
-      triggerNowRequestState.cooldownUntilByJobKey[normalizedJobKey] = Date.now() + TRIGGER_NOW_DUPLICATE_WINDOW_MS;
+      if (!launchSkipped) {
+        triggerNowRequestState.cooldownUntilByJobKey[normalizedJobKey] = Date.now() + TRIGGER_NOW_DUPLICATE_WINDOW_MS;
+      }
 
       await refreshJobDetailRecentTriggerEvents(normalizedJobKey, currentRouteState()?.query);
+      if (!launchSkipped) {
+        await refreshJobDetailRecentRuns(normalizedJobKey, currentRouteState()?.query);
+        await refreshRunsAfterTriggerAccepted();
+        scheduleFollowUpRunsRefresh();
+      }
       return;
     }
 
@@ -1481,7 +1548,7 @@ async function requestScheduleWorkbenchTriggerNow(schedule, requestId) {
   state.textContent = `Submitting trigger now request for ${selectedJobKey}...`;
 
   try {
-    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(selectedJobKey)}:trigger-now`, {
+    const response = await fetch(`/api/v1/schedules/${encodeURIComponent(scheduleId)}:trigger-now`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -1494,16 +1561,31 @@ async function requestScheduleWorkbenchTriggerNow(schedule, requestId) {
     });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok && response.status !== 202) {
+      const backendMessage = String(payload?.message || "").trim();
+      const detail = backendMessage !== "" ? backendMessage : `status=${response.status}`;
+      const endpointHint = response.status === 404
+        ? "Schedule trigger-now endpoint is unavailable in the running backend. Restart the app with the latest build."
+        : "";
       state.className = "state error";
-      state.textContent = `Trigger now failed: ${valueOrDash(payload.message)}`;
+      state.textContent = endpointHint === ""
+        ? `Trigger now failed: ${detail}`
+        : `Trigger now failed: ${detail}. ${endpointHint}`;
       return;
     }
-    state.className = "state";
-    state.textContent = `Trigger now accepted for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}`;
+    const decisionStatus = String(payload.decisionStatus || "").trim();
+    const launchSkipped = decisionStatus === "LAUNCH_SKIPPED";
+    state.className = (decisionStatus === "DUPLICATE_SUPPRESSED" || launchSkipped) ? "state state-warning" : "state state-success";
+    state.textContent = launchSkipped
+      ? `Trigger now accepted but launch skipped for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}. ${valueOrDash(payload.message)}`
+      : `Trigger now accepted for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}`;
     if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
       return;
     }
     viewState.schedules.selectedScheduleId = scheduleId;
+    if (!launchSkipped) {
+      await refreshRunsAfterTriggerAccepted();
+      scheduleFollowUpRunsRefresh();
+    }
     await loadSchedules();
   } catch (error) {
     state.className = "state error";
@@ -1710,25 +1792,28 @@ async function requestScheduleDetailStateChange(scheduleId, action, requestId) {
 // list-selection hash syncing is intentionally not used.
 
 
-async function loadRuns() {
+async function loadRuns(options = {}) {
   const requestId = ++loadRequestTracker.runs;
+  const forceRefresh = Boolean(options?.forceRefresh);
   const state = document.getElementById("runs-state");
   const table = document.getElementById("runs-table");
   const body = document.getElementById("runs-body");
   const selectedJobKey = String(viewState.runs.selectedJobKey || "").trim();
   const selectedRunMode = normalizeSupportedFilter(viewState.runs.runModeFilter, SUPPORTED_RUN_MODES);
   const selectedRecoveryPolicy = normalizeSupportedFilter(viewState.runs.recoveryPolicyFilter, SUPPORTED_RECOVERY_POLICIES);
+  const selectedTriggerSource = normalizeTriggerSourceFilter(viewState.runs.triggerSourceFilter);
   const selectedStartDate = normalizeIsoDate(viewState.runs.startDate);
   const selectedTimezone = String(viewState.runs.timezone || viewState.runs.browserTimezone || "UTC").trim() || "UTC";
 
   viewState.runs.selectedJobKey = selectedJobKey;
   viewState.runs.runModeFilter = selectedRunMode;
   viewState.runs.recoveryPolicyFilter = selectedRecoveryPolicy;
+  viewState.runs.triggerSourceFilter = selectedTriggerSource;
   viewState.runs.startDate = selectedStartDate;
   viewState.runs.timezone = selectedTimezone;
-  const loadKey = `${selectedJobKey || "__all__"}|${selectedRunMode || "__all_mode__"}|${selectedRecoveryPolicy || "__all_policy__"}|${selectedStartDate || "__no_date__"}|${selectedTimezone}`;
+  const loadKey = `${selectedJobKey || "__all__"}|${selectedRunMode || "__all_mode__"}|${selectedRecoveryPolicy || "__all_policy__"}|${selectedTriggerSource || "__all_source__"}|${selectedStartDate || "__no_date__"}|${selectedTimezone}`;
 
-  if (viewState.runs.loaded && viewState.runs.loadedForKey === loadKey) {
+  if (!forceRefresh && viewState.runs.loaded && viewState.runs.loadedForKey === loadKey) {
     runsListUi.renderTable();
     return;
   }
@@ -1741,7 +1826,16 @@ async function loadRuns() {
 
   try {
     await ensureRunsJobOptions();
-    const runs = await fetchRunsForFilters(selectedJobKey, selectedRunMode, selectedRecoveryPolicy, selectedStartDate, selectedTimezone);
+    await ensureRunsTriggerSourceOptions();
+    const runs = await fetchRunsForFilters(
+      selectedJobKey,
+      selectedRunMode,
+      selectedRecoveryPolicy,
+      selectedTriggerSource,
+      selectedStartDate,
+      selectedTimezone,
+      { bypassCache: forceRefresh }
+    );
     if (!shouldApplyRouteScopedUpdate("runs", requestId)) {
       return;
     }
@@ -1766,6 +1860,22 @@ async function loadRuns() {
 
 function normalizeSupportedFilter(value, supportedValues) {
   return runsBridgeHelpers.normalizeSupportedFilter(value, supportedValues);
+}
+
+function normalizeTriggerSourceFilter(value) {
+  const normalized = String(value || "").trim().toUpperCase();
+  if (normalized === "") {
+    return "";
+  }
+  const sourceCodes = new Set(
+    (Array.isArray(viewState.runs.triggerSourceOptions) ? viewState.runs.triggerSourceOptions : [])
+      .map((item) => String(item?.sourceCode || "").trim().toUpperCase())
+      .filter((item) => item !== "")
+  );
+  if (sourceCodes.size === 0) {
+    return normalized;
+  }
+  return sourceCodes.has(normalized) ? normalized : "";
 }
 
 function normalizeIsoDate(value) {
@@ -1990,6 +2100,23 @@ async function ensureRunsJobOptions() {
   renderRunsJobOptions();
 }
 
+async function ensureRunsTriggerSourceOptions() {
+  if (viewState.runs.triggerSourceOptions.length > 0) {
+    return;
+  }
+  try {
+    const options = await fetchTriggerSourceOptionsValue();
+    viewState.runs.triggerSourceOptions = Array.isArray(options) ? options : [];
+  } catch {
+    viewState.runs.triggerSourceOptions = [
+      { sourceCode: "MANUAL", displayName: "Manual" },
+      { sourceCode: "SCHEDULE", displayName: "Schedule" },
+      { sourceCode: "EVENT", displayName: "Event" },
+    ];
+  }
+  renderRunsTriggerSourceOptions();
+}
+
 function renderRunsJobOptions() {
   const select = document.getElementById("runs-job-select");
   if (!select) {
@@ -2015,13 +2142,35 @@ function renderRunsJobOptions() {
   select.value = selected;
 }
 
+function renderRunsTriggerSourceOptions() {
+  const select = document.getElementById("runs-trigger-source-select");
+  if (!select) {
+    return;
+  }
+
+  const selected = viewState.runs.triggerSourceFilter || "";
+  select.innerHTML = '<option value="">All sources</option>';
+  const options = Array.isArray(viewState.runs.triggerSourceOptions)
+    ? viewState.runs.triggerSourceOptions
+    : [];
+  options.forEach((source) => {
+    const option = document.createElement("option");
+    option.value = String(source?.sourceCode || "").trim();
+    option.textContent = String(source?.displayName || source?.sourceCode || "-").trim();
+    if (option.value !== "") {
+      select.appendChild(option);
+    }
+  });
+  select.value = selected;
+}
+
 
 function applyJobsItems(items) {
   return runsBridgeHelpers.applyJobsItems(items);
 }
 
-async function fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, startDate, timezone) {
-  return runsBridgeHelpers.fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, startDate, timezone);
+async function fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, triggerSource, startDate, timezone, requestOptions = {}) {
+  return runsBridgeHelpers.fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, triggerSource, startDate, timezone, requestOptions);
 }
 
 async function loadRunDetail(routeState) {

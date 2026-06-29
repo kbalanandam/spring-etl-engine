@@ -37,14 +37,16 @@ export function createAppRunsBridgeHelpers(options = {}) {
     return jobs;
   }
 
-  async function fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, startDate, timezone) {
+  async function fetchRunsForFilters(selectedJobKey, runMode, recoveryPolicy, triggerSource, startDate, timezone, requestOptions = {}) {
     return fetchRunsForFiltersValue({
       selectedJobKey,
       runMode,
       recoveryPolicy,
+      triggerSource,
       startDate,
       timezone,
       cache: viewState.runs.cache,
+      bypassCache: Boolean(requestOptions?.bypassCache),
     });
   }
 

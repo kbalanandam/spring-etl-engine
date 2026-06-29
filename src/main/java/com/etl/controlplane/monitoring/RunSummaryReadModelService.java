@@ -81,6 +81,16 @@ public class RunSummaryReadModelService {
 	                                              String recoveryPolicyFilter,
 	                                              LocalDate startDate,
 	                                              ZoneId selectedZoneId) {
+		return latestRunsFiltered(limit, jobFilter, runModeFilter, recoveryPolicyFilter, null, startDate, selectedZoneId);
+	}
+
+	public List<RunSummaryView> latestRunsFiltered(int limit,
+	                                              String jobFilter,
+	                                              String runModeFilter,
+	                                              String recoveryPolicyFilter,
+	                                              String triggerSourceFilter,
+	                                              LocalDate startDate,
+	                                              ZoneId selectedZoneId) {
 		if (limit <= 0) {
 			return List.of();
 		}
@@ -88,9 +98,11 @@ public class RunSummaryReadModelService {
 		String normalizedJobFilter = normalizeToken(jobFilter);
 		String normalizedRunModeFilter = normalizeToken(runModeFilter);
 		String normalizedRecoveryPolicyFilter = normalizeToken(recoveryPolicyFilter);
+		String normalizedTriggerSourceFilter = normalizeToken(triggerSourceFilter);
 		if (normalizedJobFilter.isBlank()
 				&& normalizedRunModeFilter.isBlank()
 				&& normalizedRecoveryPolicyFilter.isBlank()
+				&& normalizedTriggerSourceFilter.isBlank()
 				&& startDate == null) {
 			return registry.latestRuns(limit);
 		}
@@ -99,6 +111,7 @@ public class RunSummaryReadModelService {
 				.filter(run -> matchesJobFilter(run, normalizedJobFilter))
 				.filter(run -> matchesRunModeFilter(run, normalizedRunModeFilter))
 				.filter(run -> matchesRecoveryPolicyFilter(run, normalizedRecoveryPolicyFilter))
+				.filter(run -> matchesTriggerSourceFilter(run, normalizedTriggerSourceFilter))
 				.filter(run -> matchesStartDate(run, startDate, effectiveZone))
 				.limit(limit)
 				.toList();
@@ -255,6 +268,13 @@ public class RunSummaryReadModelService {
 			return true;
 		}
 		return normalizeToken(run.recoveryPolicy()).equals(normalizedRecoveryPolicyFilter);
+	}
+
+	private boolean matchesTriggerSourceFilter(RunSummaryView run, String normalizedTriggerSourceFilter) {
+		if (normalizedTriggerSourceFilter.isBlank()) {
+			return true;
+		}
+		return normalizeToken(run.triggerOrigin()).equals(normalizedTriggerSourceFilter);
 	}
 
 	private String normalizeToken(String value) {

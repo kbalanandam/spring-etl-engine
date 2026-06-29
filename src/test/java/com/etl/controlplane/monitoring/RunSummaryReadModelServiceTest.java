@@ -63,6 +63,38 @@ class RunSummaryReadModelServiceTest {
 	}
 
 	@Test
+	void projectsStartedRunBeforeSummaryAndThenOverwritesWithTerminalSummary() throws IOException {
+		createLog(
+				tempDir.resolve("2026-05-27/custom-steps.log"),
+				"2026-05-27T10:00:00.000+00:00 INFO [main] [scenario:custom-steps] [run:20260527-100000-000] [job:3001] [step:n/a] logger - RUN_EVENT event=job_started scenario=custom-steps mainFlow=Main subFlow=Sub recoveryPolicy=rerun-from-start jobName=etlJob jobExecutionId=3001 startTime=2026-05-27T10:00:00 runMode=explicit-job",
+				"2026-05-27T10:02:05.000+00:00 INFO [main] [scenario:custom-steps] [run:20260527-100000-000] [job:3001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=custom-steps mainFlow=Main subFlow=Sub runMode=explicit-job recoveryPolicy=rerun-from-start jobName=etlJob jobExecutionId=3001 status=COMPLETED startTime=2026-05-27T10:00:00 endTime=2026-05-27T10:02:05 durationSeconds=125 sourceCount=40 writtenCount=40 rejectedCount=0 handoffReadCount=0 handoffWriteCount=0 executedStepCount=1 rollupMode=STEP_SUM failureCount=0"
+		);
+
+		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser());
+		List<RunSummaryView> runs = service.latestRuns(10);
+
+		assertEquals(1, runs.size());
+		assertEquals(3001L, runs.get(0).jobExecutionId());
+		assertEquals("COMPLETED", runs.get(0).status());
+		assertEquals(40L, runs.get(0).writtenCount());
+	}
+
+	@Test
+	void projectsStartedRunWhenOnlyJobStartedEventExists() throws IOException {
+		createLog(
+				tempDir.resolve("2026-05-27/custom-steps-started.log"),
+				"2026-05-27T10:00:00.000+00:00 INFO [main] [scenario:custom-steps] [run:20260527-100000-000] [job:3002] [step:n/a] logger - RUN_EVENT event=job_started scenario=custom-steps mainFlow=Main subFlow=Sub recoveryPolicy=rerun-from-start jobName=etlJob jobExecutionId=3002 startTime=2026-05-27T10:00:00 runMode=explicit-job"
+		);
+
+		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser());
+		List<RunSummaryView> runs = service.latestRuns(10);
+
+		assertEquals(1, runs.size());
+		assertEquals(3002L, runs.get(0).jobExecutionId());
+		assertEquals("STARTED", runs.get(0).status());
+	}
+
+	@Test
 	void findsRunByJobExecutionId() throws IOException {
 		createLog(
 				tempDir.resolve("2026-05-27/customer-load.log"),

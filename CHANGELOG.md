@@ -11,6 +11,16 @@ and this project adheres to **Semantic Versioning**.
 - Added control-plane trigger-source catalog foundations (`TriggerSourceCatalog`, JDBC-backed `TriggerSourceCatalogService`, `TriggerSourceOptionView`, and `TriggerSourceListResponse`) for API/UI trigger-source filter option envelopes.
 - Added `SelectedJobLaunchService` to launch selected-job ETL workers as separate processes with structured `CONTROLPLANE_LAUNCH` start/finish evidence and guardrailed launch-skip messaging.
 
+### Changed
+- Extended schedule trigger-now handling and control-plane launch orchestration to return richer decision payloads (`triggerEventId`, launch-started context, duplicate suppression semantics), persist consistent schedule/trigger linkage, and emit launch lifecycle evidence for manual and scheduler-origin requests.
+- Extended `/api/v1/runs` and Operator Runs UX with trigger-source filtering, route/state persistence, filter-option catalog loading, and follow-up refresh hardening so schedule-origin runs surface more reliably after accepted triggers.
+- Updated local restart and verification tooling (`scripts/restart-controlplane.ps1`, `scripts/verify-recent-changes.ps1`, smoke tests, and `scripts/README.md`) to keep startup logs bounded to current session evidence and improve repeatable control-plane troubleshooting flows.
+- Expanded relational selected-job startup guardrails and coverage for source/target `connectionRef` compatibility by validating unsupported or unresolved references earlier in `ConfigLoader` with focused regression tests.
+- Updated control-plane architecture documentation (`docs/architecture/control-plane/*`, `docs/architecture/etl-core/relational-db-support.md`) to reflect trigger-source cataloging, launch evidence lineage, and relational connection reference contracts.
+
+### Fixed
+- Fixed `/api/v1/runs` trigger-source filtering behavior to avoid post-limit filtering gaps that could hide newly completed matching runs.
+
 ## [1.9.1] - 2026-06-16
 
 ### Added

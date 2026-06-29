@@ -20,12 +20,18 @@ public class SelectedJobLaunchService {
 
 	private final JobBundleReadModelService jobBundleReadModelService;
 	private final boolean launchEnabled;
+	private final String workerDatasourceUrl;
+	private final String workerConnectionInitSql;
 
 	@Autowired
 	public SelectedJobLaunchService(JobBundleReadModelService jobBundleReadModelService,
-	                                @Value("${controlplane.job-launch.enabled:false}") boolean launchEnabled) {
+	                                @Value("${controlplane.job-launch.enabled:false}") boolean launchEnabled,
+	                                @Value("${controlplane.job-launch.worker.datasource.url:}") String workerDatasourceUrl,
+	                                @Value("${controlplane.job-launch.worker.connection-init-sql:}") String workerConnectionInitSql) {
 		this.jobBundleReadModelService = jobBundleReadModelService;
 		this.launchEnabled = launchEnabled;
+		this.workerDatasourceUrl = normalize(workerDatasourceUrl);
+		this.workerConnectionInitSql = normalize(workerConnectionInitSql);
 	}
 
 	public LaunchResult launchSelectedJob(String selectedJobKey, String triggerOrigin, String scheduleId) {
@@ -54,13 +60,21 @@ public class SelectedJobLaunchService {
 			return LaunchResult.skipped("Classpath is unavailable for worker process launch.");
 		}
 
-		ProcessBuilder processBuilder = new ProcessBuilder(
-				javaExecutable,
-				"-Detl.config.job=" + jobConfigPath,
-				"-Detl.config.allow-demo-fallback=false",
-				"-cp",
-				classPath,
-				"com.etl.ETLEngineApplication");
+		java.util.List<String> command = new java.util.ArrayList<>();
+		command.add(javaExecutable);
+		command.add("-Detl.config.job=" + jobConfigPath);
+		command.add("-Detl.config.allow-demo-fallback=false");
+		if (!workerDatasourceUrl.isBlank()) {
+			command.add("-Dspring.datasource.url=" + workerDatasourceUrl);
+		}
+		if (!workerConnectionInitSql.isBlank()) {
+			command.add("-Dspring.datasource.hikari.connection-init-sql=" + workerConnectionInitSql);
+		}
+		command.add("-cp");
+		command.add(classPath);
+		command.add("com.etl.ETLEngineApplication");
+
+		ProcessBuilder processBuilder = new ProcessBuilder(command);
 		processBuilder.redirectErrorStream(true);
 		processBuilder.inheritIO();
 

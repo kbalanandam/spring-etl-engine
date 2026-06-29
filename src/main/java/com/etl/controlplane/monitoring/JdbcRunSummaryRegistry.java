@@ -282,6 +282,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				       rs.run_mode,
 				       rs.recovery_policy,
 				       rs.log_path,
+				       ts.source_code as trigger_source_code,
 				       te.trigger_origin,
 				       te.schedule_id,
 				       te.watcher_id,
@@ -291,6 +292,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				left join controlplane_trigger_event te
 				  on (rr.trigger_event_pk is not null and te.trigger_event_pk = rr.trigger_event_pk)
 				  or (rr.trigger_event_pk is null and rr.trigger_event_id is not null and te.trigger_event_id = rr.trigger_event_id)
+				left join controlplane_trigger_source ts on ts.trigger_source_pk = te.trigger_source_pk
 				order by case when rs.start_time is null then 1 else 0 end,
 				         rs.start_time desc,
 				         rs.job_execution_id desc
@@ -308,6 +310,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				rs.getString("run_mode"),
 				rs.getString("recovery_policy"),
 				normalizeTriggerOriginToken(
+					rs.getString("trigger_source_code"),
 					rs.getString("trigger_origin"),
 					rs.getString("schedule_id"),
 					rs.getString("watcher_id"),
@@ -355,6 +358,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				       rs.run_mode,
 				       rs.recovery_policy,
 				       rs.log_path,
+				       ts.source_code as trigger_source_code,
 				       te.trigger_origin,
 				       te.schedule_id,
 				       te.watcher_id,
@@ -364,6 +368,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				left join controlplane_trigger_event te
 				  on (rr.trigger_event_pk is not null and te.trigger_event_pk = rr.trigger_event_pk)
 				  or (rr.trigger_event_pk is null and rr.trigger_event_id is not null and te.trigger_event_id = rr.trigger_event_id)
+				left join controlplane_trigger_source ts on ts.trigger_source_pk = te.trigger_source_pk
 				where rs.job_execution_id = ?
 				""", (rs, rowNum) -> new RunSummaryView(
 				rs.getString("scenario"),
@@ -378,6 +383,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				rs.getString("run_mode"),
 				rs.getString("recovery_policy"),
 				normalizeTriggerOriginToken(
+					rs.getString("trigger_source_code"),
 					rs.getString("trigger_origin"),
 					rs.getString("schedule_id"),
 					rs.getString("watcher_id"),
@@ -1918,7 +1924,11 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		}
 	}
 
-	private String normalizeTriggerOriginToken(String value, String scheduleId, String watcherId, String externalOriginKey) {
+	private String normalizeTriggerOriginToken(String sourceCode, String value, String scheduleId, String watcherId, String externalOriginKey) {
+		String sourceCodeToken = normalize(sourceCode).toUpperCase(Locale.ROOT);
+		if ("SCHEDULE".equals(sourceCodeToken) || "EVENT".equals(sourceCodeToken) || "MANUAL".equals(sourceCodeToken)) {
+			return sourceCodeToken;
+		}
 		String token = normalize(value).toUpperCase(Locale.ROOT);
 		if ("SCHEDULE".equals(token)) {
 			return "SCHEDULE";

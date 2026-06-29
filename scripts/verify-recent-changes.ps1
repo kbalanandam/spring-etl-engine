@@ -5,10 +5,13 @@
     1. A known-good explicit scenario (`customer-load`) still runs successfully.
     2. A known-bad preserved scenario (`csv-to-sqlserver`) fails for the
        right operational reason and emits failure evidence in logs.
+    3. Trigger-now controller paths emit structured `CONTROLPLANE_TRIGGER`
+       evidence logs for requested/accepted/duplicate decisions.
 
     Main artifacts:
     - target/verify-customer-load.log
     - target/verify-csv-to-sqlserver.log
+    - target/verify-trigger-now.log
     - src/main/resources/config-jobs/customer-load/output/customers.xml
 
     Important behavior:
@@ -230,6 +233,7 @@ function Assert-FileContainsAll {
 
 $positiveCapture = Join-Path $RepoRoot 'target\verify-customer-load.log'
 $negativeCapture = Join-Path $RepoRoot 'target\verify-csv-to-sqlserver.log'
+$triggerCapture = Join-Path $RepoRoot 'target\verify-trigger-now.log'
 $customerOutputRoot = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output'
 $customerOutput = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output\customers.xml'
 $smokeDbDir = Join-Path $RepoRoot 'target\verify-smoke'
@@ -254,7 +258,7 @@ try {
             }
         }
 
-    Write-Host "[1/2] Verifying positive smoke run: customer-load"
+    Write-Host "[1/3] Verifying positive smoke run: customer-load"
     if (Test-Path (Join-Path $RepoRoot 'targetcustomers.xml')) {
         Remove-Item (Join-Path $RepoRoot 'targetcustomers.xml') -Force
     }
@@ -276,7 +280,7 @@ try {
     Assert-FileContainsAll -Path $positiveCapture -ExpectedTexts @('STEP_EVENT event=step_finished', 'stepName=customers-step') -Message 'customer-load did not finish the explicit step.'
     Assert-FileContains -Path $customerOutput -ExpectedText '<Customers>' -Message 'customer-load did not produce expected XML output.'
 
-    Write-Host "[2/2] Verifying negative smoke run: csv-to-sqlserver operational failure evidence"
+    Write-Host "[2/3] Verifying negative smoke run: csv-to-sqlserver operational failure evidence"
     # Negative smoke: prove that the preserved SQL Server scenario still fails and
     # emits explicit failure evidence for operators.
     Invoke-MavenScenario -ScenarioName 'csv-to-sqlserver' -JobConfigPath 'src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml' -CaptureFile $negativeCapture -ExpectSuccess $false -AllowZeroExitOnExpectedFailure $true -AdditionalJvmArguments $smokeDbJvmArg | Out-Null
@@ -285,10 +289,28 @@ try {
     Assert-FileContains -Path $negativeCapture -ExpectedText 'JOB_FAILURE event=job_failure scenario=csv-to-sqlserver' -Message 'csv-to-sqlserver did not emit categorized job-failure evidence.'
     Assert-FileContains -Path $negativeCapture -ExpectedText 'CannotGetJdbcConnectionException' -Message 'csv-to-sqlserver did not report the expected SQL connectivity failure category.'
 
+    Write-Host "[3/3] Verifying trigger-now log evidence from controller tests"
+    $triggerArgs = @(
+        '--no-transfer-progress'
+        '-Dtest=JobBundleControllerTriggerNowUnitTest,ScheduleControllerTest'
+        'test'
+    )
+    $triggerExitCode = Invoke-MavenWithTimeout -CaptureFile $triggerCapture -Arguments $triggerArgs -TimeoutMinutes $ScenarioTimeoutMinutes -OperationLabel 'trigger-now evidence tests'
+    if ($triggerExitCode -ne 0) {
+        throw "Trigger-now evidence tests failed unexpectedly. See $triggerCapture"
+    }
+    Assert-FileContains -Path $triggerCapture -ExpectedText 'CONTROLPLANE_TRIGGER event=trigger_now_requested scope=JOB' -Message 'Missing job trigger-now requested evidence.'
+    Assert-FileContains -Path $triggerCapture -ExpectedText 'CONTROLPLANE_TRIGGER event=trigger_now_accepted scope=JOB' -Message 'Missing job trigger-now accepted evidence.'
+    Assert-FileContains -Path $triggerCapture -ExpectedText 'CONTROLPLANE_TRIGGER event=trigger_now_duplicate_suppressed scope=JOB' -Message 'Missing job trigger-now duplicate-suppressed evidence.'
+    Assert-FileContains -Path $triggerCapture -ExpectedText 'CONTROLPLANE_TRIGGER event=trigger_now_requested scope=SCHEDULE' -Message 'Missing schedule trigger-now requested evidence.'
+    Assert-FileContains -Path $triggerCapture -ExpectedText 'CONTROLPLANE_TRIGGER event=trigger_now_accepted scope=SCHEDULE' -Message 'Missing schedule trigger-now accepted evidence.'
+    Assert-FileContains -Path $triggerCapture -ExpectedText 'CONTROLPLANE_TRIGGER event=trigger_now_duplicate_suppressed scope=SCHEDULE' -Message 'Missing schedule trigger-now duplicate-suppressed evidence.'
+
     Write-Host ''
     Write-Host 'Verification PASSED' -ForegroundColor Green
     Write-Host "- Positive run log: $positiveCapture"
     Write-Host "- Negative run log: $negativeCapture"
+    Write-Host "- Trigger evidence log: $triggerCapture"
     Write-Host "- Positive output: $customerOutput"
 
     # Reset the process exit code to success because the negative scenario already failed

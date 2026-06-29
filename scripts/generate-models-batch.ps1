@@ -138,10 +138,10 @@ foreach ($jobConfigFile in $jobConfigFiles) {
     }
 }
 
-$duplicateGroups = $jobs |
+$duplicateGroups = @($jobs |
     Where-Object { -not [string]::IsNullOrWhiteSpace($_.JobNameKey) } |
     Group-Object -Property JobNameKey |
-    Where-Object { $_.Count -gt 1 }
+    Where-Object { $_.Count -gt 1 })
 
 if ($duplicateGroups.Count -gt 0) {
     Write-Warning "Duplicate job names detected. These may map to the same generated package path."
@@ -199,4 +199,5 @@ if ($failures.Count -gt 0) {
 }
 
 Write-Host "Batch model generation completed successfully."
+
 

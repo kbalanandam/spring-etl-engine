@@ -1,5 +1,6 @@
 export const RUNS_FILTER_CACHE_MAX_ENTRIES = 30;
 export const RUNS_FILTER_CACHE_TTL_MS = 5 * 60 * 1000;
+export const RUNS_EMPTY_FILTER_CACHE_TTL_MS = 3 * 1000;
 
 function ensureCache(cache) {
   if (!cache || typeof cache !== "object") {
@@ -14,8 +15,8 @@ function ensureCache(cache) {
   return cache;
 }
 
-export function buildRunsFilterCacheKey(selectedJobKey, runMode, recoveryPolicy, startDate, timezone) {
-  return `${selectedJobKey || ""}|${runMode || ""}|${recoveryPolicy || ""}|${startDate || ""}|${timezone || ""}`;
+export function buildRunsFilterCacheKey(selectedJobKey, runMode, recoveryPolicy, triggerSource, startDate, timezone) {
+  return `${selectedJobKey || ""}|${runMode || ""}|${recoveryPolicy || ""}|${triggerSource || ""}|${startDate || ""}|${timezone || ""}`;
 }
 
 export function getCachedRunsByFilter(cacheSource, cacheKey, nowMs = Date.now(), ttlMs = RUNS_FILTER_CACHE_TTL_MS) {
@@ -36,7 +37,8 @@ export function getCachedRunsByFilter(cacheSource, cacheKey, nowMs = Date.now(),
     return null;
   }
 
-  if (nowMs - entry.cachedAt > ttlMs) {
+  const effectiveTtlMs = entry.items.length === 0 ? Math.min(ttlMs, RUNS_EMPTY_FILTER_CACHE_TTL_MS) : ttlMs;
+  if (nowMs - entry.cachedAt > effectiveTtlMs) {
     delete cache.byFilter[cacheKey];
     cache.order = cache.order.filter((key) => key !== cacheKey);
     return null;
@@ -65,11 +67,18 @@ export function setCachedRunsByFilter(cacheSource, cacheKey, items, nowMs = Date
   }
 }
 
+export function clearCachedRunsByFilter(cacheSource, cacheKey) {
+  const cache = ensureCache(cacheSource);
+  delete cache.byFilter[cacheKey];
+  cache.order = cache.order.filter((key) => key !== cacheKey);
+}
+
 export async function fetchRunsForFilters(options) {
   const {
     selectedJobKey,
     runMode,
     recoveryPolicy,
+    triggerSource,
     startDate,
     timezone,
     cache,
@@ -77,11 +86,12 @@ export async function fetchRunsForFilters(options) {
     nowMs = Date.now(),
     cacheTtlMs = RUNS_FILTER_CACHE_TTL_MS,
     cacheMaxEntries = RUNS_FILTER_CACHE_MAX_ENTRIES,
+    bypassCache = false,
   } = options || {};
 
-  const cacheKey = buildRunsFilterCacheKey(selectedJobKey, runMode, recoveryPolicy, startDate, timezone);
-  const cached = getCachedRunsByFilter(cache, cacheKey, nowMs, cacheTtlMs);
-  if (cached) {
+  const cacheKey = buildRunsFilterCacheKey(selectedJobKey, runMode, recoveryPolicy, triggerSource, startDate, timezone);
+  const cached = bypassCache ? null : getCachedRunsByFilter(cache, cacheKey, nowMs, cacheTtlMs);
+  if (cached !== null) {
     return cached;
   }
 
@@ -95,6 +105,9 @@ export async function fetchRunsForFilters(options) {
   }
   if (recoveryPolicy) {
     params.set("recoveryPolicy", recoveryPolicy);
+  }
+  if (triggerSource) {
+    params.set("triggerSource", triggerSource);
   }
   if (startDate) {
     params.set("startDate", startDate);
@@ -110,7 +123,22 @@ export async function fetchRunsForFilters(options) {
 
   const payload = await response.json();
   const items = Array.isArray(payload.items) ? payload.items : [];
+  if (items.length === 0) {
+    clearCachedRunsByFilter(cache, cacheKey);
+    return items;
+  }
+
   setCachedRunsByFilter(cache, cacheKey, items, nowMs, cacheMaxEntries);
   return items;
+}
+
+export async function fetchTriggerSourceOptions(options = {}) {
+  const { fetchFn = fetch } = options;
+  const response = await fetchFn("/api/v1/runs/trigger-sources", { headers: { Accept: "application/json" } });
+  if (!response.ok) {
+    throw new Error(`Trigger-source API returned ${response.status}`);
+  }
+  const payload = await response.json();
+  return Array.isArray(payload.items) ? payload.items : [];
 }
 

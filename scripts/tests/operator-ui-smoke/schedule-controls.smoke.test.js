@@ -84,11 +84,17 @@ test("operator app wires schedule editor and schedule state-change actions", asy
   assert.match(source, /Schedule action already in progress\. Please wait for the current response\./);
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}/);
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}\/trigger-events\?limit=20/);
+  assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}:trigger-now/);
+  assert.match(source, /const detail = backendMessage !== "" \? backendMessage : `status=\$\{response\.status\}`;/);
+  assert.match(source, /Schedule trigger-now endpoint is unavailable in the running backend\. Restart the app with the latest build\./);
   assert.match(source, /function loadScheduleDetail\(routeState\)/);
   assert.match(source, /function requestScheduleDetailStateChange\(scheduleId, action, requestId\)/);
   assert.match(source, /function setScheduleDetailTriggersExpanded\(expanded\)/);
   assert.match(source, /from "\.\/app-schedule-detail-helpers\.js"/);
   assert.match(detailHelpersSource, /triggerToggleButton\.textContent = isExpanded \? "Hide recent triggers" : "Show recent triggers";/);
+  assert.match(detailHelpersSource, /decisionChip\.className = "decision-chip"/);
+  assert.match(detailHelpersSource, /decision-chip-warning/);
+  assert.match(detailHelpersSource, /decision-chip-success/);
   assert.match(source, /const preserveLayout = Boolean\(viewState\.schedules\.refreshDetailInPlace\);/);
   assert.doesNotMatch(source, /Refreshing schedule detail\.\.\./);
   assert.match(source, /buildSchedulesListHash\(sourceScheduleId, sourceScheduleListQuery\)/);
@@ -98,6 +104,7 @@ test("operator app wires schedule editor and schedule state-change actions", asy
   assert.match(source, /createAppJobDetailHelpers/);
   assert.match(source, /payload\.recentTriggerEvents/);
   assert.match(source, /function refreshJobDetailRecentTriggerEvents\(jobKeyValue, query\)/);
+  assert.match(source, /function refreshJobDetailRecentRuns\(jobKeyValue, query\)/);
   assert.match(stylesSource, /\.decision-chip/);
   assert.match(stylesSource, /\.decision-chip-success/);
   assert.match(stylesSource, /\.decision-chip-warning/);

@@ -65,6 +65,7 @@ class ControlPlaneApiLauncherIntegrationTest {
 		registry.add("controlplane.runs.persistence.mode", () -> "jdbc");
 		registry.add("controlplane.schedules.persistence.mode", () -> "jdbc");
 		registry.add("controlplane.scheduler.enabled", () -> "false");
+		registry.add("controlplane.job-launch.enabled", () -> "false");
 		registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + DB_PATH.toAbsolutePath().toString().replace('\\', '/'));
 		registry.add("spring.datasource.username", () -> "");
 		registry.add("spring.datasource.password", () -> "");

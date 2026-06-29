@@ -10,6 +10,7 @@ Automation helpers under `scripts/` for local verification, cleanup, project-boa
 - Audit and clean duplicate control-plane step rows in SQLite: `cleanup-controlplane-duplicate-steps.ps1`
 - Remove one job bundle and matching generated artifacts safely: `remove-job-bundle.ps1`
 - Restart/start/stop/status control-plane quickly on port 8081: `restart-controlplane.ps1`
+- Generate job-scoped model classes for all job configs under folder roots: `generate-models-batch.ps1`
 - Sync product backlog execution board to GitHub Project V2: `sync_project_board.py`
 - Prepare/run one explicit job config on Windows: `job-runner.ps1`
 - Prepare/run one explicit job config on Linux/macOS: `job-runner.sh`
@@ -48,7 +49,13 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\generate-verification-rep
 Purpose:
 - Positive smoke: `customer-load` must complete
 - Negative smoke: `csv-to-sqlserver` must emit runtime failure evidence (`RUN_SUMMARY status=FAILED`, `JOB_FAILURE`)
+- Trigger-now evidence: controller tests must emit `CONTROLPLANE_TRIGGER` logs for requested/accepted/duplicate decisions (job + schedule scopes)
 - Uses an isolated smoke metadata DB at `target/verify-smoke/etl-dev-smoke.db` (does not wipe shared `.etl-dev/etl-dev.db`)
+
+Key artifacts:
+- `target/verify-customer-load.log`
+- `target/verify-csv-to-sqlserver.log`
+- `target/verify-trigger-now.log`
 
 Usage:
 
@@ -146,6 +153,34 @@ Status only:
 ```powershell
 Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 -Action Status
+```
+
+## `generate-models-batch.ps1`
+
+Purpose:
+- Scans one or more folder roots for `job-config.yaml`
+- Optionally performs one clean upfront (`clean resources:resources`)
+- Regenerates job-scoped XML model classes for each discovered config
+
+Generate preserved bundle models:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\generate-models-batch.ps1
+```
+
+Generate preserved + private bundle models:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\generate-models-batch.ps1 -IncludePrivateJobs
+```
+
+Preview scan and commands only:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\generate-models-batch.ps1 -DryRun
 ```
 
 ## `sync_project_board.py`

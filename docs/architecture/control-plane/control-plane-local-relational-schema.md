@@ -8,8 +8,9 @@ It exists to translate the conceptual retained operational data model into a pra
 
 ## Status
 
-- Classification: **Future direction**
-- The Mermaid diagrams in this document describe the preferred future direction; trigger-event persistence, run-summary persistence, internal schedule/trigger/run surrogate-key foundations, and initial run-record linkage are now shipped behind the optional control-plane API when JDBC mode is enabled.
+- Classification: **Shipped baseline + future direction**
+- The ER section below is refreshed to match the shipped JDBC schema used by the optional control-plane API when JDBC mode is enabled.
+- Sections outside the ER artifact may still include forward-looking design guidance for later extensions.
 - The shipped `controlplane` profile now defaults to the shared SQLite file under `.etl-dev/etl-dev.db` so control-plane retained-history tables and Spring Batch metadata can coexist in one local developer/single-node database file, while stronger relational targets remain open for later deployment profiles.
 - Persisted `attempt_link` and `checkpoint_anchor` records are currently advisory recovery lineage only; they support operator evidence and correlation while F1 still keeps resume execution unsupported. They also do not change the current D3 rerun boundary: the shipped relational target baseline is not treated as idempotent by default, so retained checkpoint lineage must not be read as safe database resume capability.
 
@@ -57,23 +58,24 @@ That direction must still preserve the boundary frozen in [`ADR-0008`](../../adr
 
 ## Flow
 
-Future-only, not shipped today: this diagram shows the intended target shape.
+This diagram reflects the shipped retained-history flow for JDBC mode plus near-term extension seams.
 
 ```mermaid
 flowchart LR
-    TriggerSources[Schedule / Watcher / Manual / External Trigger] --> TriggerEventTable[(trigger_event)]
-    TriggerEventTable --> RunRecordTable[(run_record)]
-    RunRecordTable --> StepRecordTable[(step_record)]
-    RunRecordTable --> ArtifactRecordTable[(artifact_record)]
+    TriggerSources[Schedule / Manual / External Trigger] --> TriggerEventTable[(controlplane_trigger_event)]
+    TriggerEventTable --> RunRecordTable[(controlplane_run_record)]
+    RunRecordTable --> RunSummaryTable[(controlplane_run_summary)]
+    RunRecordTable --> StepRecordTable[(controlplane_step_record)]
+    RunRecordTable --> ArtifactRecordTable[(controlplane_artifact_record)]
     StepRecordTable --> ArtifactRecordTable
-    RunRecordTable --> AttemptLinkTable[(attempt_link)]
-    AttemptLinkTable --> CheckpointAnchorTable[(checkpoint_anchor)]
+    RunRecordTable --> AttemptLinkTable[(controlplane_attempt_link)]
+    RunRecordTable --> CheckpointAnchorTable[(controlplane_checkpoint_anchor)]
 
     subgraph LocalFirst[SQLite-first local control-plane persistence]
-        ScheduleTable[(schedule)]
-        WatcherTable[(watcher)]
+        ScheduleTable[(controlplane_schedule)]
         TriggerEventTable
         RunRecordTable
+        RunSummaryTable
         StepRecordTable
         ArtifactRecordTable
         AttemptLinkTable
@@ -84,14 +86,15 @@ flowchart LR
 Read this schema direction in three rules:
 
 1. local control-plane persistence is useful, but optional
-2. the first local relational shape should stay simple enough for SQLite
+2. the shipped SQLite-first relational shape is the baseline for local control-plane history
 3. later PostgreSQL, SQL Server, or MySQL support should be enabled by disciplined portable modeling, not by a SQLite-only design
 
 ## Scheduler ER model artifact
 
 This ER view is the lightweight scheduler-facing artifact for storage-alignment across backend, operator UI, and docs.
 
-- It reflects what is shipped now in JDBC mode (`controlplane_schedule`, `controlplane_trigger_event`) plus the immediate retained-history direction.
+- It reflects what is shipped now in JDBC mode (`controlplane_schedule`, `controlplane_trigger_event`, `controlplane_run_summary`, `controlplane_run_record`, `controlplane_step_record`, `controlplane_artifact_record`, `controlplane_attempt_link`, `controlplane_checkpoint_anchor`).
+- Trigger origins are now standardized through a master catalog table (`controlplane_trigger_source`) with stable `source_code` values used by UI filters and trigger-event linkage.
 - Update this section when scheduler entity boundaries or relationships change; avoid editing it for non-schema code-only refactors.
 - Internal numeric surrogate keys are now active for relational efficiency (`schedule_pk`, `trigger_event_pk`, `run_record_pk`) while stable external identities (`schedule_id`, `trigger_event_id`, `run_record_id`) remain unique operator/API-facing keys.
 - The current linkage contract is intentionally additive: new `controlplane_run_record.trigger_event_id` writes are populated only from exact `controlplane_trigger_event.launched_run_id` matches, while a conservative single-candidate time-window fallback is limited to startup backfill for legacy mixed data.
@@ -116,8 +119,17 @@ erDiagram
         timestamp updated_at
     }
 
+    TRIGGER_SOURCE {
+        bigint trigger_source_pk PK
+        string source_code UK
+        string display_name
+        string description
+        boolean is_active
+    }
+
     TRIGGER_EVENT {
         bigint trigger_event_pk PK
+        bigint trigger_source_pk FK
         string trigger_event_id UK
         string job_key
         string trigger_origin
@@ -139,26 +151,61 @@ erDiagram
         timestamp finished_at
     }
 
+    RUN_SUMMARY {
+        bigint job_execution_id PK
+        string scenario
+        string status
+        timestamp start_time
+        timestamp end_time
+        string run_mode
+        string recovery_policy
+        string log_path
+    }
+
     STEP_RECORD {
-        string step_record_id PK
+        bigint step_record_pk PK
+        string step_record_id UK
         string run_record_id FK
         string step_name
         string step_status
     }
 
     ARTIFACT_RECORD {
-        string artifact_record_id PK
+        bigint artifact_record_pk PK
+        string artifact_record_id UK
         string run_record_id FK
         string step_record_id FK
         string artifact_role
         string artifact_path
     }
 
+    ATTEMPT_LINK {
+        bigint attempt_link_pk PK
+        string attempt_link_id UK
+        string run_record_id FK
+        string prior_run_record_id
+        string link_kind
+    }
+
+    CHECKPOINT_ANCHOR {
+        bigint checkpoint_anchor_pk PK
+        string checkpoint_anchor_id UK
+        string run_record_id FK
+        string step_record_id FK
+        string anchor_kind
+        string anchor_ref
+        string anchor_status
+    }
+
     SCHEDULE ||--o{ TRIGGER_EVENT : "records schedule-origin events"
+    TRIGGER_SOURCE ||--o{ TRIGGER_EVENT : "standardized trigger source"
     TRIGGER_EVENT ||--o{ RUN_RECORD : "launch context"
+    RUN_RECORD ||--|| RUN_SUMMARY : "job_execution_id projection"
     RUN_RECORD ||--o{ STEP_RECORD : "contains ordered steps"
     RUN_RECORD ||--o{ ARTIFACT_RECORD : "run-level artifacts"
     STEP_RECORD ||--o{ ARTIFACT_RECORD : "step-level artifacts"
+    RUN_RECORD ||--o{ ATTEMPT_LINK : "attempt lineage"
+    RUN_RECORD ||--o{ CHECKPOINT_ANCHOR : "recovery anchors"
 ```
 
 ## Key Components / Classes
