@@ -164,101 +164,42 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 					last_accepted_due_at timestamp
 				)
 				""");
-		migrateLegacyPrimaryKeyIfRequired();
 		ensureColumnExists("controlplane_schedule", "last_accepted_due_at", "timestamp");
 		ensureColumnExists("controlplane_schedule", "schedule_pk", "bigint");
-		backfillSchedulePk();
-		jdbcTemplate.execute("""
-				create unique index if not exists idx_schedule_pk
-				on controlplane_schedule (schedule_pk)
-				""");
-		jdbcTemplate.execute("""
-				create index if not exists idx_schedule_selected_job
-				on controlplane_schedule (selected_job_key, updated_at)
-				""");
-		jdbcTemplate.execute("""
-				create index if not exists idx_schedule_state
-				on controlplane_schedule (is_enabled, is_paused, updated_at)
-				""");
-	}
-
-	private void migrateLegacyPrimaryKeyIfRequired() {
-		List<String> primaryKeyColumns = jdbcTemplate.query(
-				"select lower(name) from pragma_table_info('controlplane_schedule') where pk > 0 order by pk",
-				(rs, rowNum) -> rs.getString(1)
+		createIndexIfMissing(
+				"controlplane_schedule",
+				"idx_schedule_pk",
+				"create unique index idx_schedule_pk on controlplane_schedule (schedule_pk)"
 		);
-		if (primaryKeyColumns.size() == 1 && "schedule_pk".equals(primaryKeyColumns.get(0))) {
-			return;
-		}
-
-		jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection -> {
-			boolean originalAutoCommit = connection.getAutoCommit();
-			connection.setAutoCommit(false);
-			try (java.sql.Statement statement = connection.createStatement()) {
-				statement.execute("""
-						create table controlplane_schedule_new (
-							schedule_pk bigint primary key,
-							schedule_id varchar(80) not null unique,
-							schedule_key varchar(200) not null unique,
-							selected_job_key varchar(200) not null,
-							expression varchar(200) not null,
-							timezone varchar(100) not null,
-							is_enabled boolean not null,
-							is_paused boolean not null,
-							description varchar(2000),
-							created_at timestamp not null,
-							updated_at timestamp not null,
-							watcher_key varchar(200),
-							last_accepted_due_at timestamp
-						)
-						""");
-				statement.execute("""
-						insert into controlplane_schedule_new (
-							schedule_pk,
-							schedule_id,
-							schedule_key,
-							selected_job_key,
-							expression,
-							timezone,
-							is_enabled,
-							is_paused,
-							description,
-							created_at,
-							updated_at,
-							watcher_key,
-							last_accepted_due_at
-						)
-						select
-							coalesce(schedule_pk, rowid),
-							schedule_id,
-							schedule_key,
-							selected_job_key,
-							expression,
-							timezone,
-							is_enabled,
-							is_paused,
-							description,
-							created_at,
-							updated_at,
-							watcher_key,
-							last_accepted_due_at
-						from controlplane_schedule
-						""");
-				statement.execute("drop table controlplane_schedule");
-				statement.execute("alter table controlplane_schedule_new rename to controlplane_schedule");
-				connection.commit();
-			} catch (java.sql.SQLException ex) {
-				connection.rollback();
-				throw ex;
-			} catch (RuntimeException ex) {
-				connection.rollback();
-				throw ex;
-			} finally {
-				connection.setAutoCommit(originalAutoCommit);
-			}
-			return null;
-		});
+		createIndexIfMissing(
+				"controlplane_schedule",
+				"idx_schedule_selected_job",
+				"create index idx_schedule_selected_job on controlplane_schedule (selected_job_key, updated_at)"
+		);
+		createIndexIfMissing(
+				"controlplane_schedule",
+				"idx_schedule_state",
+				"create index idx_schedule_state on controlplane_schedule (is_enabled, is_paused, updated_at)"
+		);
 	}
+
+	private void createIndexIfMissing(String tableName, String indexName, String createIndexSql) {
+		Boolean exists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+			try (java.sql.ResultSet indexes = connection.getMetaData().getIndexInfo(connection.getCatalog(), null, tableName, false, false)) {
+				while (indexes.next()) {
+					String existingIndexName = indexes.getString("INDEX_NAME");
+					if (existingIndexName != null && indexName.equalsIgnoreCase(existingIndexName)) {
+						return true;
+					}
+				}
+				return false;
+			}
+		});
+		if (!Boolean.TRUE.equals(exists)) {
+			jdbcTemplate.execute(createIndexSql);
+		}
+	}
+
 
 	private void ensureColumnExists(String tableName, String columnName, String columnDefinition) {
 		Boolean columnExists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
@@ -278,13 +219,7 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 		}
 	}
 
-	private void backfillSchedulePk() {
-		jdbcTemplate.update("""
-				update controlplane_schedule
-				set schedule_pk = rowid
-				where schedule_pk is null
-				""");
-	}
+	// SQLite bridge migrations were removed; MySQL/SQL Server paths own active schema lifecycle.
 
 	private long nextSchedulePk() {
 		Long value = jdbcTemplate.queryForObject("select coalesce(max(schedule_pk), 0) + 1 from controlplane_schedule", Long.class);

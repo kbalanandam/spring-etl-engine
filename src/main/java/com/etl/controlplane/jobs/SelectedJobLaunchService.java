@@ -21,16 +21,25 @@ public class SelectedJobLaunchService {
 	private final JobBundleReadModelService jobBundleReadModelService;
 	private final boolean launchEnabled;
 	private final String workerDatasourceUrl;
+	private final String workerDatasourceUsername;
+	private final String workerDatasourcePassword;
+	private final String workerDatasourceDriverClassName;
 	private final String workerConnectionInitSql;
 
 	@Autowired
 	public SelectedJobLaunchService(JobBundleReadModelService jobBundleReadModelService,
 	                                @Value("${controlplane.job-launch.enabled:false}") boolean launchEnabled,
 	                                @Value("${controlplane.job-launch.worker.datasource.url:}") String workerDatasourceUrl,
+	                                @Value("${controlplane.job-launch.worker.datasource.username:}") String workerDatasourceUsername,
+	                                @Value("${controlplane.job-launch.worker.datasource.password:}") String workerDatasourcePassword,
+	                                @Value("${controlplane.job-launch.worker.datasource.driver-class-name:}") String workerDatasourceDriverClassName,
 	                                @Value("${controlplane.job-launch.worker.connection-init-sql:}") String workerConnectionInitSql) {
 		this.jobBundleReadModelService = jobBundleReadModelService;
 		this.launchEnabled = launchEnabled;
 		this.workerDatasourceUrl = normalize(workerDatasourceUrl);
+		this.workerDatasourceUsername = normalize(workerDatasourceUsername);
+		this.workerDatasourcePassword = normalize(workerDatasourcePassword);
+		this.workerDatasourceDriverClassName = normalize(workerDatasourceDriverClassName);
 		this.workerConnectionInitSql = normalize(workerConnectionInitSql);
 	}
 
@@ -66,6 +75,15 @@ public class SelectedJobLaunchService {
 		command.add("-Detl.config.allow-demo-fallback=false");
 		if (!workerDatasourceUrl.isBlank()) {
 			command.add("-Dspring.datasource.url=" + workerDatasourceUrl);
+		}
+		if (!workerDatasourceUsername.isBlank()) {
+			command.add("-Dspring.datasource.username=" + workerDatasourceUsername);
+		}
+		if (!workerDatasourcePassword.isBlank()) {
+			command.add("-Dspring.datasource.password=" + workerDatasourcePassword);
+		}
+		if (!workerDatasourceDriverClassName.isBlank()) {
+			command.add("-Dspring.datasource.driver-class-name=" + workerDatasourceDriverClassName);
 		}
 		if (!workerConnectionInitSql.isBlank()) {
 			command.add("-Dspring.datasource.hikari.connection-init-sql=" + workerConnectionInitSql);

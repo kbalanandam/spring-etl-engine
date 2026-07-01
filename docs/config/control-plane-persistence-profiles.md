@@ -18,9 +18,9 @@ See [`../architecture/control-plane/control-plane-persistence-boundary-contract.
 
 | Target DB | Intended lane | Contract level | Notes |
 |---|---|---|---|
-| SQLite | local developer and smoke lanes | baseline | Keep lightweight local-first setup and troubleshooting path. |
+| SQLite | legacy compatibility lane | bridge-only | Keep for legacy data recovery and compatibility scripts; not the default dev/control-plane path. |
 | PostgreSQL | enterprise shared-db lane | first-class target | Primary portability parity target. |
-| MySQL | enterprise shared-db lane | first-class target | Primary portability parity target. |
+| MySQL | enterprise shared-db lane | default active lane | Default `controlplane` profile datasource for dev/CI with aligned worker datasource settings. |
 | SQL Server | enterprise integration lane | first-class target | Validate in CI or scheduled integration lanes. |
 | Oracle | enterprise integration lane | first-class target | Validate in scheduled integration lanes first. |
 
@@ -97,6 +97,25 @@ spring.jpa.database-platform=<postgresql-dialect>
 ```
 
 Use environment-specific secret management for credentials; do not commit real values.
+
+Current implementation note:
+
+- The shipped control-plane path is JDBC-first (no JPA requirement) and now defaults to MySQL in the `controlplane` profile.
+
+- Local/CI MySQL run with the default `controlplane` profile:
+
+```powershell
+$env:CONTROLPLANE_MYSQL_URL="jdbc:mysql://localhost:3306/etl_controlplane?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+$env:CONTROLPLANE_MYSQL_USERNAME="root"
+$env:CONTROLPLANE_MYSQL_PASSWORD="<password>"
+mvn --no-transfer-progress "-Dspring-boot.run.profiles=controlplane" spring-boot:run
+```
+
+
+- Keep `controlplane.job-launch.worker.datasource.*` aligned to the same MySQL URL/credentials so trigger events, run records, step projections, and Spring Batch metadata remain linkable without cross-database joins.
+- For the current MySQL lane, bootstrap both `controlplane_*` and `BATCH_*` tables into the same selected database (for example via `scripts/setup-controlplane-mysql.ps1 -DatabaseName <name>`), then point both control-plane and worker datasource properties at that database.
+- Ensure `controlplane.job-launch.worker.connection-init-sql` is blank (or MySQL-valid) in MySQL profile layers so SQLite `PRAGMA` statements are not passed to MySQL workers.
+- The currently verified no-server portability scope is registry startup plus update/insert write paths without SQLite-only `on conflict ... excluded`, string-concatenation, or `cast(... as text)` SQL. Legacy SQLite bridge migrations (`pragma_table_info`, `rowid`, SQLite trigger DDL) remain isolated to SQLite-gated paths and still need real MySQL-lane validation before MySQL can be treated as full parity.
 
 ## Related docs
 

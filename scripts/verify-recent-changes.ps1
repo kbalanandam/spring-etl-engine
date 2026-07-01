@@ -237,21 +237,27 @@ $triggerCapture = Join-Path $RepoRoot 'target\verify-trigger-now.log'
 $customerOutputRoot = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output'
 $customerOutput = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output\customers.xml'
 $smokeDbDir = Join-Path $RepoRoot 'target\verify-smoke'
-$smokeDbFile = Join-Path $smokeDbDir 'etl-dev-smoke.db'
+$smokeDbFile = Join-Path $smokeDbDir 'etl-dev-smoke'
 $smokeDbJdbcPath = ([System.IO.Path]::GetFullPath($smokeDbFile)).Replace('\\', '/')
-$smokeDbJdbcUrl = "jdbc:sqlite:$smokeDbJdbcPath"
+$smokeDbJdbcUrl = "jdbc:h2:file:$smokeDbJdbcPath;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
 $smokeDbJvmArg = "-Dspring.datasource.url=$smokeDbJdbcUrl"
 $previousSpringDatasourceUrl = $env:SPRING_DATASOURCE_URL
+$previousSpringDatasourceDriverClassName = $env:SPRING_DATASOURCE_DRIVER_CLASS_NAME
+$previousSpringBatchInitializeSchema = $env:SPRING_BATCH_JDBC_INITIALIZE_SCHEMA
+$previousSpringProfilesActive = $env:SPRING_PROFILES_ACTIVE
 
 try {
+    $env:SPRING_PROFILES_ACTIVE = 'dev'
     $env:SPRING_DATASOURCE_URL = $smokeDbJdbcUrl
+    $env:SPRING_DATASOURCE_DRIVER_CLASS_NAME = 'org.h2.Driver'
+    $env:SPRING_BATCH_JDBC_INITIALIZE_SCHEMA = 'always'
 
     if (-not (Test-Path $smokeDbDir)) {
         New-Item -ItemType Directory -Path $smokeDbDir | Out-Null
     }
 
     # Keep smoke runs deterministic by cleaning only the isolated smoke metadata DB.
-    @($smokeDbFile, "$smokeDbFile-wal", "$smokeDbFile-shm", "$smokeDbFile-journal") |
+    @("$smokeDbFile.mv.db", "$smokeDbFile.trace.db") |
         ForEach-Object {
             if (Test-Path $_) {
                 Remove-Item $_ -Force -ErrorAction SilentlyContinue
@@ -334,5 +340,26 @@ finally {
     }
     else {
         $env:SPRING_DATASOURCE_URL = $previousSpringDatasourceUrl
+    }
+
+    if ($null -eq $previousSpringDatasourceDriverClassName) {
+        Remove-Item Env:SPRING_DATASOURCE_DRIVER_CLASS_NAME -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:SPRING_DATASOURCE_DRIVER_CLASS_NAME = $previousSpringDatasourceDriverClassName
+    }
+
+    if ($null -eq $previousSpringBatchInitializeSchema) {
+        Remove-Item Env:SPRING_BATCH_JDBC_INITIALIZE_SCHEMA -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:SPRING_BATCH_JDBC_INITIALIZE_SCHEMA = $previousSpringBatchInitializeSchema
+    }
+
+    if ($null -eq $previousSpringProfilesActive) {
+        Remove-Item Env:SPRING_PROFILES_ACTIVE -ErrorAction SilentlyContinue
+    }
+    else {
+        $env:SPRING_PROFILES_ACTIVE = $previousSpringProfilesActive
     }
 }

@@ -44,7 +44,7 @@ Future control-plane work adds additional needs around that evidence:
 
 Those needs should build on the same selected-job runtime boundary defined in [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md) and frozen in [`ADR-0008`](../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md).
 
-The first SQLite-first local persistence direction for that optional retained model is formalized separately in [`ADR-0009`](../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md).
+The earlier SQLite-first local persistence direction is documented in [`ADR-0009`](../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md) as historical context while active defaults now target MySQL.
 
 The retained model therefore belongs to the optional control plane, not to the mandatory ETL worker runtime.
 
@@ -111,7 +111,7 @@ Runtime and architecture anchors this model must remain compatible with:
 - [`runtime-flow.md`](../etl-core/runtime-flow.md)
 - [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md)
 
-For the first SQLite-first local relational shape that can persist these entities while preserving later portability to stronger relational databases, continue in [`control-plane-local-relational-schema.md`](control-plane-local-relational-schema.md).
+For the active MySQL-default local relational shape that persists these entities while preserving later portability to stronger relational databases, continue in [`control-plane-local-relational-schema.md`](control-plane-local-relational-schema.md).
 
 ## Conceptual entity meanings
 
@@ -253,7 +253,7 @@ Current shipped API semantics stay aligned to that boundary: recovery lineage ma
 - `RunRecord` and `StepRecord` should preserve operator-meaningful retained history without replacing the richer runtime log stream.
 - Artifact lineage should be explicit enough to trace ingress, handoff, final output, reject output, and archived-source evidence where the runtime exposes them.
 - Attempt and checkpoint lineage should be retained early as anchors even before full restart semantics are finalized.
-- Early implementations may use lightweight relational persistence such as SQLite for local or single-node control-plane work, while stronger relational targets remain open for later deployment phases.
+- Active implementations use MySQL-default relational persistence for local and CI control-plane work, with SQL Server and later vendors remaining open for deployment-specific lanes.
 - No part of this retained model should become a prerequisite for direct `etl.config.job` execution.
 
 ## Tradeoffs
@@ -310,7 +310,7 @@ Future work that builds on this model should validate at least these points:
 Follow-on work that should build from this model includes:
 
 - a first persisted relational schema for local control-plane history
-- SQLite-first local schema and portability guidance for later PostgreSQL or SQL Server targets
+- MySQL-default local schema and portability guidance for SQL Server plus later PostgreSQL or Oracle targets
 - schedule enable/disable, pause/resume, overlap, and missed-run policy implementation
 - watcher stabilization, dedupe, and trigger-suppression rules
 - operator API and UI drill-down views over retained runs, steps, and artifacts

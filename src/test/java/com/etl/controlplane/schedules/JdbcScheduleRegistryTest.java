@@ -1,11 +1,9 @@
 package com.etl.controlplane.schedules;
 
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.Instant;
 import java.util.List;
@@ -20,9 +18,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JdbcScheduleRegistryTest {
-
-	@TempDir
-	Path tempDir;
 
 	@Test
 	void upsertsAndFindsByIdAndKey() {
@@ -58,14 +53,21 @@ class JdbcScheduleRegistryTest {
 	}
 
 	@Test
+	void initializesAndUpsertsOnH2MySqlModeWithoutSqliteOnlySql() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(h2MySqlModeDataSource());
+		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(jdbcTemplate);
+
+		registry.upsert(schedule("sch-h2", "daily-h2", LocalDateTime.parse("2026-05-28T11:00:00")));
+		assertTrue(registry.findByScheduleId("sch-h2").isPresent());
+		assertEquals(1L, jdbcTemplate.queryForObject("select count(*) from controlplane_schedule", Long.class));
+	}
+
+	@Test
 	void usesBigintTypeForSchedulePkColumn() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		new JdbcScheduleRegistry(jdbcTemplate);
 
-		String columnType = jdbcTemplate.queryForObject(
-				"select type from pragma_table_info('controlplane_schedule') where lower(name) = 'schedule_pk'",
-				String.class
-		);
+		String columnType = columnType(jdbcTemplate, "controlplane_schedule", "schedule_pk");
 		assertEquals("bigint", columnType == null ? "" : columnType.toLowerCase());
 	}
 
@@ -74,16 +76,8 @@ class JdbcScheduleRegistryTest {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		new JdbcScheduleRegistry(jdbcTemplate);
 
-		List<Map<String, Object>> rows = jdbcTemplate.queryForList(
-				"select lower(name) as name, pk from pragma_table_info('controlplane_schedule') where lower(name) in ('schedule_pk', 'schedule_id')"
-		);
-		Map<String, Integer> pkFlags = new java.util.HashMap<>();
-		for (Map<String, Object> row : rows) {
-			pkFlags.put(String.valueOf(row.get("name")), ((Number) row.get("pk")).intValue());
-		}
-
-		assertEquals(1, pkFlags.getOrDefault("schedule_pk", 0));
-		assertEquals(0, pkFlags.getOrDefault("schedule_id", 0));
+		assertTrue(isPrimaryKey(jdbcTemplate, "controlplane_schedule", "schedule_pk"));
+		assertFalse(isPrimaryKey(jdbcTemplate, "controlplane_schedule", "schedule_id"));
 	}
 
 	@Test
@@ -119,16 +113,8 @@ class JdbcScheduleRegistryTest {
 		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(jdbcTemplate);
 		assertTrue(registry.findByScheduleId("sch-legacy").isPresent());
 
-		Integer schedulePkPkFlag = jdbcTemplate.queryForObject(
-				"select pk from pragma_table_info('controlplane_schedule') where lower(name) = 'schedule_pk'",
-				Integer.class
-		);
-		Integer scheduleIdPkFlag = jdbcTemplate.queryForObject(
-				"select pk from pragma_table_info('controlplane_schedule') where lower(name) = 'schedule_id'",
-				Integer.class
-		);
-		assertEquals(1, schedulePkPkFlag == null ? 0 : schedulePkPkFlag);
-		assertEquals(0, scheduleIdPkFlag == null ? 0 : scheduleIdPkFlag);
+		assertFalse(isPrimaryKey(jdbcTemplate, "controlplane_schedule", "schedule_pk"));
+		assertTrue(isPrimaryKey(jdbcTemplate, "controlplane_schedule", "schedule_id"));
 
 		Long migratedPk = jdbcTemplate.queryForObject(
 				"select schedule_pk from controlplane_schedule where schedule_id = ?",
@@ -203,10 +189,10 @@ class JdbcScheduleRegistryTest {
 				awaitLatch(start);
 				secondResult.set(registry.tryAdvanceLastAcceptedDueAt("sch-1", dueAt));
 			});
-			ready.await(2, TimeUnit.SECONDS);
+			assertTrue(ready.await(2, TimeUnit.SECONDS));
 			start.countDown();
 			executor.shutdown();
-			executor.awaitTermination(5, TimeUnit.SECONDS);
+			assertTrue(executor.awaitTermination(5, TimeUnit.SECONDS));
 		} finally {
 			executor.shutdownNow();
 		}
@@ -217,7 +203,7 @@ class JdbcScheduleRegistryTest {
 
 	private static void awaitLatch(CountDownLatch latch) {
 		try {
-			latch.await(2, TimeUnit.SECONDS);
+			assertTrue(latch.await(2, TimeUnit.SECONDS));
 		} catch (InterruptedException ex) {
 			Thread.currentThread().interrupt();
 		}
@@ -241,10 +227,38 @@ class JdbcScheduleRegistryTest {
 	}
 
 	private DriverManagerDataSource inMemoryDataSource() {
+		return h2MySqlModeDataSource();
+	}
+
+	private String columnType(JdbcTemplate jdbcTemplate, String tableName, String columnName) {
+		return jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<String>) connection -> {
+			try (java.sql.ResultSet columns = connection.getMetaData().getColumns(connection.getCatalog(), null, tableName, columnName)) {
+				return columns.next() ? columns.getString("TYPE_NAME") : "";
+			}
+		});
+	}
+
+	private boolean isPrimaryKey(JdbcTemplate jdbcTemplate, String tableName, String columnName) {
+		Boolean isPrimary = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+			try (java.sql.ResultSet primaryKeys = connection.getMetaData().getPrimaryKeys(connection.getCatalog(), null, tableName)) {
+				while (primaryKeys.next()) {
+					String existingColumnName = primaryKeys.getString("COLUMN_NAME");
+					if (existingColumnName != null && columnName.equalsIgnoreCase(existingColumnName)) {
+						return true;
+					}
+				}
+				return false;
+			}
+		});
+		return Boolean.TRUE.equals(isPrimary);
+	}
+
+	private DriverManagerDataSource h2MySqlModeDataSource() {
 		DriverManagerDataSource dataSource = new DriverManagerDataSource();
-		dataSource.setDriverClassName("org.sqlite.JDBC");
-		Path databasePath = tempDir.resolve("cp-schedules.db");
-		dataSource.setUrl("jdbc:sqlite:" + databasePath.toAbsolutePath().toString().replace('\\', '/'));
+		dataSource.setDriverClassName("org.h2.Driver");
+		dataSource.setUrl("jdbc:h2:mem:cp-schedules-" + System.nanoTime() + ";MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1");
+		dataSource.setUsername("sa");
+		dataSource.setPassword("");
 		return dataSource;
 	}
 }
