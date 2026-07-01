@@ -128,6 +128,11 @@ const viewState = {
     jobStepPreviewByJobKey: {},
     stepNamesByJobKey: {},
   },
+  jobDetail: {
+    triggerEventsPage: 0,
+    triggerEventsSize: 20,
+    triggerEventsTotalItems: 0,
+  },
   schedules: {
     loaded: false,
     items: [],
@@ -141,6 +146,9 @@ const viewState = {
     editCancelReturnHash: "",
     refreshDetailInPlace: false,
     triggersExpanded: false,
+    detailTriggerEventsPage: 0,
+    detailTriggerEventsSize: 20,
+    detailTriggerEventsTotalItems: 0,
     evidenceRequestId: 0,
     editorMode: "create",
     editingScheduleId: "",
@@ -210,6 +218,8 @@ const SUPPORTED_RUN_MODES = new Set(["explicit-job", "demo-fallback"]);
 const SUPPORTED_RECOVERY_POLICIES = new Set(["rerun-from-start", "resume-from-checkpoint"]);
 const TRIGGER_NOW_DUPLICATE_WINDOW_MS = 5 * 1000;
 const DEFAULT_SCHEDULE_LOOKUP_LIMIT = 200;
+const DEFAULT_TRIGGER_EVENT_LIMIT = 20;
+const DEFAULT_TRIGGER_EVENTS_PAGE = 0;
 const JOB_DETAIL_RECENT_RUNS_LIMIT = 10;
 const SCHEDULE_STATE_CHANGE_ACTIONS = new Set(["enable", "disable", "pause", "resume"]);
 
@@ -511,6 +521,10 @@ async function loadJobDetailPlaceholder(routeState) {
   const recentRunsList = document.getElementById("job-detail-recent-runs-list");
   const triggerEventsState = document.getElementById("job-detail-trigger-events-state");
   const triggerEventsList = document.getElementById("job-detail-trigger-events-list");
+  const triggerEventsPager = document.getElementById("job-detail-trigger-events-pagination");
+  const triggerEventsPageStatus = document.getElementById("job-detail-trigger-events-page-status");
+  const triggerEventsPrevButton = document.getElementById("job-detail-trigger-events-prev-btn");
+  const triggerEventsNextButton = document.getElementById("job-detail-trigger-events-next-btn");
   const viewConfigLink = document.getElementById("job-detail-view-config-link");
   const backLink = document.getElementById("job-detail-back-link");
   const jobKeyValue = routeState && routeState.jobKey ? routeState.jobKey : null;
@@ -561,6 +575,12 @@ async function loadJobDetailPlaceholder(routeState) {
     triggerEventsList.hidden = true;
     triggerEventsList.innerHTML = "";
   }
+  if (triggerEventsPager) {
+    triggerEventsPager.hidden = true;
+  }
+  if (triggerEventsPageStatus) {
+    triggerEventsPageStatus.textContent = "Page 1 of 1";
+  }
   if (backLink) {
     if (navigationSource === "schedule" && sourceScheduleId !== "") {
       backLink.setAttribute("href", buildSchedulesListHash(sourceScheduleId, sourceScheduleListQuery));
@@ -595,9 +615,31 @@ async function loadJobDetailPlaceholder(routeState) {
     document.getElementById("job-detail-name").textContent = job.displayName || "-";
     document.getElementById("job-detail-readiness").textContent = job.readinessStatus || "-";
     document.getElementById("job-detail-recent-run-count").textContent = String(Array.isArray(payload.recentRuns) ? payload.recentRuns.length : 0);
-    document.getElementById("job-detail-trigger-count").textContent = String(Array.isArray(payload.recentTriggerEvents) ? payload.recentTriggerEvents.length : 0);
+    document.getElementById("job-detail-trigger-count").textContent = "0";
     renderJobDetailRecentRuns(payload.recentRuns, jobKeyValue, routeState?.query);
-    jobDetailHelpers.renderJobTriggerEvents(payload.recentTriggerEvents, jobKeyValue, routeState?.query);
+    viewState.jobDetail.triggerEventsPage = DEFAULT_TRIGGER_EVENTS_PAGE;
+    viewState.jobDetail.triggerEventsSize = DEFAULT_TRIGGER_EVENT_LIMIT;
+    viewState.jobDetail.triggerEventsTotalItems = 0;
+    if (triggerEventsPrevButton) {
+      triggerEventsPrevButton.onclick = async () => {
+        if (viewState.jobDetail.triggerEventsPage <= 0) {
+          return;
+        }
+        viewState.jobDetail.triggerEventsPage -= 1;
+        await refreshJobDetailRecentTriggerEvents(jobKeyValue, routeState?.query);
+      };
+    }
+    if (triggerEventsNextButton) {
+      triggerEventsNextButton.onclick = async () => {
+        const totalPages = Math.max(1, Math.ceil(viewState.jobDetail.triggerEventsTotalItems / Math.max(1, viewState.jobDetail.triggerEventsSize)));
+        if (viewState.jobDetail.triggerEventsPage + 1 >= totalPages) {
+          return;
+        }
+        viewState.jobDetail.triggerEventsPage += 1;
+        await refreshJobDetailRecentTriggerEvents(jobKeyValue, routeState?.query);
+      };
+    }
+    await refreshJobDetailRecentTriggerEvents(jobKeyValue, routeState?.query, { resetPage: true });
     if (viewConfigLink) {
       viewConfigLink.setAttribute("href", `#/jobs/${encodeURIComponent(jobKeyValue)}/config${jobsRouteQuerySuffix}`);
     }
@@ -617,17 +659,27 @@ async function loadJobDetailPlaceholder(routeState) {
   }
 }
 
-async function refreshJobDetailRecentTriggerEvents(jobKeyValue, query) {
+async function refreshJobDetailRecentTriggerEvents(jobKeyValue, query, options = {}) {
   const normalizedJobKey = String(jobKeyValue || "").trim();
   const triggerCount = document.getElementById("job-detail-trigger-count");
   const triggerEventsState = document.getElementById("job-detail-trigger-events-state");
   const triggerEventsList = document.getElementById("job-detail-trigger-events-list");
-  if (normalizedJobKey === "" || !triggerCount || !triggerEventsState || !triggerEventsList) {
+  const triggerEventsPager = document.getElementById("job-detail-trigger-events-pagination");
+  const triggerEventsPageStatus = document.getElementById("job-detail-trigger-events-page-status");
+  const triggerEventsPrevButton = document.getElementById("job-detail-trigger-events-prev-btn");
+  const triggerEventsNextButton = document.getElementById("job-detail-trigger-events-next-btn");
+  if (normalizedJobKey === "" || !triggerCount || !triggerEventsState || !triggerEventsList || !triggerEventsPager || !triggerEventsPageStatus || !triggerEventsPrevButton || !triggerEventsNextButton) {
     return;
   }
 
+  if (options.resetPage) {
+    viewState.jobDetail.triggerEventsPage = DEFAULT_TRIGGER_EVENTS_PAGE;
+  }
+  const page = Math.max(0, Number(viewState.jobDetail.triggerEventsPage || DEFAULT_TRIGGER_EVENTS_PAGE));
+  const size = Math.max(1, Number(viewState.jobDetail.triggerEventsSize || DEFAULT_TRIGGER_EVENT_LIMIT));
+
   try {
-    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(normalizedJobKey)}/trigger-events?limit=${DEFAULT_TRIGGER_EVENT_LIMIT}`, {
+    const response = await fetch(`/api/v1/jobs/${encodeURIComponent(normalizedJobKey)}/trigger-events?page=${page}&size=${size}`, {
       headers: { Accept: "application/json" },
     });
     if (!response.ok) {
@@ -635,12 +687,24 @@ async function refreshJobDetailRecentTriggerEvents(jobKeyValue, query) {
     }
     const payload = await response.json();
     const items = Array.isArray(payload.items) ? payload.items : [];
-    triggerCount.textContent = String(items.length);
+    const totalItems = Math.max(0, Number(payload.totalItems || items.length));
+    const effectivePage = Math.max(0, Number(payload.page ?? page));
+    const effectiveSize = Math.max(1, Number(payload.size || size));
+    viewState.jobDetail.triggerEventsPage = effectivePage;
+    viewState.jobDetail.triggerEventsSize = effectiveSize;
+    viewState.jobDetail.triggerEventsTotalItems = totalItems;
+    triggerCount.textContent = String(totalItems);
     jobDetailHelpers.renderJobTriggerEvents(items, normalizedJobKey, query);
+    const totalPages = Math.max(1, Math.ceil(totalItems / effectiveSize));
+    triggerEventsPageStatus.textContent = `Page ${effectivePage + 1} of ${totalPages}`;
+    triggerEventsPrevButton.disabled = effectivePage <= 0;
+    triggerEventsNextButton.disabled = effectivePage + 1 >= totalPages;
+    triggerEventsPager.hidden = false;
   } catch (error) {
     triggerEventsState.className = "state error";
     triggerEventsState.textContent = `Unable to refresh trigger events: ${error.message}`;
     triggerEventsList.hidden = true;
+    triggerEventsPager.hidden = true;
   }
 }
 
@@ -1607,13 +1671,21 @@ async function loadScheduleDetail(routeState) {
   const triggerPanel = document.getElementById("schedule-detail-triggers-panel");
   const triggerState = document.getElementById("schedule-detail-triggers-state");
   const triggerList = document.getElementById("schedule-detail-triggers-list");
+  const triggerPagination = document.getElementById("schedule-detail-triggers-pagination");
+  const triggerPaginationStatus = document.getElementById("schedule-detail-triggers-page-status");
+  const triggerPaginationPrev = document.getElementById("schedule-detail-triggers-prev-btn");
+  const triggerPaginationNext = document.getElementById("schedule-detail-triggers-next-btn");
   const backLink = document.getElementById("schedule-detail-back-link");
   const scheduleId = String(routeState?.selectedScheduleId || "").trim();
   const scheduleListQuery = buildSchedulesListQueryFromRouteQuery(routeState?.query);
   const preserveLayout = Boolean(viewState.schedules.refreshDetailInPlace);
 
-  if (!state || !summary || !actionState || !editButton || !enableDisableButton || !pauseResumeButton || !triggerToggleButton || !triggerPanel || !triggerState || !triggerList || !backLink) {
+  if (!state || !summary || !actionState || !editButton || !enableDisableButton || !pauseResumeButton || !triggerToggleButton || !triggerPanel || !triggerState || !triggerList || !triggerPagination || !triggerPaginationStatus || !triggerPaginationPrev || !triggerPaginationNext || !backLink) {
     return;
+  }
+
+  if (viewState.schedules.selectedScheduleId !== scheduleId) {
+    viewState.schedules.detailTriggerEventsPage = DEFAULT_TRIGGER_EVENTS_PAGE;
   }
 
   if (!preserveLayout) {
@@ -1645,6 +1717,8 @@ async function loadScheduleDetail(routeState) {
   if (!preserveLayout) {
     triggerList.hidden = true;
     triggerList.innerHTML = "";
+    triggerPagination.hidden = true;
+    triggerPaginationStatus.textContent = "Page 1 of 1";
   }
 
   if (scheduleId === "") {
@@ -1694,32 +1768,22 @@ async function loadScheduleDetail(routeState) {
 
     summary.hidden = false;
 
-    const triggerResponse = await fetch(`/api/v1/schedules/${encodeURIComponent(scheduleId)}/trigger-events?limit=20`, {
-      headers: { Accept: "application/json" },
-    });
-    if (!triggerResponse.ok) {
-      throw new Error(`Trigger events API returned ${triggerResponse.status}`);
-    }
-    const triggerPayload = await triggerResponse.json();
-    if (!shouldApplyRouteScopedUpdate("scheduleDetail", requestId)) {
-      return;
-    }
-
-    const triggerItems = Array.isArray(triggerPayload.items) ? triggerPayload.items : [];
-    if (triggerItems.length === 0) {
-      triggerList.hidden = true;
-      triggerList.innerHTML = "";
-      triggerState.textContent = "No trigger events recorded for this schedule yet.";
-    } else {
-      const triggerNodes = document.createDocumentFragment();
-      triggerItems.forEach((item) => {
-        triggerNodes.appendChild(scheduleDetailHelpers.buildScheduleTriggerEventLine(item, scheduleId, scheduleListQuery));
-      });
-      triggerList.innerHTML = "";
-      triggerList.appendChild(triggerNodes);
-      triggerState.textContent = `Showing ${triggerItems.length} trigger event(s).`;
-      triggerList.hidden = false;
-    }
+    triggerPaginationPrev.onclick = async () => {
+      if (viewState.schedules.detailTriggerEventsPage <= 0) {
+        return;
+      }
+      viewState.schedules.detailTriggerEventsPage -= 1;
+      await refreshScheduleDetailTriggerEvents(scheduleId, scheduleListQuery, requestId);
+    };
+    triggerPaginationNext.onclick = async () => {
+      const totalPages = Math.max(1, Math.ceil(viewState.schedules.detailTriggerEventsTotalItems / Math.max(1, viewState.schedules.detailTriggerEventsSize)));
+      if (viewState.schedules.detailTriggerEventsPage + 1 >= totalPages) {
+        return;
+      }
+      viewState.schedules.detailTriggerEventsPage += 1;
+      await refreshScheduleDetailTriggerEvents(scheduleId, scheduleListQuery, requestId);
+    };
+    await refreshScheduleDetailTriggerEvents(scheduleId, scheduleListQuery, requestId);
 
     if (!preserveLayout) {
       state.textContent = "Schedule detail loaded.";
@@ -1731,6 +1795,61 @@ async function loadScheduleDetail(routeState) {
     state.className = "state error";
     state.textContent = `Unable to load schedule detail: ${error.message}`;
   }
+}
+
+async function refreshScheduleDetailTriggerEvents(scheduleId, scheduleListQuery, requestId) {
+  const normalizedScheduleId = String(scheduleId || "").trim();
+  const triggerState = document.getElementById("schedule-detail-triggers-state");
+  const triggerList = document.getElementById("schedule-detail-triggers-list");
+  const triggerPagination = document.getElementById("schedule-detail-triggers-pagination");
+  const triggerPaginationStatus = document.getElementById("schedule-detail-triggers-page-status");
+  const triggerPaginationPrev = document.getElementById("schedule-detail-triggers-prev-btn");
+  const triggerPaginationNext = document.getElementById("schedule-detail-triggers-next-btn");
+  if (!normalizedScheduleId || !triggerState || !triggerList || !triggerPagination || !triggerPaginationStatus || !triggerPaginationPrev || !triggerPaginationNext) {
+    return;
+  }
+
+  const page = Math.max(0, Number(viewState.schedules.detailTriggerEventsPage || DEFAULT_TRIGGER_EVENTS_PAGE));
+  const size = Math.max(1, Number(viewState.schedules.detailTriggerEventsSize || DEFAULT_TRIGGER_EVENT_LIMIT));
+  const triggerResponse = await fetch(`/api/v1/schedules/${encodeURIComponent(normalizedScheduleId)}/trigger-events?page=${page}&size=${size}`, {
+    headers: { Accept: "application/json" },
+  });
+  if (!triggerResponse.ok) {
+    throw new Error(`Trigger events API returned ${triggerResponse.status}`);
+  }
+  const triggerPayload = await triggerResponse.json();
+  if (!shouldApplyRouteScopedUpdate("scheduleDetail", requestId)) {
+    return;
+  }
+
+  const triggerItems = Array.isArray(triggerPayload.items) ? triggerPayload.items : [];
+  const totalItems = Math.max(0, Number(triggerPayload.totalItems || triggerItems.length));
+  const effectivePage = Math.max(0, Number(triggerPayload.page ?? page));
+  const effectiveSize = Math.max(1, Number(triggerPayload.size || size));
+  viewState.schedules.detailTriggerEventsPage = effectivePage;
+  viewState.schedules.detailTriggerEventsSize = effectiveSize;
+  viewState.schedules.detailTriggerEventsTotalItems = totalItems;
+
+  if (triggerItems.length === 0) {
+    triggerList.hidden = true;
+    triggerList.innerHTML = "";
+    triggerState.textContent = "No trigger events recorded for this schedule yet.";
+  } else {
+    const triggerNodes = document.createDocumentFragment();
+    triggerItems.forEach((item) => {
+      triggerNodes.appendChild(scheduleDetailHelpers.buildScheduleTriggerEventLine(item, normalizedScheduleId, scheduleListQuery));
+    });
+    triggerList.innerHTML = "";
+    triggerList.appendChild(triggerNodes);
+    triggerState.textContent = `Showing ${triggerItems.length} trigger event(s).`;
+    triggerList.hidden = false;
+  }
+
+  const totalPages = Math.max(1, Math.ceil(totalItems / effectiveSize));
+  triggerPaginationStatus.textContent = `Page ${effectivePage + 1} of ${totalPages}`;
+  triggerPaginationPrev.disabled = effectivePage <= 0;
+  triggerPaginationNext.disabled = effectivePage + 1 >= totalPages;
+  triggerPagination.hidden = false;
 }
 
 function setScheduleDetailTriggersExpanded(expanded) {
@@ -2104,16 +2223,8 @@ async function ensureRunsTriggerSourceOptions() {
   if (viewState.runs.triggerSourceOptions.length > 0) {
     return;
   }
-  try {
-    const options = await fetchTriggerSourceOptionsValue();
-    viewState.runs.triggerSourceOptions = Array.isArray(options) ? options : [];
-  } catch {
-    viewState.runs.triggerSourceOptions = [
-      { sourceCode: "MANUAL", displayName: "Manual" },
-      { sourceCode: "SCHEDULE", displayName: "Schedule" },
-      { sourceCode: "EVENT", displayName: "Event" },
-    ];
-  }
+  const options = await fetchTriggerSourceOptionsValue();
+  viewState.runs.triggerSourceOptions = Array.isArray(options) ? options : [];
   renderRunsTriggerSourceOptions();
 }
 

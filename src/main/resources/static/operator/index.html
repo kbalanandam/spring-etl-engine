@@ -123,6 +123,11 @@
     <h3>Recent trigger events</h3>
     <div id="job-detail-trigger-events-state" class="state">No recent trigger events loaded yet.</div>
     <ul id="job-detail-trigger-events-list" class="detail-list" hidden></ul>
+    <div id="job-detail-trigger-events-pagination" class="control-row" hidden>
+      <button id="job-detail-trigger-events-prev-btn" type="button">Prev</button>
+      <span id="job-detail-trigger-events-page-status" class="jobs-page-status">Page 1 of 1</span>
+      <button id="job-detail-trigger-events-next-btn" type="button">Next</button>
+    </div>
 
     <h3>Native schedule</h3>
     <p class="hint">Native scheduler controls only. Direct selected-job execution remains valid with or without this schedule panel.</p>
@@ -236,6 +241,11 @@
     <div id="schedule-detail-triggers-panel" hidden>
       <div id="schedule-detail-triggers-state" class="state">Loading triggers...</div>
       <ul id="schedule-detail-triggers-list" class="detail-list" hidden></ul>
+      <div id="schedule-detail-triggers-pagination" class="control-row" hidden>
+        <button id="schedule-detail-triggers-prev-btn" type="button">Prev</button>
+        <span id="schedule-detail-triggers-page-status" class="jobs-page-status">Page 1 of 1</span>
+        <button id="schedule-detail-triggers-next-btn" type="button">Next</button>
+      </div>
     </div>
 
     <p><a id="schedule-detail-back-link" href="#/schedules">Back to schedules</a></p>

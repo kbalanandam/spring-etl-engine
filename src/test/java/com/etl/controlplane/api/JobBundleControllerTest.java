@@ -98,6 +98,26 @@ class JobBundleControllerTest {
 	}
 
 	@Test
+	void returnsBundleDetailWithCustomRecentLimits() throws Exception {
+		when(jobBundleReadModelService.findBundle(eq("customer-load"))).thenReturn(Optional.of(
+				new JobBundleSummaryView("customer-load", "Customer Load",
+						"src/main/resources/config-jobs/customer-load/job-config.yaml", "READY", List.of())
+		));
+		when(runSummaryReadModelService.latestRunsForJob(eq("customer-load"), eq("Customer Load"), eq(5))).thenReturn(List.of());
+		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(7))).thenReturn(List.of());
+
+		mockMvc.perform(get("/api/v1/jobs/customer-load")
+				.param("recentRunsLimit", "5")
+				.param("recentTriggerEventsLimit", "7"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.recentRuns").isArray())
+				.andExpect(jsonPath("$.recentTriggerEvents").isArray());
+
+		verify(runSummaryReadModelService).latestRunsForJob(eq("customer-load"), eq("Customer Load"), eq(5));
+		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(7));
+	}
+
+	@Test
 	void returnsNotFoundWhenJobDoesNotExist() throws Exception {
 		when(jobBundleReadModelService.findBundle(eq("missing-job"))).thenReturn(Optional.empty());
 
@@ -211,9 +231,10 @@ class JobBundleControllerTest {
 				new JobBundleSummaryView("customer-load", "Customer Load",
 						"src/main/resources/config-jobs/customer-load/job-config.yaml", "READY", List.of())
 		));
-		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(20))).thenReturn(List.of(
+		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(0), eq(20))).thenReturn(List.of(
 				new TriggerEventView("te-123", "customer-load", "ACCEPTED", "manual_operator_request", "operator@example", Instant.parse("2026-05-27T10:15:30Z"), null, "accepted")
 		));
+		when(triggerEventRegistry.countByJobKey(eq("customer-load"))).thenReturn(1L);
 
 		mockMvc.perform(get("/api/v1/jobs/customer-load/trigger-events"))
 				.andExpect(status().isOk())
@@ -223,7 +244,8 @@ class JobBundleControllerTest {
 				.andExpect(jsonPath("$.totalItems").value(1));
 
 		verify(jobBundleReadModelService).findBundle(eq("customer-load"));
-		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(20));
+		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(0), eq(20));
+		verify(triggerEventRegistry).countByJobKey(eq("customer-load"));
 	}
 
 	@Test
@@ -232,13 +254,35 @@ class JobBundleControllerTest {
 				new JobBundleSummaryView("customer-load", "Customer Load",
 						"src/main/resources/config-jobs/customer-load/job-config.yaml", "READY", List.of())
 		));
-		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(200))).thenReturn(List.of());
+		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(0), eq(200))).thenReturn(List.of());
+		when(triggerEventRegistry.countByJobKey(eq("customer-load"))).thenReturn(0L);
 
 		mockMvc.perform(get("/api/v1/jobs/customer-load/trigger-events").param("limit", "999"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.size").value(200));
 
-		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(200));
+		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(0), eq(200));
+	}
+
+	@Test
+	void triggerEventsEndpointSupportsPageAndSize() throws Exception {
+		when(jobBundleReadModelService.findBundle(eq("customer-load"))).thenReturn(Optional.of(
+				new JobBundleSummaryView("customer-load", "Customer Load",
+						"src/main/resources/config-jobs/customer-load/job-config.yaml", "READY", List.of())
+		));
+		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(10), eq(10))).thenReturn(List.of());
+		when(triggerEventRegistry.countByJobKey(eq("customer-load"))).thenReturn(42L);
+
+		mockMvc.perform(get("/api/v1/jobs/customer-load/trigger-events")
+				.param("page", "1")
+				.param("size", "10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.page").value(1))
+				.andExpect(jsonPath("$.size").value(10))
+				.andExpect(jsonPath("$.totalItems").value(42));
+
+		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(10), eq(10));
+		verify(triggerEventRegistry).countByJobKey(eq("customer-load"));
 	}
 
 	@Test

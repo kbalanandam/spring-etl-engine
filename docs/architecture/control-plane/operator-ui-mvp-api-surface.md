@@ -146,6 +146,11 @@ Response body:
 
 Returns an aggregated job detail payload for the first Jobs drill-down screen.
 
+Current query support:
+
+- `recentRunsLimit` (optional, default `10`, max `200`)
+- `recentTriggerEventsLimit` (optional, default `20`, max `200`)
+
 Response body:
 
 ```json
@@ -252,6 +257,8 @@ Returns recent trigger history for one registered job bundle.
 Suggested first-slice query:
 
 - `limit` (optional)
+- `size` (optional, alias that takes precedence over `limit`)
+- `page` (optional, zero-based)
 
 Response body shape:
 
@@ -580,6 +587,8 @@ Returns paged trigger history for schedule drill-down.
 Current query support:
 
 - `limit` (optional)
+- `size` (optional, alias that takes precedence over `limit`)
+- `page` (optional, zero-based)
 
 Response body shape:
 

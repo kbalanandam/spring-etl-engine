@@ -83,7 +83,7 @@ test("operator app wires schedule editor and schedule state-change actions", asy
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(normalizedScheduleId\)\}:\$\{normalizedAction\}/);
   assert.match(source, /Schedule action already in progress\. Please wait for the current response\./);
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}/);
-  assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}\/trigger-events\?limit=20/);
+  assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(normalizedScheduleId\)\}\/trigger-events\?page=\$\{page\}&size=\$\{size\}/);
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}:trigger-now/);
   assert.match(source, /const detail = backendMessage !== "" \? backendMessage : `status=\$\{response\.status\}`;/);
   assert.match(source, /Schedule trigger-now endpoint is unavailable in the running backend\. Restart the app with the latest build\./);
@@ -102,8 +102,8 @@ test("operator app wires schedule editor and schedule state-change actions", asy
   assert.match(source, /params\.set\("scheduleListQuery", sourceScheduleListQuery\);/);
   assert.match(source, /Back to schedules/);
   assert.match(source, /createAppJobDetailHelpers/);
-  assert.match(source, /payload\.recentTriggerEvents/);
-  assert.match(source, /function refreshJobDetailRecentTriggerEvents\(jobKeyValue, query\)/);
+  assert.match(source, /const items = Array\.isArray\(payload\.items\) \? payload\.items : \[\];/);
+  assert.match(source, /function refreshJobDetailRecentTriggerEvents\(jobKeyValue, query, options = \{\}\)/);
   assert.match(source, /function refreshJobDetailRecentRuns\(jobKeyValue, query\)/);
   assert.match(stylesSource, /\.decision-chip/);
   assert.match(stylesSource, /\.decision-chip-success/);

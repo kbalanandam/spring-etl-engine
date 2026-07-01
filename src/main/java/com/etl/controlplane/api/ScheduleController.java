@@ -27,6 +27,7 @@ import java.time.Instant;
 public class ScheduleController {
 	private static final Logger log = LoggerFactory.getLogger(ScheduleController.class);
 	private static final int RECENT_TRIGGER_SCAN_LIMIT = 5;
+	private static final int DEFAULT_PAGE = 0;
 	private static final Duration MANUAL_TRIGGER_DUPLICATE_SUPPRESSION_WINDOW = Duration.ofSeconds(5);
 
 	private final ScheduleService scheduleService;
@@ -75,12 +76,17 @@ public class ScheduleController {
 
 	@GetMapping("/{scheduleId}/trigger-events")
 	public ResponseEntity<TriggerEventListResponse> scheduleTriggerEvents(@PathVariable String scheduleId,
-	                                                                     @RequestParam(name = "limit", required = false) Integer limit) {
-		int effectiveLimit = scheduleApiLimitPolicy.triggerEventLimit(limit);
+	                                                                     @RequestParam(name = "limit", required = false) Integer limit,
+	                                                                     @RequestParam(name = "size", required = false) Integer size,
+	                                                                     @RequestParam(name = "page", required = false) Integer page) {
+		int effectiveSize = scheduleApiLimitPolicy.triggerEventLimit(size == null ? limit : size);
+		int effectivePage = clampPage(page);
+		int offset = safeOffset(effectivePage, effectiveSize);
 		return scheduleService.findByScheduleId(scheduleId)
 				.map(schedule -> {
-					var events = triggerEventRegistry.listByScheduleId(schedule.scheduleId(), effectiveLimit);
-					return ResponseEntity.ok(new TriggerEventListResponse(events, 0, effectiveLimit, events.size()));
+					var events = triggerEventRegistry.listByScheduleId(schedule.scheduleId(), offset, effectiveSize);
+					long totalItems = triggerEventRegistry.countByScheduleId(schedule.scheduleId());
+					return ResponseEntity.ok(new TriggerEventListResponse(events, effectivePage, effectiveSize, totalItems));
 				})
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
@@ -205,6 +211,21 @@ public class ScheduleController {
 				.map(scheduleResponseMapper::toStateChangeResponse)
 				.map(ResponseEntity::ok)
 				.orElseGet(() -> ResponseEntity.notFound().build());
+	}
+
+	private int clampPage(Integer requestedPage) {
+		if (requestedPage == null) {
+			return DEFAULT_PAGE;
+		}
+		return Math.max(0, requestedPage);
+	}
+
+	private int safeOffset(int page, int size) {
+		long offset = (long) page * size;
+		if (offset > Integer.MAX_VALUE) {
+			return Integer.MAX_VALUE;
+		}
+		return (int) offset;
 	}
 
 

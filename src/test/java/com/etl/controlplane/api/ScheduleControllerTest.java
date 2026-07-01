@@ -191,16 +191,18 @@ class ScheduleControllerTest {
 	@Test
 	void returnsScheduleTriggerEvents() throws Exception {
 		when(scheduleService.findByScheduleId(eq("sch-1"))).thenReturn(Optional.of(schedule("sch-1", "daily-customers")));
-		when(triggerEventRegistry.listByScheduleId(eq("sch-1"), eq(20))).thenReturn(List.of(
+		when(triggerEventRegistry.listByScheduleId(eq("sch-1"), eq(0), eq(20))).thenReturn(List.of(
 				new TriggerEventView("te-1", "customer-load", "ACCEPTED", "schedule_tick", "scheduler", Instant.parse("2026-05-28T10:00:00Z"), null, "accepted")
 		));
+		when(triggerEventRegistry.countByScheduleId(eq("sch-1"))).thenReturn(1L);
 
 		mockMvc.perform(get("/api/v1/schedules/sch-1/trigger-events"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items[0].triggerEventId").value("te-1"))
 				.andExpect(jsonPath("$.size").value(20));
 
-		verify(triggerEventRegistry).listByScheduleId(eq("sch-1"), eq(20));
+		verify(triggerEventRegistry).listByScheduleId(eq("sch-1"), eq(0), eq(20));
+		verify(triggerEventRegistry).countByScheduleId(eq("sch-1"));
 	}
 
 	@Test
@@ -214,13 +216,32 @@ class ScheduleControllerTest {
 	@Test
 	void clampsScheduleTriggerEventsLimit() throws Exception {
 		when(scheduleService.findByScheduleId(eq("sch-1"))).thenReturn(Optional.of(schedule("sch-1", "daily-customers")));
-		when(triggerEventRegistry.listByScheduleId(eq("sch-1"), eq(200))).thenReturn(List.of());
+		when(triggerEventRegistry.listByScheduleId(eq("sch-1"), eq(0), eq(200))).thenReturn(List.of());
+		when(triggerEventRegistry.countByScheduleId(eq("sch-1"))).thenReturn(0L);
 
 		mockMvc.perform(get("/api/v1/schedules/sch-1/trigger-events").param("limit", "999"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.size").value(200));
 
-		verify(triggerEventRegistry).listByScheduleId(eq("sch-1"), eq(200));
+		verify(triggerEventRegistry).listByScheduleId(eq("sch-1"), eq(0), eq(200));
+	}
+
+	@Test
+	void supportsScheduleTriggerEventsPageAndSize() throws Exception {
+		when(scheduleService.findByScheduleId(eq("sch-1"))).thenReturn(Optional.of(schedule("sch-1", "daily-customers")));
+		when(triggerEventRegistry.listByScheduleId(eq("sch-1"), eq(10), eq(10))).thenReturn(List.of());
+		when(triggerEventRegistry.countByScheduleId(eq("sch-1"))).thenReturn(37L);
+
+		mockMvc.perform(get("/api/v1/schedules/sch-1/trigger-events")
+				.param("page", "1")
+				.param("size", "10"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.page").value(1))
+				.andExpect(jsonPath("$.size").value(10))
+				.andExpect(jsonPath("$.totalItems").value(37));
+
+		verify(triggerEventRegistry).listByScheduleId(eq("sch-1"), eq(10), eq(10));
+		verify(triggerEventRegistry).countByScheduleId(eq("sch-1"));
 	}
 
 	@Test

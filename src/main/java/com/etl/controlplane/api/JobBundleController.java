@@ -28,6 +28,8 @@ public class JobBundleController {
 	private static final int DEFAULT_TRIGGER_EVENT_LIMIT = 20;
 	private static final int MAX_TRIGGER_EVENT_LIMIT = 200;
 	private static final int DEFAULT_RECENT_RUN_LIMIT = 10;
+	private static final int MAX_RECENT_RUN_LIMIT = 200;
+	private static final int DEFAULT_PAGE = 0;
 	private static final int RECENT_TRIGGER_SCAN_LIMIT = 5;
 	private static final Duration MANUAL_TRIGGER_DUPLICATE_SUPPRESSION_WINDOW = Duration.ofSeconds(5);
 
@@ -64,12 +66,16 @@ public class JobBundleController {
 	}
 
 	@GetMapping("/{jobKey}")
-	public ResponseEntity<JobBundleDetailResponse> jobDetail(@PathVariable String jobKey) {
+	public ResponseEntity<JobBundleDetailResponse> jobDetail(@PathVariable String jobKey,
+	                                                        @RequestParam(name = "recentRunsLimit", required = false) Integer recentRunsLimit,
+	                                                        @RequestParam(name = "recentTriggerEventsLimit", required = false) Integer recentTriggerEventsLimit) {
+		int effectiveRecentRunLimit = clampLimit(recentRunsLimit, DEFAULT_RECENT_RUN_LIMIT, MAX_RECENT_RUN_LIMIT);
+		int effectiveTriggerEventLimit = clampLimit(recentTriggerEventsLimit, DEFAULT_TRIGGER_EVENT_LIMIT, MAX_TRIGGER_EVENT_LIMIT);
 		return jobBundleReadModelService.findBundle(jobKey)
 				.map(job -> ResponseEntity.ok(new JobBundleDetailResponse(
 						job,
-						runSummaryReadModelService.latestRunsForJob(job.jobKey(), job.displayName(), DEFAULT_RECENT_RUN_LIMIT),
-						triggerEventRegistry.listByJobKey(job.jobKey(), DEFAULT_TRIGGER_EVENT_LIMIT)
+						runSummaryReadModelService.latestRunsForJob(job.jobKey(), job.displayName(), effectiveRecentRunLimit),
+						triggerEventRegistry.listByJobKey(job.jobKey(), effectiveTriggerEventLimit)
 				)))
 				.orElseGet(() -> ResponseEntity.notFound().build());
 	}
@@ -94,15 +100,18 @@ public class JobBundleController {
 
 	@GetMapping("/{jobKey}/trigger-events")
 	public ResponseEntity<TriggerEventListResponse> jobTriggerEvents(@PathVariable String jobKey,
-	                                                                @RequestParam(name = "limit", required = false) Integer limit) {
+	                                                                @RequestParam(name = "limit", required = false) Integer limit,
+	                                                                @RequestParam(name = "size", required = false) Integer size,
+	                                                                @RequestParam(name = "page", required = false) Integer page) {
 		if (jobBundleReadModelService.findBundle(jobKey).isEmpty()) {
 			return ResponseEntity.notFound().build();
 		}
-		int effectiveLimit = limit == null
-				? DEFAULT_TRIGGER_EVENT_LIMIT
-				: Math.max(1, Math.min(limit, MAX_TRIGGER_EVENT_LIMIT));
-		var events = triggerEventRegistry.listByJobKey(jobKey, effectiveLimit);
-		return ResponseEntity.ok(new TriggerEventListResponse(events, 0, effectiveLimit, events.size()));
+		int effectivePage = clampPage(page);
+		int effectiveSize = clampLimit(size == null ? limit : size, DEFAULT_TRIGGER_EVENT_LIMIT, MAX_TRIGGER_EVENT_LIMIT);
+		int offset = safeOffset(effectivePage, effectiveSize);
+		var events = triggerEventRegistry.listByJobKey(jobKey, offset, effectiveSize);
+		long totalItems = triggerEventRegistry.countByJobKey(jobKey);
+		return ResponseEntity.ok(new TriggerEventListResponse(events, effectivePage, effectiveSize, totalItems));
 	}
 
 	@PostMapping("/{jobKey}:trigger-now")
@@ -167,6 +176,28 @@ public class JobBundleController {
 				responseMessage,
 				triggerEvent.triggerEventId()
 		));
+	}
+
+	private int clampLimit(Integer requestedLimit, int defaultLimit, int maxLimit) {
+		if (requestedLimit == null) {
+			return defaultLimit;
+		}
+		return Math.max(1, Math.min(requestedLimit, maxLimit));
+	}
+
+	private int clampPage(Integer requestedPage) {
+		if (requestedPage == null) {
+			return DEFAULT_PAGE;
+		}
+		return Math.max(0, requestedPage);
+	}
+
+	private int safeOffset(int page, int size) {
+		long offset = (long) page * size;
+		if (offset > Integer.MAX_VALUE) {
+			return Integer.MAX_VALUE;
+		}
+		return (int) offset;
 	}
 }
 
