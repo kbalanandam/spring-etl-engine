@@ -10,8 +10,6 @@ import com.etl.controlplane.monitoring.RunScopedLogView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryView;
 import com.etl.controlplane.triggers.TriggerSourceCatalog;
-import com.etl.controlplane.triggers.TriggerSourceOptionView;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +23,7 @@ import java.time.ZoneId;
 import java.util.List;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 
 @RestController
 @RequestMapping("/api/v1/runs")
@@ -37,27 +36,27 @@ public class RunSummaryController {
 	private final RunSummaryRegistry runSummaryRegistry;
 	private final RunDetailReadModelService runDetailReadModelService;
 	private final RunScopedLogReadModelService runScopedLogReadModelService;
-	private final ObjectProvider<TriggerSourceCatalog> triggerSourceCatalogProvider;
+	private final TriggerSourceCatalog triggerSourceCatalog;
 
 	public RunSummaryController(RunSummaryReadModelService runSummaryReadModelService,
 	                            RunSummaryRegistry runSummaryRegistry,
 	                            RunDetailReadModelService runDetailReadModelService,
 	                            RunScopedLogReadModelService runScopedLogReadModelService,
-	                            ObjectProvider<TriggerSourceCatalog> triggerSourceCatalogProvider) {
+	                            TriggerSourceCatalog triggerSourceCatalog) {
 		this.runSummaryReadModelService = runSummaryReadModelService;
 		this.runSummaryRegistry = runSummaryRegistry;
 		this.runDetailReadModelService = runDetailReadModelService;
 		this.runScopedLogReadModelService = runScopedLogReadModelService;
-		this.triggerSourceCatalogProvider = triggerSourceCatalogProvider;
+		this.triggerSourceCatalog = triggerSourceCatalog;
 	}
 
 	@GetMapping("/trigger-sources")
 	public TriggerSourceListResponse triggerSources() {
-		TriggerSourceCatalog triggerSourceCatalog = triggerSourceCatalogProvider.getIfAvailable();
-		List<TriggerSourceOptionView> items = triggerSourceCatalog == null
-				? TriggerSourceCatalog.defaultSources()
-				: triggerSourceCatalog.listActiveSources();
-		return new TriggerSourceListResponse(items);
+		try {
+			return new TriggerSourceListResponse(triggerSourceCatalog.listActiveSources());
+		} catch (IllegalStateException ex) {
+			throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Trigger source catalog is unavailable.", ex);
+		}
 	}
 
 	@GetMapping
@@ -71,31 +70,16 @@ public class RunSummaryController {
 		int effectiveLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
 		LocalDate effectiveStartDate = parseStartDate(startDate);
 		ZoneId effectiveZoneId = parseTimezone(timezone);
-		String normalizedTriggerSource = normalizeTriggerSource(triggerSource);
-		int serviceLimit = normalizedTriggerSource.isBlank() ? effectiveLimit : Integer.MAX_VALUE;
 		var runs = runSummaryReadModelService.latestRunsFiltered(
-				serviceLimit,
+				effectiveLimit,
 				job,
 				runMode,
 				recoveryPolicy,
+				triggerSource,
 				effectiveStartDate,
 				effectiveZoneId
 		);
-		if (!normalizedTriggerSource.isBlank()) {
-			runs = runs.stream()
-					.filter(run -> normalizeTriggerSource(run.triggerOrigin()).equals(normalizedTriggerSource))
-					.limit(effectiveLimit)
-					.toList();
-		}
 		return new RunSummaryListResponse(runs, 0, effectiveLimit, runs.size());
-	}
-
-	private String normalizeTriggerSource(String value) {
-		String normalized = value == null ? "" : value.trim().toUpperCase();
-		if (normalized.isBlank()) {
-			return "";
-		}
-		return normalized.replaceAll("[^A-Z0-9]", "");
 	}
 
 	private LocalDate parseStartDate(String value) {

@@ -23,7 +23,7 @@ public class TriggerSourceCatalogService implements TriggerSourceCatalog {
 	public List<TriggerSourceOptionView> listActiveSources() {
 		JdbcTemplate jdbcTemplate = jdbcTemplateProvider.getIfAvailable();
 		if (jdbcTemplate == null) {
-			return TriggerSourceCatalog.defaultSources();
+			throw new IllegalStateException("Trigger source catalog requires a configured JDBC data source.");
 		}
 		try {
 			return jdbcTemplate.query("""
@@ -36,9 +36,10 @@ public class TriggerSourceCatalogService implements TriggerSourceCatalog {
 					rs.getString("display_name"),
 					rs.getString("description")
 			));
-		} catch (DataAccessException ignored) {
-			return TriggerSourceCatalog.defaultSources();
+		} catch (DataAccessException ex) {
+			throw new IllegalStateException("Failed to load trigger source catalog from controlplane_trigger_source.", ex);
 		}
 	}
 }
+
 

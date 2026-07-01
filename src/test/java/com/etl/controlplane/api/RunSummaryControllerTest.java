@@ -64,7 +64,7 @@ class RunSummaryControllerTest {
 
 	@Test
 	void returnsRunsUsingDefaultLimit() throws Exception {
-		when(runSummaryReadModelService.latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()))).thenReturn(List.of(
+		when(runSummaryReadModelService.latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()))).thenReturn(List.of(
 				new RunSummaryView("customer-load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
 						LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L,
 						"explicit-job", "rerun-from-start", "SCHEDULE", "logs/2026-05-27/customer-load.log")
@@ -81,12 +81,12 @@ class RunSummaryControllerTest {
 				.andExpect(jsonPath("$.size").value(25))
 				.andExpect(jsonPath("$.totalItems").value(1));
 
-		verify(runSummaryReadModelService).latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()));
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()));
 	}
 
 	@Test
 	void clampsLimitToAcceptedRange() throws Exception {
-		when(runSummaryReadModelService.latestRunsFiltered(eq(200), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()))).thenReturn(List.of());
+		when(runSummaryReadModelService.latestRunsFiltered(eq(200), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()))).thenReturn(List.of());
 
 		mockMvc.perform(get("/api/v1/runs").param("limit", "999"))
 				.andExpect(status().isOk())
@@ -95,12 +95,12 @@ class RunSummaryControllerTest {
 				.andExpect(jsonPath("$.size").value(200))
 				.andExpect(jsonPath("$.totalItems").value(0));
 
-		verify(runSummaryReadModelService).latestRunsFiltered(eq(200), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()));
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(200), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()));
 	}
 
 	@Test
 	void passesJobDateAndTimezoneFiltersToService() throws Exception {
-		when(runSummaryReadModelService.latestRunsFiltered(eq(50), eq("customer-load"), isNull(), isNull(), eq(LocalDate.parse("2026-05-27")), eq(ZoneId.of("UTC"))))
+		when(runSummaryReadModelService.latestRunsFiltered(eq(50), eq("customer-load"), isNull(), isNull(), isNull(), eq(LocalDate.parse("2026-05-27")), eq(ZoneId.of("UTC"))))
 				.thenReturn(List.of());
 
 		mockMvc.perform(get("/api/v1/runs")
@@ -111,12 +111,12 @@ class RunSummaryControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.size").value(50));
 
-		verify(runSummaryReadModelService).latestRunsFiltered(eq(50), eq("customer-load"), isNull(), isNull(), eq(LocalDate.parse("2026-05-27")), eq(ZoneId.of("UTC")));
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(50), eq("customer-load"), isNull(), isNull(), isNull(), eq(LocalDate.parse("2026-05-27")), eq(ZoneId.of("UTC")));
 	}
 
 	@Test
 	void passesRunModeAndRecoveryPolicyFiltersToService() throws Exception {
-		when(runSummaryReadModelService.latestRunsFiltered(eq(25), isNull(), eq("explicit-job"), eq("rerun-from-start"), isNull(), eq(ZoneId.systemDefault())))
+		when(runSummaryReadModelService.latestRunsFiltered(eq(25), isNull(), eq("explicit-job"), eq("rerun-from-start"), isNull(), isNull(), eq(ZoneId.systemDefault())))
 				.thenReturn(List.of());
 
 		mockMvc.perform(get("/api/v1/runs")
@@ -125,19 +125,16 @@ class RunSummaryControllerTest {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.size").value(25));
 
-		verify(runSummaryReadModelService).latestRunsFiltered(eq(25), isNull(), eq("explicit-job"), eq("rerun-from-start"), isNull(), eq(ZoneId.systemDefault()));
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(25), isNull(), eq("explicit-job"), eq("rerun-from-start"), isNull(), isNull(), eq(ZoneId.systemDefault()));
 	}
 
 	@Test
 	void passesTriggerSourceFilterToService() throws Exception {
-		when(runSummaryReadModelService.latestRunsFiltered(eq(Integer.MAX_VALUE), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault())))
+		when(runSummaryReadModelService.latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), eq("SCHEDULE"), isNull(), eq(ZoneId.systemDefault())))
 				.thenReturn(List.of(
 						new RunSummaryView("customer-load", 101L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:00:00"),
 								LocalDateTime.parse("2026-05-27T10:00:10"), 10L, 10L, 10L, 0L,
-								"explicit-job", "rerun-from-start", "SCHEDULE", "logs/2026-05-27/customer-load.log"),
-						new RunSummaryView("customer-load", 102L, "COMPLETED", LocalDateTime.parse("2026-05-27T10:10:00"),
-								LocalDateTime.parse("2026-05-27T10:10:10"), 10L, 10L, 10L, 0L,
-								"explicit-job", "rerun-from-start", "MANUAL", "logs/2026-05-27/customer-load.log")
+								"explicit-job", "rerun-from-start", "SCHEDULE", "logs/2026-05-27/customer-load.log")
 				));
 
 		mockMvc.perform(get("/api/v1/runs")
@@ -146,7 +143,7 @@ class RunSummaryControllerTest {
 				.andExpect(jsonPath("$.totalItems").value(1))
 				.andExpect(jsonPath("$.items[0].jobExecutionId").value(101));
 
-		verify(runSummaryReadModelService).latestRunsFiltered(eq(Integer.MAX_VALUE), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()));
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), eq("SCHEDULE"), isNull(), eq(ZoneId.systemDefault()));
 	}
 
 	@Test
@@ -158,6 +155,14 @@ class RunSummaryControllerTest {
 		mockMvc.perform(get("/api/v1/runs/trigger-sources"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items[0].sourceCode").value("MANUAL"));
+	}
+
+	@Test
+	void returnsServerErrorWhenTriggerSourceCatalogLookupFails() throws Exception {
+		when(triggerSourceCatalog.listActiveSources()).thenThrow(new IllegalStateException("db unavailable"));
+
+		mockMvc.perform(get("/api/v1/runs/trigger-sources"))
+				.andExpect(status().isServiceUnavailable());
 	}
 
 	@Test
