@@ -2,6 +2,7 @@ package com.etl.controlplane.triggers;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -53,10 +54,10 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 		String normalizedScheduleId = normalizeScheduleId(scheduleId);
 		String normalizedReason = normalize(reason);
 		String normalizedRequestedBy = normalize(requestedBy);
-		String normalizedTriggerSourceCode = normalizeTriggerSourceCode(triggerOrigin, normalizedScheduleId, null, null);
+		Long schedulePk = resolveSchedulePk(normalizedScheduleId);
+		String normalizedTriggerSourceCode = normalizeTriggerSourceCode(triggerOrigin, schedulePk, null);
 		Long triggerSourcePk = resolveTriggerSourcePk(normalizedTriggerSourceCode);
 		Long triggerEventPk = nextTriggerEventPk();
-		Long schedulePk = resolveSchedulePk(normalizedScheduleId);
 		Instant requestedAt = Instant.now();
 		String triggerEventId = "te-" + UUID.randomUUID();
 
@@ -74,11 +75,9 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 					launched_run_id,
 					message,
 					trigger_origin,
-					schedule_id,
 					schedule_pk,
-					watcher_id,
 					external_origin_key
-				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 				""",
 				triggerEventPk,
 				triggerSourcePk,
@@ -92,9 +91,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				null,
 				message,
 				triggerOrigin,
-				normalizedScheduleId.isBlank() ? null : normalizedScheduleId,
 				schedulePk,
-				null,
 				null
 		);
 		pruneOverflow(normalizedJobKey);
@@ -114,25 +111,48 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 
 	@Override
 	public List<TriggerEventView> listByJobKey(String jobKey, int limit) {
+		return listByJobKey(jobKey, 0, limit);
+	}
+
+	@Override
+	public List<TriggerEventView> listByJobKey(String jobKey, int offset, int limit) {
 		if (limit <= 0) {
 			return List.of();
 		}
-		List<TriggerEventView> events = jdbcTemplate.query("""
+		int safeOffset = Math.max(0, offset);
+		return jdbcTemplate.query("""
 				select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message,
-				       trigger_origin, schedule_id, watcher_id, external_origin_key,
+				       trigger_origin, schedule_pk, external_origin_key,
 				       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
 				from controlplane_trigger_event
 				where job_key = ?
 				order by requested_at desc, trigger_event_id desc
+				limit ? offset ?
 				""",
 				(rs, rowNum) -> toView(rs),
+				normalize(jobKey),
+				limit,
+				safeOffset
+		);
+	}
+
+	@Override
+	public long countByJobKey(String jobKey) {
+		Long value = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_trigger_event where job_key = ?",
+				Long.class,
 				normalize(jobKey)
 		);
-		return events.size() <= limit ? events : events.subList(0, limit);
+		return value == null ? 0L : value;
 	}
 
 	@Override
 	public List<TriggerEventView> listByScheduleId(String scheduleId, int limit) {
+		return listByScheduleId(scheduleId, 0, limit);
+	}
+
+	@Override
+	public List<TriggerEventView> listByScheduleId(String scheduleId, int offset, int limit) {
 		if (limit <= 0) {
 			return List.of();
 		}
@@ -140,41 +160,54 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 		if (normalizedScheduleId.isBlank()) {
 			return List.of();
 		}
+		int safeOffset = Math.max(0, offset);
 		Long schedulePk = resolveSchedulePk(normalizedScheduleId);
-		List<TriggerEventView> events = schedulePk == null
-				? jdbcTemplate.query("""
+		if (schedulePk == null) {
+			return List.of();
+		}
+		return jdbcTemplate.query("""
 						select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message,
-						       trigger_origin, schedule_id, watcher_id, external_origin_key,
-						       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
-						from controlplane_trigger_event
-						where lower(trim(schedule_id)) = ?
-						order by requested_at desc, trigger_event_id desc
-						""",
-						(rs, rowNum) -> toView(rs),
-						normalizedScheduleId
-				)
-				: jdbcTemplate.query("""
-						select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message,
-						       trigger_origin, schedule_id, watcher_id, external_origin_key,
+						       trigger_origin, schedule_pk, external_origin_key,
 						       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
 						from controlplane_trigger_event
 						where schedule_pk = ?
-						   or (schedule_pk is null and lower(trim(schedule_id)) = ?)
 						order by requested_at desc, trigger_event_id desc
+						limit ? offset ?
 						""",
 						(rs, rowNum) -> toView(rs),
 						schedulePk,
-						normalizedScheduleId
-				);
-		return events.size() <= limit ? events : events.subList(0, limit);
+						limit,
+						safeOffset
+		);
+	}
+
+	@Override
+	public long countByScheduleId(String scheduleId) {
+		String normalizedScheduleId = normalizeScheduleId(scheduleId);
+		if (normalizedScheduleId.isBlank()) {
+			return 0L;
+		}
+		Long schedulePk = resolveSchedulePk(normalizedScheduleId);
+		if (schedulePk == null) {
+			return 0L;
+		}
+		Long value = jdbcTemplate.queryForObject(
+				"""
+				select count(*)
+				from controlplane_trigger_event
+				where schedule_pk = ?
+				""",
+				Long.class,
+				schedulePk
+		);
+		return value == null ? 0L : value;
 	}
 
 	private TriggerEventView toView(java.sql.ResultSet rs) throws java.sql.SQLException {
 		String normalizedTriggerOrigin = normalizeTriggerOrigin(
 				rs.getString("trigger_origin"),
 				rs.getString("trigger_source_code"),
-				rs.getString("schedule_id"),
-				rs.getString("watcher_id"),
+				rs.getObject("schedule_pk", Long.class),
 				rs.getString("external_origin_key")
 		);
 		return new TriggerEventView(
@@ -232,143 +265,74 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 					launched_run_id varchar(80),
 					message varchar(2000),
 					trigger_origin varchar(50),
-					schedule_id varchar(80),
 					schedule_pk bigint,
-					watcher_id varchar(80),
 					external_origin_key varchar(200)
 				)
 				""");
 		ensureColumnExists("controlplane_trigger_event", "trigger_source_pk", "bigint");
-		migrateLegacyPrimaryKeyIfRequired();
 		ensureColumnExists("controlplane_trigger_event", "trigger_event_pk", "bigint");
 		ensureColumnExists("controlplane_trigger_event", "launched_run_pk", "bigint");
 		ensureColumnExists("controlplane_trigger_event", "schedule_pk", "bigint");
 		ensureColumnExists("controlplane_trigger_event", "trigger_origin", "varchar(50)");
-		backfillTriggerEventPk();
 		backfillTriggerOrigin();
 		backfillTriggerSourcePk();
-		backfillSchedulePk();
 		backfillLaunchedRunPk();
-		jdbcTemplate.execute("""
-				create unique index if not exists idx_trigger_event_pk
-				on controlplane_trigger_event (trigger_event_pk)
-				""");
-		jdbcTemplate.execute("""
-				create index if not exists idx_trigger_event_job_time
-				on controlplane_trigger_event (job_key, requested_at)
-				""");
-		jdbcTemplate.execute("""
-				create index if not exists idx_trigger_event_origin
-				on controlplane_trigger_event (trigger_origin, requested_at)
-				""");
-		jdbcTemplate.execute("""
-				create index if not exists idx_trigger_event_source_pk
-				on controlplane_trigger_event (trigger_source_pk, requested_at)
-				""");
-		jdbcTemplate.execute("""
-				create index if not exists idx_trigger_event_schedule_time
-				on controlplane_trigger_event (schedule_id, requested_at)
-				""");
-		jdbcTemplate.execute("""
-				create index if not exists idx_trigger_event_schedule_pk_time
-				on controlplane_trigger_event (schedule_pk, requested_at)
-				""");
-		jdbcTemplate.execute("""
-				create index if not exists idx_trigger_event_launched_run_pk
-				on controlplane_trigger_event (launched_run_pk, requested_at)
-				""");
-		jdbcTemplate.execute("""
-				create index if not exists idx_trigger_event_launched_run_id
-				on controlplane_trigger_event (launched_run_id, requested_at)
-				""");
+		createIndexIfMissing("controlplane_trigger_event", "idx_trigger_event_pk",
+				"create unique index idx_trigger_event_pk on controlplane_trigger_event (trigger_event_pk)");
+		createIndexIfMissing("controlplane_trigger_event", "idx_trigger_event_job_time",
+				"create index idx_trigger_event_job_time on controlplane_trigger_event (job_key, requested_at)");
+		createIndexIfMissing("controlplane_trigger_event", "idx_trigger_event_origin",
+				"create index idx_trigger_event_origin on controlplane_trigger_event (trigger_origin, requested_at)");
+		createIndexIfMissing("controlplane_trigger_event", "idx_trigger_event_source_pk",
+				"create index idx_trigger_event_source_pk on controlplane_trigger_event (trigger_source_pk, requested_at)");
+		createIndexIfMissing("controlplane_trigger_event", "idx_trigger_event_schedule_pk_time",
+				"create index idx_trigger_event_schedule_pk_time on controlplane_trigger_event (schedule_pk, requested_at)");
+		dropIndexIfPresent("controlplane_trigger_event", "idx_trigger_event_schedule_time");
+		createIndexIfMissing("controlplane_trigger_event", "idx_trigger_event_launched_run_pk",
+				"create index idx_trigger_event_launched_run_pk on controlplane_trigger_event (launched_run_pk, requested_at)");
+		createIndexIfMissing("controlplane_trigger_event", "idx_trigger_event_launched_run_id",
+				"create index idx_trigger_event_launched_run_id on controlplane_trigger_event (launched_run_id, requested_at)");
 	}
 
-	private void migrateLegacyPrimaryKeyIfRequired() {
-		List<String> primaryKeyColumns = jdbcTemplate.query(
-				"select lower(name) from pragma_table_info('controlplane_trigger_event') where pk > 0 order by pk",
-				(rs, rowNum) -> rs.getString(1)
-		);
-		if (primaryKeyColumns.size() == 1 && "trigger_event_pk".equals(primaryKeyColumns.get(0))) {
+	private void createIndexIfMissing(String tableName, String indexName, String createIndexSql) {
+		Boolean exists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+			try (java.sql.ResultSet indexes = connection.getMetaData().getIndexInfo(connection.getCatalog(), null, tableName, false, false)) {
+				while (indexes.next()) {
+					String existingIndexName = indexes.getString("INDEX_NAME");
+					if (existingIndexName != null && indexName.equalsIgnoreCase(existingIndexName)) {
+						return true;
+					}
+				}
+				return false;
+			}
+		});
+		if (!Boolean.TRUE.equals(exists)) {
+			jdbcTemplate.execute(createIndexSql);
+		}
+	}
+
+	private void dropIndexIfPresent(String tableName, String indexName) {
+		Boolean exists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+			try (java.sql.ResultSet indexes = connection.getMetaData().getIndexInfo(connection.getCatalog(), null, tableName, false, false)) {
+				while (indexes.next()) {
+					String existingIndexName = indexes.getString("INDEX_NAME");
+					if (existingIndexName != null && indexName.equalsIgnoreCase(existingIndexName)) {
+						return true;
+					}
+				}
+				return false;
+			}
+		});
+		if (!Boolean.TRUE.equals(exists)) {
 			return;
 		}
-
-		jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Void>) connection -> {
-			boolean originalAutoCommit = connection.getAutoCommit();
-			connection.setAutoCommit(false);
-			try (java.sql.Statement statement = connection.createStatement()) {
-				statement.execute("""
-						create table controlplane_trigger_event_new (
-							trigger_event_pk bigint primary key,
-							trigger_source_pk bigint,
-							trigger_event_id varchar(80) not null unique,
-							job_key varchar(200) not null,
-							decision_status varchar(50) not null,
-							reason varchar(200),
-							requested_by varchar(200),
-							requested_at timestamp not null,
-							launched_run_pk bigint,
-							launched_run_id varchar(80),
-							message varchar(2000),
-							trigger_origin varchar(50),
-							schedule_id varchar(80),
-							schedule_pk bigint,
-							watcher_id varchar(80),
-							external_origin_key varchar(200)
-						)
-						""");
-				statement.execute("""
-						insert into controlplane_trigger_event_new (
-							trigger_event_pk,
-							trigger_source_pk,
-							trigger_event_id,
-							job_key,
-							decision_status,
-							reason,
-							requested_by,
-							requested_at,
-							launched_run_pk,
-							launched_run_id,
-							message,
-							trigger_origin,
-							schedule_id,
-							schedule_pk,
-							watcher_id,
-							external_origin_key
-						)
-						select
-							coalesce(trigger_event_pk, rowid),
-							trigger_source_pk,
-							trigger_event_id,
-							job_key,
-							decision_status,
-							reason,
-							requested_by,
-							requested_at,
-							launched_run_pk,
-							launched_run_id,
-							message,
-							trigger_origin,
-							schedule_id,
-							schedule_pk,
-							watcher_id,
-							external_origin_key
-						from controlplane_trigger_event
-						""");
-				statement.execute("drop table controlplane_trigger_event");
-				statement.execute("alter table controlplane_trigger_event_new rename to controlplane_trigger_event");
-				connection.commit();
-			} catch (java.sql.SQLException ex) {
-				connection.rollback();
-				throw ex;
-			} catch (RuntimeException ex) {
-				connection.rollback();
-				throw ex;
-			} finally {
-				connection.setAutoCommit(originalAutoCommit);
-			}
-			return null;
-		});
+		try {
+			jdbcTemplate.execute("drop index " + indexName + " on " + tableName);
+		} catch (org.springframework.dao.DataAccessException ignored) {
+			// Keep startup resilient across dialect differences during bridge cleanup.
+		}
 	}
+
 
 	private void ensureColumnExists(String tableName, String columnName, String columnDefinition) {
 		Boolean columnExists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
@@ -388,52 +352,20 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 		}
 	}
 
-	private void backfillSchedulePk() {
-		try {
-			jdbcTemplate.update("""
-					update controlplane_trigger_event
-					set schedule_pk = (
-						select schedule_pk
-						from controlplane_schedule
-						where lower(trim(controlplane_schedule.schedule_id)) = lower(trim(controlplane_trigger_event.schedule_id))
-					)
-					where schedule_pk is null
-					  and schedule_id is not null
-					  and exists (
-						select 1
-						from controlplane_schedule
-						where lower(trim(controlplane_schedule.schedule_id)) = lower(trim(controlplane_trigger_event.schedule_id))
-					)
-					""");
-		} catch (org.springframework.dao.DataAccessException ignored) {
-			// Keep trigger persistence available even when schedule table state is optional.
-		}
-	}
-
-	private void backfillTriggerEventPk() {
-		jdbcTemplate.update("""
-				update controlplane_trigger_event
-				set trigger_event_pk = rowid
-				where trigger_event_pk is null
-				""");
-	}
+	// SQLite bridge migrations were removed; active schema lifecycle is MySQL/SQL Server focused.
 
 	private void backfillTriggerOrigin() {
 		jdbcTemplate.update("""
 				update controlplane_trigger_event
 				set trigger_origin = 'SCHEDULE'
 				where (trigger_origin is null or trim(trigger_origin) = '')
-				  and schedule_id is not null
-				  and trim(schedule_id) <> ''
+				  and schedule_pk is not null
 				""");
 		jdbcTemplate.update("""
 				update controlplane_trigger_event
 				set trigger_origin = 'EVENT'
 				where (trigger_origin is null or trim(trigger_origin) = '')
-				  and (
-					(watcher_id is not null and trim(watcher_id) <> '')
-					or (external_origin_key is not null and trim(external_origin_key) <> '')
-				  )
+				  and (external_origin_key is not null and trim(external_origin_key) <> '')
 				""");
 		jdbcTemplate.update("""
 				update controlplane_trigger_event
@@ -466,8 +398,8 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 					from controlplane_trigger_source ts
 					where ts.source_code = (
 						case
-							when schedule_id is not null and trim(schedule_id) <> '' then 'SCHEDULE'
-							when (watcher_id is not null and trim(watcher_id) <> '') or (external_origin_key is not null and trim(external_origin_key) <> '') then 'EVENT'
+							when schedule_pk is not null then 'SCHEDULE'
+							when (external_origin_key is not null and trim(external_origin_key) <> '') then 'EVENT'
 							else 'MANUAL'
 						end
 					)
@@ -478,30 +410,59 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 	private void seedTriggerSourceMaster() {
 		Timestamp now = Timestamp.from(Instant.now());
 		for (TriggerSourceSeed seed : TRIGGER_SOURCE_SEEDS) {
-			jdbcTemplate.update("""
-					insert into controlplane_trigger_source (
-						trigger_source_pk,
-						source_code,
-						display_name,
-						description,
-						is_active,
-						created_at,
-						updated_at
-					) values (?, ?, ?, ?, ?, ?, ?)
-					on conflict(source_code) do update set
-						display_name = excluded.display_name,
-						description = excluded.description,
-						is_active = excluded.is_active,
-						updated_at = excluded.updated_at
+			int updated = jdbcTemplate.update("""
+					update controlplane_trigger_source
+					set display_name = ?,
+					    description = ?,
+					    is_active = ?,
+					    updated_at = ?
+					where source_code = ?
 					""",
-					seed.triggerSourcePk(),
-					seed.sourceCode(),
 					seed.displayName(),
 					seed.description(),
 					1,
 					now,
-					now
+					seed.sourceCode()
 			);
+			if (updated > 0) {
+				continue;
+			}
+			try {
+				jdbcTemplate.update("""
+						insert into controlplane_trigger_source (
+							trigger_source_pk,
+							source_code,
+							display_name,
+							description,
+							is_active,
+							created_at,
+							updated_at
+						) values (?, ?, ?, ?, ?, ?, ?)
+						""",
+						seed.triggerSourcePk(),
+						seed.sourceCode(),
+						seed.displayName(),
+						seed.description(),
+						1,
+						now,
+						now
+				);
+			} catch (DuplicateKeyException ignored) {
+				jdbcTemplate.update("""
+						update controlplane_trigger_source
+						set display_name = ?,
+						    description = ?,
+						    is_active = ?,
+						    updated_at = ?
+						where source_code = ?
+						""",
+						seed.displayName(),
+						seed.description(),
+						1,
+						now,
+						seed.sourceCode()
+				);
+			}
 		}
 	}
 
@@ -523,24 +484,51 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 
 	private void backfillLaunchedRunPk() {
 		try {
-			jdbcTemplate.update("""
-					update controlplane_trigger_event
-					set launched_run_pk = (
-						select rr.run_record_pk
-						from controlplane_run_record rr
-						where cast(rr.job_execution_id as text) = trim(controlplane_trigger_event.launched_run_id)
-					)
+			List<LaunchedRunPkBackfillCandidate> candidates = jdbcTemplate.query("""
+					select trigger_event_pk, trigger_event_id, launched_run_id
+					from controlplane_trigger_event
 					where launched_run_pk is null
 					  and launched_run_id is not null
 					  and trim(launched_run_id) <> ''
-					  and exists (
-						select 1
-						from controlplane_run_record rr
-						where cast(rr.job_execution_id as text) = trim(controlplane_trigger_event.launched_run_id)
-					  )
-					""");
+					""", (rs, rowNum) -> new LaunchedRunPkBackfillCandidate(
+					rs.getObject("trigger_event_pk", Long.class),
+					rs.getString("trigger_event_id"),
+					rs.getString("launched_run_id")
+			));
+			for (LaunchedRunPkBackfillCandidate candidate : candidates) {
+				Long runExecutionId = parseLongSafe(candidate.launchedRunId());
+				if (runExecutionId == null) {
+					continue;
+				}
+				Long runRecordPk = jdbcTemplate.query(
+						"select run_record_pk from controlplane_run_record where job_execution_id = ?",
+						rs -> rs.next() ? rs.getObject(1, Long.class) : null,
+						runExecutionId
+				);
+				if (runRecordPk == null) {
+					continue;
+				}
+				jdbcTemplate.update(
+						"update controlplane_trigger_event set launched_run_pk = ? where launched_run_pk is null and (trigger_event_pk = ? or trigger_event_id = ?)",
+						runRecordPk,
+						candidate.triggerEventPk(),
+						candidate.triggerEventId()
+				);
+			}
 		} catch (org.springframework.dao.DataAccessException ignored) {
 			// Keep trigger persistence available even when run-record table state is optional.
+		}
+	}
+
+	private Long parseLongSafe(String value) {
+		String normalized = normalize(value);
+		if (normalized.isBlank()) {
+			return null;
+		}
+		try {
+			return Long.parseLong(normalized);
+		} catch (NumberFormatException ignored) {
+			return null;
 		}
 	}
 
@@ -578,8 +566,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 
 	private String normalizeTriggerOrigin(String triggerOrigin,
 	                                     String triggerSourceCode,
-	                                     String scheduleId,
-	                                     String watcherId,
+	                                     Long schedulePk,
 	                                     String externalOriginKey) {
 		String normalizedMasterCode = normalize(triggerSourceCode).toUpperCase(Locale.ROOT);
 		if ("SCHEDULE".equals(normalizedMasterCode) || "EVENT".equals(normalizedMasterCode) || "MANUAL".equals(normalizedMasterCode)) {
@@ -589,23 +576,25 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 		if ("SCHEDULE".equals(normalizedOrigin) || "EVENT".equals(normalizedOrigin) || "MANUAL".equals(normalizedOrigin)) {
 			return normalizedOrigin;
 		}
-		if (!normalizeScheduleId(scheduleId).isBlank()) {
+		if (schedulePk != null) {
 			return "SCHEDULE";
 		}
-		if (!normalize(watcherId).isBlank() || !normalize(externalOriginKey).isBlank()) {
+		if (!normalize(externalOriginKey).isBlank()) {
 			return "EVENT";
 		}
 		return "MANUAL";
 	}
 
 	private String normalizeTriggerSourceCode(String triggerOrigin,
-	                                        String scheduleId,
-	                                        String watcherId,
+	                                        Long schedulePk,
 	                                        String externalOriginKey) {
-		return normalizeTriggerOrigin(triggerOrigin, null, scheduleId, watcherId, externalOriginKey);
+		return normalizeTriggerOrigin(triggerOrigin, null, schedulePk, externalOriginKey);
 	}
 
 	private record TriggerSourceSeed(Long triggerSourcePk, String sourceCode, String displayName, String description) {
+	}
+
+	private record LaunchedRunPkBackfillCandidate(Long triggerEventPk, String triggerEventId, String launchedRunId) {
 	}
 }
 

@@ -2,16 +2,18 @@
 
 ## Purpose
 
-This document defines the first local relational schema direction for the future optional OneFlow control plane.
+This document defines the active local relational schema direction for the optional OneFlow control plane.
 
-It exists to translate the conceptual retained operational data model into a practical SQLite-first persistence shape for developer-laptop and single-node use, while preserving later portability to stronger relational databases and keeping the ETL core independently runnable without any control-plane database.
+It translates the conceptual retained operational data model into a practical MySQL-default persistence shape for developer and CI use, while preserving portability to stronger relational databases and keeping the ETL core independently runnable without any control-plane database.
 
 ## Status
 
 - Classification: **Shipped baseline + future direction**
 - The ER section below is refreshed to match the shipped JDBC schema used by the optional control-plane API when JDBC mode is enabled.
 - Sections outside the ER artifact may still include forward-looking design guidance for later extensions.
-- The shipped `controlplane` profile now defaults to the shared SQLite file under `.etl-dev/etl-dev.db` so control-plane retained-history tables and Spring Batch metadata can coexist in one local developer/single-node database file, while stronger relational targets remain open for later deployment profiles.
+- The shipped `controlplane` profile now defaults to MySQL datasource properties (env-overridable), and worker launches in this profile are aligned to the same MySQL URL/credentials so trigger, run, and batch metadata stay linkable in one relational database.
+- The repo-owned MySQL bootstrap path now provisions both retained `controlplane_*` tables and Spring Batch `BATCH_*` metadata tables into one selected database so control-plane step/artifact projections can read worker batch metadata without cross-database assumptions.
+- SQLite compatibility paths remain available as bridge logic for legacy local data and migration recovery, while active control-plane startup defaults and CI direction target MySQL first.
 - Persisted `attempt_link` and `checkpoint_anchor` records are currently advisory recovery lineage only; they support operator evidence and correlation while F1 still keeps resume execution unsupported. They also do not change the current D3 rerun boundary: the shipped relational target baseline is not treated as idempotent by default, so retained checkpoint lineage must not be read as safe database resume capability.
 
 ## Scope
@@ -20,7 +22,7 @@ This document covers:
 
 - a first relational table direction for the optional control-plane operational model
 - how the main retained entities map into a local relational shape
-- SQLite-first choices that help early local development
+- MySQL-default choices for local developer and CI control-plane persistence
 - portability guardrails for later PostgreSQL, SQL Server, or MySQL deployment targets
 - the boundary rule that keeps control-plane persistence optional to the ETL worker
 
@@ -54,7 +56,7 @@ That direction must still preserve the boundary frozen in [`ADR-0008`](../../adr
 - the ETL core remains independently runnable
 - control-plane persistence is optional
 - external schedulers and orchestrators remain first-class launchers of the same selected-job contract
-- SQLite is acceptable early, while stronger relational targets remain open later
+- MySQL is the default active control-plane relational lane, while SQL Server and other relational targets remain open for later extension
 
 ## Flow
 
@@ -71,7 +73,7 @@ flowchart LR
     RunRecordTable --> AttemptLinkTable[(controlplane_attempt_link)]
     RunRecordTable --> CheckpointAnchorTable[(controlplane_checkpoint_anchor)]
 
-    subgraph LocalFirst[SQLite-first local control-plane persistence]
+    subgraph LocalFirst[MySQL-default local control-plane persistence]
         ScheduleTable[(controlplane_schedule)]
         TriggerEventTable
         RunRecordTable
@@ -86,8 +88,8 @@ flowchart LR
 Read this schema direction in three rules:
 
 1. local control-plane persistence is useful, but optional
-2. the shipped SQLite-first relational shape is the baseline for local control-plane history
-3. later PostgreSQL, SQL Server, or MySQL support should be enabled by disciplined portable modeling, not by a SQLite-only design
+2. the shipped MySQL-default relational shape is the baseline for active control-plane history
+3. SQL Server and later vendor targets should be enabled by disciplined portable modeling, not by one vendor-only design
 
 ## Scheduler ER model artifact
 
@@ -97,11 +99,15 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 - Trigger origins are now standardized through a master catalog table (`controlplane_trigger_source`) with stable `source_code` values used by UI filters and trigger-event linkage.
 - Update this section when scheduler entity boundaries or relationships change; avoid editing it for non-schema code-only refactors.
 - Internal numeric surrogate keys are now active for relational efficiency (`schedule_pk`, `trigger_event_pk`, `run_record_pk`) while stable external identities (`schedule_id`, `trigger_event_id`, `run_record_id`) remain unique operator/API-facing keys.
-- The current linkage contract is intentionally additive: new `controlplane_run_record.trigger_event_id` writes are populated only from exact `controlplane_trigger_event.launched_run_id` matches, while a conservative single-candidate time-window fallback is limited to startup backfill for legacy mixed data.
+- Trigger-event schedule linkage is now hard-aligned to `controlplane_trigger_event.schedule_pk`; the legacy `controlplane_trigger_event.schedule_id` bridge column is no longer part of the active schema contract.
+- Trigger-source categorization now lives on `controlplane_trigger_event.trigger_source_pk`; when EVENT-style sources need per-origin detail, the active schema carries that through `external_origin_key` instead of dedicated per-source columns.
+- The current linkage contract is intentionally additive: linkage still prefers exact `controlplane_trigger_event.launched_run_pk|launched_run_id` matches first, then applies a deterministic nearest-eligible time-window fallback during run upsert and startup backfill when exact launch linkage is unavailable.
+- Upsert-time linkage now treats stale run-record trigger associations as replaceable evidence when a newer eligible trigger is resolved for the same `job_execution_id`; startup backfill still keeps conservative recovery behavior for legacy rows.
 - `controlplane_run_record.selected_job_key` is treated as an active relational key: new writes populate it from run context, legacy null/blank rows are backfilled at startup, and lookup-oriented indexes (`selected_job_key`, `run_status`, `started_at`, `trigger_event_id`) are part of the current local-read scaling baseline.
 - Internal numeric surrogates now follow one phased pattern across retained scheduler history: active control-plane surrogate/linkage `*_pk` columns (`schedule_pk`, `trigger_event_pk`, `launched_run_pk`, `run_record_pk`) are now provisioned as `bigint` for relational joins and future foreign-key hardening. PK-constraint cutover is now active across schedule, trigger-event, and run-record tables (`schedule_pk`, `trigger_event_pk`, `run_record_pk` as relational primary keys) while external `*_id` fields remain stable unique operator/API identities.
 - Current linkage resolution now prefers PK-based joins (`launched_run_pk` / `trigger_event_pk`) before legacy string-ID fallback (`launched_run_id` / `trigger_event_id`) so mixed historical data can migrate without changing external API identifiers.
 - Artifact ownership should be explicit and non-ambiguous: one `artifact_record` row is either run-level (`run_record_id` set, `step_record_id` null) or step-level (`step_record_id` set with consistent `run_record_id` lineage), never an unowned or contradictory combination.
+- Current non-SQLite portability is partial-but-testable: normal registry startup and update/insert write paths are now exercised without SQLite-only SQL, while legacy primary-key reshaping and `rowid` backfills are still reserved for SQLite compatibility upgrades.
 
 ```mermaid
 erDiagram
@@ -134,7 +140,6 @@ erDiagram
         string job_key
         string trigger_origin
         bigint schedule_pk FK
-        string schedule_id
         string decision_status
         string reason
         timestamp requested_at
@@ -229,7 +234,7 @@ Architecture anchors this schema direction must remain compatible with:
 - [`relational-db-support.md`](../etl-core/relational-db-support.md)
 - [`ADR-0008`](../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md)
 
-This SQLite-first local persistence direction is formalized as an accepted decision in [`ADR-0009`](../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md).
+The earlier SQLite-first local persistence direction remains documented in [`ADR-0009`](../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md) as historical context.
 
 ## First table direction
 
@@ -268,7 +273,7 @@ Represents one normalized trigger decision or launch attempt.
 Suggested column families:
 
 - identity: `trigger_event_id`, `trigger_correlation_id`
-- origin: `trigger_origin`, `schedule_id`, `watcher_id`, `external_origin_key`
+- origin: `trigger_origin`, `schedule_pk`, `external_origin_key`
 - selected-job binding: `job_config_path`, `job_name`, `selected_job_key`
 - decision: `decision_status`, `decision_reason`, `decision_message`
 - request context: `requested_at`, `requested_by`, `external_request_id`
@@ -345,20 +350,17 @@ Suggested column families:
 - state reference: `checkpoint_ref`, `checkpoint_summary`
 - validity: `created_at`, `expires_at`, `compatibility_marker`
 
-## SQLite-first modeling rules
+## MySQL-default modeling rules
 
-For the first local control-plane implementation, prefer these SQLite-friendly rules:
+For the active control-plane implementation, prefer these MySQL-default rules:
 
 - use simple scalar columns before JSON-heavy modeling becomes necessary
-- prefer text-friendly identifiers such as UUID strings or stable keys over database-specific generated-key assumptions
-- keep indexes focused on lookup and audit paths such as `trigger_origin`, `job_name`, `job_config_path`, `run_status`, and timestamp fields
-- avoid relying on vendor-specific enum types; store portable text values with application-side validation
-- avoid vendor-specific partial-index or computed-column assumptions in the first schema direction unless a portable fallback is clear
+- prefer stable text identifiers (`*_id`) for API-facing identities and bigint surrogate keys (`*_pk`) for relational joins
+- keep indexes focused on lookup and audit paths such as `trigger_origin`, `selected_job_key`, `run_status`, and timestamp fields
+- avoid relying on vendor-only features in shared read/write contracts unless an explicit vendor-specific script path exists
 - treat large payloads such as raw logs or binary artifacts as external references rather than in-row blobs
 
-SQLite is the first convenience target, not the permanent product-wide storage commitment.
-
-For the shipped local control-plane profile today, SQLite should be treated as a single-node operational store: keep one control-plane JVM per SQLite file path, and move to a stronger relational target when multi-user or broader concurrent-control-plane access becomes a real requirement.
+SQLite compatibility remains bridge-only and should not be treated as the active default persistence lane.
 
 ## Portability guardrails for PostgreSQL, SQL Server, and MySQL
 
@@ -371,16 +373,15 @@ To preserve later portability, the first schema direction should also follow the
 - treat indexes, paging, retention cleanup, and concurrency handling as later vendor-tuned concerns rather than first-schema identity concerns
 - preserve a clean separation between logical entity names and vendor-specific physical tuning decisions
 
-The likely later direction is:
+The likely near-term direction is:
 
-- SQLite for local development and single-node control-plane trials
-- PostgreSQL as a strong default retained-history deployment target when multi-user control-plane history grows
+- MySQL as the default local/CI control-plane retained-history target
 - SQL Server as an enterprise-aligned option where deployment environments already standardize on it
-- MySQL as an additional relational deployment option where teams prefer MySQL-aligned operations
+- PostgreSQL or Oracle as later extension targets when needed
 
 ## Decisions
 
-- The first control-plane relational schema direction should be SQLite-first for local contributor and single-node use.
+- The active control-plane relational schema direction is MySQL-default for local contributor and CI use.
 - The logical schema should remain portable enough that PostgreSQL, SQL Server, or MySQL can adopt the same core entity model later.
 - The first schema should model retained history explicitly through relational tables rather than hiding most meaning inside opaque blobs.
 - Artifact and checkpoint storage should be reference-oriented rather than large-payload-oriented in the first slice.
@@ -401,13 +402,13 @@ The likely later direction is:
 ### Benefits
 
 - gives contributors a practical first persistence shape for scheduler and watcher work
-- keeps laptop and single-node development simple through SQLite
+- keeps local developer and CI workflows aligned to one relational default (MySQL)
 - reduces the risk that each control-plane feature invents a different retained-history structure
 - preserves a path to stronger relational databases later without a full conceptual redesign
 
 ### Costs
 
-- a SQLite-friendly first shape may under-specify later concurrency or scale concerns
+- a MySQL-default active shape still requires explicit SQL Server parity validation and script governance
 - some future production-specific optimizations will still need vendor-specific tuning
 - first-schema simplicity may defer some richer query or retention features until later phases
 
@@ -416,8 +417,8 @@ The likely later direction is:
 #### Alternative: wait for PostgreSQL, SQL Server, or MySQL before defining any schema direction
 Rejected because that would slow local iteration and postpone useful architecture discipline for scheduler and watcher history.
 
-#### Alternative: design the first schema specifically around one enterprise database
-Rejected because early control-plane work should stay accessible on a personal laptop and avoid unnecessary infrastructure requirements.
+#### Alternative: keep SQLite as the active default and defer MySQL-first alignment
+Rejected because current developer and CI environments are now standardized on MySQL for control-plane persistence.
 
 #### Alternative: store most control-plane history in generic JSON blobs
 Rejected because core trigger, run, step, and artifact relationships should remain queryable, auditable, and portable across relational targets.
@@ -438,7 +439,8 @@ It affects future work by:
 Future work that implements this schema direction should validate at least these points:
 
 - ETL-core runs still launch and complete when no control-plane database exists
-- SQLite-backed local control-plane persistence can record schedules, watchers, trigger events, runs, steps, and artifact references coherently
+- MySQL-backed local/CI control-plane persistence can record schedules, watchers, trigger events, runs, steps, and artifact references coherently
+- MySQL-backed local/CI control-plane persistence should prove that `BATCH_*` metadata and `controlplane_*` retained-history rows land in the same selected database for trigger-to-run correlation
 - retained counts and statuses align with the meanings already defined in runtime evidence docs
 - the logical schema can be mapped to later PostgreSQL, SQL Server, or MySQL targets without redefining the core entity relationships
 - schema choices do not force external schedulers or orchestrators into a OneFlow-native-only launch identity
@@ -447,7 +449,7 @@ Future work that implements this schema direction should validate at least these
 
 Follow-on work that should build from this schema direction includes:
 
-- a first migration set for SQLite-backed local control-plane persistence
+- a first vendor-script baseline for MySQL and SQL Server with property-driven selection
 - a repository or service layer for writing `trigger_event`, `run_record`, and `step_record` history
 - retention and cleanup rules for retained control-plane history
 - vendor-tuned indexing and concurrency guidance for PostgreSQL, SQL Server, or MySQL deployments

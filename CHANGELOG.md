@@ -17,6 +17,8 @@ and this project adheres to **Semantic Versioning**.
 - Updated local restart and verification tooling (`scripts/restart-controlplane.ps1`, `scripts/verify-recent-changes.ps1`, smoke tests, and `scripts/README.md`) to keep startup logs bounded to current session evidence and improve repeatable control-plane troubleshooting flows.
 - Expanded relational selected-job startup guardrails and coverage for source/target `connectionRef` compatibility by validating unsupported or unresolved references earlier in `ConfigLoader` with focused regression tests.
 - Updated control-plane architecture documentation (`docs/architecture/control-plane/*`, `docs/architecture/etl-core/relational-db-support.md`) to reflect trigger-source cataloging, launch evidence lineage, and relational connection reference contracts.
+- Hard-dropped the legacy `controlplane_trigger_event.schedule_id` bridge from active MySQL schema/bootstrap paths; schedule-origin trigger-event linkage and run-origin inference now rely on `schedule_pk` only.
+- Simplified trigger-event origin details by removing legacy `controlplane_trigger_event.watcher_id`; active EVENT origin fallback now relies on `external_origin_key` together with `trigger_source_pk`/`trigger_origin` semantics.
 
 ### Fixed
 - Fixed `/api/v1/runs` trigger-source filtering behavior to avoid post-limit filtering gaps that could hide newly completed matching runs.

@@ -6,8 +6,7 @@ Automation helpers under `scripts/` for local verification, cleanup, project-boa
 
 - Generate local verification report (`mvn test` + smoke + markdown report): `generate-verification-report.ps1`
 - Run smoke-only verification checks: `verify-recent-changes.ps1`
-- Migrate legacy control-plane SQLite tables into the shared dev database: `migrate-controlplane-sqlite-to-shared.ps1`
-- Audit and clean duplicate control-plane step rows in SQLite: `cleanup-controlplane-duplicate-steps.ps1`
+- Bootstrap MySQL control-plane schema/tables/indexes and optional grants: `setup-controlplane-mysql.ps1`
 - Remove one job bundle and matching generated artifacts safely: `remove-job-bundle.ps1`
 - Restart/start/stop/status control-plane quickly on port 8081: `restart-controlplane.ps1`
 - Generate job-scoped model classes for all job configs under folder roots: `generate-models-batch.ps1`
@@ -50,7 +49,7 @@ Purpose:
 - Positive smoke: `customer-load` must complete
 - Negative smoke: `csv-to-sqlserver` must emit runtime failure evidence (`RUN_SUMMARY status=FAILED`, `JOB_FAILURE`)
 - Trigger-now evidence: controller tests must emit `CONTROLPLANE_TRIGGER` logs for requested/accepted/duplicate decisions (job + schedule scopes)
-- Uses an isolated smoke metadata DB at `target/verify-smoke/etl-dev-smoke.db` (does not wipe shared `.etl-dev/etl-dev.db`)
+- Uses an isolated smoke metadata DB at `target/verify-smoke/etl-dev-smoke.mv.db` (does not reuse control-plane runtime databases)
 
 Key artifacts:
 - `target/verify-customer-load.log`
@@ -71,53 +70,46 @@ Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\verify-recent-changes.ps1 -ScenarioTimeoutMinutes 20
 ```
 
-## `migrate-controlplane-sqlite-to-shared.ps1`
+## `setup-controlplane-mysql.ps1`
 
 Purpose:
-- Copies legacy `controlplane_*` tables from `.controlplane/controlplane.db`
-- Merges them into the shared `.etl-dev/etl-dev.db`
-- Creates a timestamped backup of the target DB before migration unless `-SkipBackup` is used
+- Creates a selected MySQL database (default `etl_controlplane`) if missing
+- Creates active `controlplane_*` schema tables and indexes
+- Creates Spring Batch `BATCH_*` metadata tables in the same database
+- Seeds `controlplane_trigger_source` master rows
+- Optionally creates/updates one app user and grants on the selected database
 
-Usage:
+SQL sources:
+- `scripts/sql/mysql/controlplane-bootstrap.sql`
+- `scripts/sql/mysql/spring-batch-metadata.sql`
+- `scripts/sql/mysql/controlplane-grants-template.sql` (optional reference template)
+
+Bootstrap schema only:
 
 ```powershell
 Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\migrate-controlplane-sqlite-to-shared.ps1
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mysql.ps1 -HostName localhost -Port 3306 -RootUser root -RootPassword "<root-password>"
 ```
 
-Custom source/target paths:
+Bootstrap a fresh database for control-plane + batch metadata together:
 
 ```powershell
 Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\migrate-controlplane-sqlite-to-shared.ps1 -SourceDbPath .\.controlplane\controlplane.db -TargetDbPath .\.etl-dev\etl-dev.db
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mysql.ps1 -HostName localhost -Port 3306 -RootUser root -RootPassword "<root-password>" -DatabaseName etl_controlplane_batch
 ```
 
-## `cleanup-controlplane-duplicate-steps.ps1`
-
-Purpose:
-- Audits duplicate `controlplane_step_record` rows grouped by `(run_record_id, step_name)`
-- Cleanup mode keeps one canonical row per group, rewires `artifact_record` / `checkpoint_anchor` references, then deletes duplicate step rows
-- Writes a JSON report under `target/` for evidence and repeatable tracking
-
-Audit only:
+Bootstrap + grants for app user:
 
 ```powershell
 Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\cleanup-controlplane-duplicate-steps.ps1 -Mode Audit
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mysql.ps1 -HostName localhost -Port 3306 -RootUser root -RootPassword "<root-password>" -ApplyGrants -AppUser etl_app -AppHost % -AppPassword "<app-password>"
 ```
 
-Cleanup with backup:
+Preview without executing (WhatIf):
 
 ```powershell
 Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\cleanup-controlplane-duplicate-steps.ps1 -Mode Cleanup
-```
-
-CI/nightly guardrail (non-zero exit when duplicates are found):
-
-```powershell
-Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\cleanup-controlplane-duplicate-steps.ps1 -Mode Audit -FailOnDuplicates
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mysql.ps1 -WhatIf
 ```
 
 ## `remove-job-bundle.ps1`
