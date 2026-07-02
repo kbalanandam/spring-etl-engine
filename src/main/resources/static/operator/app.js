@@ -54,6 +54,7 @@ import {
 } from "./schedule-ui-helpers.js";
 import {
   formatDateForInput as formatDateForInputValue,
+  defaultRunsPageSize as defaultRunsPageSizeValue,
   normalizeIsoDate as normalizeIsoDateValue,
   normalizeSupportedFilter as normalizeSupportedFilterValue,
 } from "./runs-route-state.js";
@@ -173,6 +174,8 @@ const viewState = {
     filterText: "",
     sortKey: "startTime",
     sortDirection: "desc",
+    page: 1,
+    pageSize: defaultRunsPageSize(),
   },
 };
 
@@ -347,6 +350,8 @@ function currentRouteState() {
       startDate: parsed.query.startDate || "",
       timezone: parsed.query.timezone || "",
       filterText: parsed.query.f || "",
+      page: normalizePositiveInteger(parsed.query.page, 1),
+      pageSize: normalizePageSize(parsed.query.pageSize, defaultRunsPageSize()),
       sortKey: normalizeSortKey("runs", parsed.query.sort, "startTime"),
       sortDirection: normalizeDirection(parsed.query.dir, "desc"),
     };
@@ -2010,6 +2015,8 @@ function initializeRunsDefaults() {
   if (!viewState.runs.startDate) {
     viewState.runs.startDate = formatDateForInput(new Date());
   }
+  viewState.runs.page = normalizePositiveInteger(viewState.runs.page, 1);
+  viewState.runs.pageSize = normalizePageSize(viewState.runs.pageSize, defaultRunsPageSize());
 }
 
 function formatDateForInput(date) {
@@ -2202,6 +2209,14 @@ function defaultSchedulesPageSize() {
   return defaultSchedulesPageSizeValue();
 }
 
+function defaultRunsPageSize() {
+  return defaultRunsPageSizeValue();
+}
+
+function getRunsRouteHash() {
+  return routeHelpers.getRunsRouteHash();
+}
+
 function getQuerySuffix(query) {
   return routeHelpers.getQuerySuffix(query);
 }
@@ -2309,7 +2324,7 @@ async function loadRunDetail(routeState) {
       backLink.setAttribute("href", buildSchedulesListHash(sourceScheduleId, sourceScheduleListQuery));
       backLink.textContent = "Back to schedules";
     } else {
-      backLink.setAttribute("href", "#/runs");
+      backLink.setAttribute("href", getRunsRouteHash());
       backLink.textContent = "Back to runs list";
     }
   }

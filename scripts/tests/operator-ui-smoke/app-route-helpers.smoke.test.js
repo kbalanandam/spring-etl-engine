@@ -29,6 +29,8 @@ function createViewState() {
       timezone: "UTC",
       sortKey: "startTime",
       sortDirection: "desc",
+      page: 2,
+      pageSize: 20,
     },
   };
 }
@@ -62,6 +64,8 @@ test("app route helpers build list hashes and query suffixes", () => {
   const runsHash = helpers.getRunsRouteHash();
   assert.match(runsHash, /^#\/runs\?/);
   assert.match(runsHash, /job=customer-load/);
+  assert.match(runsHash, /page=2/);
+  assert.match(runsHash, /pageSize=20/);
 
   const suffix = helpers.getSchedulesRouteQuerySuffix();
   assert.match(suffix, /^\?/);

@@ -32,7 +32,20 @@ export function formatDateForInput(date) {
   return `${year}-${month}-${day}`;
 }
 
-export function buildRunsRouteHash(source) {
+export function defaultRunsPageSize(viewportHeight) {
+  // Runs rows are information-dense, so keep a smaller default page size.
+  return 8;
+}
+
+export function buildRunsRouteHash(source, options = {}) {
+  const defaultPageSize = Number.isFinite(options.defaultPageSize)
+    ? options.defaultPageSize
+    : defaultRunsPageSize();
+  const page = Math.max(1, Number.parseInt(source?.page, 10) || 1);
+  const pageSize = Number.parseInt(source?.pageSize, 10);
+  const effectivePageSize = Number.isFinite(pageSize) && pageSize > 0
+    ? pageSize
+    : defaultPageSize;
   const params = new URLSearchParams();
 
   if (String(source?.filterText || "").trim() !== "") {
@@ -55,6 +68,12 @@ export function buildRunsRouteHash(source) {
   }
   if (String(source?.timezone || "").trim() !== "") {
     params.set("timezone", String(source.timezone).trim());
+  }
+  if (page > 1) {
+    params.set("page", String(page));
+  }
+  if (effectivePageSize !== defaultPageSize) {
+    params.set("pageSize", String(effectivePageSize));
   }
   params.set("sort", String(source?.sortKey || "startTime"));
   params.set("dir", String(source?.sortDirection || "desc"));

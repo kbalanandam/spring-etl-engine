@@ -118,6 +118,11 @@ body {
   align-items: center;
 }
 
+.runs-pagination {
+  align-items: center;
+  margin-top: -2px;
+}
+
 .jobs-pagination {
   margin-top: -2px;
 }
@@ -293,6 +298,30 @@ body {
 
 .runs-controls #runs-sort-select {
   min-width: 210px;
+}
+
+.runs-advanced-controls {
+  margin-bottom: 10px;
+  border: 1px solid #dbe3ef;
+  border-radius: 6px;
+  background: #f8fafc;
+  padding: 6px 8px;
+}
+
+.runs-advanced-controls > summary {
+  cursor: pointer;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.runs-advanced-controls[open] > summary {
+  margin-bottom: 8px;
+}
+
+.runs-advanced-controls .runs-secondary-controls {
+  margin-bottom: 0;
 }
 
 @media (max-width: 960px) {

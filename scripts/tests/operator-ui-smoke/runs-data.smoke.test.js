@@ -18,8 +18,8 @@ function createCache() {
 }
 
 test("buildRunsFilterCacheKey creates stable composite key", () => {
-  const key = buildRunsFilterCacheKey("customer-load", "explicit-job", "rerun-from-start", "2026-06-23", "UTC");
-  assert.equal(key, "customer-load|explicit-job|rerun-from-start|2026-06-23|UTC");
+  const key = buildRunsFilterCacheKey("customer-load", "explicit-job", "rerun-from-start", "", "2026-06-23", "UTC");
+  assert.equal(key, "customer-load|explicit-job|rerun-from-start||2026-06-23|UTC");
 });
 
 test("getCachedRunsByFilter returns cached array entries and structured entries", () => {

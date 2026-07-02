@@ -37,6 +37,10 @@ test("buildRunsRouteHash includes only populated filters and always includes sor
     timezone: "UTC",
     sortKey: "startTime",
     sortDirection: "desc",
+    page: 3,
+    pageSize: 20,
+  }, {
+    defaultPageSize: 10,
   });
 
   assert.match(hash, /^#\/runs\?/);
@@ -48,5 +52,7 @@ test("buildRunsRouteHash includes only populated filters and always includes sor
   assert.match(hash, /timezone=UTC/);
   assert.match(hash, /sort=startTime/);
   assert.match(hash, /dir=desc/);
+  assert.match(hash, /page=3/);
+  assert.match(hash, /pageSize=20/);
 });
 
