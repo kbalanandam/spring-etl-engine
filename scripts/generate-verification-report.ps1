@@ -543,7 +543,7 @@ function Invoke-SmokeVerification {
         $negativeContent = Get-Content -Path $negativeLog -Raw
         # The negative smoke proves the system now fails early for placeholder SQL
         # Server values instead of reaching a late JDBC writer failure.
-        $negativePassed = $negativeContent.Contains("Invalid relational target configuration for scenario 'csv-to-sqlserver'") -and
+        $negativePassed = $negativeContent.Contains("Invalid relational connectionRef 'sqlserver-main'") -and
             $negativeContent.Contains('placeholder value') -and
             $negativeContent.Contains('BUILD FAILURE')
     }
