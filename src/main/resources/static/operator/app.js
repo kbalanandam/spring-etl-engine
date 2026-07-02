@@ -114,6 +114,12 @@ const routes = {
   },
 };
 
+const topLevelTabs = {
+  jobs: document.getElementById("tab-jobs"),
+  schedules: document.getElementById("tab-schedules"),
+  runs: document.getElementById("tab-runs"),
+};
+
 const JOBS_PAGE_SIZE_OPTIONS = [8, 10, 15, 20];
 
 const viewState = {
@@ -378,9 +384,26 @@ function renderRoute() {
   }
 
   Object.entries(routes).forEach(([key, route]) => {
-    const active = key === routeKey;
-    route.tab.classList.toggle("active", active);
-    route.view.hidden = !active;
+    route.view.hidden = key !== routeKey;
+  });
+
+  const activeTopLevelTabKey = routeKey === "jobs" || routeKey === "jobDetail" || routeKey === "jobConfig"
+    ? "jobs"
+    : routeKey === "schedules" || routeKey === "scheduleDetail"
+      ? "schedules"
+      : "runs";
+
+  Object.entries(topLevelTabs).forEach(([tabKey, tab]) => {
+    if (!tab) {
+      return;
+    }
+    const active = tabKey === activeTopLevelTabKey;
+    tab.classList.toggle("active", active);
+    if (active) {
+      tab.setAttribute("aria-current", "page");
+    } else {
+      tab.removeAttribute("aria-current");
+    }
   });
 
   routes[routeKey].load(routeState);

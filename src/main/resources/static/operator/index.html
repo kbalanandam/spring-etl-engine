@@ -13,13 +13,9 @@
 </header>
 
 <nav class="tabs">
-  <a href="#/jobs" id="tab-jobs">Jobs</a>
+  <a href="#/jobs" id="tab-jobs" class="active" aria-current="page">Jobs</a>
   <a href="#/schedules" id="tab-schedules">Schedules</a>
   <a href="#/runs" id="tab-runs">Runs</a>
-  <div class="tabs-timezone">
-    <label for="runs-timezone-select">Timezone</label>
-    <select id="runs-timezone-select"></select>
-  </div>
 </nav>
 
 <main class="content">
@@ -57,7 +53,6 @@
   </div>
 
   <section id="view-jobs" class="panel" hidden>
-    <h2>Jobs</h2>
     <p class="hint">Known bundles from <code>/api/v1/jobs</code>.</p>
     <div class="control-row jobs-controls">
       <label for="jobs-filter-input">Filter</label>
@@ -167,7 +162,6 @@
   </section>
 
   <section id="view-schedules" class="panel" hidden>
-    <h2>Schedules</h2>
     <p class="hint">Native scheduler workbench from <code>/api/v1/schedules</code>.</p>
     <div class="control-row schedules-controls">
       <label for="schedules-filter-input">Filter</label>
@@ -252,12 +246,15 @@
   </section>
 
   <section id="view-runs" class="panel" hidden>
-    <h2>Runs</h2>
     <p class="hint">Run summaries from <code>/api/v1/runs</code> with optional date/job filters.</p>
     <div class="control-row runs-controls runs-primary-controls">
       <div class="control-field">
         <label for="runs-start-date-input">Start date</label>
         <input id="runs-start-date-input" type="date">
+      </div>
+      <div class="control-field">
+        <label for="runs-timezone-select">Timezone</label>
+        <select id="runs-timezone-select"></select>
       </div>
       <div class="control-field">
         <label for="runs-job-select">Job</label>
