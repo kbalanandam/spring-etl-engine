@@ -144,6 +144,7 @@ test("runs list applies route state and renders sorted table", () => {
     assert.equal(elements.get("runs-body").children.length, 2);
 
     const firstRow = elements.get("runs-body").children[0];
+    assert.match(firstRow.innerHTML, /runs-summary-title/);
     assert.match(firstRow.innerHTML, /SCHEDULE/);
     assert.match(firstRow.innerHTML, /explicit-job/);
     assert.match(firstRow.innerHTML, /rerun-from-start/);
@@ -326,6 +327,7 @@ test("runs list paginates filtered rows", () => {
     ui.renderTable();
     assert.equal(elements.get("runs-body").children.length, 8);
     assert.equal(elements.get("runs-page-status").textContent, "Page 1 of 2");
+    assert.match(elements.get("runs-body").children[0].innerHTML, /runs-summary-meta/);
 
     elements.get("runs-page-next-btn").dispatch("click");
     assert.equal(elements.get("runs-body").children.length, 4);

@@ -300,22 +300,30 @@ export function createRunsListUi(options) {
   function runFilterSummaryText(totalCount) {
     const state = getState();
     const bits = [];
-    if (state.startDate) {
-      bits.push(`startDate=${state.startDate}`);
-    }
-    if (state.timezone) {
-      bits.push(`timezone=${state.timezone}`);
-    }
     if (state.selectedJobKey) {
-      bits.push(`job='${state.selectedJobKey}'`);
+      bits.push(`job ${state.selectedJobKey}`);
     }
     if (state.triggerSourceFilter) {
-      bits.push(`triggerSource=${state.triggerSourceFilter}`);
+      bits.push(`source ${state.triggerSourceFilter}`);
+    }
+    if (state.startDate) {
+      bits.push(`from ${state.startDate}`);
     }
     if (bits.length === 0) {
       return `${totalCount} run(s)`;
     }
-    return `${totalCount} run(s) for ${bits.join(", ")}`;
+    return `${totalCount} run(s), ${bits.join(", ")}`;
+  }
+
+  function buildRunSummaryCell(run) {
+    const scenario = escapeHtml(run?.scenario || "-");
+    const runMode = escapeHtml(run?.runMode || "-");
+    const recoveryPolicy = escapeHtml(run?.recoveryPolicy || "-");
+    return `
+      <div class="runs-summary-cell">
+        <div class="runs-summary-title">${scenario}</div>
+        <div class="runs-summary-meta">${runMode} | ${recoveryPolicy}</div>
+      </div>`;
   }
 
   function renderTable() {
@@ -365,11 +373,9 @@ export function createRunsListUi(options) {
         });
       }
       row.innerHTML = `
-        <td>${escapeHtml(run.scenario || "-")}</td>
+        <td>${buildRunSummaryCell(run)}</td>
         <td>${escapeHtml(run.status || "-")}</td>
         <td>${escapeHtml(run.triggerOrigin || "MANUAL")}</td>
-        <td>${escapeHtml(run.runMode || "-")}</td>
-        <td>${escapeHtml(run.recoveryPolicy || "-")}</td>
         <td>${escapeHtml(run.startTime || "-")}</td>
         <td>${escapeHtml(String(run.durationSeconds ?? "-"))}</td>
         <td>${escapeHtml(String(run.jobExecutionId ?? "-"))}</td>`;

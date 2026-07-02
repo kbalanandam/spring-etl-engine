@@ -324,6 +324,22 @@ body {
   margin-bottom: 0;
 }
 
+.runs-summary-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.runs-summary-title {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.runs-summary-meta {
+  font-size: 11px;
+  color: #64748b;
+}
+
 @media (max-width: 960px) {
   .tabs {
     flex-wrap: wrap;
