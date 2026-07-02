@@ -231,7 +231,7 @@ test("runs controls update state and request route sync", () => {
     assert.equal(state.pageSize, 8);
     assert.equal(state.page, 1);
     assert.equal(globalThis.location.hash, "#/runs/11");
-    assert.deepEqual(syncCalls, ["runs", "runs", "runs", "runs", "runs", "runs", "runs", "runs", "runs"]);
+    assert.deepEqual(syncCalls, ["runs", "runs", "runs", "runs", "runs", "runs", "runs", "runs", "runs", "runs"]);
 
     filter.value = "explicit-job";
     filter.dispatch("input");
@@ -335,6 +335,55 @@ test("runs list paginates filtered rows", () => {
     elements.get("runs-page-next-btn").dispatch("click");
     assert.equal(elements.get("runs-body").children.length, 4);
     assert.equal(elements.get("runs-page-status").textContent, "Page 2 of 2");
+  } finally {
+    restore();
+  }
+});
+
+test("runs list clamps out-of-range page and requests route sync", () => {
+  const { elements, restore } = installDom(IDS);
+  try {
+    const state = {
+      items: Array.from({ length: 12 }, (_, index) => ({
+        scenario: `scenario-${index + 1}`,
+        status: "COMPLETED",
+        triggerOrigin: "MANUAL",
+        runMode: "explicit-job",
+        recoveryPolicy: "rerun-from-start",
+        startTime: `2026-06-03T${String(index).padStart(2, "0")}:00:00`,
+        durationSeconds: index + 1,
+        jobExecutionId: index + 1,
+      })),
+      loaded: true,
+      filterText: "",
+      selectedJobKey: "",
+      runModeFilter: "",
+      recoveryPolicyFilter: "",
+      startDate: "2026-06-03",
+      timezone: "UTC",
+      browserTimezone: "UTC",
+      sortKey: "jobExecutionId",
+      sortDirection: "asc",
+      page: 99,
+      pageSize: 8,
+    };
+    const syncCalls = [];
+
+    const ui = createRunsListUi({
+      getState: () => state,
+      syncRouteHash: (routeKey) => syncCalls.push(routeKey),
+      renderJobOptions: () => populateRunsSelectOptions(elements),
+      renderTriggerSourceOptions: () => populateRunsSelectOptions(elements),
+      formatDateForInput: () => "2026-06-03",
+      escapeHtml,
+    });
+
+    ui.renderTable();
+
+    assert.equal(state.page, 2);
+    assert.equal(elements.get("runs-body").children.length, 4);
+    assert.equal(elements.get("runs-page-status").textContent, "Page 2 of 2");
+    assert.deepEqual(syncCalls, ["runs"]);
   } finally {
     restore();
   }

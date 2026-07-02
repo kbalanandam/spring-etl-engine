@@ -348,8 +348,13 @@ export function createRunsListUi(options) {
     const sorted = sortItems(filtered, state.sortKey, state.sortDirection);
     const pageSize = normalizeRunsPageSize(state.pageSize, 10);
     const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
-    state.page = Math.min(Math.max(Number(state.page) || 1, 1), totalPages);
+    const requestedPage = Math.max(Number(state.page) || 1, 1);
+    const clampedPage = Math.min(requestedPage, totalPages);
+    state.page = clampedPage;
     state.pageSize = pageSize;
+    if (clampedPage !== requestedPage) {
+      syncRouteHash("runs");
+    }
     const startIndex = (state.page - 1) * pageSize;
     const visible = sorted.slice(startIndex, startIndex + pageSize);
     renderInstanceOptions(visible);

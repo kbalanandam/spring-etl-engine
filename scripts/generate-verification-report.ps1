@@ -57,20 +57,31 @@ function Invoke-MavenTestRun {
         [int]$TimeoutMinutes
     )
 
+    $effectiveCaptureFile = $CaptureFile
     if (Test-Path $CaptureFile) {
-        Remove-Item $CaptureFile -Force
+        try {
+            Remove-Item $CaptureFile -Force -ErrorAction Stop
+        }
+        catch {
+            $captureDir = [System.IO.Path]::GetDirectoryName($CaptureFile)
+            $captureBase = [System.IO.Path]::GetFileNameWithoutExtension($CaptureFile)
+            $captureExt = [System.IO.Path]::GetExtension($CaptureFile)
+            $fallbackName = '{0}-{1}-{2}{3}' -f $captureBase, (Get-Date -Format 'yyyyMMdd-HHmmss'), ([guid]::NewGuid().ToString('N').Substring(0, 8)), $captureExt
+            $effectiveCaptureFile = Join-Path $captureDir $fallbackName
+            Write-Warning "Unable to clear locked Maven capture log '$CaptureFile'. Using fallback log '$effectiveCaptureFile'."
+        }
     }
 
     Push-Location $WorkingDirectory
     try {
         $start = Get-Date
-        $escapedCaptureFile = $CaptureFile.Replace('"', '""')
+        $escapedCaptureFile = $effectiveCaptureFile.Replace('"', '""')
         $command = "mvn --no-transfer-progress test > `"$escapedCaptureFile`" 2>&1"
         $process = Start-Process -FilePath 'cmd.exe' -ArgumentList '/d', '/c', $command -PassThru -WindowStyle Hidden
         $timedOut = -not $process.WaitForExit($TimeoutMinutes * 60 * 1000)
         if ($timedOut) {
             Stop-ProcessTree -RootProcessId $process.Id
-            Add-Content -Path $CaptureFile -Value "`nTIMED_OUT: Maven test run exceeded timeout of $TimeoutMinutes minute(s)."
+            Add-Content -Path $effectiveCaptureFile -Value "`nTIMED_OUT: Maven test run exceeded timeout of $TimeoutMinutes minute(s)."
             $exitCode = 124
         }
         else {
@@ -89,7 +100,7 @@ function Invoke-MavenTestRun {
         StartTime = $start
         EndTime = $end
         Duration = ($end - $start)
-        LogPath = $CaptureFile
+        LogPath = $effectiveCaptureFile
     }
 }
 
