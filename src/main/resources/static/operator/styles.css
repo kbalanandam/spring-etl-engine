@@ -340,6 +340,12 @@ body {
   color: #64748b;
 }
 
+.runs-summary-trigger {
+  display: none;
+  font-size: 11px;
+  color: #64748b;
+}
+
 #runs-table .runs-col-start,
 #runs-table .runs-col-duration {
   color: #64748b;
@@ -401,6 +407,16 @@ body {
 
   #runs-table .runs-col-duration {
     display: none;
+  }
+}
+
+@media (max-width: 780px) {
+  #runs-table .runs-col-trigger {
+    display: none;
+  }
+
+  .runs-summary-trigger {
+    display: block;
   }
 }
 

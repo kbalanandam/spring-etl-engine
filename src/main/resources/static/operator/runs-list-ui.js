@@ -319,10 +319,12 @@ export function createRunsListUi(options) {
     const scenario = escapeHtml(run?.scenario || "-");
     const runMode = escapeHtml(run?.runMode || "-");
     const recoveryPolicy = escapeHtml(run?.recoveryPolicy || "-");
+    const triggerOrigin = escapeHtml(run?.triggerOrigin || "MANUAL");
     return `
       <div class="runs-summary-cell">
         <div class="runs-summary-title">${scenario}</div>
         <div class="runs-summary-meta">${runMode} | ${recoveryPolicy}</div>
+        <div class="runs-summary-trigger">Trigger: ${triggerOrigin}</div>
       </div>`;
   }
 

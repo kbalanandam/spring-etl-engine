@@ -145,6 +145,7 @@ test("runs list applies route state and renders sorted table", () => {
 
     const firstRow = elements.get("runs-body").children[0];
     assert.match(firstRow.innerHTML, /runs-summary-title/);
+    assert.match(firstRow.innerHTML, /runs-summary-trigger/);
     assert.match(firstRow.innerHTML, /runs-col-start/);
     assert.match(firstRow.innerHTML, /runs-col-duration/);
     assert.match(firstRow.innerHTML, /SCHEDULE/);
