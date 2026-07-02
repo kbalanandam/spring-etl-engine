@@ -340,6 +340,15 @@ body {
   color: #64748b;
 }
 
+#runs-table .runs-col-start,
+#runs-table .runs-col-duration {
+  color: #64748b;
+}
+
+#runs-table .runs-col-execution {
+  white-space: nowrap;
+}
+
 @media (max-width: 960px) {
   .tabs {
     flex-wrap: wrap;
@@ -384,6 +393,14 @@ body {
   .runs-controls #runs-start-date-input {
     min-width: 0;
     width: 100%;
+  }
+
+  #runs-table .runs-col-start {
+    font-size: 11px;
+  }
+
+  #runs-table .runs-col-duration {
+    display: none;
   }
 }
 

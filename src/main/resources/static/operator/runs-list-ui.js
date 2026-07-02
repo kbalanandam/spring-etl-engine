@@ -373,12 +373,12 @@ export function createRunsListUi(options) {
         });
       }
       row.innerHTML = `
-        <td>${buildRunSummaryCell(run)}</td>
-        <td>${escapeHtml(run.status || "-")}</td>
-        <td>${escapeHtml(run.triggerOrigin || "MANUAL")}</td>
-        <td>${escapeHtml(run.startTime || "-")}</td>
-        <td>${escapeHtml(String(run.durationSeconds ?? "-"))}</td>
-        <td>${escapeHtml(String(run.jobExecutionId ?? "-"))}</td>`;
+        <td class="runs-col-run">${buildRunSummaryCell(run)}</td>
+        <td class="runs-col-status">${escapeHtml(run.status || "-")}</td>
+        <td class="runs-col-trigger">${escapeHtml(run.triggerOrigin || "MANUAL")}</td>
+        <td class="runs-col-start">${escapeHtml(run.startTime || "-")}</td>
+        <td class="runs-col-duration">${escapeHtml(String(run.durationSeconds ?? "-"))}</td>
+        <td class="runs-col-execution">${escapeHtml(String(run.jobExecutionId ?? "-"))}</td>`;
       body.appendChild(row);
     });
 
