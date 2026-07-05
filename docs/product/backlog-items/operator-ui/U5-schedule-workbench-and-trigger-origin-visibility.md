@@ -8,7 +8,7 @@ Add a dedicated Operator UI schedule workbench that lists existing schedules, sh
 
 - Epic: **[Epic U](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **In Progress**
 - Milestone: **M2**
 - Dependency: **U4, S2**
 
@@ -121,6 +121,6 @@ Prefer stable origin tokens in persistence (`MANUAL`, `SCHEDULE`, `EVENT`) and m
 
 ## Status notes
 
-- Added as the next bounded Operator UI slice after `U4` to make schedule operations and run-trigger provenance operationally clear.
-- Event triggers remain explicitly next-phase, but this item locks the shared UI and persistence origin contract now.
+- Active bounded Operator UI lane after `U4` closure, focusing on schedule-workbench routing/actions and explicit run trigger-origin visibility.
+- Event triggers remain explicitly next-phase, while this item hardens the shared UI and persistence origin contract now.
 

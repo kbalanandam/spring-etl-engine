@@ -8,7 +8,7 @@ Add the first bounded schedule-management surface to the Operator UI so operator
 
 - Epic: **[Epic U](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **S2, U3**
 
@@ -115,12 +115,12 @@ Balanced-growth pairing for this slice:
 
 ## Acceptance criteria
 
-- [ ] jobs with native schedule definitions show explicit schedule state in the Operator UI
-- [ ] pause/resume actions are guarded, operator-visible, and aligned with `S2`
-- [ ] jobs without native schedules render a clear empty state
-- [ ] UI wording keeps native scheduling bounded and preserves direct selected-job execution as a valid path
-- [ ] schedule state and actions remain distinguishable from ad hoc trigger-now behavior shipped in `U3`
-- [ ] related backlog and architecture docs stay aligned with the first bounded schedule-control slice
+- [x] jobs with native schedule definitions show explicit schedule state in the Operator UI
+- [x] pause/resume actions are guarded, operator-visible, and aligned with `S2`
+- [x] jobs without native schedules render a clear empty state
+- [x] UI wording keeps native scheduling bounded and preserves direct selected-job execution as a valid path
+- [x] schedule state and actions remain distinguishable from ad hoc trigger-now behavior shipped in `U3`
+- [x] related backlog and architecture docs stay aligned with the first bounded schedule-control slice
 
 ## Related docs
 
@@ -137,7 +137,5 @@ Keep the first slice narrow and evidence-first: show schedule state, expose guar
 
 ## Status notes
 
-- Added as the first planned post-MVP Operator UI slice so ETL, scheduler, and UI capability growth can be tested in parallel rather than only serially.
-- Intended pairing for the next balanced delivery lane: one ETL slice, one scheduler slice, and one UI slice progressing together on the same control-plane boundaries.
-
-
+- Shipped as the first bounded post-MVP Operator UI control slice so ETL, scheduler, and UI capability growth can be proven together without widening selected-job launch boundaries.
+- Serves as the completed dependency baseline for active `U5` workbench and trigger-origin follow-on work.
