@@ -112,12 +112,15 @@ Runs
 - [`Product backlog`](../../product-backlog.md)
 - [`Epic U - Operator UI monitoring-first MVP`](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)
 - [`U4 - schedule visibility and pause/resume controls`](./U4-schedule-visibility-and-pause-resume-controls.md)
+- [`U5 wireframe freeze`](./U5-wireframe-freeze.md)
 - [`S2 - Time-based schedule definitions with pause/resume controls`](../scheduler/S2-time-based-schedule-definitions-with-pause-resume.md)
 - [`Operator UI MVP API surface`](../../../architecture/control-plane/operator-ui-mvp-api-surface.md)
 
 ## Implementation notes
 
 Prefer stable origin tokens in persistence (`MANUAL`, `SCHEDULE`, `EVENT`) and map them to operator labels in UI, while keeping raw token visibility available for diagnostics.
+
+Implementation sequencing for this item follows the frozen low-fidelity contract in [`U5 wireframe freeze`](./U5-wireframe-freeze.md). Any structural UI change should update that note first in the same change.
 
 ## Status notes
 
