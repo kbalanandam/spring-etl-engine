@@ -156,7 +156,6 @@ const viewState = {
     detailTriggerEventsPage: 0,
     detailTriggerEventsSize: 20,
     detailTriggerEventsTotalItems: 0,
-    evidenceRequestId: 0,
     editorMode: "create",
     editingScheduleId: "",
   },
@@ -208,6 +207,7 @@ const runsListUi = createRunsListUi({
   renderJobOptions: renderRunsJobOptions,
   renderTriggerSourceOptions: renderRunsTriggerSourceOptions,
   formatDateForInput,
+  formatTriggerOriginToken,
   escapeHtml,
 });
 
@@ -231,6 +231,52 @@ const DEFAULT_TRIGGER_EVENT_LIMIT = 20;
 const DEFAULT_TRIGGER_EVENTS_PAGE = 0;
 const JOB_DETAIL_RECENT_RUNS_LIMIT = 10;
 const SCHEDULE_STATE_CHANGE_ACTIONS = new Set(["enable", "disable", "pause", "resume"]);
+
+function hasLaunchedRunIdValue(payload) {
+  const launchedRunId = payload?.launchedRunId;
+  return launchedRunId !== null && launchedRunId !== undefined && String(launchedRunId).trim() !== "";
+}
+
+function classifyTriggerAcceptance(payload, options = {}) {
+  const {
+    requireJobAssignment = false,
+    jobAssignmentValue = "",
+  } = options;
+  const decisionStatus = String(payload?.decisionStatus || "").trim();
+  const hasLaunchedRunId = hasLaunchedRunIdValue(payload);
+  const normalizedJobAssignmentValue = String(jobAssignmentValue || "").trim();
+
+  if (requireJobAssignment && normalizedJobAssignmentValue === "") {
+    return {
+      level: "warning",
+      decisionStatus,
+      hasLaunchedRunId,
+      reason: "missing_job_assignment",
+    };
+  }
+  if (decisionStatus === "DUPLICATE_SUPPRESSED" || decisionStatus === "LAUNCH_SKIPPED") {
+    return {
+      level: "warning",
+      decisionStatus,
+      hasLaunchedRunId,
+      reason: "non_launch_decision",
+    };
+  }
+  if (decisionStatus === "ACCEPTED" && !hasLaunchedRunId) {
+    return {
+      level: "error",
+      decisionStatus,
+      hasLaunchedRunId,
+      reason: "launch_not_confirmed",
+    };
+  }
+  return {
+    level: "success",
+    decisionStatus,
+    hasLaunchedRunId,
+    reason: "launch_confirmed",
+  };
+}
 
 const loadRequestTracker = {
   jobs: 0,
@@ -1206,22 +1252,33 @@ async function requestTriggerNow(jobKeyValue) {
     const payload = await response.json().catch(() => ({}));
     if (response.ok || response.status === 202) {
       const eventId = valueOrDash(payload.triggerEventId);
-      const decisionStatus = String(payload.decisionStatus || "").trim();
-      const duplicateSuppressed = decisionStatus === "DUPLICATE_SUPPRESSED";
-      const launchSkipped = decisionStatus === "LAUNCH_SKIPPED";
-      triggerFeedback.className = duplicateSuppressed || launchSkipped ? "state state-warning" : "state state-success";
-      triggerFeedback.textContent = duplicateSuppressed
-        ? `Trigger already accepted recently. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`
-        : launchSkipped
-          ? `Trigger accepted but launch skipped. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}. ${valueOrDash(payload.message)}`
-          : `Trigger accepted. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`;
+      const acceptance = classifyTriggerAcceptance(payload, {
+        requireJobAssignment: true,
+        jobAssignmentValue: normalizedJobKey,
+      });
+      const launchSkipped = acceptance.decisionStatus === "LAUNCH_SKIPPED";
+      const duplicateSuppressed = acceptance.decisionStatus === "DUPLICATE_SUPPRESSED";
+      if (acceptance.level === "error") {
+        triggerFeedback.className = "state error";
+        triggerFeedback.textContent = `Trigger accepted but worker launch was not confirmed. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}. ${valueOrDash(payload.message)}`;
+      } else if (acceptance.level === "warning") {
+        triggerFeedback.className = "state state-warning";
+        triggerFeedback.textContent = duplicateSuppressed
+          ? `Trigger already accepted recently. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`
+          : launchSkipped
+            ? `Trigger accepted but launch skipped. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}. ${valueOrDash(payload.message)}`
+            : `Trigger warning: no assigned job/task context was provided for launch confirmation. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`;
+      } else {
+        triggerFeedback.className = "state state-success";
+        triggerFeedback.textContent = `Trigger accepted. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId} launchedRunId=${valueOrDash(payload.launchedRunId)}`;
+      }
       triggerFeedback.hidden = false;
-      if (!launchSkipped) {
+      if (acceptance.level === "success") {
         triggerNowRequestState.cooldownUntilByJobKey[normalizedJobKey] = Date.now() + TRIGGER_NOW_DUPLICATE_WINDOW_MS;
       }
 
       await refreshJobDetailRecentTriggerEvents(normalizedJobKey, currentRouteState()?.query);
-      if (!launchSkipped) {
+      if (acceptance.level === "success") {
         await refreshJobDetailRecentRuns(normalizedJobKey, currentRouteState()?.query);
         await refreshRunsAfterTriggerAccepted();
         scheduleFollowUpRunsRefresh();
@@ -1294,7 +1351,6 @@ async function loadSchedules() {
       ? `Loaded ${items.length} schedule(s). No schedules match the current filters.`
       : `Loaded ${items.length} schedule(s).`;
     table.hidden = false;
-    focusSelectedScheduleRow();
     consumePendingScheduleEditIntent(items);
   } catch (error) {
     if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
@@ -1371,10 +1427,14 @@ function renderSchedulesTable(items, requestId) {
   pageItems.forEach((schedule) => {
     const row = document.createElement("tr");
     const scheduleId = String(schedule?.scheduleId || "").trim();
-    row.className = "clickable-row";
     row.dataset.scheduleId = scheduleId;
-    row.title = "Open schedule detail";
-    row.addEventListener("click", () => {
+
+    const actions = document.createElement("td");
+
+    const detailsButton = document.createElement("button");
+    detailsButton.type = "button";
+    detailsButton.textContent = "Details";
+    detailsButton.addEventListener("click", () => {
       if (scheduleId === "") {
         return;
       }
@@ -1383,8 +1443,6 @@ function renderSchedulesTable(items, requestId) {
         ? `#/schedules/${encodeURIComponent(scheduleId)}`
         : `#/schedules/${encodeURIComponent(scheduleId)}${scheduleQuerySuffix}`;
     });
-
-    const actions = document.createElement("td");
 
     const openJobButton = document.createElement("button");
     openJobButton.type = "button";
@@ -1414,6 +1472,8 @@ function renderSchedulesTable(items, requestId) {
     });
 
     actions.append(
+      detailsButton,
+      document.createTextNode(" "),
       openJobButton,
       document.createTextNode(" "),
       triggerNowButton
@@ -1428,37 +1488,6 @@ function renderSchedulesTable(items, requestId) {
   });
 
   return pageItems.length;
-}
-
-function focusSelectedScheduleRow() {
-  const selectedScheduleId = String(viewState.schedules.selectedScheduleId || "").trim();
-  const body = document.getElementById("schedules-body");
-  if (!body) {
-    return;
-  }
-
-  const rows = Array.from(body.querySelectorAll("tr[data-schedule-id]"));
-  if (rows.length === 0) {
-    return;
-  }
-
-  let selectedRow = null;
-  rows.forEach((row) => {
-    const rowScheduleId = String(row.dataset.scheduleId || "").trim();
-    const isSelected = selectedScheduleId !== "" && rowScheduleId === selectedScheduleId;
-    row.classList.toggle("schedule-selected-row", isSelected);
-    if (isSelected) {
-      selectedRow = row;
-    }
-  });
-
-  if (!selectedRow) {
-    return;
-  }
-
-  if (typeof selectedRow.scrollIntoView === "function") {
-    selectedRow.scrollIntoView({ block: "center", behavior: "smooth" });
-  }
 }
 
 async function ensureScheduleEditorJobOptions() {
@@ -1626,7 +1655,12 @@ async function requestScheduleWorkbenchTriggerNow(schedule, requestId) {
   const state = document.getElementById("schedules-state");
   const scheduleId = String(schedule?.scheduleId || "").trim();
   const selectedJobKey = String(schedule?.selectedJobKey || "").trim();
-  if (!state || !scheduleId || !selectedJobKey) {
+  if (!state || !scheduleId) {
+    return;
+  }
+  if (selectedJobKey === "") {
+    state.className = "state state-warning";
+    state.textContent = "Trigger warning: schedule is not assigned to a job/task, so launch cannot be confirmed.";
     return;
   }
   if (scheduleRequestState.inFlightTriggerByScheduleId[scheduleId]) {
@@ -1664,17 +1698,31 @@ async function requestScheduleWorkbenchTriggerNow(schedule, requestId) {
         : `Trigger now failed: ${detail}. ${endpointHint}`;
       return;
     }
-    const decisionStatus = String(payload.decisionStatus || "").trim();
-    const launchSkipped = decisionStatus === "LAUNCH_SKIPPED";
-    state.className = (decisionStatus === "DUPLICATE_SUPPRESSED" || launchSkipped) ? "state state-warning" : "state state-success";
-    state.textContent = launchSkipped
-      ? `Trigger now accepted but launch skipped for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}. ${valueOrDash(payload.message)}`
-      : `Trigger now accepted for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}`;
+    const acceptance = classifyTriggerAcceptance(payload, {
+      requireJobAssignment: true,
+      jobAssignmentValue: selectedJobKey,
+    });
+    const launchSkipped = acceptance.decisionStatus === "LAUNCH_SKIPPED";
+    const duplicateSuppressed = acceptance.decisionStatus === "DUPLICATE_SUPPRESSED";
+    if (acceptance.level === "error") {
+      state.className = "state error";
+      state.textContent = `Trigger now accepted but worker launch was not confirmed for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}. ${valueOrDash(payload.message)}`;
+    } else if (acceptance.level === "warning") {
+      state.className = "state state-warning";
+      state.textContent = duplicateSuppressed
+        ? `Trigger now already accepted recently for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}`
+        : launchSkipped
+          ? `Trigger now accepted but launch skipped for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}. ${valueOrDash(payload.message)}`
+          : `Trigger warning for ${selectedJobKey}: no assigned job/task context was provided for launch confirmation. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}`;
+    } else {
+      state.className = "state state-success";
+      state.textContent = `Trigger now accepted for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)} launchedRunId=${valueOrDash(payload.launchedRunId)}`;
+    }
     if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
       return;
     }
     viewState.schedules.selectedScheduleId = scheduleId;
-    if (!launchSkipped) {
+    if (acceptance.level === "success") {
       await refreshRunsAfterTriggerAccepted();
       scheduleFollowUpRunsRefresh();
     }

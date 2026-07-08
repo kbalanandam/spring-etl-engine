@@ -32,21 +32,36 @@ Keep these shell rules stable during `U5`:
 | Schedules table                                                                                |
 |------------------------------------------------------------------------------------------------|
 | Schedule key                 | Job             | State    | Next due (local)    | Actions       |
-| customer-load-every-minute   | customer-load   | Active   | 2026-07-06 10:31    | Open Pause ...|
-| nightly-xml-roundtrip        | xml-roundtrip   | Paused   | --                  | Open Resume...|
+| customer-load-every-minute   | customer-load   | Active   | 2026-07-06 10:31    | Details Open Trigger...|
+| nightly-xml-roundtrip        | xml-roundtrip   | Paused   | --                  | Details Open Trigger...|
 +------------------------------------------------------------------------------------------------+
-| Recent trigger evidence (selected schedule)                                                    |
-| - 10:30:01 origin=Schedule decision=ACCEPTED triggerEventId=te-...                             |
-| - 10:29:01 origin=Schedule decision=DROPPED_DUPLICATE triggerEventId=te-...                    |
+| No schedule selected by default. Use explicit row actions to open history or job context.      |
 +------------------------------------------------------------------------------------------------+
 ```
 
 ### Frozen behavior
 
-- table-first workbench, row selects schedule context
-- bounded actions only: `Open job`, `Pause`/`Resume`, `Trigger now`
+- table-first workbench with no default selection or implicit row navigation
+- bounded actions only: `Details`, `Open job`, `Trigger now`
 - no schedule authoring CRUD in this slice
-- recent trigger evidence is visible without leaving the workbench
+- recent trigger evidence stays on the dedicated schedule detail page for this phase
+- schedule state changes (`Enable`/`Disable`, `Pause`/`Resume`) live on schedule detail to avoid duplicated control points
+
+## Frozen screen A1 - Schedule detail trigger history
+
+```text
++------------------------------------------------------------------------------------------------+
+| Schedule detail: customer-load-every-minute                                                    |
++------------------------------------------------------------------------------------------------+
+| Summary: job | state | expression | timezone | next due                                        |
++------------------------------------------------------------------------------------------------+
+| Actions: [Edit] [Disable] [Pause]                                                              |
++------------------------------------------------------------------------------------------------+
+| [Show recent triggers]                                                                         |
+| - 10:30:01 origin=Schedule launch=CONFIRMED     triggerEventId=te-... launchedRunId=42        |
+| - 10:29:01 origin=Schedule launch=NOT_CONFIRMED triggerEventId=te-...                          |
++------------------------------------------------------------------------------------------------+
+```
 
 ## Frozen screen B - Runs trigger-origin visibility
 
@@ -97,4 +112,9 @@ Trigger context
 - [`U5 backlog item`](./U5-schedule-workbench-and-trigger-origin-visibility.md)
 - [`Epic U`](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)
 - [`Operator UI MVP API surface`](../../../architecture/control-plane/operator-ui-mvp-api-surface.md)
+
+
+
+
+
 

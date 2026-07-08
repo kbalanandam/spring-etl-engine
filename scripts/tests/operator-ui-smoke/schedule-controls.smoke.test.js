@@ -30,6 +30,7 @@ test("operator includes schedule workbench and trigger evidence markup", async (
   assert.match(source, /id="schedules-sort-select"/);
   assert.match(source, /id="schedules-page-size-select"/);
   assert.match(source, /id="schedules-page-status"/);
+  assert.doesNotMatch(source, /id="schedules-evidence-panel"/);
   assert.match(source, /id="schedules-editor-expression-state"/);
   assert.doesNotMatch(source, /Cron expression \(5 or 6 fields\)/);
   assert.match(source, /id="schedule-detail-enable-disable-btn"/);
@@ -38,10 +39,11 @@ test("operator includes schedule workbench and trigger evidence markup", async (
   assert.match(source, /id="schedule-detail-triggers-toggle-btn"/);
   assert.match(source, /id="schedule-detail-triggers-panel"/);
   assert.match(source, /id="schedule-detail-triggers-list"/);
+  assert.match(source, /Use explicit actions to open schedule history or jump to the related job context\./);
   assert.match(source, /Trigger origin/);
 });
 
-test("operator app wires schedule editor and schedule state-change actions", async () => {
+test("operator app wires schedule editor and detail schedule state-change actions", async () => {
   const appPath = resolve(process.cwd(), "src/main/resources/static/operator/app.js");
   const source = await readFile(appPath, "utf8");
   const helpersPath = resolve(process.cwd(), "src/main/resources/static/operator/schedule-ui-helpers.js");
@@ -60,12 +62,21 @@ test("operator app wires schedule editor and schedule state-change actions", asy
   assert.match(source, /Multiple native schedules are configured for this job \(\$\{matches\.length\} found\)\. Managing \$\{valueOrDash\(selectedSchedule\.scheduleKey\)\} in this panel\./);
   assert.match(source, /function openScheduleEditor\(/);
   assert.match(source, /const returnToDetailAfterSave = mode === "edit" && editCancelReturnHash !== "";/);
-  assert.match(source, /function focusSelectedScheduleRow\(/);
+  assert.doesNotMatch(source, /function requestScheduleWorkbenchStateChange\(schedule, action, requestId\)/);
+  assert.match(source, /function classifyTriggerAcceptance\(payload, options = \{\}\)/);
+  assert.match(source, /function hasLaunchedRunIdValue\(payload\)/);
+  assert.doesNotMatch(source, /Pause schedule \$\{valueOrDash\(scheduleKey\)\}\?/);
   assert.match(source, /function buildSchedulesRouteQuery\(/);
   assert.match(source, /function buildSchedulesListHash\(/);
   assert.match(source, /row\.dataset\.scheduleId = scheduleId;/);
-  assert.match(source, /row\.classList\.toggle\("schedule-selected-row", isSelected\);/);
-  assert.match(source, /selectedRow\.scrollIntoView\(\{ block: "center", behavior: "smooth" \}\);/);
+  assert.match(source, /detailsButton\.textContent = "Details";/);
+  assert.match(source, /detailsButton\.addEventListener\("click", \(\) => \{/);
+  assert.match(source, /location\.hash = scheduleQuerySuffix === ""/);
+  assert.doesNotMatch(source, /row\.addEventListener\("click"/);
+  assert.doesNotMatch(source, /function focusSelectedScheduleRow\(/);
+  assert.doesNotMatch(source, /function refreshScheduleWorkbenchEvidence\(schedule, requestId\)/);
+  assert.doesNotMatch(source, /function refreshSelectedScheduleWorkbenchEvidence\(items, requestId\)/);
+  assert.doesNotMatch(source, /schedule-selected-row/);
   assert.match(source, /function submitScheduleEditor\(/);
   assert.match(source, /from "\.\/schedule-expression\.js"/);
   assert.match(editorHelpersSource, /validateScheduleExpression\(expressionInput\.value\)/);
@@ -78,13 +89,14 @@ test("operator app wires schedule editor and schedule state-change actions", asy
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}/);
   assert.match(source, /\/api\/v1\/schedules"/);
   assert.match(source, /viewState\.schedules\.selectedScheduleId = String\(schedule\?\.scheduleId \|\| ""\)\.trim\(\);/);
-  assert.match(source, /normalizedAction !== "pause" && normalizedAction !== "resume"/);
   assert.match(source, /SCHEDULE_STATE_CHANGE_ACTIONS/);
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(normalizedScheduleId\)\}:\$\{normalizedAction\}/);
   assert.match(source, /Schedule action already in progress\. Please wait for the current response\./);
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}/);
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(normalizedScheduleId\)\}\/trigger-events\?page=\$\{page\}&size=\$\{size\}/);
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}:trigger-now/);
+  assert.match(source, /Trigger warning: schedule is not assigned to a job\/task, so launch cannot be confirmed\./);
+  assert.match(source, /Trigger now accepted but worker launch was not confirmed for \$\{selectedJobKey\}\./);
   assert.match(source, /const detail = backendMessage !== "" \? backendMessage : `status=\$\{response\.status\}`;/);
   assert.match(source, /Schedule trigger-now endpoint is unavailable in the running backend\. Restart the app with the latest build\./);
   assert.match(source, /function loadScheduleDetail\(routeState\)/);
@@ -108,8 +120,10 @@ test("operator app wires schedule editor and schedule state-change actions", asy
   assert.match(stylesSource, /\.decision-chip/);
   assert.match(stylesSource, /\.decision-chip-success/);
   assert.match(stylesSource, /\.decision-chip-warning/);
+  assert.match(stylesSource, /\.decision-chip-error/);
   assert.match(stylesSource, /\.state\.state-success/);
   assert.match(stylesSource, /\.state\.state-warning/);
+  assert.doesNotMatch(stylesSource, /#schedules-evidence-panel/);
   assert.match(source, /const scheduleControlState = getScheduleControlState\(selectedSchedule\);/);
   assert.match(source, /scheduleActionButton\.textContent = scheduleControlState\.detailPauseResumeLabel/);
   assert.match(source, /closeScheduleEditor\(\{ navigateToReturnHash: returnToDetailAfterSave \}\);/);

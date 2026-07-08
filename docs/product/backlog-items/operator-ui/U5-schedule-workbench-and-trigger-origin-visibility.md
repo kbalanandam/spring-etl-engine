@@ -2,7 +2,7 @@
 
 ## Summary
 
-Add a dedicated Operator UI schedule workbench that lists existing schedules, shows recent schedule-trigger evidence, and surfaces one clear trigger-origin indicator on runs so operators can distinguish Manual vs Schedule now and Event in the next phase.
+Add a dedicated Operator UI schedule workbench that lists existing schedules, routes to schedule detail for recent trigger evidence, and surfaces one clear trigger-origin indicator on runs so operators can distinguish Manual vs Schedule now and Event in the next phase.
 
 ## Current board status
 
@@ -33,7 +33,7 @@ Ship a bounded schedule workbench and trigger-origin visibility slice that keeps
 ## Scope
 
 - new schedule-centric view in Operator UI listing existing schedules and state
-- bounded schedule actions in that view: open job detail, pause/resume, and guarded ad hoc trigger-now
+- bounded schedule actions in that view: open schedule detail, open job detail, and guarded ad hoc trigger-now
 - clear trigger-origin token rendered in Runs list and Run detail (`Manual`, `Schedule`; `Event` reserved)
 - read-model and persistence contract updates needed to carry explicit trigger origin into run projections
 - explicit wording that schedule controls remain bounded and selected-job boundaries stay intact
@@ -42,7 +42,7 @@ Ship a bounded schedule workbench and trigger-origin visibility slice that keeps
 
 - open **Schedules** view and find `customer-load-every-minute`
 - verify state (`Active`) and next due in UTC/local display
-- open recent schedule trigger evidence and confirm `origin=Schedule`
+- open schedule detail to review recent trigger evidence and confirm `origin=Schedule`
 - switch to **Runs** and confirm launched run shows `Trigger origin: Schedule`
 - trigger one ad hoc run from job detail and confirm the next run shows `Trigger origin: Manual`
 - in the next phase, file-watcher triggers surface as `Trigger origin: Event` without redefining the same run-view contract
@@ -55,7 +55,7 @@ Schedules
 Key                         Job            Status   Next due
 customer-load-every-minute  customer-load  Active   2026-06-08 10:31 local
 
-[Open job] [Pause] [Trigger now]
+[Details] [Open job] [Trigger now]
 
 Recent triggers (selected schedule)
 - 10:30:01  origin=Schedule  decision=ACCEPTED  triggerEventId=te-...
@@ -101,7 +101,7 @@ Runs
 ## Acceptance criteria
 
 - [ ] Operator UI has a schedule workbench listing existing schedules with state and next due
-- [ ] schedule workbench shows recent schedule trigger evidence and bounded actions
+- [ ] schedule workbench keeps bounded actions (`Details`, `Open job`, `Trigger now`) and defers state changes to schedule detail
 - [ ] Runs list and Run detail show explicit trigger origin (`Manual`, `Schedule`)
 - [ ] trigger-origin contract reserves `Event` and does not require UI redesign when event triggers ship
 - [ ] persistence/read-model flow keeps run origin auditable from trigger event to run projection
