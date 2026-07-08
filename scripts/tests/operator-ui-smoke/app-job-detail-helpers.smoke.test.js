@@ -120,10 +120,44 @@ test("job detail helpers render trigger evidence with launched run link and mess
     assert.equal(decisionChip.className, "decision-chip");
     assert.equal(decisionChip.classList.contains("decision-chip-success"), true);
     assert.match(item.children[2].textContent, /origin=MANUAL/);
+    assert.match(item.children[2].textContent, /launch=CONFIRMED/);
     const runLink = item.children[3];
     assert.equal(runLink.tagName, "A");
     assert.equal(runLink.textContent, "42");
     assert.match(runLink.href, /#\/runs\/42\?from=job&job=customer-load&scheduleId=sch-1&scheduleListQuery=sort%3DscheduleKey/);
+  } finally {
+    dom.restore();
+  }
+});
+
+test("job detail helpers mark accepted events without launched run as error severity", () => {
+  const dom = installDom([
+    "job-detail-trigger-events-state",
+    "job-detail-trigger-events-list",
+  ]);
+
+  try {
+    const helpers = createHelpers();
+    const list = dom.elements.get("job-detail-trigger-events-list");
+
+    helpers.renderJobTriggerEvents([
+      {
+        requestedAt: "2026-06-24T09:20:00Z",
+        triggerOrigin: "SCHEDULE",
+        decisionStatus: "ACCEPTED",
+        reason: "schedule_tick",
+        requestedBy: "scheduler",
+        triggerEventId: "te-456",
+        launchedRunId: null,
+      },
+    ], "customer-load", {});
+
+    assert.equal(list.children.length, 1);
+    const item = list.children[0];
+    const decisionChip = item.children[0];
+    assert.equal(decisionChip.classList.contains("decision-chip-error"), true);
+    assert.match(item.children[2].textContent, /launch=NOT_CONFIRMED/);
+    assert.equal(item.children.length, 3);
   } finally {
     dom.restore();
   }

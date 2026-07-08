@@ -104,12 +104,41 @@ test("schedule detail helpers build trigger event line with run link and schedul
     assert.equal(line.children[0].className, "decision-chip");
     assert.equal(line.children[0].classList.contains("decision-chip-success"), true);
     assert.match(line.children[2].textContent, /origin=EVENT/);
+    assert.match(line.children[2].textContent, /launch=CONFIRMED/);
     assert.equal(line.children[3].tagName, "A");
     assert.equal(line.children[3].textContent, "42");
     assert.match(line.children[3].href, /^#\/runs\/42\?/);
     assert.match(line.children[3].href, /from=schedule/);
     assert.match(line.children[3].href, /scheduleId=sched-1/);
     assert.match(line.children[3].href, /scheduleListQuery=f%3Dnightly/);
+  } finally {
+    dom.restore();
+  }
+});
+
+test("schedule detail helpers mark accepted events without launched run id as error severity", () => {
+  const dom = installScheduleDetailDom();
+  try {
+    const helpers = createAppScheduleDetailHelpers({
+      valueOrDash: (value) => (value === null || value === undefined || value === "" ? "-" : String(value)),
+      formatScheduleTriggerOriginToken: () => "Schedule",
+    });
+
+    const line = helpers.buildScheduleTriggerEventLine(
+      {
+        requestedAt: "2026-06-23T10:00:00Z",
+        triggerOrigin: "schedule",
+        decisionStatus: "ACCEPTED",
+        triggerEventId: "e-2",
+        launchedRunId: null,
+      },
+      "sched-1",
+      ""
+    );
+
+    assert.equal(line.children[0].classList.contains("decision-chip-error"), true);
+    assert.match(line.children[2].textContent, /launch=NOT_CONFIRMED/);
+    assert.equal(line.children.length, 3);
   } finally {
     dom.restore();
   }

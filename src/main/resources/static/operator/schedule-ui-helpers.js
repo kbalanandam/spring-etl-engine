@@ -42,22 +42,22 @@ export function formatScheduleStatus(schedule) {
 export function formatTriggerOriginToken(token) {
   const normalized = String(token || "").trim().toUpperCase();
   if (normalized === "SCHEDULE") {
-    return "SCHEDULE";
+    return "Schedule";
   }
   if (normalized === "EVENT") {
-    return "EVENT";
+    return "Event";
   }
-  return "MANUAL";
+  return "Manual";
 }
 
 export function formatScheduleTriggerOriginToken(token) {
   const normalized = String(token || "").trim().toUpperCase();
   if (normalized === "EVENT") {
-    return "EVENT";
+    return "Event";
   }
   if (normalized === "MANUAL") {
-    return "MANUAL";
+    return "Manual";
   }
-  return "SCHEDULE";
+  return "Schedule";
 }
 

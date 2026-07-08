@@ -9,6 +9,7 @@ export function createRunsListUi(options) {
   const renderTriggerSourceOptions = options.renderTriggerSourceOptions;
   const formatDateForInput = options.formatDateForInput;
   const escapeHtml = options.escapeHtml;
+  const formatTriggerOriginToken = options.formatTriggerOriginToken || ((value) => String(value || "Manual"));
 
   function initializeControls() {
     const runsFilter = document.getElementById("runs-filter-input");
@@ -319,7 +320,7 @@ export function createRunsListUi(options) {
     const scenario = escapeHtml(run?.scenario || "-");
     const runMode = escapeHtml(run?.runMode || "-");
     const recoveryPolicy = escapeHtml(run?.recoveryPolicy || "-");
-    const triggerOrigin = escapeHtml(run?.triggerOrigin || "MANUAL");
+    const triggerOrigin = escapeHtml(formatTriggerOriginToken(run?.triggerOrigin));
     return `
       <div class="runs-summary-cell">
         <div class="runs-summary-title">${scenario}</div>
@@ -382,7 +383,7 @@ export function createRunsListUi(options) {
       row.innerHTML = `
         <td class="runs-col-run">${buildRunSummaryCell(run)}</td>
         <td class="runs-col-status">${escapeHtml(run.status || "-")}</td>
-        <td class="runs-col-trigger">${escapeHtml(run.triggerOrigin || "MANUAL")}</td>
+        <td class="runs-col-trigger">${escapeHtml(formatTriggerOriginToken(run.triggerOrigin))}</td>
         <td class="runs-col-start">${escapeHtml(run.startTime || "-")}</td>
         <td class="runs-col-duration">${escapeHtml(String(run.durationSeconds ?? "-"))}</td>
         <td class="runs-col-execution">${escapeHtml(String(run.jobExecutionId ?? "-"))}</td>`;

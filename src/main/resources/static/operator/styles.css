@@ -473,11 +473,6 @@ th {
   background: #eff6ff;
 }
 
-.schedule-selected-row,
-.schedule-selected-row:hover {
-  background: #dbeafe;
-}
-
 #run-detail-summary,
 #job-detail-summary {
   border: 1px solid #cbd5e1;
@@ -793,6 +788,12 @@ th {
   border-color: #fcd34d;
   color: #92400e;
   background: #fffbeb;
+}
+
+.decision-chip-error {
+  border-color: #fca5a5;
+  color: #991b1b;
+  background: #fef2f2;
 }
 
 .footnote {

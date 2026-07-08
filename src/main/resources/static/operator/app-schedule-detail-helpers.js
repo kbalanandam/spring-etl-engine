@@ -23,19 +23,24 @@ export function createAppScheduleDetailHelpers(options = {}) {
     const decision = valueOrDash(item?.decisionStatus);
     const triggerEventId = valueOrDash(item?.triggerEventId);
     const launchedRunId = String(item?.launchedRunId || "").trim();
+    const hasLaunchedRunId = launchedRunId !== "";
 
     const decisionToken = String(item?.decisionStatus || "").trim().toUpperCase();
     const decisionChip = document.createElement("span");
     decisionChip.className = "decision-chip";
-    if (decisionToken === "DUPLICATE_SUPPRESSED") {
+    if (decisionToken === "DUPLICATE_SUPPRESSED" || decisionToken === "LAUNCH_SKIPPED") {
       decisionChip.classList.add("decision-chip-warning");
+    } else if (decisionToken === "ACCEPTED" && !hasLaunchedRunId) {
+      decisionChip.classList.add("decision-chip-error");
     } else if (decisionToken === "ACCEPTED") {
       decisionChip.classList.add("decision-chip-success");
     }
     decisionChip.textContent = decision;
 
     const metadata = document.createElement("span");
-    metadata.textContent = `${requestedAt} | origin=${origin} | triggerEventId=${triggerEventId} | launchedRunId=`;
+    metadata.textContent = hasLaunchedRunId
+      ? `${requestedAt} | origin=${origin} | launch=CONFIRMED | triggerEventId=${triggerEventId} | launchedRunId=`
+      : `${requestedAt} | origin=${origin} | launch=NOT_CONFIRMED | triggerEventId=${triggerEventId}`;
 
     line.appendChild(decisionChip);
     line.appendChild(document.createTextNode(" "));
@@ -52,8 +57,6 @@ export function createAppScheduleDetailHelpers(options = {}) {
       runLink.href = `#/runs/${encodeURIComponent(launchedRunId)}?${params.toString()}`;
       runLink.textContent = launchedRunId;
       line.appendChild(runLink);
-    } else {
-      line.appendChild(document.createTextNode("-"));
     }
 
     return line;

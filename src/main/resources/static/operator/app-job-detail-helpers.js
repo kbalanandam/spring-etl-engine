@@ -14,20 +14,25 @@ export function createAppJobDetailHelpers(options = {}) {
     const requestedBy = valueOrDash(item?.requestedBy);
     const triggerEventId = valueOrDash(item?.triggerEventId);
     const launchedRunId = String(item?.launchedRunId || "").trim();
+    const hasLaunchedRunId = launchedRunId !== "";
     const message = String(item?.message || "").trim();
 
     const decisionToken = String(item?.decisionStatus || "").trim().toUpperCase();
     const decisionChip = document.createElement("span");
     decisionChip.className = "decision-chip";
-    if (decisionToken === "DUPLICATE_SUPPRESSED") {
+    if (decisionToken === "DUPLICATE_SUPPRESSED" || decisionToken === "LAUNCH_SKIPPED") {
       decisionChip.classList.add("decision-chip-warning");
+    } else if (decisionToken === "ACCEPTED" && !hasLaunchedRunId) {
+      decisionChip.classList.add("decision-chip-error");
     } else if (decisionToken === "ACCEPTED") {
       decisionChip.classList.add("decision-chip-success");
     }
     decisionChip.textContent = decision;
 
     const metadata = document.createElement("span");
-    metadata.textContent = `${requestedAt} | origin=${origin} | reason=${reason} | requestedBy=${requestedBy} | triggerEventId=${triggerEventId} | launchedRunId=`;
+    metadata.textContent = hasLaunchedRunId
+      ? `${requestedAt} | origin=${origin} | launch=CONFIRMED | reason=${reason} | requestedBy=${requestedBy} | triggerEventId=${triggerEventId} | launchedRunId=`
+      : `${requestedAt} | origin=${origin} | launch=NOT_CONFIRMED | reason=${reason} | requestedBy=${requestedBy} | triggerEventId=${triggerEventId}`;
 
     line.appendChild(decisionChip);
     line.appendChild(document.createTextNode(" "));
@@ -50,8 +55,6 @@ export function createAppJobDetailHelpers(options = {}) {
       runLink.href = `#/runs/${encodeURIComponent(launchedRunId)}?${params.toString()}`;
       runLink.textContent = launchedRunId;
       line.appendChild(runLink);
-    } else {
-      line.appendChild(document.createTextNode("-"));
     }
 
     if (message !== "") {

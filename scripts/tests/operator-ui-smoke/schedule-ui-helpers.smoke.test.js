@@ -47,13 +47,13 @@ test("getScheduleControlState and formatScheduleStatus reflect enabled and pause
 });
 
 test("trigger origin helpers normalize unknown and recognized values", () => {
-  assert.equal(formatTriggerOriginToken("schedule"), "SCHEDULE");
-  assert.equal(formatTriggerOriginToken("event"), "EVENT");
-  assert.equal(formatTriggerOriginToken("manual"), "MANUAL");
-  assert.equal(formatTriggerOriginToken("unexpected"), "MANUAL");
+  assert.equal(formatTriggerOriginToken("schedule"), "Schedule");
+  assert.equal(formatTriggerOriginToken("event"), "Event");
+  assert.equal(formatTriggerOriginToken("manual"), "Manual");
+  assert.equal(formatTriggerOriginToken("unexpected"), "Manual");
 
-  assert.equal(formatScheduleTriggerOriginToken("event"), "EVENT");
-  assert.equal(formatScheduleTriggerOriginToken("manual"), "MANUAL");
-  assert.equal(formatScheduleTriggerOriginToken("unexpected"), "SCHEDULE");
+  assert.equal(formatScheduleTriggerOriginToken("event"), "Event");
+  assert.equal(formatScheduleTriggerOriginToken("manual"), "Manual");
+  assert.equal(formatScheduleTriggerOriginToken("unexpected"), "Schedule");
 });
 
