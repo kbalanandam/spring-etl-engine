@@ -69,6 +69,7 @@ test("operator app wires schedule editor and detail schedule state-change action
   assert.match(source, /function buildSchedulesRouteQuery\(/);
   assert.match(source, /function buildSchedulesListHash\(/);
   assert.match(source, /row\.dataset\.scheduleId = scheduleId;/);
+  assert.doesNotMatch(source, /row\.innerHTML =/);
   assert.match(source, /detailsButton\.textContent = "Details";/);
   assert.match(source, /detailsButton\.addEventListener\("click", \(\) => \{/);
   assert.match(source, /location\.hash = scheduleQuerySuffix === ""/);
@@ -96,7 +97,7 @@ test("operator app wires schedule editor and detail schedule state-change action
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(normalizedScheduleId\)\}\/trigger-events\?page=\$\{page\}&size=\$\{size\}/);
   assert.match(source, /\/api\/v1\/schedules\/\$\{encodeURIComponent\(scheduleId\)\}:trigger-now/);
   assert.match(source, /Trigger warning: schedule is not assigned to a job\/task, so launch cannot be confirmed\./);
-  assert.match(source, /Trigger now accepted but worker launch was not confirmed for \$\{selectedJobKey\}\./);
+  assert.match(source, /const feedback = buildTriggerAcceptanceFeedback\(payload, \{[\s\S]*mode: "trigger_now",[\s\S]*jobLabel: selectedJobKey,/);
   assert.match(source, /const detail = backendMessage !== "" \? backendMessage : `status=\$\{response\.status\}`;/);
   assert.match(source, /Schedule trigger-now endpoint is unavailable in the running backend\. Restart the app with the latest build\./);
   assert.match(source, /function loadScheduleDetail\(routeState\)/);

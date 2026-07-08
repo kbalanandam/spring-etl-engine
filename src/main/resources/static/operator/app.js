@@ -169,6 +169,7 @@ const viewState = {
     },
     jobOptions: [],
     triggerSourceOptions: [],
+    triggerSourceCodes: new Set(),
     selectedJobKey: "",
     runModeFilter: "",
     recoveryPolicyFilter: "",
@@ -275,6 +276,65 @@ function classifyTriggerAcceptance(payload, options = {}) {
     decisionStatus,
     hasLaunchedRunId,
     reason: "launch_confirmed",
+  };
+}
+
+function buildTriggerAcceptanceFeedback(payload, context = {}) {
+  const {
+    mode = "trigger",
+    jobLabel = "",
+    requireJobAssignment = false,
+    jobAssignmentValue = "",
+  } = context;
+  const acceptance = classifyTriggerAcceptance(payload, {
+    requireJobAssignment,
+    jobAssignmentValue,
+  });
+  const decisionStatus = valueOrDash(payload?.decisionStatus);
+  const triggerEventId = valueOrDash(payload?.triggerEventId);
+  const launchedRunId = valueOrDash(payload?.launchedRunId);
+  const backendMessage = valueOrDash(payload?.message);
+  const normalizedJobLabel = String(jobLabel || "").trim();
+  const hasJobLabel = normalizedJobLabel !== "";
+  const prefix = mode === "trigger_now" ? "Trigger now" : "Trigger";
+  const jobSuffix = hasJobLabel ? ` for ${normalizedJobLabel}` : "";
+
+  if (acceptance.level === "error") {
+    return {
+      level: acceptance.level,
+      className: "state error",
+      message: `${prefix} accepted but worker launch was not confirmed${jobSuffix}. decision=${decisionStatus} triggerEventId=${triggerEventId}. ${backendMessage}`,
+    };
+  }
+
+  if (acceptance.level === "warning") {
+    if (acceptance.reason === "non_launch_decision" && acceptance.decisionStatus === "DUPLICATE_SUPPRESSED") {
+      return {
+        level: acceptance.level,
+        className: "state state-warning",
+        message: `${prefix} already accepted recently${jobSuffix}. decision=${decisionStatus} triggerEventId=${triggerEventId}`,
+      };
+    }
+    if (acceptance.reason === "non_launch_decision" && acceptance.decisionStatus === "LAUNCH_SKIPPED") {
+      return {
+        level: acceptance.level,
+        className: "state state-warning",
+        message: `${prefix} accepted but launch skipped${jobSuffix}. decision=${decisionStatus} triggerEventId=${triggerEventId}. ${backendMessage}`,
+      };
+    }
+    return {
+      level: acceptance.level,
+      className: "state state-warning",
+      message: hasJobLabel
+        ? `Trigger warning for ${normalizedJobLabel}: no assigned job/task context was provided for launch confirmation. decision=${decisionStatus} triggerEventId=${triggerEventId}`
+        : `Trigger warning: no assigned job/task context was provided for launch confirmation. decision=${decisionStatus} triggerEventId=${triggerEventId}`,
+    };
+  }
+
+  return {
+    level: acceptance.level,
+    className: "state state-success",
+    message: `${prefix} accepted${jobSuffix}. decision=${decisionStatus} triggerEventId=${triggerEventId} launchedRunId=${launchedRunId}`,
   };
 }
 
@@ -1162,6 +1222,7 @@ async function requestScheduleStateChange(jobKeyValue, scheduleId, action, reque
   scheduleFeedback.className = "state";
   scheduleFeedback.textContent = `Submitting ${normalizedAction} request...`;
   scheduleFeedback.hidden = false;
+  let detailPanelRefreshed = false;
 
   try {
     const response = await fetch(`/api/v1/schedules/${encodeURIComponent(normalizedScheduleId)}:${normalizedAction}`, {
@@ -1180,13 +1241,14 @@ async function requestScheduleStateChange(jobKeyValue, scheduleId, action, reque
     scheduleFeedback.textContent = `Schedule ${normalizedAction} accepted for ${normalizedScheduleId}.`;
     scheduleFeedback.hidden = false;
     await loadJobDetailSchedulePanel(jobKeyValue, requestId);
+    detailPanelRefreshed = true;
   } catch (error) {
     scheduleFeedback.className = "state error";
     scheduleFeedback.textContent = `Schedule ${normalizedAction} failed [runtime]: ${error.message}`;
     scheduleFeedback.hidden = false;
   } finally {
     delete scheduleRequestState.inFlightActionByScheduleId[normalizedScheduleId];
-    if (shouldApplyRouteScopedUpdate("jobDetail", requestId, jobKeyValue)) {
+    if (!detailPanelRefreshed && shouldApplyRouteScopedUpdate("jobDetail", requestId, jobKeyValue)) {
       scheduleActionButton.disabled = false;
     }
   }
@@ -1251,34 +1313,20 @@ async function requestTriggerNow(jobKeyValue) {
 
     const payload = await response.json().catch(() => ({}));
     if (response.ok || response.status === 202) {
-      const eventId = valueOrDash(payload.triggerEventId);
-      const acceptance = classifyTriggerAcceptance(payload, {
+      const feedback = buildTriggerAcceptanceFeedback(payload, {
+        mode: "trigger",
         requireJobAssignment: true,
         jobAssignmentValue: normalizedJobKey,
       });
-      const launchSkipped = acceptance.decisionStatus === "LAUNCH_SKIPPED";
-      const duplicateSuppressed = acceptance.decisionStatus === "DUPLICATE_SUPPRESSED";
-      if (acceptance.level === "error") {
-        triggerFeedback.className = "state error";
-        triggerFeedback.textContent = `Trigger accepted but worker launch was not confirmed. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}. ${valueOrDash(payload.message)}`;
-      } else if (acceptance.level === "warning") {
-        triggerFeedback.className = "state state-warning";
-        triggerFeedback.textContent = duplicateSuppressed
-          ? `Trigger already accepted recently. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`
-          : launchSkipped
-            ? `Trigger accepted but launch skipped. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}. ${valueOrDash(payload.message)}`
-            : `Trigger warning: no assigned job/task context was provided for launch confirmation. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId}`;
-      } else {
-        triggerFeedback.className = "state state-success";
-        triggerFeedback.textContent = `Trigger accepted. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${eventId} launchedRunId=${valueOrDash(payload.launchedRunId)}`;
-      }
+      triggerFeedback.className = feedback.className;
+      triggerFeedback.textContent = feedback.message;
       triggerFeedback.hidden = false;
-      if (acceptance.level === "success") {
+      if (feedback.level === "success") {
         triggerNowRequestState.cooldownUntilByJobKey[normalizedJobKey] = Date.now() + TRIGGER_NOW_DUPLICATE_WINDOW_MS;
       }
 
       await refreshJobDetailRecentTriggerEvents(normalizedJobKey, currentRouteState()?.query);
-      if (acceptance.level === "success") {
+      if (feedback.level === "success") {
         await refreshJobDetailRecentRuns(normalizedJobKey, currentRouteState()?.query);
         await refreshRunsAfterTriggerAccepted();
         scheduleFollowUpRunsRefresh();
@@ -1478,11 +1526,23 @@ function renderSchedulesTable(items, requestId) {
       document.createTextNode(" "),
       triggerNowButton
     );
-    row.innerHTML = `
-      <td>${escapeHtml(valueOrDash(schedule.scheduleKey))}</td>
-      <td>${escapeHtml(valueOrDash(schedule.selectedJobKey))}</td>
-      <td>${escapeHtml(formatScheduleStatus(schedule))}</td>
-      <td>${escapeHtml(valueOrDash(schedule.nextDueAt))}</td>`;
+
+    const scheduleKeyCell = document.createElement("td");
+    scheduleKeyCell.textContent = valueOrDash(schedule.scheduleKey);
+    row.appendChild(scheduleKeyCell);
+
+    const selectedJobKeyCell = document.createElement("td");
+    selectedJobKeyCell.textContent = valueOrDash(schedule.selectedJobKey);
+    row.appendChild(selectedJobKeyCell);
+
+    const statusCell = document.createElement("td");
+    statusCell.textContent = formatScheduleStatus(schedule);
+    row.appendChild(statusCell);
+
+    const nextDueCell = document.createElement("td");
+    nextDueCell.textContent = valueOrDash(schedule.nextDueAt);
+    row.appendChild(nextDueCell);
+
     row.appendChild(actions);
     body.appendChild(row);
   });
@@ -1698,31 +1758,19 @@ async function requestScheduleWorkbenchTriggerNow(schedule, requestId) {
         : `Trigger now failed: ${detail}. ${endpointHint}`;
       return;
     }
-    const acceptance = classifyTriggerAcceptance(payload, {
+    const feedback = buildTriggerAcceptanceFeedback(payload, {
+      mode: "trigger_now",
+      jobLabel: selectedJobKey,
       requireJobAssignment: true,
       jobAssignmentValue: selectedJobKey,
     });
-    const launchSkipped = acceptance.decisionStatus === "LAUNCH_SKIPPED";
-    const duplicateSuppressed = acceptance.decisionStatus === "DUPLICATE_SUPPRESSED";
-    if (acceptance.level === "error") {
-      state.className = "state error";
-      state.textContent = `Trigger now accepted but worker launch was not confirmed for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}. ${valueOrDash(payload.message)}`;
-    } else if (acceptance.level === "warning") {
-      state.className = "state state-warning";
-      state.textContent = duplicateSuppressed
-        ? `Trigger now already accepted recently for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}`
-        : launchSkipped
-          ? `Trigger now accepted but launch skipped for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}. ${valueOrDash(payload.message)}`
-          : `Trigger warning for ${selectedJobKey}: no assigned job/task context was provided for launch confirmation. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)}`;
-    } else {
-      state.className = "state state-success";
-      state.textContent = `Trigger now accepted for ${selectedJobKey}. decision=${valueOrDash(payload.decisionStatus)} triggerEventId=${valueOrDash(payload.triggerEventId)} launchedRunId=${valueOrDash(payload.launchedRunId)}`;
-    }
+    state.className = feedback.className;
+    state.textContent = feedback.message;
     if (!shouldApplyRouteScopedUpdate("schedules", requestId)) {
       return;
     }
     viewState.schedules.selectedScheduleId = scheduleId;
-    if (acceptance.level === "success") {
+    if (feedback.level === "success") {
       await refreshRunsAfterTriggerAccepted();
       scheduleFollowUpRunsRefresh();
     }
@@ -2062,11 +2110,9 @@ function normalizeTriggerSourceFilter(value) {
   if (normalized === "") {
     return "";
   }
-  const sourceCodes = new Set(
-    (Array.isArray(viewState.runs.triggerSourceOptions) ? viewState.runs.triggerSourceOptions : [])
-      .map((item) => String(item?.sourceCode || "").trim().toUpperCase())
-      .filter((item) => item !== "")
-  );
+  const sourceCodes = viewState.runs.triggerSourceCodes instanceof Set
+    ? viewState.runs.triggerSourceCodes
+    : new Set();
   if (sourceCodes.size === 0) {
     return normalized;
   }
@@ -2307,11 +2353,23 @@ async function ensureRunsJobOptions() {
 
 async function ensureRunsTriggerSourceOptions() {
   if (viewState.runs.triggerSourceOptions.length > 0) {
+    if (!(viewState.runs.triggerSourceCodes instanceof Set)) {
+      rebuildRunsTriggerSourceCodes();
+    }
     return;
   }
   const options = await fetchTriggerSourceOptionsValue();
   viewState.runs.triggerSourceOptions = Array.isArray(options) ? options : [];
+  rebuildRunsTriggerSourceCodes();
   renderRunsTriggerSourceOptions();
+}
+
+function rebuildRunsTriggerSourceCodes() {
+  viewState.runs.triggerSourceCodes = new Set(
+    (Array.isArray(viewState.runs.triggerSourceOptions) ? viewState.runs.triggerSourceOptions : [])
+      .map((item) => String(item?.sourceCode || "").trim().toUpperCase())
+      .filter((item) => item !== "")
+  );
 }
 
 function renderRunsJobOptions() {
@@ -2380,6 +2438,7 @@ async function loadRunDetail(routeState) {
   const sourceJobKey = String(routeState?.query?.job || "").trim();
   const sourceScheduleId = String(routeState?.query?.scheduleId || "").trim();
   const sourceScheduleListQuery = String(routeState?.query?.scheduleListQuery || "").trim();
+  const encodedRunId = runIdValue ? encodeURIComponent(String(runIdValue)) : "";
 
   state.className = "state";
   summary.hidden = true;
@@ -2411,7 +2470,7 @@ async function loadRunDetail(routeState) {
   state.textContent = `Loading run ${runIdValue}...`;
 
   try {
-    const response = await fetch(`/api/v1/runs/${runIdValue}/detail`, { headers: { Accept: "application/json" } });
+    const response = await fetch(`/api/v1/runs/${encodedRunId}/detail`, { headers: { Accept: "application/json" } });
     if (!response.ok) {
       throw new Error(`Run detail API returned ${response.status}`);
     }
