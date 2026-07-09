@@ -32,8 +32,8 @@ Keep these shell rules stable during `U5`:
 | Schedules table                                                                                |
 |------------------------------------------------------------------------------------------------|
 | Schedule key                 | Job             | State    | Next due (local)    | Actions       |
-| customer-load-every-minute   | customer-load   | Active   | 2026-07-06 10:31    | Details Open Trigger...|
-| nightly-xml-roundtrip        | xml-roundtrip   | Paused   | --                  | Details Open Trigger...|
+| customer-load-every-minute   | customer-load   | Active   | 2026-07-06 10:31    | ⓘ ↗ ▶ (hover for tooltip)|
+| nightly-xml-roundtrip        | xml-roundtrip   | Paused   | --                  | ⓘ ↗ ▶ (hover for tooltip)|
 +------------------------------------------------------------------------------------------------+
 | No schedule selected by default. Use explicit row actions to open history or job context.      |
 +------------------------------------------------------------------------------------------------+
@@ -42,7 +42,7 @@ Keep these shell rules stable during `U5`:
 ### Frozen behavior
 
 - table-first workbench with no default selection or implicit row navigation
-- bounded actions only: `Details`, `Open job`, `Trigger now`
+- bounded actions only: compact symbols (`ⓘ`, `↗`, `▶`) with hover tooltip labels (`Details`, `Open job`, `Trigger now`)
 - no schedule authoring CRUD in this slice
 - recent trigger evidence stays on the dedicated schedule detail page for this phase
 - schedule state changes (`Enable`/`Disable`, `Pause`/`Resume`) live on schedule detail to avoid duplicated control points

@@ -473,6 +473,11 @@ th {
   background: #eff6ff;
 }
 
+.schedule-selected-row,
+.schedule-selected-row:hover {
+  background: #dbeafe;
+}
+
 #run-detail-summary,
 #job-detail-summary {
   border: 1px solid #cbd5e1;
@@ -691,6 +696,21 @@ th {
   gap: 10px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.schedule-action-icon-btn {
+  min-width: 26px;
+  height: 26px;
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.schedule-action-icon-btn:hover:not(:disabled) {
+  background: #eff6ff;
 }
 
 .link-toggle-btn {

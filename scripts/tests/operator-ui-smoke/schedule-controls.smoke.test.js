@@ -70,7 +70,16 @@ test("operator app wires schedule editor and detail schedule state-change action
   assert.match(source, /function buildSchedulesListHash\(/);
   assert.match(source, /row\.dataset\.scheduleId = scheduleId;/);
   assert.doesNotMatch(source, /row\.innerHTML =/);
-  assert.match(source, /detailsButton\.textContent = "Details";/);
+  assert.match(source, /detailsButton\.className = "schedule-action-icon-btn";/);
+  assert.match(source, /detailsButton\.textContent = "\\u24D8";/);
+  assert.match(source, /detailsButton\.title = "Details";/);
+  assert.match(source, /detailsButton\.setAttribute\("aria-label", "Details"\);/);
+  assert.match(source, /openJobButton\.textContent = "\\u2197";/);
+  assert.match(source, /openJobButton\.title = "Open job";/);
+  assert.match(source, /openJobButton\.setAttribute\("aria-label", "Open job"\);/);
+  assert.match(source, /triggerNowButton\.textContent = "\\u25B6";/);
+  assert.match(source, /triggerNowButton\.title = "Trigger now";/);
+  assert.match(source, /triggerNowButton\.setAttribute\("aria-label", "Trigger now"\);/);
   assert.match(source, /detailsButton\.addEventListener\("click", \(\) => \{/);
   assert.match(source, /location\.hash = scheduleQuerySuffix === ""/);
   assert.doesNotMatch(source, /row\.addEventListener\("click"/);
@@ -122,6 +131,7 @@ test("operator app wires schedule editor and detail schedule state-change action
   assert.match(stylesSource, /\.decision-chip-success/);
   assert.match(stylesSource, /\.decision-chip-warning/);
   assert.match(stylesSource, /\.decision-chip-error/);
+  assert.match(stylesSource, /\.schedule-action-icon-btn/);
   assert.match(stylesSource, /\.state\.state-success/);
   assert.match(stylesSource, /\.state\.state-warning/);
   assert.doesNotMatch(stylesSource, /#schedules-evidence-panel/);

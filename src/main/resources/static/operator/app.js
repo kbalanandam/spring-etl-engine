@@ -1481,7 +1481,10 @@ function renderSchedulesTable(items, requestId) {
 
     const detailsButton = document.createElement("button");
     detailsButton.type = "button";
-    detailsButton.textContent = "Details";
+    detailsButton.className = "schedule-action-icon-btn";
+    detailsButton.textContent = "\u24D8";
+    detailsButton.title = "Details";
+    detailsButton.setAttribute("aria-label", "Details");
     detailsButton.addEventListener("click", () => {
       if (scheduleId === "") {
         return;
@@ -1494,7 +1497,10 @@ function renderSchedulesTable(items, requestId) {
 
     const openJobButton = document.createElement("button");
     openJobButton.type = "button";
-    openJobButton.textContent = "Open job";
+    openJobButton.className = "schedule-action-icon-btn";
+    openJobButton.textContent = "\u2197";
+    openJobButton.title = "Open job";
+    openJobButton.setAttribute("aria-label", "Open job");
     openJobButton.addEventListener("click", (event) => {
       event.stopPropagation();
       const selectedJobKey = String(schedule?.selectedJobKey || "").trim();
@@ -1513,7 +1519,10 @@ function renderSchedulesTable(items, requestId) {
 
     const triggerNowButton = document.createElement("button");
     triggerNowButton.type = "button";
-    triggerNowButton.textContent = "Trigger now";
+    triggerNowButton.className = "schedule-action-icon-btn";
+    triggerNowButton.textContent = "\u25B6";
+    triggerNowButton.title = "Trigger now";
+    triggerNowButton.setAttribute("aria-label", "Trigger now");
     triggerNowButton.addEventListener("click", async (event) => {
       event.stopPropagation();
       await requestScheduleWorkbenchTriggerNow(schedule, requestId);

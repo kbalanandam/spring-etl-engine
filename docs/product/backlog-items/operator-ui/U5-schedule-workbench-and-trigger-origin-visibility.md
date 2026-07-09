@@ -55,7 +55,7 @@ Schedules
 Key                         Job            Status   Next due
 customer-load-every-minute  customer-load  Active   2026-06-08 10:31 local
 
-[Details] [Open job] [Trigger now]
+[ⓘ] [↗] [▶] (hover tooltips: Details, Open job, Trigger now)
 
 Recent triggers (selected schedule)
 - 10:30:01  origin=Schedule  decision=ACCEPTED  triggerEventId=te-...
@@ -101,7 +101,7 @@ Runs
 ## Acceptance criteria
 
 - [ ] Operator UI has a schedule workbench listing existing schedules with state and next due
-- [ ] schedule workbench keeps bounded actions (`Details`, `Open job`, `Trigger now`) and defers state changes to schedule detail
+- [ ] schedule workbench keeps bounded actions with compact symbols (`ⓘ`, `↗`, `▶`) and hover labels (`Details`, `Open job`, `Trigger now`), while deferring state changes to schedule detail
 - [ ] Runs list and Run detail show explicit trigger origin (`Manual`, `Schedule`)
 - [ ] trigger-origin contract reserves `Event` and does not require UI redesign when event triggers ship
 - [ ] persistence/read-model flow keeps run origin auditable from trigger event to run projection
