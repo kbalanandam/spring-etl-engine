@@ -119,6 +119,11 @@ public class RunSummaryReadModelService {
 
 	public Optional<RunSummaryView> findRunByJobExecutionId(long jobExecutionId) {
 		refreshReadModel();
+		Optional<RunSummaryView> existing = registry.findByJobExecutionId(jobExecutionId);
+		if (existing.isPresent() && isTerminalStatus(existing.orElseThrow().status())) {
+			return existing;
+		}
+		forceReindexFromLogsBlocking();
 		return registry.findByJobExecutionId(jobExecutionId);
 	}
 
@@ -169,25 +174,47 @@ public class RunSummaryReadModelService {
 			if (!shouldReindex(now)) {
 				return;
 			}
-			try {
-				if (!Files.exists(logBaseDir)) {
-					return;
-				}
-				try (Stream<Path> paths = Files.walk(logBaseDir)) {
-					paths
-							.filter(Files::isRegularFile)
-							.filter(path -> path.toString().endsWith(".log"))
-							.filter(this::isScenarioRunLog)
-							.filter(this::isWithinSizeLimit)
-							.limit(maxLogFilesPerRefresh)
-							.forEach(this::collectRunSummaries);
-				}
-			} catch (IOException ignored) {
-				// Read-model refresh is best-effort; stale cache is acceptable for this slice.
-			} finally {
-				lastReindexEpochMs = System.currentTimeMillis();
-			}
+			reindexFromLogsUnchecked();
 		}
+	}
+
+	private void forceReindexFromLogsBlocking() {
+		synchronized (this) {
+			reindexFromLogsUnchecked();
+		}
+	}
+
+	private void reindexFromLogsUnchecked() {
+		try {
+			if (!Files.exists(logBaseDir)) {
+				return;
+			}
+			try (Stream<Path> paths = Files.walk(logBaseDir)) {
+				paths
+						.filter(Files::isRegularFile)
+						.filter(path -> path.toString().endsWith(".log"))
+						.filter(this::isScenarioRunLog)
+						.filter(this::isWithinSizeLimit)
+						.limit(maxLogFilesPerRefresh)
+						.forEach(this::collectRunSummaries);
+			}
+		} catch (IOException ignored) {
+			// Read-model refresh is best-effort; stale cache is acceptable for this slice.
+		} finally {
+			lastReindexEpochMs = System.currentTimeMillis();
+		}
+	}
+
+	private boolean isTerminalStatus(String status) {
+		if (status == null || status.isBlank()) {
+			return false;
+		}
+		String normalized = status.trim().toUpperCase();
+		return "COMPLETED".equals(normalized)
+				|| "FAILED".equals(normalized)
+				|| "STOPPED".equals(normalized)
+				|| "ABANDONED".equals(normalized)
+				|| "UNKNOWN".equals(normalized);
 	}
 
 	private boolean shouldReindex(long nowEpochMs) {

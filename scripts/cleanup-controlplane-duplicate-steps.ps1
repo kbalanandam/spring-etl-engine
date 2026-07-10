@@ -66,51 +66,54 @@ def rank_rows(conn):
     sql = """
     with ranked as (
         select
-            step_record_id,
-            run_record_id,
-            step_name,
-            step_status,
-            read_count,
-            write_count,
-            rejected_count,
-            coalesce(updated_at, created_at) as freshness,
-            lower(trim(step_name)) as normalized_step_name,
+            sr.step_record_id,
+            sr.run_record_pk,
+            rr.run_record_id,
+            sr.step_name,
+            sr.step_status,
+            sr.read_count,
+            sr.write_count,
+            sr.rejected_count,
+            coalesce(sr.updated_at, sr.created_at) as freshness,
+            lower(trim(sr.step_name)) as normalized_step_name,
             (
-                case when read_count is not null then 1 else 0 end +
-                case when write_count is not null then 1 else 0 end +
-                case when rejected_count is not null then 1 else 0 end
+                case when sr.read_count is not null then 1 else 0 end +
+                case when sr.write_count is not null then 1 else 0 end +
+                case when sr.rejected_count is not null then 1 else 0 end
             ) as metric_score,
-            case upper(coalesce(step_status, ''))
+            case upper(coalesce(sr.step_status, ''))
                 when 'COMPLETED' then 3
                 when 'FAILED' then 2
                 when 'STARTED' then 1
                 else 0
             end as status_score,
             row_number() over (
-                partition by run_record_id, lower(trim(step_name))
+                partition by sr.run_record_pk, lower(trim(sr.step_name))
                 order by
                     (
-                        case when read_count is not null then 1 else 0 end +
-                        case when write_count is not null then 1 else 0 end +
-                        case when rejected_count is not null then 1 else 0 end
+                        case when sr.read_count is not null then 1 else 0 end +
+                        case when sr.write_count is not null then 1 else 0 end +
+                        case when sr.rejected_count is not null then 1 else 0 end
                     ) desc,
-                    case upper(coalesce(step_status, ''))
+                    case upper(coalesce(sr.step_status, ''))
                         when 'COMPLETED' then 3
                         when 'FAILED' then 2
                         when 'STARTED' then 1
                         else 0
                     end desc,
-                    coalesce(updated_at, created_at) desc,
-                    step_record_id desc
+                    coalesce(sr.updated_at, sr.created_at) desc,
+                    sr.step_record_id desc
             ) as rank_in_group,
             count(*) over (
-                partition by run_record_id, lower(trim(step_name))
+                partition by sr.run_record_pk, lower(trim(sr.step_name))
             ) as group_count
-        from controlplane_step_record
-        where trim(coalesce(step_name, '')) <> ''
+        from controlplane_step_record sr
+        left join controlplane_run_record rr on rr.run_record_pk = sr.run_record_pk
+        where trim(coalesce(sr.step_name, '')) <> ''
     )
     select
         step_record_id,
+        run_record_pk,
         run_record_id,
         step_name,
         step_status,
@@ -122,7 +125,7 @@ def rank_rows(conn):
         group_count
     from ranked
     where group_count > 1
-    order by run_record_id, normalized_step_name, rank_in_group
+    order by run_record_pk, normalized_step_name, rank_in_group
     """
     return conn.execute(sql).fetchall()
 
@@ -130,26 +133,27 @@ def rank_rows(conn):
 def build_groups(rows):
     groups = {}
     for row in rows:
-        key = (row[1], row[7])
+        key = (row[1], row[8])
         bucket = groups.setdefault(key, {
-            "runRecordId": row[1],
-            "stepName": row[2],
-            "normalizedStepName": row[7],
+            "runRecordPk": row[1],
+            "runRecordId": row[2],
+            "stepName": row[3],
+            "normalizedStepName": row[8],
             "keeperStepRecordId": "",
             "dropStepRecordIds": [],
             "rows": [],
         })
         item = {
             "stepRecordId": row[0],
-            "stepStatus": row[3],
-            "readCount": row[4],
-            "writeCount": row[5],
-            "rejectedCount": row[6],
-            "rank": row[8],
-            "groupCount": row[9],
+            "stepStatus": row[4],
+            "readCount": row[5],
+            "writeCount": row[6],
+            "rejectedCount": row[7],
+            "rank": row[9],
+            "groupCount": row[10],
         }
         bucket["rows"].append(item)
-        if row[8] == 1:
+        if row[9] == 1:
             bucket["keeperStepRecordId"] = row[0]
         else:
             bucket["dropStepRecordIds"].append(row[0])

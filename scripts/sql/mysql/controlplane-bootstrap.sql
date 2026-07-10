@@ -115,7 +115,7 @@ CREATE INDEX idx_run_record_job_status_time ON controlplane_run_record (selected
 CREATE TABLE IF NOT EXISTS controlplane_step_record (
     step_record_pk BIGINT PRIMARY KEY,
     step_record_id VARCHAR(80) NOT NULL UNIQUE,
-    run_record_id VARCHAR(80) NOT NULL,
+    run_record_pk BIGINT NOT NULL,
     step_name VARCHAR(200) NOT NULL,
     step_status VARCHAR(50) NOT NULL,
     started_at TIMESTAMP NULL,
@@ -131,38 +131,38 @@ CREATE TABLE IF NOT EXISTS controlplane_step_record (
     updated_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_step_record_run ON controlplane_step_record (run_record_id, started_at);
-CREATE UNIQUE INDEX idx_step_record_id_run ON controlplane_step_record (step_record_id, run_record_id);
+CREATE INDEX idx_step_record_run_pk ON controlplane_step_record (run_record_pk, started_at);
+CREATE UNIQUE INDEX idx_step_record_id_run_pk ON controlplane_step_record (step_record_id, run_record_pk);
 
 CREATE TABLE IF NOT EXISTS controlplane_artifact_record (
     artifact_record_pk BIGINT PRIMARY KEY,
     artifact_record_id VARCHAR(80) NOT NULL UNIQUE,
-    run_record_id VARCHAR(80) NOT NULL,
+    run_record_pk BIGINT NOT NULL,
     step_record_id VARCHAR(80),
     artifact_role VARCHAR(80) NOT NULL,
     artifact_path VARCHAR(2000),
     created_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_artifact_record_run ON controlplane_artifact_record (run_record_id, created_at);
+CREATE INDEX idx_artifact_record_run_pk ON controlplane_artifact_record (run_record_pk, created_at);
 CREATE INDEX idx_artifact_record_step ON controlplane_artifact_record (step_record_id, created_at);
 
 CREATE TABLE IF NOT EXISTS controlplane_attempt_link (
     attempt_link_pk BIGINT PRIMARY KEY,
     attempt_link_id VARCHAR(80) NOT NULL UNIQUE,
-    run_record_id VARCHAR(80) NOT NULL,
-    prior_run_record_id VARCHAR(80),
+    run_record_pk BIGINT NOT NULL,
+    prior_run_record_pk BIGINT,
     link_kind VARCHAR(50) NOT NULL,
     created_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_attempt_link_run ON controlplane_attempt_link (run_record_id, created_at);
-CREATE INDEX idx_attempt_link_prior ON controlplane_attempt_link (prior_run_record_id, created_at);
+CREATE INDEX idx_attempt_link_run_pk ON controlplane_attempt_link (run_record_pk, created_at);
+CREATE INDEX idx_attempt_link_prior_pk ON controlplane_attempt_link (prior_run_record_pk, created_at);
 
 CREATE TABLE IF NOT EXISTS controlplane_checkpoint_anchor (
     checkpoint_anchor_pk BIGINT PRIMARY KEY,
     checkpoint_anchor_id VARCHAR(80) NOT NULL UNIQUE,
-    run_record_id VARCHAR(80) NOT NULL,
+    run_record_pk BIGINT NOT NULL,
     step_record_id VARCHAR(80),
     anchor_kind VARCHAR(80) NOT NULL,
     anchor_ref VARCHAR(2000),
@@ -171,7 +171,7 @@ CREATE TABLE IF NOT EXISTS controlplane_checkpoint_anchor (
     updated_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_checkpoint_anchor_run ON controlplane_checkpoint_anchor (run_record_id, created_at);
+CREATE INDEX idx_checkpoint_anchor_run_pk ON controlplane_checkpoint_anchor (run_record_pk, created_at);
 CREATE INDEX idx_checkpoint_anchor_step ON controlplane_checkpoint_anchor (step_record_id, created_at);
 
 INSERT INTO controlplane_trigger_source (

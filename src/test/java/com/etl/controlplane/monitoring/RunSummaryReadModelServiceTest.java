@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
@@ -106,6 +107,44 @@ class RunSummaryReadModelServiceTest {
 		Optional<RunSummaryView> run = service.findRunByJobExecutionId(1001L);
 		assertEquals(true, run.isPresent());
 		assertEquals("customer-load", run.orElseThrow().scenario());
+	}
+
+	@Test
+	void findRunByJobExecutionIdForcesRefreshWhenProjectionIsStillStarted() throws IOException {
+		Path logPath = createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T11:02:03.001+00:00 INFO [main] [scenario:customer-load] [run:20260527-110203-001] [job:160] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=160 status=COMPLETED startTime=2026-05-27T11:00:00 endTime=2026-05-27T11:02:03 durationSeconds=123 sourceCount=10 writtenCount=10 rejectedCount=0"
+		);
+
+		InMemoryRunSummaryRegistry staleRegistry = new InMemoryRunSummaryRegistry();
+		staleRegistry.upsert(new RunSummaryView(
+				"customer-load",
+				160L,
+				"STARTED",
+				LocalDateTime.parse("2026-05-27T11:00:00"),
+				null,
+				null,
+				null,
+				null,
+				null,
+				"explicit-job",
+				"rerun-from-start",
+				logPath.toString()
+		));
+
+		RunSummaryReadModelService service = new RunSummaryReadModelService(
+				tempDir,
+				new RunSummaryLogParser(),
+				staleRegistry,
+				5_000_000L,
+				500,
+				60_000L
+		);
+
+		Optional<RunSummaryView> run = service.findRunByJobExecutionId(160L);
+		assertEquals(true, run.isPresent());
+		assertEquals("COMPLETED", run.orElseThrow().status());
+		assertEquals(10L, run.orElseThrow().writtenCount());
 	}
 
 	@Test

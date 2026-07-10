@@ -106,8 +106,9 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 - `controlplane_run_record.selected_job_key` is treated as an active relational key: new writes populate it from run context, legacy null/blank rows are backfilled at startup, and lookup-oriented indexes (`selected_job_key`, `run_status`, `started_at`, `trigger_event_id`) are part of the current local-read scaling baseline.
 - Internal numeric surrogates now follow one phased pattern across retained scheduler history: active control-plane surrogate/linkage `*_pk` columns (`schedule_pk`, `trigger_event_pk`, `launched_run_pk`, `run_record_pk`) are now provisioned as `bigint` for relational joins and future foreign-key hardening. PK-constraint cutover is now active across schedule, trigger-event, and run-record tables (`schedule_pk`, `trigger_event_pk`, `run_record_pk` as relational primary keys) while external `*_id` fields remain stable unique operator/API identities.
 - Current linkage resolution now prefers PK-based joins (`launched_run_pk` / `trigger_event_pk`) before legacy string-ID fallback (`launched_run_id` / `trigger_event_id`) so mixed historical data can migrate without changing external API identifiers.
-- Artifact ownership should be explicit and non-ambiguous: one `artifact_record` row is either run-level (`run_record_id` set, `step_record_id` null) or step-level (`step_record_id` set with consistent `run_record_id` lineage), never an unowned or contradictory combination.
-- Current non-SQLite portability is partial-but-testable: normal registry startup and update/insert write paths are now exercised without SQLite-only SQL, while legacy primary-key reshaping and `rowid` backfills are still reserved for SQLite compatibility upgrades.
+- Child retained-history tables now depend on `controlplane_run_record.run_record_pk` for relational linkage (`controlplane_step_record.run_record_pk`, `controlplane_artifact_record.run_record_pk`, `controlplane_attempt_link.run_record_pk|prior_run_record_pk`, `controlplane_checkpoint_anchor.run_record_pk`) while `run_record_id` remains a projected operator/API-facing identity from the parent run row.
+- Artifact ownership should be explicit and non-ambiguous: one `artifact_record` row is either run-level (`run_record_pk` set, `step_record_id` null) or step-level (`step_record_id` set with consistent `run_record_pk` lineage), never an unowned or contradictory combination.
+- Current non-SQLite portability is partial-but-testable: normal registry startup and update/insert write paths are now exercised without SQLite-only SQL, and active child retained-history writes now assume the PK-only linkage contract rather than backfilling legacy child `run_record_id` columns at runtime.
 
 ```mermaid
 erDiagram
@@ -170,7 +171,7 @@ erDiagram
     STEP_RECORD {
         bigint step_record_pk PK
         string step_record_id UK
-        string run_record_id FK
+        bigint run_record_pk FK
         string step_name
         string step_status
     }
@@ -178,7 +179,7 @@ erDiagram
     ARTIFACT_RECORD {
         bigint artifact_record_pk PK
         string artifact_record_id UK
-        string run_record_id FK
+        bigint run_record_pk FK
         string step_record_id FK
         string artifact_role
         string artifact_path
@@ -187,15 +188,15 @@ erDiagram
     ATTEMPT_LINK {
         bigint attempt_link_pk PK
         string attempt_link_id UK
-        string run_record_id FK
-        string prior_run_record_id
+        bigint run_record_pk FK
+        bigint prior_run_record_pk FK
         string link_kind
     }
 
     CHECKPOINT_ANCHOR {
         bigint checkpoint_anchor_pk PK
         string checkpoint_anchor_id UK
-        string run_record_id FK
+        bigint run_record_pk FK
         string step_record_id FK
         string anchor_kind
         string anchor_ref
@@ -285,7 +286,7 @@ Represents one retained run ledger entry.
 
 Suggested column families:
 
-- identity: `run_record_id`, `run_correlation_id`, `job_execution_id`
+- identity: `run_record_pk`, `run_record_id`, `run_correlation_id`, `job_execution_id`
 - linkage: `trigger_event_id`
 - selected-job context: `job_config_path`, `job_name`, `selected_job_key`, `config_identity`
 - outcome: `run_status`, `failure_category`, `failure_summary`
@@ -300,7 +301,7 @@ Represents one retained step ledger entry under a run.
 Suggested column families:
 
 - identity: `step_record_id`, `step_execution_id`
-- linkage: `run_record_id`
+- linkage: `run_record_pk`
 - step meaning: `step_name`, `step_order`, `source_name`, `target_name`
 - outcome: `step_status`, `failure_category`, `failure_summary`
 - timing: `started_at`, `finished_at`, `duration_ms`
@@ -314,7 +315,7 @@ Represents retained artifact lineage for a run or step.
 Suggested column families:
 
 - identity: `artifact_record_id`
-- ownership: `run_record_id`, `step_record_id`
+- ownership: `run_record_pk`, `step_record_id`
 - artifact role: `artifact_role`, `artifact_type`
 - location: `artifact_path`, `artifact_uri`
 - integrity/summary: `record_count`, `checksum`, `size_bytes`
@@ -324,7 +325,7 @@ Suggested column families:
 Ownership invariant for future implementation:
 
 - enforce one clear owner per row: run-level artifact or step-level artifact
-- when `step_record_id` is populated, its parent run identity must match `run_record_id`
+- when `step_record_id` is populated, its parent run identity must match `run_record_pk`
 - avoid nullable combinations that allow ambiguous ownership
 
 ### 7. `attempt_link`
@@ -334,7 +335,7 @@ Represents lineage between current and prior attempts.
 Suggested column families:
 
 - identity: `attempt_link_id`
-- lineage: `current_run_record_id`, `prior_run_record_id`
+- lineage: `run_record_pk`, `prior_run_record_pk`
 - relationship: `attempt_relationship_type`
 - context: `relationship_reason`, `linked_at`, `linked_by`
 
@@ -345,7 +346,7 @@ Represents a retained checkpoint or resume anchor.
 Suggested column families:
 
 - identity: `checkpoint_anchor_id`, `checkpoint_key`
-- linkage: `run_record_id`, `step_record_id`, `attempt_link_id`
+- linkage: `run_record_pk`, `step_record_id`, `attempt_link_id`
 - checkpoint meaning: `checkpoint_type`, `checkpoint_status`
 - state reference: `checkpoint_ref`, `checkpoint_summary`
 - validity: `created_at`, `expires_at`, `compatibility_marker`

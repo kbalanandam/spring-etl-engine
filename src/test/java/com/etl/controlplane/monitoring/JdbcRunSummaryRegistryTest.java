@@ -18,7 +18,6 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JdbcRunSummaryRegistryTest {
@@ -95,6 +94,112 @@ class JdbcRunSummaryRegistryTest {
 	}
 
 	@Test
+	void startupBackfillSupportsLegacyArtifactRunRecordIdNotNullColumn() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(h2MySqlModeDataSource());
+		jdbcTemplate.execute("""
+				create table controlplane_run_summary (
+					job_execution_id bigint primary key,
+					scenario varchar(200) not null,
+					status varchar(50) not null,
+					start_time timestamp,
+					end_time timestamp,
+					duration_seconds bigint,
+					source_count bigint,
+					written_count bigint,
+					rejected_count bigint,
+					run_mode varchar(80),
+					recovery_policy varchar(120),
+					log_path varchar(2000),
+					last_seen_at timestamp not null
+				)
+				""");
+		jdbcTemplate.execute("""
+				create table controlplane_run_record (
+					run_record_pk bigint primary key,
+					run_record_id varchar(80) not null unique,
+					job_execution_id bigint not null unique,
+					trigger_event_pk bigint,
+					trigger_event_id varchar(80),
+					selected_job_key varchar(200),
+					scenario varchar(200) not null,
+					run_status varchar(50) not null,
+					started_at timestamp,
+					finished_at timestamp,
+					duration_seconds bigint,
+					source_count bigint,
+					written_count bigint,
+					rejected_count bigint,
+					run_mode varchar(80),
+					recovery_policy varchar(120),
+					created_at timestamp not null,
+					updated_at timestamp not null
+				)
+				""");
+		jdbcTemplate.execute("""
+				create table controlplane_artifact_record (
+					artifact_record_pk bigint primary key,
+					artifact_record_id varchar(80) not null unique,
+					run_record_pk bigint not null,
+					run_record_id varchar(80) not null,
+					step_record_id varchar(80),
+					artifact_role varchar(80) not null,
+					artifact_path varchar(2000),
+					created_at timestamp not null
+				)
+				""");
+
+		Timestamp now = Timestamp.valueOf(LocalDateTime.parse("2026-05-27T09:05:00"));
+		jdbcTemplate.update("""
+				insert into controlplane_run_summary (
+					job_execution_id, scenario, status, start_time, end_time, duration_seconds,
+					source_count, written_count, rejected_count, run_mode, recovery_policy, log_path, last_seen_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				3001L,
+				"customer-load",
+				"COMPLETED",
+				now,
+				now,
+				0L,
+				0L,
+				0L,
+				0L,
+				"explicit-job",
+				"rerun-from-start",
+				"logs/2026-05-27/customer-load.log",
+				now
+		);
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_pk, run_record_id, job_execution_id, scenario, run_status, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				1L,
+				"rr-3001",
+				3001L,
+				"customer-load",
+				"COMPLETED",
+				now,
+				now
+		);
+
+		assertDoesNotThrow(() -> new JdbcRunSummaryRegistry(jdbcTemplate, 100));
+
+		String runRecordId = jdbcTemplate.queryForObject(
+				"select run_record_id from controlplane_artifact_record where artifact_record_id = ?",
+				String.class,
+				"ar-log-3001"
+		);
+		Long runRecordPk = jdbcTemplate.queryForObject(
+				"select run_record_pk from controlplane_artifact_record where artifact_record_id = ?",
+				Long.class,
+				"ar-log-3001"
+		);
+		assertEquals("rr-3001", runRecordId);
+		assertEquals(1L, runRecordPk);
+	}
+
+	@Test
 	void persistsRunModeAndRecoveryPolicyInRunSummaryAndRunRecord() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
@@ -145,41 +250,46 @@ class JdbcRunSummaryRegistryTest {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
 		registry.upsert(run(2101L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
+		Long runRecordPk = jdbcTemplate.queryForObject(
+				"select run_record_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				2101L
+		);
 
 		String attemptLinkId = jdbcTemplate.queryForObject(
-				"select attempt_link_id from controlplane_attempt_link where run_record_id = ?",
+				"select attempt_link_id from controlplane_attempt_link where run_record_pk = ?",
 				String.class,
-				"rr-2101"
+				runRecordPk
 		);
 		String linkKind = jdbcTemplate.queryForObject(
-				"select link_kind from controlplane_attempt_link where run_record_id = ?",
+				"select link_kind from controlplane_attempt_link where run_record_pk = ?",
 				String.class,
-				"rr-2101"
+				runRecordPk
 		);
-		String priorRunRecordId = jdbcTemplate.queryForObject(
-				"select prior_run_record_id from controlplane_attempt_link where run_record_id = ?",
-				String.class,
-				"rr-2101"
+		Long priorRunRecordPk = jdbcTemplate.queryForObject(
+				"select prior_run_record_pk from controlplane_attempt_link where run_record_pk = ?",
+				Long.class,
+				runRecordPk
 		);
 		String checkpointAnchorId = jdbcTemplate.queryForObject(
-				"select checkpoint_anchor_id from controlplane_checkpoint_anchor where run_record_id = ?",
+				"select checkpoint_anchor_id from controlplane_checkpoint_anchor where run_record_pk = ?",
 				String.class,
-				"rr-2101"
+				runRecordPk
 		);
 		String anchorKind = jdbcTemplate.queryForObject(
-				"select anchor_kind from controlplane_checkpoint_anchor where run_record_id = ?",
+				"select anchor_kind from controlplane_checkpoint_anchor where run_record_pk = ?",
 				String.class,
-				"rr-2101"
+				runRecordPk
 		);
 		String anchorRef = jdbcTemplate.queryForObject(
-				"select anchor_ref from controlplane_checkpoint_anchor where run_record_id = ?",
+				"select anchor_ref from controlplane_checkpoint_anchor where run_record_pk = ?",
 				String.class,
-				"rr-2101"
+				runRecordPk
 		);
 
 		assertEquals("al-2101", attemptLinkId);
 		assertEquals("INITIAL", linkKind);
-		assertNull(priorRunRecordId);
+		assertNull(priorRunRecordPk);
 		assertEquals("ca-log-2101", checkpointAnchorId);
 		assertEquals("RUN_LOG", anchorKind);
 		assertEquals("logs/2026-05-27/customer-load.log", anchorRef);
@@ -191,20 +301,30 @@ class JdbcRunSummaryRegistryTest {
 		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
 		registry.upsert(run(2201L, "customer-load", LocalDateTime.parse("2026-05-27T09:00:00"), "COMPLETED"));
 		registry.upsert(run(2202L, "customer-load", LocalDateTime.parse("2026-05-27T10:00:00"), "COMPLETED"));
+		Long currentRunRecordPk = jdbcTemplate.queryForObject(
+				"select run_record_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				2202L
+		);
+		Long priorExpectedRunRecordPk = jdbcTemplate.queryForObject(
+				"select run_record_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				2201L
+		);
 
 		String linkKind = jdbcTemplate.queryForObject(
-				"select link_kind from controlplane_attempt_link where run_record_id = ?",
+				"select link_kind from controlplane_attempt_link where run_record_pk = ?",
 				String.class,
-				"rr-2202"
+				currentRunRecordPk
 		);
-		String priorRunRecordId = jdbcTemplate.queryForObject(
-				"select prior_run_record_id from controlplane_attempt_link where run_record_id = ?",
-				String.class,
-				"rr-2202"
+		Long priorRunRecordPk = jdbcTemplate.queryForObject(
+				"select prior_run_record_pk from controlplane_attempt_link where run_record_pk = ?",
+				Long.class,
+				currentRunRecordPk
 		);
 
 		assertEquals("RERUN", linkKind);
-		assertEquals("rr-2201", priorRunRecordId);
+		assertEquals(priorExpectedRunRecordPk, priorRunRecordPk);
 	}
 
 	@Test
@@ -234,7 +354,7 @@ class JdbcRunSummaryRegistryTest {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
 		registry.upsert(run(2403L, "customer-load", LocalDateTime.parse("2026-05-27T11:00:00"), "COMPLETED"));
-		jdbcTemplate.update("delete from controlplane_attempt_link where run_record_id = ?", "rr-2403");
+		jdbcTemplate.update("delete from controlplane_attempt_link where run_record_pk = (select run_record_pk from controlplane_run_record where job_execution_id = ?)", 2403L);
 
 		RunRecoveryView recovery = registry.findRecoveryByJobExecutionId(2403L).orElseThrow();
 
@@ -277,7 +397,24 @@ class JdbcRunSummaryRegistryTest {
 	}
 
 	@Test
-	void migratesLegacyRunRecordIdPrimaryKeyShape() {
+	void childRetainedHistoryTablesUseRunRecordPkLinkageColumnsOnly() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		assertTrue(hasColumn(jdbcTemplate, "controlplane_step_record", "run_record_pk"));
+		assertFalse(hasColumn(jdbcTemplate, "controlplane_step_record", "run_record_id"));
+		assertTrue(hasColumn(jdbcTemplate, "controlplane_artifact_record", "run_record_pk"));
+		assertFalse(hasColumn(jdbcTemplate, "controlplane_artifact_record", "run_record_id"));
+		assertTrue(hasColumn(jdbcTemplate, "controlplane_attempt_link", "run_record_pk"));
+		assertTrue(hasColumn(jdbcTemplate, "controlplane_attempt_link", "prior_run_record_pk"));
+		assertFalse(hasColumn(jdbcTemplate, "controlplane_attempt_link", "run_record_id"));
+		assertFalse(hasColumn(jdbcTemplate, "controlplane_attempt_link", "prior_run_record_id"));
+		assertTrue(hasColumn(jdbcTemplate, "controlplane_checkpoint_anchor", "run_record_pk"));
+		assertFalse(hasColumn(jdbcTemplate, "controlplane_checkpoint_anchor", "run_record_id"));
+	}
+
+	@Test
+	void doesNotAutoMigrateLegacyRunRecordIdPrimaryKeyShape() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		jdbcTemplate.execute("""
 				create table controlplane_run_record (
@@ -803,14 +940,14 @@ class JdbcRunSummaryRegistryTest {
 				11001L
 		);
 		Long stepRecordCount = jdbcTemplate.queryForObject(
-				"select count(*) from controlplane_step_record where run_record_id = ?",
+				"select count(*) from controlplane_step_record where run_record_pk in (select run_record_pk from controlplane_run_record where job_execution_id = ?)",
 				Long.class,
-				"rr-11001"
+				11001L
 		);
 		Long artifactRecordCount = jdbcTemplate.queryForObject(
-				"select count(*) from controlplane_artifact_record where run_record_id = ?",
+				"select count(*) from controlplane_artifact_record where run_record_pk in (select run_record_pk from controlplane_run_record where job_execution_id = ?)",
 				Long.class,
-				"rr-11001"
+				11001L
 		);
 
 		assertEquals(0L, runRecordCount);
@@ -839,9 +976,9 @@ class JdbcRunSummaryRegistryTest {
 
 		long attemptLinkTableExists = tableExists(jdbcTemplate, "controlplane_attempt_link") ? 1L : 0L;
 		long checkpointAnchorTableExists = tableExists(jdbcTemplate, "controlplane_checkpoint_anchor") ? 1L : 0L;
-		long attemptLinkRunIndexExists = indexExists(jdbcTemplate, "controlplane_attempt_link", "idx_attempt_link_run") ? 1L : 0L;
-		long checkpointAnchorRunIndexExists = indexExists(jdbcTemplate, "controlplane_checkpoint_anchor", "idx_checkpoint_anchor_run") ? 1L : 0L;
-		long attemptLinkPriorIndexExists = indexExists(jdbcTemplate, "controlplane_attempt_link", "idx_attempt_link_prior") ? 1L : 0L;
+		long attemptLinkRunIndexExists = indexExists(jdbcTemplate, "controlplane_attempt_link", "idx_attempt_link_run_pk") ? 1L : 0L;
+		long checkpointAnchorRunIndexExists = indexExists(jdbcTemplate, "controlplane_checkpoint_anchor", "idx_checkpoint_anchor_run_pk") ? 1L : 0L;
+		long attemptLinkPriorIndexExists = indexExists(jdbcTemplate, "controlplane_attempt_link", "idx_attempt_link_prior_pk") ? 1L : 0L;
 		long checkpointAnchorStepIndexExists = indexExists(jdbcTemplate, "controlplane_checkpoint_anchor", "idx_checkpoint_anchor_step") ? 1L : 0L;
 
 		assertEquals(1L, attemptLinkTableExists);
@@ -863,19 +1000,19 @@ class JdbcRunSummaryRegistryTest {
 		registry.upsert(run(12003L, "gamma", LocalDateTime.parse("2026-05-27T11:00:00"), "COMPLETED"));
 
 		Long evictedAttemptLinks = jdbcTemplate.queryForObject(
-				"select count(*) from controlplane_attempt_link where run_record_id = ?",
+				"select count(*) from controlplane_attempt_link where run_record_pk in (select run_record_pk from controlplane_run_record where job_execution_id = ?)",
 				Long.class,
-				"rr-12001"
+				12001L
 		);
 		Long evictedCheckpointAnchors = jdbcTemplate.queryForObject(
-				"select count(*) from controlplane_checkpoint_anchor where run_record_id = ?",
+				"select count(*) from controlplane_checkpoint_anchor where run_record_pk in (select run_record_pk from controlplane_run_record where job_execution_id = ?)",
 				Long.class,
-				"rr-12001"
+				12001L
 		);
 		Long retainedAttemptLinks = jdbcTemplate.queryForObject(
-				"select count(*) from controlplane_attempt_link where run_record_id = ?",
+				"select count(*) from controlplane_attempt_link where run_record_pk in (select run_record_pk from controlplane_run_record where job_execution_id = ?)",
 				Long.class,
-				"rr-12002"
+				12002L
 		);
 
 		assertEquals(0L, evictedAttemptLinks);
@@ -902,12 +1039,12 @@ class JdbcRunSummaryRegistryTest {
 		);
 		jdbcTemplate.update("""
 				insert into controlplane_step_record (
-					step_record_pk, step_record_id, run_record_id, step_name, step_status, created_at, updated_at
+					step_record_pk, step_record_id, run_record_pk, step_name, step_status, created_at, updated_at
 				) values (?, ?, ?, ?, ?, ?, ?)
 				""",
 				1L,
 				"sr-9001-1",
-				"rr-9001",
+				1L,
 				"load-customers",
 				"COMPLETED",
 				Timestamp.valueOf("2026-05-27 09:00:00"),
@@ -916,12 +1053,12 @@ class JdbcRunSummaryRegistryTest {
 
 		jdbcTemplate.update("""
 				insert into controlplane_artifact_record (
-					artifact_record_pk, artifact_record_id, run_record_id, step_record_id, artifact_role, artifact_path, created_at
+					artifact_record_pk, artifact_record_id, run_record_pk, step_record_id, artifact_role, artifact_path, created_at
 				) values (?, ?, ?, ?, ?, ?, ?)
 				""",
 				1L,
 				"ar-9001-1",
-				"rr-9001",
+				1L,
 				"sr-9001-1",
 				"STEP_OUTPUT",
 				"output/customers.csv",
@@ -968,12 +1105,12 @@ class JdbcRunSummaryRegistryTest {
 		);
 		jdbcTemplate.update("""
 				insert into controlplane_step_record (
-					step_record_pk, step_record_id, run_record_id, step_name, step_status, created_at, updated_at
+					step_record_pk, step_record_id, run_record_pk, step_name, step_status, created_at, updated_at
 				) values (?, ?, ?, ?, ?, ?, ?)
 				""",
 				1L,
 				"sr-9102-1",
-				"rr-9102",
+				2L,
 				"load-customers",
 				"COMPLETED",
 				Timestamp.valueOf("2026-05-27 09:00:00"),
@@ -982,12 +1119,12 @@ class JdbcRunSummaryRegistryTest {
 
 		assertDoesNotThrow(() -> jdbcTemplate.update("""
 				insert into controlplane_artifact_record (
-					artifact_record_pk, artifact_record_id, run_record_id, step_record_id, artifact_role, artifact_path, created_at
+					artifact_record_pk, artifact_record_id, run_record_pk, step_record_id, artifact_role, artifact_path, created_at
 				) values (?, ?, ?, ?, ?, ?, ?)
 				""",
 				1L,
 				"ar-9101-1",
-				"rr-9101",
+				1L,
 				"sr-9102-1",
 				"STEP_OUTPUT",
 				"output/customers.csv",
@@ -1350,12 +1487,12 @@ class JdbcRunSummaryRegistryTest {
 
 		jdbcTemplate.update("""
 				insert into controlplane_step_record (
-					step_record_pk, step_record_id, run_record_id, step_name, step_status, created_at, updated_at
+					step_record_pk, step_record_id, run_record_pk, step_name, step_status, created_at, updated_at
 				) values (?, ?, ?, ?, ?, ?, ?)
 				""",
 				1L,
 				"sr-9501-1",
-				"rr-9501",
+				1L,
 				"load-customers",
 				"COMPLETED",
 				Timestamp.valueOf("2026-05-27 09:00:00"),
@@ -1363,12 +1500,12 @@ class JdbcRunSummaryRegistryTest {
 		);
 		jdbcTemplate.update("""
 				insert into controlplane_artifact_record (
-					artifact_record_pk, artifact_record_id, run_record_id, step_record_id, artifact_role, artifact_path, created_at
+					artifact_record_pk, artifact_record_id, run_record_pk, step_record_id, artifact_role, artifact_path, created_at
 				) values (?, ?, ?, ?, ?, ?, ?)
 				""",
 				2L,
 				"ar-step-9501-1",
-				"rr-9501",
+				1L,
 				"sr-9501-1",
 				"STEP_OUTPUT",
 				"output/customers.csv",
@@ -1526,11 +1663,11 @@ class JdbcRunSummaryRegistryTest {
 				"""
 				select count(*)
 				from controlplane_step_record
-				where run_record_id = ?
+				where run_record_pk = (select run_record_pk from controlplane_run_record where job_execution_id = ?)
 				  and lower(step_name) = lower(?)
 				""",
 				Long.class,
-				"rr-9902",
+				9902L,
 				"customers-step"
 		);
 		assertEquals(1L, duplicateCount);
@@ -1642,6 +1779,21 @@ class JdbcRunSummaryRegistryTest {
 			}
 		});
 		return Boolean.TRUE.equals(isPrimary);
+	}
+
+	private boolean hasColumn(JdbcTemplate jdbcTemplate, String tableName, String columnName) {
+		Boolean exists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+			try (java.sql.ResultSet columns = connection.getMetaData().getColumns(connection.getCatalog(), null, tableName, columnName)) {
+				while (columns.next()) {
+					String existingColumnName = columns.getString("COLUMN_NAME");
+					if (existingColumnName != null && columnName.equalsIgnoreCase(existingColumnName)) {
+						return true;
+					}
+				}
+				return false;
+			}
+		});
+		return Boolean.TRUE.equals(exists);
 	}
 
 	private boolean tableExists(JdbcTemplate jdbcTemplate, String tableName) {
