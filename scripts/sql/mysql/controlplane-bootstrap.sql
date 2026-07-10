@@ -163,6 +163,7 @@ CREATE TABLE IF NOT EXISTS controlplane_checkpoint_anchor (
     checkpoint_anchor_pk BIGINT PRIMARY KEY,
     checkpoint_anchor_id VARCHAR(80) NOT NULL UNIQUE,
     run_record_pk BIGINT NOT NULL,
+    step_record_pk BIGINT,
     step_record_id VARCHAR(80),
     anchor_kind VARCHAR(80) NOT NULL,
     anchor_ref VARCHAR(2000),
@@ -172,7 +173,8 @@ CREATE TABLE IF NOT EXISTS controlplane_checkpoint_anchor (
 );
 
 CREATE INDEX idx_checkpoint_anchor_run_pk ON controlplane_checkpoint_anchor (run_record_pk, created_at);
-CREATE INDEX idx_checkpoint_anchor_step ON controlplane_checkpoint_anchor (step_record_id, created_at);
+CREATE INDEX idx_checkpoint_anchor_step_pk ON controlplane_checkpoint_anchor (step_record_pk, created_at);
+CREATE INDEX idx_checkpoint_anchor_step_id ON controlplane_checkpoint_anchor (step_record_id, created_at);
 
 INSERT INTO controlplane_trigger_source (
     trigger_source_pk,

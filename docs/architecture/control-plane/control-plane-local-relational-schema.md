@@ -107,6 +107,7 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 - Internal numeric surrogates now follow one phased pattern across retained scheduler history: active control-plane surrogate/linkage `*_pk` columns (`schedule_pk`, `trigger_event_pk`, `launched_run_pk`, `run_record_pk`) are now provisioned as `bigint` for relational joins and future foreign-key hardening. PK-constraint cutover is now active across schedule, trigger-event, and run-record tables (`schedule_pk`, `trigger_event_pk`, `run_record_pk` as relational primary keys) while external `*_id` fields remain stable unique operator/API identities.
 - Current linkage resolution now prefers PK-based joins (`launched_run_pk` / `trigger_event_pk`) before legacy string-ID fallback (`launched_run_id` / `trigger_event_id`) so mixed historical data can migrate without changing external API identifiers.
 - Child retained-history tables now depend on `controlplane_run_record.run_record_pk` for relational linkage (`controlplane_step_record.run_record_pk`, `controlplane_artifact_record.run_record_pk`, `controlplane_attempt_link.run_record_pk|prior_run_record_pk`, `controlplane_checkpoint_anchor.run_record_pk`) while `run_record_id` remains a projected operator/API-facing identity from the parent run row.
+- `controlplane_checkpoint_anchor.step_record_pk` is the active step-level relational linkage key; `step_record_id` remains a projected compatibility identity for operator/API readability.
 - Artifact ownership should be explicit and non-ambiguous: one `artifact_record` row is either run-level (`run_record_pk` set, `step_record_id` null) or step-level (`step_record_id` set with consistent `run_record_pk` lineage), never an unowned or contradictory combination.
 - Current non-SQLite portability is partial-but-testable: normal registry startup and update/insert write paths are now exercised without SQLite-only SQL, and active child retained-history writes now assume the PK-only linkage contract rather than backfilling legacy child `run_record_id` columns at runtime.
 
@@ -197,7 +198,8 @@ erDiagram
         bigint checkpoint_anchor_pk PK
         string checkpoint_anchor_id UK
         bigint run_record_pk FK
-        string step_record_id FK
+        bigint step_record_pk FK
+        string step_record_id
         string anchor_kind
         string anchor_ref
         string anchor_status
@@ -212,6 +214,7 @@ erDiagram
     STEP_RECORD ||--o{ ARTIFACT_RECORD : "step-level artifacts"
     RUN_RECORD ||--o{ ATTEMPT_LINK : "attempt lineage"
     RUN_RECORD ||--o{ CHECKPOINT_ANCHOR : "recovery anchors"
+    STEP_RECORD ||--o{ CHECKPOINT_ANCHOR : "step-level recovery anchors"
 ```
 
 ## Key Components / Classes
@@ -346,7 +349,7 @@ Represents a retained checkpoint or resume anchor.
 Suggested column families:
 
 - identity: `checkpoint_anchor_id`, `checkpoint_key`
-- linkage: `run_record_pk`, `step_record_id`, `attempt_link_id`
+- linkage: `run_record_pk`, `step_record_pk`, `step_record_id` (compatibility projection), `attempt_link_id`
 - checkpoint meaning: `checkpoint_type`, `checkpoint_status`
 - state reference: `checkpoint_ref`, `checkpoint_summary`
 - validity: `created_at`, `expires_at`, `compatibility_marker`
@@ -362,6 +365,30 @@ For the active control-plane implementation, prefer these MySQL-default rules:
 - treat large payloads such as raw logs or binary artifacts as external references rather than in-row blobs
 
 SQLite compatibility remains bridge-only and should not be treated as the active default persistence lane.
+
+## ID and FK policy (active + planned)
+
+The active direction is now explicit:
+
+- string `*_id` columns remain stable operator/API-facing identities
+- bigint `*_pk` columns are the relational join and FK contract
+- new FK additions should target parent `*_pk` columns, not parent `*_id` unique keys
+
+Current shipped examples:
+
+- `controlplane_step_record.run_record_pk -> controlplane_run_record.run_record_pk`
+- `controlplane_artifact_record.run_record_pk -> controlplane_run_record.run_record_pk`
+- `controlplane_attempt_link.run_record_pk|prior_run_record_pk -> controlplane_run_record.run_record_pk`
+- `controlplane_checkpoint_anchor.run_record_pk -> controlplane_run_record.run_record_pk`
+- `controlplane_checkpoint_anchor.step_record_pk -> controlplane_step_record.step_record_pk`
+
+Planned compatibility pattern for legacy string-linkage tables:
+
+1. add nullable `*_pk` linkage column
+2. backfill `*_pk` from existing `*_id` linkage
+3. dual-read and dual-write during compatibility window
+4. switch primary relational joins/indexes to `*_pk`
+5. keep string `*_id` as external identity projection
 
 ## Portability guardrails for PostgreSQL, SQL Server, and MySQL
 

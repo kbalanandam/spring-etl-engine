@@ -410,6 +410,7 @@ class JdbcRunSummaryRegistryTest {
 		assertFalse(hasColumn(jdbcTemplate, "controlplane_attempt_link", "run_record_id"));
 		assertFalse(hasColumn(jdbcTemplate, "controlplane_attempt_link", "prior_run_record_id"));
 		assertTrue(hasColumn(jdbcTemplate, "controlplane_checkpoint_anchor", "run_record_pk"));
+		assertTrue(hasColumn(jdbcTemplate, "controlplane_checkpoint_anchor", "step_record_pk"));
 		assertFalse(hasColumn(jdbcTemplate, "controlplane_checkpoint_anchor", "run_record_id"));
 	}
 
@@ -979,14 +980,93 @@ class JdbcRunSummaryRegistryTest {
 		long attemptLinkRunIndexExists = indexExists(jdbcTemplate, "controlplane_attempt_link", "idx_attempt_link_run_pk") ? 1L : 0L;
 		long checkpointAnchorRunIndexExists = indexExists(jdbcTemplate, "controlplane_checkpoint_anchor", "idx_checkpoint_anchor_run_pk") ? 1L : 0L;
 		long attemptLinkPriorIndexExists = indexExists(jdbcTemplate, "controlplane_attempt_link", "idx_attempt_link_prior_pk") ? 1L : 0L;
-		long checkpointAnchorStepIndexExists = indexExists(jdbcTemplate, "controlplane_checkpoint_anchor", "idx_checkpoint_anchor_step") ? 1L : 0L;
+		long checkpointAnchorStepPkIndexExists = indexExists(jdbcTemplate, "controlplane_checkpoint_anchor", "idx_checkpoint_anchor_step_pk") ? 1L : 0L;
 
 		assertEquals(1L, attemptLinkTableExists);
 		assertEquals(1L, checkpointAnchorTableExists);
 		assertEquals(1L, attemptLinkRunIndexExists);
 		assertEquals(1L, checkpointAnchorRunIndexExists);
 		assertEquals(1L, attemptLinkPriorIndexExists);
-		assertEquals(1L, checkpointAnchorStepIndexExists);
+		assertEquals(1L, checkpointAnchorStepPkIndexExists);
+	}
+
+	@Test
+	void startupBackfillsCheckpointAnchorStepRecordPkFromStepRecordId() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_pk,
+					run_record_id,
+					job_execution_id,
+					scenario,
+					run_status,
+					created_at,
+					updated_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				9001L,
+				"rr-9001",
+				9001L,
+				"checkpoint-backfill",
+				"COMPLETED",
+				Timestamp.valueOf(LocalDateTime.parse("2026-07-10T18:00:00")),
+				Timestamp.valueOf(LocalDateTime.parse("2026-07-10T18:00:00"))
+		);
+
+		jdbcTemplate.update("""
+				insert into controlplane_step_record (
+					step_record_pk,
+					step_record_id,
+					run_record_pk,
+					step_name,
+					step_status,
+					created_at,
+					updated_at
+				) values (?, ?, ?, ?, ?, ?, ?)
+				""",
+				9101L,
+				"sr-9001-1",
+				9001L,
+				"customers-step",
+				"COMPLETED",
+				Timestamp.valueOf(LocalDateTime.parse("2026-07-10T18:00:01")),
+				Timestamp.valueOf(LocalDateTime.parse("2026-07-10T18:00:01"))
+		);
+
+		jdbcTemplate.update("""
+				insert into controlplane_checkpoint_anchor (
+					checkpoint_anchor_pk,
+					checkpoint_anchor_id,
+					run_record_pk,
+					step_record_id,
+					anchor_kind,
+					anchor_ref,
+					anchor_status,
+					created_at,
+					updated_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				9201L,
+				"ca-step-9001",
+				9001L,
+				"sr-9001-1",
+				"STEP_BOUNDARY",
+				"checkpoint://customers-step",
+				"COMPLETED",
+				Timestamp.valueOf(LocalDateTime.parse("2026-07-10T18:00:02")),
+				Timestamp.valueOf(LocalDateTime.parse("2026-07-10T18:00:02"))
+		);
+
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		Long linkedStepPk = jdbcTemplate.queryForObject(
+				"select step_record_pk from controlplane_checkpoint_anchor where checkpoint_anchor_id = ?",
+				Long.class,
+				"ca-step-9001"
+		);
+		assertEquals(9101L, linkedStepPk);
 	}
 
 	@Test

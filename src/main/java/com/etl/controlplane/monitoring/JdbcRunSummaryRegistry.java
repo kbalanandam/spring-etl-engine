@@ -216,7 +216,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			updateSql.append(", run_record_id = ?");
 			updateParams.add(runRecord.runRecordId());
 		}
-		updateSql.append(", step_record_id = ?, anchor_kind = ?, anchor_ref = ?, anchor_status = ?, updated_at = ? where checkpoint_anchor_id = ?");
+		updateSql.append(", step_record_pk = ?, step_record_id = ?, anchor_kind = ?, anchor_ref = ?, anchor_status = ?, updated_at = ? where checkpoint_anchor_id = ?");
+		updateParams.add(null);
 		updateParams.add(null);
 		updateParams.add("RUN_LOG");
 		updateParams.add(anchorRef);
@@ -237,11 +238,12 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				insertSql.append(", run_record_id");
 				insertParams.add(runRecord.runRecordId());
 			}
-			insertSql.append(", step_record_id, anchor_kind, anchor_ref, anchor_status, created_at, updated_at) values (?, ?, ?");
+			insertSql.append(", step_record_pk, step_record_id, anchor_kind, anchor_ref, anchor_status, created_at, updated_at) values (?, ?, ?");
 			if (legacyRunRecordIdColumn) {
 				insertSql.append(", ?");
 			}
-			insertSql.append(", ?, ?, ?, ?, ?, ?)");
+			insertSql.append(", ?, ?, ?, ?, ?, ?, ?)");
+			insertParams.add(null);
 			insertParams.add(null);
 			insertParams.add("RUN_LOG");
 			insertParams.add(anchorRef);
@@ -580,18 +582,19 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			return List.of();
 		}
 		return jdbcTemplate.query("""
-				select checkpoint_anchor_id,
-				       step_record_id,
-				       anchor_kind,
-				       anchor_ref,
-				       anchor_status,
-				       created_at,
-				       updated_at
-				from controlplane_checkpoint_anchor
-				where run_record_pk = ?
-				order by case when created_at is null then 1 else 0 end,
-				         created_at desc,
-				         checkpoint_anchor_pk desc
+				select ca.checkpoint_anchor_id,
+				       coalesce(ca.step_record_id, sr.step_record_id) as step_record_id,
+				       ca.anchor_kind,
+				       ca.anchor_ref,
+				       ca.anchor_status,
+				       ca.created_at,
+				       ca.updated_at
+				from controlplane_checkpoint_anchor ca
+				left join controlplane_step_record sr on sr.step_record_pk = ca.step_record_pk
+				where ca.run_record_pk = ?
+				order by case when ca.created_at is null then 1 else 0 end,
+				         ca.created_at desc,
+				         ca.checkpoint_anchor_pk desc
 				""", (rs, rowNum) -> new RunCheckpointAnchorView(
 				rs.getString("checkpoint_anchor_id"),
 				rs.getString("step_record_id"),
@@ -792,6 +795,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					checkpoint_anchor_pk bigint primary key,
 					checkpoint_anchor_id varchar(80) not null unique,
 					run_record_pk bigint not null,
+					step_record_pk bigint,
 					step_record_id varchar(80),
 					anchor_kind varchar(80) not null,
 					anchor_ref varchar(2000),
@@ -801,10 +805,13 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				)
 				""");
 		ensureColumnExists("controlplane_checkpoint_anchor", "run_record_pk", "bigint");
+		ensureColumnExists("controlplane_checkpoint_anchor", "step_record_pk", "bigint");
 		createIndexIfMissing("controlplane_checkpoint_anchor", "idx_checkpoint_anchor_run_pk",
 				"create index idx_checkpoint_anchor_run_pk on controlplane_checkpoint_anchor (run_record_pk, created_at)");
-		createIndexIfMissing("controlplane_checkpoint_anchor", "idx_checkpoint_anchor_step",
-				"create index idx_checkpoint_anchor_step on controlplane_checkpoint_anchor (step_record_id, created_at)");
+		createIndexIfMissing("controlplane_checkpoint_anchor", "idx_checkpoint_anchor_step_pk",
+				"create index idx_checkpoint_anchor_step_pk on controlplane_checkpoint_anchor (step_record_pk, created_at)");
+		createIndexIfMissing("controlplane_checkpoint_anchor", "idx_checkpoint_anchor_step_id",
+				"create index idx_checkpoint_anchor_step_id on controlplane_checkpoint_anchor (step_record_id, created_at)");
 		createArtifactOwnershipTriggers();
 		backfillRunRecordFromRunSummary();
 		backfillRunRecordTriggerEventPk();
@@ -813,6 +820,26 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		backfillRunLogArtifactsFromRunSummary();
 		backfillStepRecordsFromBatchMetadata();
 		backfillStepRecordsFromRunLogs();
+		backfillCheckpointAnchorStepRecordPk();
+	}
+
+	private void backfillCheckpointAnchorStepRecordPk() {
+		try {
+			jdbcTemplate.update("""
+					update controlplane_checkpoint_anchor ca
+					set step_record_pk = (
+						select sr.step_record_pk
+						from controlplane_step_record sr
+						where sr.run_record_pk = ca.run_record_pk
+						  and sr.step_record_id = ca.step_record_id
+					)
+					where ca.step_record_pk is null
+					  and ca.step_record_id is not null
+					  and trim(ca.step_record_id) <> ''
+					""");
+		} catch (DataAccessException ignored) {
+			// Keep startup resilient when legacy schemas temporarily miss linkage columns.
+		}
 	}
 
 	private void upsertStepAndArtifactRecords(RunSummaryView runSummary) {
