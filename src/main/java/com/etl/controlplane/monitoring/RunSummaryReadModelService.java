@@ -37,7 +37,7 @@ public class RunSummaryReadModelService {
 	                                  RunSummaryRegistry registry,
 	                                  @Value("${controlplane.runs.max-log-file-size-bytes:5000000}") long maxLogFileSizeBytes,
 	                                  @Value("${controlplane.runs.max-log-files-per-refresh:500}") int maxLogFilesPerRefresh,
-	                                  @Value("${controlplane.runs.min-reindex-interval-ms:5000}") long minReindexIntervalMs) {
+	                                  @Value("${controlplane.runs.min-reindex-interval-ms:1000}") long minReindexIntervalMs) {
 		this(Path.of(logBaseDir), new RunSummaryLogParser(), registry, maxLogFileSizeBytes, maxLogFilesPerRefresh, minReindexIntervalMs);
 	}
 

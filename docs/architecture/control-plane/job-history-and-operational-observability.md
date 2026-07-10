@@ -35,6 +35,7 @@ The current codebase already implements a meaningful first observability slice:
 - local verification-report generation that keeps build/release validation logs distinct from runtime scenario logs
 - server-side run-detail reconciliation that merges retained `step_record` / `artifact_record` projections with scenario-log evidence into one canonical `/api/v1/runs/{jobExecutionId}/detail` payload, while keeping log-derived step identity authoritative for the selected run when step evidence is available
 - control-plane launched worker processes can use a dedicated worker metadata datasource URL and explicit SQLite busy-timeout init SQL, reducing trigger-now lock contention with control-plane retained metadata writes
+- runs-list refresh now follows a responsive stale-while-refresh pattern: first-load requests block to seed cache, subsequent list requests return registry data immediately while guarded background reindex runs, and explicit run lookup can still force blocking reindex for terminal-status freshness
 
 This document still describes future observability direction, but it should now be read as **current baseline plus future evolution**, not as a purely hypothetical design note.
 
