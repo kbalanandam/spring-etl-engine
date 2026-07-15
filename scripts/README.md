@@ -7,6 +7,7 @@ Automation helpers under `scripts/` for local verification, cleanup, project-boa
 - Generate local verification report (`mvn test` + smoke + markdown report): `generate-verification-report.ps1`
 - Run smoke-only verification checks: `verify-recent-changes.ps1`
 - Bootstrap MySQL control-plane schema/tables/indexes and optional grants: `setup-controlplane-mysql.ps1`
+- Bootstrap SQL Server control-plane schema/tables/indexes: `setup-controlplane-mssql.ps1`
 - Remove one job bundle and matching generated artifacts safely: `remove-job-bundle.ps1`
 - Restart/start/stop/status control-plane quickly on port 8081: `restart-controlplane.ps1`
 - Generate job-scoped model classes for all job configs under folder roots: `generate-models-batch.ps1`
@@ -110,6 +111,39 @@ Preview without executing (WhatIf):
 ```powershell
 Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mysql.ps1 -WhatIf
+```
+
+## `setup-controlplane-mssql.ps1`
+
+Purpose:
+- Creates a selected SQL Server database (default `etl_controlplane`) if missing
+- Creates active `controlplane_*` schema tables and indexes
+- Creates Spring Batch `BATCH_*` metadata tables in the same database
+- Seeds `controlplane_trigger_source` master rows
+
+SQL sources:
+- `scripts/sql/mssql/controlplane-bootstrap.sql`
+- `scripts/sql/mssql/spring-batch-metadata.sql`
+
+Bootstrap schema with SQL authentication:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mssql.ps1 -ServerName localhost -Port 1433 -AdminUser sa -AdminPassword "<sa-password>"
+```
+
+Bootstrap schema with integrated security:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mssql.ps1 -ServerName localhost -Port 1433 -UseIntegratedSecurity
+```
+
+Preview without executing (WhatIf):
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mssql.ps1 -WhatIf
 ```
 
 ## `remove-job-bundle.ps1`

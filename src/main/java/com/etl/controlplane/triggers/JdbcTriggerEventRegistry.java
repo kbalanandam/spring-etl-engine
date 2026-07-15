@@ -26,12 +26,19 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 
 	private final JdbcTemplate jdbcTemplate;
 	private final int retentionPerJob;
+	private final boolean sqlServerDialect;
 
 	public JdbcTriggerEventRegistry(JdbcTemplate jdbcTemplate,
-	                                @Value("${controlplane.triggers.retention-per-job:100}") int retentionPerJob) {
+	                                @Value("${controlplane.triggers.retention-per-job:100}") int retentionPerJob,
+	                                @Value("${controlplane.db.vendor:mysql}") String dbVendor) {
 		this.jdbcTemplate = jdbcTemplate;
 		this.retentionPerJob = Math.max(1, retentionPerJob);
+		this.sqlServerDialect = isSqlServerVendor(dbVendor);
 		initializeSchema();
+	}
+
+	public JdbcTriggerEventRegistry(JdbcTemplate jdbcTemplate, int retentionPerJob) {
+		this(jdbcTemplate, retentionPerJob, "mysql");
 	}
 
 	@Override
@@ -120,6 +127,22 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 			return List.of();
 		}
 		int safeOffset = Math.max(0, offset);
+		if (sqlServerDialect) {
+			return jdbcTemplate.query("""
+					select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message,
+					       trigger_origin, schedule_pk, external_origin_key,
+					       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
+					from controlplane_trigger_event
+					where job_key = ?
+					order by requested_at desc, trigger_event_id desc
+					offset ? rows fetch next ? rows only
+					""",
+					(rs, rowNum) -> toView(rs),
+					normalize(jobKey),
+					safeOffset,
+					limit
+			);
+		}
 		return jdbcTemplate.query("""
 				select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message,
 				       trigger_origin, schedule_pk, external_origin_key,
@@ -164,6 +187,22 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 		Long schedulePk = resolveSchedulePk(normalizedScheduleId);
 		if (schedulePk == null) {
 			return List.of();
+		}
+		if (sqlServerDialect) {
+			return jdbcTemplate.query("""
+					select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message,
+					       trigger_origin, schedule_pk, external_origin_key,
+					       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
+					from controlplane_trigger_event
+					where schedule_pk = ?
+					order by requested_at desc, trigger_event_id desc
+					offset ? rows fetch next ? rows only
+					""",
+					(rs, rowNum) -> toView(rs),
+					schedulePk,
+					safeOffset,
+					limit
+			);
 		}
 		return jdbcTemplate.query("""
 						select trigger_event_id, job_key, decision_status, reason, requested_by, requested_at, launched_run_id, message,
@@ -562,6 +601,11 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 
 	private String normalizeScheduleId(String value) {
 		return normalize(value).toLowerCase();
+	}
+
+	private boolean isSqlServerVendor(String vendor) {
+		String normalized = normalize(vendor).toLowerCase(Locale.ROOT);
+		return "mssql".equals(normalized) || "sqlserver".equals(normalized);
 	}
 
 	private String normalizeTriggerOrigin(String triggerOrigin,

@@ -38,12 +38,19 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	private final JdbcTemplate jdbcTemplate;
 	private final int retention;
 	private final Map<String, Boolean> optionalColumnPresence = new HashMap<>();
+	private final boolean sqlServerDialect;
 
 	public JdbcRunSummaryRegistry(JdbcTemplate jdbcTemplate,
-	                              @Value("${controlplane.runs.retention:5000}") int retention) {
+	                              @Value("${controlplane.runs.retention:5000}") int retention,
+	                              @Value("${controlplane.db.vendor:mysql}") String dbVendor) {
 		this.jdbcTemplate = jdbcTemplate;
 		this.retention = Math.max(1, retention);
+		this.sqlServerDialect = isSqlServerVendor(dbVendor);
 		initializeSchema();
+	}
+
+	JdbcRunSummaryRegistry(JdbcTemplate jdbcTemplate, int retention) {
+		this(jdbcTemplate, retention, "mysql");
 	}
 
 	@Override
@@ -271,7 +278,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		}
 		Timestamp startedAtTs = Timestamp.valueOf(startedAt);
 
-		return jdbcTemplate.query("""
+		String priorRunSql = """
 				select run_record_pk, run_record_id
 				from controlplane_run_record
 				where selected_job_key = ?
@@ -280,8 +287,9 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				order by case when started_at is null then 1 else 0 end,
 				         started_at desc,
 				         job_execution_id desc
-				limit 1
-				""",
+				""" + (sqlServerDialect ? " offset 0 rows fetch next 1 rows only" : " limit 1");
+
+		return jdbcTemplate.query(priorRunSql,
 				rs -> rs.next() ? new RunRecordRef(rs.getObject("run_record_pk", Long.class), rs.getString("run_record_id")) : RunRecordRef.empty(),
 				selectedJobKey,
 				currentRunRecord.runRecordPk(),
@@ -295,15 +303,15 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			return List.of();
 		}
 		if (!triggerEventTableAvailable()) {
-			return jdbcTemplate.query("""
+			String latestRunsSql = """
 					select job_execution_id, scenario, status, start_time, end_time, duration_seconds,
 					       source_count, written_count, rejected_count, run_mode, recovery_policy, log_path
 					from controlplane_run_summary
 					order by case when start_time is null then 1 else 0 end,
 					         start_time desc,
 					         job_execution_id desc
-					limit ?
-					""", (rs, rowNum) -> new RunSummaryView(
+					""" + firstRowsClause(limit);
+			return jdbcTemplate.query(latestRunsSql, (rs, rowNum) -> new RunSummaryView(
 					rs.getString("scenario"),
 					rs.getLong("job_execution_id"),
 					rs.getString("status"),
@@ -317,9 +325,9 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					rs.getString("recovery_policy"),
 					"MANUAL",
 					rs.getString("log_path")
-			), limit);
+			));
 		}
-		return jdbcTemplate.query("""
+		String latestRunsWithTriggerSql = """
 				select rs.job_execution_id,
 				       rs.scenario,
 				       rs.status,
@@ -345,8 +353,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				order by case when rs.start_time is null then 1 else 0 end,
 				         rs.start_time desc,
 				         rs.job_execution_id desc
-				limit ?
-				""", (rs, rowNum) -> new RunSummaryView(
+				""" + firstRowsClause(limit);
+		return jdbcTemplate.query(latestRunsWithTriggerSql, (rs, rowNum) -> new RunSummaryView(
 				rs.getString("scenario"),
 				rs.getLong("job_execution_id"),
 				rs.getString("status"),
@@ -365,7 +373,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					rs.getString("external_origin_key")
 				),
 				rs.getString("log_path")
-		), limit);
+		));
 	}
 
 	@Override
@@ -448,7 +456,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		}
 		List<RunCheckpointAnchorView> checkpointAnchors = listCheckpointAnchorsByRunRecordPk(runRecord.runRecordPk());
 
-		List<RunRecoveryView> matches = jdbcTemplate.query("""
+		String recoverySql = """
 				select al.attempt_link_id,
 				       al.link_kind,
 				       rr_prior.run_record_id as prior_run_record_id,
@@ -457,8 +465,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				left join controlplane_run_record rr_prior on rr_prior.run_record_pk = al.prior_run_record_pk
 				where al.run_record_pk = ?
 				order by al.created_at desc, al.attempt_link_pk desc
-				limit 1
-				""", (rs, rowNum) -> RunRecoveryView.advisoryResumeNotSupported(
+				""" + firstRowsClause(1);
+		List<RunRecoveryView> matches = jdbcTemplate.query(recoverySql, (rs, rowNum) -> RunRecoveryView.advisoryResumeNotSupported(
 				jobExecutionId,
 				runRecord.runRecordId(),
 				rs.getString("attempt_link_id"),
@@ -492,7 +500,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (runRecord.isEmpty()) {
 			return List.of();
 		}
-		return jdbcTemplate.query("""
+		String stepSql = """
 				select sr.step_record_id, rr.run_record_id, sr.step_name, sr.step_status,
 				       sr.started_at, sr.finished_at, sr.duration_seconds,
 				       sr.read_count, sr.write_count, sr.filter_count,
@@ -503,8 +511,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				order by case when sr.started_at is null then 1 else 0 end,
 				         sr.started_at asc,
 				         sr.step_record_id asc
-				limit ?
-				""", (rs, rowNum) -> new RunStepRecordView(
+				""" + firstRowsClause(limit);
+		return jdbcTemplate.query(stepSql, (rs, rowNum) -> new RunStepRecordView(
 				rs.getString("step_record_id"),
 				rs.getString("run_record_id"),
 				rs.getString("step_name"),
@@ -518,7 +526,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				nullableLong(rs, "skip_count"),
 				nullableLong(rs, "rollback_count"),
 				nullableLong(rs, "rejected_count")
-		), runRecord.runRecordPk(), limit);
+		), runRecord.runRecordPk());
 	}
 
 	@Override
@@ -530,7 +538,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (runRecord.isEmpty()) {
 			return List.of();
 		}
-		return jdbcTemplate.query("""
+		String artifactByRunSql = """
 				select ar.artifact_record_id, rr.run_record_id, ar.step_record_id, ar.artifact_role, ar.artifact_path, ar.created_at
 				from controlplane_artifact_record ar
 				join controlplane_run_record rr on rr.run_record_pk = ar.run_record_pk
@@ -538,15 +546,15 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				order by case when ar.created_at is null then 1 else 0 end,
 				         ar.created_at desc,
 				         ar.artifact_record_id desc
-				limit ?
-				""", (rs, rowNum) -> new RunArtifactRecordView(
+				""" + firstRowsClause(limit);
+		return jdbcTemplate.query(artifactByRunSql, (rs, rowNum) -> new RunArtifactRecordView(
 				rs.getString("artifact_record_id"),
 				rs.getString("run_record_id"),
 				rs.getString("step_record_id"),
 				rs.getString("artifact_role"),
 				rs.getString("artifact_path"),
 				toLocalDateTime(rs.getTimestamp("created_at"))
-		), runRecord.runRecordPk(), limit);
+		), runRecord.runRecordPk());
 	}
 
 	@Override
@@ -558,7 +566,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (normalizedStepRecordId.isBlank()) {
 			return List.of();
 		}
-		return jdbcTemplate.query("""
+		String artifactByStepSql = """
 				select ar.artifact_record_id, rr.run_record_id, ar.step_record_id, ar.artifact_role, ar.artifact_path, ar.created_at
 				from controlplane_artifact_record ar
 				join controlplane_run_record rr on rr.run_record_pk = ar.run_record_pk
@@ -566,15 +574,15 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				order by case when ar.created_at is null then 1 else 0 end,
 				         ar.created_at desc,
 				         ar.artifact_record_id desc
-				limit ?
-				""", (rs, rowNum) -> new RunArtifactRecordView(
+				""" + firstRowsClause(limit);
+		return jdbcTemplate.query(artifactByStepSql, (rs, rowNum) -> new RunArtifactRecordView(
 				rs.getString("artifact_record_id"),
 				rs.getString("run_record_id"),
 				rs.getString("step_record_id"),
 				rs.getString("artifact_role"),
 				rs.getString("artifact_path"),
 				toLocalDateTime(rs.getTimestamp("created_at"))
-		), normalizedStepRecordId, limit);
+		), normalizedStepRecordId);
 	}
 
 	private List<RunCheckpointAnchorView> listCheckpointAnchorsByRunRecordPk(Long runRecordPk) {
@@ -1842,7 +1850,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			Timestamp lowerBound = Timestamp.valueOf(startedAt.minus(TRIGGER_LOOKBACK_WINDOW));
 			Timestamp upperBound = Timestamp.valueOf(startedAt.plus(TRIGGER_LOOKAHEAD_WINDOW));
 			Timestamp startedAtTs = Timestamp.valueOf(startedAt);
-			TriggerEventLink preferredPreStart = Optional.ofNullable(jdbcTemplate.query("""
+			String preferredPreStartSql = """
 					select te.trigger_event_id, te.trigger_event_pk
 					from controlplane_trigger_event te
 					where te.job_key = ?
@@ -1859,8 +1867,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 						  and rr.job_execution_id <> ?
 					  )
 					order by te.requested_at desc, te.trigger_event_pk desc, te.trigger_event_id desc
-					limit 1
-					""", rs -> rs.next()
+					""" + firstRowsClause(1);
+			TriggerEventLink preferredPreStart = Optional.ofNullable(jdbcTemplate.query(preferredPreStartSql, rs -> rs.next()
 						? new TriggerEventLink(rs.getString("trigger_event_id"), nullableLong(rs, "trigger_event_pk"))
 						: TriggerEventLink.empty(),
 					normalizedScenario,
@@ -1872,7 +1880,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				return preferredPreStart;
 			}
 
-			TriggerEventLink nearestFuture = Optional.ofNullable(jdbcTemplate.query("""
+			String nearestFutureSql = """
 					select te.trigger_event_id, te.trigger_event_pk
 					from controlplane_trigger_event te
 					where te.job_key = ?
@@ -1888,8 +1896,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 						  and rr.job_execution_id <> ?
 					  )
 					order by te.requested_at asc, te.trigger_event_pk asc, te.trigger_event_id asc
-					limit 1
-					""", rs -> rs.next()
+					""" + firstRowsClause(1);
+			TriggerEventLink nearestFuture = Optional.ofNullable(jdbcTemplate.query(nearestFutureSql, rs -> rs.next()
 						? new TriggerEventLink(rs.getString("trigger_event_id"), nullableLong(rs, "trigger_event_pk"))
 						: TriggerEventLink.empty(),
 					normalizedScenario,
@@ -1909,26 +1917,26 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	private TriggerEventLink resolveExistingLaunchLink(Long jobExecutionId) {
 		Long runRecordPk = resolveRunRecordPk(jobExecutionId);
 		if (runRecordPk != null) {
-			TriggerEventLink pkMatch = Optional.ofNullable(jdbcTemplate.query("""
+			String existingByPkSql = """
 					select trigger_event_id, trigger_event_pk
 					from controlplane_trigger_event
 					where launched_run_pk = ?
 					order by requested_at desc, trigger_event_pk desc, trigger_event_id desc
-					limit 1
-					""", rs -> rs.next()
+					""" + firstRowsClause(1);
+			TriggerEventLink pkMatch = Optional.ofNullable(jdbcTemplate.query(existingByPkSql, rs -> rs.next()
 						? new TriggerEventLink(rs.getString("trigger_event_id"), nullableLong(rs, "trigger_event_pk"))
 						: TriggerEventLink.empty(), runRecordPk)).orElse(TriggerEventLink.empty());
 			if (!pkMatch.isEmpty()) {
 				return pkMatch;
 			}
 		}
-		return Optional.ofNullable(jdbcTemplate.query("""
+		String existingByIdSql = """
 				select trigger_event_id, trigger_event_pk
 				from controlplane_trigger_event
 				where launched_run_id = ?
 				order by requested_at desc, trigger_event_pk desc, trigger_event_id desc
-				limit 1
-				""", rs -> rs.next()
+				""" + firstRowsClause(1);
+		return Optional.ofNullable(jdbcTemplate.query(existingByIdSql, rs -> rs.next()
 					? new TriggerEventLink(rs.getString("trigger_event_id"), nullableLong(rs, "trigger_event_pk"))
 					: TriggerEventLink.empty(), String.valueOf(jobExecutionId))).orElse(TriggerEventLink.empty());
 	}
@@ -1981,11 +1989,23 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 
 	private boolean triggerEventTableAvailable() {
 		try {
-			jdbcTemplate.queryForObject("select 1 from controlplane_trigger_event limit 1", Integer.class);
+			jdbcTemplate.queryForObject("select count(*) from controlplane_trigger_event", Long.class);
 			return true;
 		} catch (DataAccessException ex) {
 			return false;
 		}
+	}
+
+	private String firstRowsClause(int limit) {
+		if (sqlServerDialect) {
+			return " offset 0 rows fetch next " + Math.max(1, limit) + " rows only";
+		}
+		return " limit " + Math.max(1, limit);
+	}
+
+	private boolean isSqlServerVendor(String vendor) {
+		String normalized = normalize(vendor).toLowerCase(Locale.ROOT);
+		return "mssql".equals(normalized) || "sqlserver".equals(normalized);
 	}
 
 	private String normalizeTriggerOriginToken(String sourceCode, String value, Long schedulePk, String externalOriginKey) {

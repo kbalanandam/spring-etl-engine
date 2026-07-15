@@ -100,21 +100,45 @@ Use environment-specific secret management for credentials; do not commit real v
 
 Current implementation note:
 
-- The shipped control-plane path is JDBC-first (no JPA requirement) and now defaults to MySQL in the `controlplane` profile.
+- The shipped control-plane path is JDBC-first (no JPA requirement) and now uses one canonical vendor token plus vendor-neutral datasource properties in the `controlplane` profile:
+
+```properties
+controlplane.db.vendor=${CONTROLPLANE_DB_VENDOR:mysql}
+controlplane.db.url=${CONTROLPLANE_DB_URL:...}
+controlplane.db.username=${CONTROLPLANE_DB_USERNAME:...}
+controlplane.db.password=${CONTROLPLANE_DB_PASSWORD:...}
+controlplane.db.driver-class-name=${CONTROLPLANE_DB_DRIVER_CLASS_NAME:...}
+```
+
+- `spring.datasource.*` and `controlplane.job-launch.worker.datasource.*` are wired from these canonical properties unless explicitly overridden by worker-specific env vars.
 
 - Local/CI MySQL run with the default `controlplane` profile:
 
 ```powershell
-$env:CONTROLPLANE_MYSQL_URL="jdbc:mysql://localhost:3306/etl_controlplane?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
-$env:CONTROLPLANE_MYSQL_USERNAME="root"
-$env:CONTROLPLANE_MYSQL_PASSWORD="<password>"
+$env:CONTROLPLANE_DB_VENDOR="mysql"
+$env:CONTROLPLANE_DB_URL="jdbc:mysql://localhost:3306/etl_controlplane?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+$env:CONTROLPLANE_DB_USERNAME="root"
+$env:CONTROLPLANE_DB_PASSWORD="<password>"
+$env:CONTROLPLANE_DB_DRIVER_CLASS_NAME="com.mysql.cj.jdbc.Driver"
+mvn --no-transfer-progress "-Dspring-boot.run.profiles=controlplane" spring-boot:run
+```
+
+- Local SQL Server run with the default `controlplane` profile:
+
+```powershell
+$env:CONTROLPLANE_DB_VENDOR="mssql"
+$env:CONTROLPLANE_DB_URL="jdbc:sqlserver://localhost:1433;databaseName=etl_controlplane;encrypt=true;trustServerCertificate=true"
+$env:CONTROLPLANE_DB_USERNAME="sa"
+$env:CONTROLPLANE_DB_PASSWORD="<password>"
+$env:CONTROLPLANE_DB_DRIVER_CLASS_NAME="com.microsoft.sqlserver.jdbc.SQLServerDriver"
 mvn --no-transfer-progress "-Dspring-boot.run.profiles=controlplane" spring-boot:run
 ```
 
 
-- Keep `controlplane.job-launch.worker.datasource.*` aligned to the same MySQL URL/credentials so trigger events, run records, step projections, and Spring Batch metadata remain linkable without cross-database joins.
-- For the current MySQL lane, bootstrap both `controlplane_*` and `BATCH_*` tables into the same selected database (for example via `scripts/setup-controlplane-mysql.ps1 -DatabaseName <name>`), then point both control-plane and worker datasource properties at that database.
-- Ensure `controlplane.job-launch.worker.connection-init-sql` is blank (or MySQL-valid) in MySQL profile layers so SQLite `PRAGMA` statements are not passed to MySQL workers.
+- Keep `controlplane.job-launch.worker.datasource.*` aligned to the same URL/credentials so trigger events, run records, step projections, and Spring Batch metadata remain linkable without cross-database joins.
+- Bootstrap both `controlplane_*` and `BATCH_*` tables into the same selected database (`scripts/setup-controlplane-mysql.ps1` or `scripts/setup-controlplane-mssql.ps1`) before starting the control-plane profile.
+- Ensure `controlplane.job-launch.worker.connection-init-sql` is blank (or vendor-valid) so SQLite-only `PRAGMA` statements are not passed to MySQL/SQL Server workers.
+- Active trigger/run JDBC read paths now use vendor-aware paging clauses (`LIMIT/OFFSET` for MySQL, `OFFSET ... FETCH NEXT` for SQL Server) to keep control-plane list/detail endpoints runnable across both lanes.
 - The currently verified no-server portability scope is registry startup plus update/insert write paths without SQLite-only `on conflict ... excluded`, string-concatenation, or `cast(... as text)` SQL. Legacy SQLite bridge migrations (`pragma_table_info`, `rowid`, SQLite trigger DDL) remain isolated to SQLite-gated paths and still need real MySQL-lane validation before MySQL can be treated as full parity.
 
 ## Related docs
