@@ -11,6 +11,38 @@ CREATE DATABASE IF NOT EXISTS `{{CONTROLPLANE_DATABASE_NAME}}`
 
 USE `{{CONTROLPLANE_DATABASE_NAME}}`;
 
+DELIMITER $$
+CREATE PROCEDURE add_index_if_missing(
+    IN p_table_name VARCHAR(128),
+    IN p_index_name VARCHAR(128),
+    IN p_columns VARCHAR(512),
+    IN p_is_unique BOOLEAN
+)
+BEGIN
+    DECLARE v_index_count INT DEFAULT 0;
+
+    SELECT COUNT(*)
+      INTO v_index_count
+      FROM information_schema.statistics
+     WHERE table_schema = DATABASE()
+       AND table_name = p_table_name
+       AND index_name = p_index_name;
+
+    IF v_index_count = 0 THEN
+        SET @ddl = CONCAT(
+            'CREATE ',
+            IF(p_is_unique, 'UNIQUE ', ''),
+            'INDEX ', p_index_name,
+            ' ON ', p_table_name,
+            ' (', p_columns, ')'
+        );
+        PREPARE stmt FROM @ddl;
+        EXECUTE stmt;
+        DEALLOCATE PREPARE stmt;
+    END IF;
+END$$
+DELIMITER ;
+
 CREATE TABLE IF NOT EXISTS controlplane_schedule (
     schedule_pk BIGINT PRIMARY KEY,
     schedule_id VARCHAR(80) NOT NULL UNIQUE,
@@ -27,9 +59,9 @@ CREATE TABLE IF NOT EXISTS controlplane_schedule (
     last_accepted_due_at TIMESTAMP NULL
 );
 
-CREATE UNIQUE INDEX idx_schedule_pk ON controlplane_schedule (schedule_pk);
-CREATE INDEX idx_schedule_selected_job ON controlplane_schedule (selected_job_key, updated_at);
-CREATE INDEX idx_schedule_state ON controlplane_schedule (is_enabled, is_paused, updated_at);
+CALL add_index_if_missing('controlplane_schedule', 'idx_schedule_pk', 'schedule_pk', TRUE);
+CALL add_index_if_missing('controlplane_schedule', 'idx_schedule_selected_job', 'selected_job_key, updated_at', FALSE);
+CALL add_index_if_missing('controlplane_schedule', 'idx_schedule_state', 'is_enabled, is_paused, updated_at', FALSE);
 
 CREATE TABLE IF NOT EXISTS controlplane_trigger_source (
     trigger_source_pk BIGINT PRIMARY KEY,
@@ -58,13 +90,13 @@ CREATE TABLE IF NOT EXISTS controlplane_trigger_event (
     external_origin_key VARCHAR(200)
 );
 
-CREATE UNIQUE INDEX idx_trigger_event_pk ON controlplane_trigger_event (trigger_event_pk);
-CREATE INDEX idx_trigger_event_job_time ON controlplane_trigger_event (job_key, requested_at);
-CREATE INDEX idx_trigger_event_origin ON controlplane_trigger_event (trigger_origin, requested_at);
-CREATE INDEX idx_trigger_event_source_pk ON controlplane_trigger_event (trigger_source_pk, requested_at);
-CREATE INDEX idx_trigger_event_schedule_pk_time ON controlplane_trigger_event (schedule_pk, requested_at);
-CREATE INDEX idx_trigger_event_launched_run_pk ON controlplane_trigger_event (launched_run_pk, requested_at);
-CREATE INDEX idx_trigger_event_launched_run_id ON controlplane_trigger_event (launched_run_id, requested_at);
+CALL add_index_if_missing('controlplane_trigger_event', 'idx_trigger_event_pk', 'trigger_event_pk', TRUE);
+CALL add_index_if_missing('controlplane_trigger_event', 'idx_trigger_event_job_time', 'job_key, requested_at', FALSE);
+CALL add_index_if_missing('controlplane_trigger_event', 'idx_trigger_event_origin', 'trigger_origin, requested_at', FALSE);
+CALL add_index_if_missing('controlplane_trigger_event', 'idx_trigger_event_source_pk', 'trigger_source_pk, requested_at', FALSE);
+CALL add_index_if_missing('controlplane_trigger_event', 'idx_trigger_event_schedule_pk_time', 'schedule_pk, requested_at', FALSE);
+CALL add_index_if_missing('controlplane_trigger_event', 'idx_trigger_event_launched_run_pk', 'launched_run_pk, requested_at', FALSE);
+CALL add_index_if_missing('controlplane_trigger_event', 'idx_trigger_event_launched_run_id', 'launched_run_id, requested_at', FALSE);
 
 CREATE TABLE IF NOT EXISTS controlplane_run_summary (
     job_execution_id BIGINT PRIMARY KEY,
@@ -82,7 +114,7 @@ CREATE TABLE IF NOT EXISTS controlplane_run_summary (
     last_seen_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_run_summary_start_time ON controlplane_run_summary (start_time, job_execution_id);
+CALL add_index_if_missing('controlplane_run_summary', 'idx_run_summary_start_time', 'start_time, job_execution_id', FALSE);
 
 CREATE TABLE IF NOT EXISTS controlplane_run_record (
     run_record_pk BIGINT PRIMARY KEY,
@@ -105,12 +137,12 @@ CREATE TABLE IF NOT EXISTS controlplane_run_record (
     updated_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_run_record_started_at ON controlplane_run_record (started_at, job_execution_id);
-CREATE UNIQUE INDEX idx_run_record_pk ON controlplane_run_record (run_record_pk);
-CREATE INDEX idx_run_record_selected_job ON controlplane_run_record (selected_job_key, started_at);
-CREATE INDEX idx_run_record_trigger_event_pk ON controlplane_run_record (trigger_event_pk);
-CREATE INDEX idx_run_record_trigger_event ON controlplane_run_record (trigger_event_id);
-CREATE INDEX idx_run_record_job_status_time ON controlplane_run_record (selected_job_key, run_status, started_at);
+CALL add_index_if_missing('controlplane_run_record', 'idx_run_record_started_at', 'started_at, job_execution_id', FALSE);
+CALL add_index_if_missing('controlplane_run_record', 'idx_run_record_pk', 'run_record_pk', TRUE);
+CALL add_index_if_missing('controlplane_run_record', 'idx_run_record_selected_job', 'selected_job_key, started_at', FALSE);
+CALL add_index_if_missing('controlplane_run_record', 'idx_run_record_trigger_event_pk', 'trigger_event_pk', FALSE);
+CALL add_index_if_missing('controlplane_run_record', 'idx_run_record_trigger_event', 'trigger_event_id', FALSE);
+CALL add_index_if_missing('controlplane_run_record', 'idx_run_record_job_status_time', 'selected_job_key, run_status, started_at', FALSE);
 
 CREATE TABLE IF NOT EXISTS controlplane_step_record (
     step_record_pk BIGINT PRIMARY KEY,
@@ -131,8 +163,8 @@ CREATE TABLE IF NOT EXISTS controlplane_step_record (
     updated_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_step_record_run_pk ON controlplane_step_record (run_record_pk, started_at);
-CREATE UNIQUE INDEX idx_step_record_id_run_pk ON controlplane_step_record (step_record_id, run_record_pk);
+CALL add_index_if_missing('controlplane_step_record', 'idx_step_record_run_pk', 'run_record_pk, started_at', FALSE);
+CALL add_index_if_missing('controlplane_step_record', 'idx_step_record_id_run_pk', 'step_record_id, run_record_pk', TRUE);
 
 CREATE TABLE IF NOT EXISTS controlplane_artifact_record (
     artifact_record_pk BIGINT PRIMARY KEY,
@@ -144,8 +176,8 @@ CREATE TABLE IF NOT EXISTS controlplane_artifact_record (
     created_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_artifact_record_run_pk ON controlplane_artifact_record (run_record_pk, created_at);
-CREATE INDEX idx_artifact_record_step ON controlplane_artifact_record (step_record_id, created_at);
+CALL add_index_if_missing('controlplane_artifact_record', 'idx_artifact_record_run_pk', 'run_record_pk, created_at', FALSE);
+CALL add_index_if_missing('controlplane_artifact_record', 'idx_artifact_record_step', 'step_record_id, created_at', FALSE);
 
 CREATE TABLE IF NOT EXISTS controlplane_attempt_link (
     attempt_link_pk BIGINT PRIMARY KEY,
@@ -156,8 +188,8 @@ CREATE TABLE IF NOT EXISTS controlplane_attempt_link (
     created_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_attempt_link_run_pk ON controlplane_attempt_link (run_record_pk, created_at);
-CREATE INDEX idx_attempt_link_prior_pk ON controlplane_attempt_link (prior_run_record_pk, created_at);
+CALL add_index_if_missing('controlplane_attempt_link', 'idx_attempt_link_run_pk', 'run_record_pk, created_at', FALSE);
+CALL add_index_if_missing('controlplane_attempt_link', 'idx_attempt_link_prior_pk', 'prior_run_record_pk, created_at', FALSE);
 
 CREATE TABLE IF NOT EXISTS controlplane_checkpoint_anchor (
     checkpoint_anchor_pk BIGINT PRIMARY KEY,
@@ -172,9 +204,9 @@ CREATE TABLE IF NOT EXISTS controlplane_checkpoint_anchor (
     updated_at TIMESTAMP NOT NULL
 );
 
-CREATE INDEX idx_checkpoint_anchor_run_pk ON controlplane_checkpoint_anchor (run_record_pk, created_at);
-CREATE INDEX idx_checkpoint_anchor_step_pk ON controlplane_checkpoint_anchor (step_record_pk, created_at);
-CREATE INDEX idx_checkpoint_anchor_step_id ON controlplane_checkpoint_anchor (step_record_id, created_at);
+CALL add_index_if_missing('controlplane_checkpoint_anchor', 'idx_checkpoint_anchor_run_pk', 'run_record_pk, created_at', FALSE);
+CALL add_index_if_missing('controlplane_checkpoint_anchor', 'idx_checkpoint_anchor_step_pk', 'step_record_pk, created_at', FALSE);
+CALL add_index_if_missing('controlplane_checkpoint_anchor', 'idx_checkpoint_anchor_step_id', 'step_record_id, created_at', FALSE);
 
 INSERT INTO controlplane_trigger_source (
     trigger_source_pk,
@@ -193,6 +225,8 @@ ON DUPLICATE KEY UPDATE
     description = VALUES(description),
     is_active = VALUES(is_active),
     updated_at = CURRENT_TIMESTAMP;
+
+DROP PROCEDURE IF EXISTS add_index_if_missing;
 
 
 

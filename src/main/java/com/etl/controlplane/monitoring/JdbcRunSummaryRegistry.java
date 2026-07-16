@@ -682,6 +682,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	}
 
 	private void initializeSchema() {
+		ensurePkSequenceTable();
 		createTableIfMissing("controlplane_run_summary", """
 				create table controlplane_run_summary (
 					job_execution_id bigint primary key,
@@ -1292,35 +1293,19 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	}
 
 	private Long nextStepRecordPk() {
-		Long value = jdbcTemplate.queryForObject(
-				"select coalesce(max(step_record_pk), 0) + 1 from controlplane_step_record",
-				Long.class
-		);
-		return value == null ? 1L : value;
+		return nextPk("controlplane_step_record_pk");
 	}
 
 	private Long nextArtifactRecordPk() {
-		Long value = jdbcTemplate.queryForObject(
-				"select coalesce(max(artifact_record_pk), 0) + 1 from controlplane_artifact_record",
-				Long.class
-		);
-		return value == null ? 1L : value;
+		return nextPk("controlplane_artifact_record_pk");
 	}
 
 	private Long nextAttemptLinkPk() {
-		Long value = jdbcTemplate.queryForObject(
-				"select coalesce(max(attempt_link_pk), 0) + 1 from controlplane_attempt_link",
-				Long.class
-		);
-		return value == null ? 1L : value;
+		return nextPk("controlplane_attempt_link_pk");
 	}
 
 	private Long nextCheckpointAnchorPk() {
-		Long value = jdbcTemplate.queryForObject(
-				"select coalesce(max(checkpoint_anchor_pk), 0) + 1 from controlplane_checkpoint_anchor",
-				Long.class
-		);
-		return value == null ? 1L : value;
+		return nextPk("controlplane_checkpoint_anchor_pk");
 	}
 
 	private RunRecordRef resolveRunRecordRef(Long jobExecutionId) {
@@ -1359,6 +1344,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		TriggerEventLink resolvedTriggerEvent = resolveTriggerEventLinkForUpsert(runSummary);
 		String runRecordId = "rr-" + jobExecutionId;
 		String resolvedSelectedJobKey = selectedJobKey.isBlank() ? null : selectedJobKey;
+		long allocatedRunRecordPk = nextRunRecordPk();
 		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 		int updated = jdbcTemplate.update("""
 				update controlplane_run_record
@@ -1379,7 +1365,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				    updated_at = ?
 				where job_execution_id = ?
 				""",
-				nextRunRecordPk(),
+				allocatedRunRecordPk,
 				resolvedTriggerEvent.triggerEventPk(),
 				resolvedTriggerEvent.triggerEventId(),
 				resolvedSelectedJobKey,
@@ -1420,7 +1406,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 							updated_at
 						) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 						""",
-						nextRunRecordPk(),
+						allocatedRunRecordPk,
 						runRecordId,
 						jobExecutionId,
 						resolvedTriggerEvent.triggerEventPk(),
@@ -1459,7 +1445,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 						    updated_at = ?
 						where job_execution_id = ?
 						""",
-						nextRunRecordPk(),
+						allocatedRunRecordPk,
 						resolvedTriggerEvent.triggerEventPk(),
 						resolvedTriggerEvent.triggerEventId(),
 						resolvedSelectedJobKey,
@@ -1998,11 +1984,49 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	}
 
 	private long nextRunRecordPk() {
-		Long value = jdbcTemplate.queryForObject(
-				"select coalesce(max(run_record_pk), 0) + 1 from controlplane_run_record",
-				Long.class
-		);
-		return value == null ? 1L : value;
+		return nextPk("controlplane_run_record_pk");
+	}
+
+	private void ensurePkSequenceTable() {
+		createTableIfMissing("controlplane_pk_sequence", """
+				create table controlplane_pk_sequence (
+					sequence_name varchar(120) not null primary key,
+					next_value bigint not null
+				)
+				""");
+	}
+
+	private long nextPk(String sequenceName) {
+		String normalizedSequenceName = normalize(sequenceName).toLowerCase(Locale.ROOT);
+		for (int attempt = 0; attempt < 20; attempt++) {
+			Long current = jdbcTemplate.query(
+					"select next_value from controlplane_pk_sequence where sequence_name = ?",
+					rs -> rs.next() ? rs.getLong(1) : null,
+					normalizedSequenceName
+			);
+			if (current == null) {
+				try {
+					jdbcTemplate.update(
+							"insert into controlplane_pk_sequence (sequence_name, next_value) values (?, ?)",
+							normalizedSequenceName,
+							2L
+					);
+					return 1L;
+				} catch (DuplicateKeyException ignored) {
+					continue;
+				}
+			}
+			int updated = jdbcTemplate.update(
+					"update controlplane_pk_sequence set next_value = ? where sequence_name = ? and next_value = ?",
+					current + 1,
+					normalizedSequenceName,
+					current
+			);
+			if (updated == 1) {
+				return current;
+			}
+		}
+		throw new IllegalStateException("Unable to allocate primary key for sequence '" + normalizedSequenceName + "'.");
 	}
 
 	private String normalize(String value) {

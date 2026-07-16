@@ -3,6 +3,7 @@ package com.etl.controlplane.schedules;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
@@ -158,6 +159,7 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 	}
 
 	private void initializeSchema() {
+		ensurePkSequenceTable();
 		createTableIfMissing("controlplane_schedule", """
 				create table controlplane_schedule (
 					schedule_pk bigint primary key,
@@ -253,8 +255,49 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 	// SQLite bridge migrations were removed; MySQL/SQL Server paths own active schema lifecycle.
 
 	private long nextSchedulePk() {
-		Long value = jdbcTemplate.queryForObject("select coalesce(max(schedule_pk), 0) + 1 from controlplane_schedule", Long.class);
-		return value == null ? 1L : value;
+		return nextPk("controlplane_schedule_pk");
+	}
+
+	private void ensurePkSequenceTable() {
+		createTableIfMissing("controlplane_pk_sequence", """
+				create table controlplane_pk_sequence (
+					sequence_name varchar(120) not null primary key,
+					next_value bigint not null
+				)
+				""");
+	}
+
+	private long nextPk(String sequenceName) {
+		String normalizedSequenceName = normalize(sequenceName);
+		for (int attempt = 0; attempt < 20; attempt++) {
+			Long current = jdbcTemplate.query(
+					"select next_value from controlplane_pk_sequence where sequence_name = ?",
+					rs -> rs.next() ? rs.getLong(1) : null,
+					normalizedSequenceName
+			);
+			if (current == null) {
+				try {
+					jdbcTemplate.update(
+							"insert into controlplane_pk_sequence (sequence_name, next_value) values (?, ?)",
+							normalizedSequenceName,
+							2L
+					);
+					return 1L;
+				} catch (DuplicateKeyException ignored) {
+					continue;
+				}
+			}
+			int updated = jdbcTemplate.update(
+					"update controlplane_pk_sequence set next_value = ? where sequence_name = ? and next_value = ?",
+					current + 1,
+					normalizedSequenceName,
+					current
+			);
+			if (updated == 1) {
+				return current;
+			}
+		}
+		throw new IllegalStateException("Unable to allocate primary key for sequence '" + normalizedSequenceName + "'.");
 	}
 
 	private static Timestamp toTimestamp(LocalDateTime value) {
