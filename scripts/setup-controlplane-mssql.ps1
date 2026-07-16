@@ -88,5 +88,8 @@ finally {
 
 Write-Host ''
 Write-Host 'Control-plane SQL Server bootstrap completed.' -ForegroundColor Green
-Write-Host "Validate tables with: sqlcmd -S \"$serverToken\" $credentialArgs -d \"$DatabaseName\" -Q \"SELECT name FROM sys.tables WHERE name LIKE 'controlplane_%' OR name LIKE 'BATCH_%' ORDER BY name;\""
+$validationSql = "SELECT name FROM sys.tables WHERE name LIKE 'controlplane_%' OR name LIKE 'BATCH_%' ORDER BY name;"
+Write-Host ('Validate tables with: sqlcmd -S "{0}" {1} -d "{2}" -Q "{3}"' -f $serverToken, $credentialArgs, $DatabaseName, $validationSql)
+
+
 

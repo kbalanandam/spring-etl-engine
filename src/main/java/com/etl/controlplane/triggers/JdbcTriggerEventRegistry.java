@@ -1,5 +1,6 @@
 package com.etl.controlplane.triggers;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DuplicateKeyException;
@@ -28,6 +29,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 	private final int retentionPerJob;
 	private final boolean sqlServerDialect;
 
+	@Autowired
 	public JdbcTriggerEventRegistry(JdbcTemplate jdbcTemplate,
 	                                @Value("${controlplane.triggers.retention-per-job:100}") int retentionPerJob,
 	                                @Value("${controlplane.db.vendor:mysql}") String dbVendor) {
@@ -278,8 +280,8 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 	}
 
 	private void initializeSchema() {
-		jdbcTemplate.execute("""
-				create table if not exists controlplane_trigger_source (
+		createTableIfMissing("controlplane_trigger_source", """
+				create table controlplane_trigger_source (
 					trigger_source_pk bigint primary key,
 					source_code varchar(50) not null unique,
 					display_name varchar(100) not null,
@@ -290,8 +292,8 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				)
 				""");
 		seedTriggerSourceMaster();
-		jdbcTemplate.execute("""
-				create table if not exists controlplane_trigger_event (
+		createTableIfMissing("controlplane_trigger_event", """
+				create table controlplane_trigger_event (
 					trigger_event_pk bigint primary key,
 					trigger_source_pk bigint,
 					trigger_event_id varchar(80) not null unique,
@@ -350,6 +352,26 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 		}
 	}
 
+	private void createTableIfMissing(String tableName, String createTableSql) {
+		Boolean exists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+			try (java.sql.ResultSet tables = connection.getMetaData().getTables(connection.getCatalog(), null, tableName, new String[]{"TABLE"})) {
+				return tables.next();
+			}
+		});
+		if (!Boolean.TRUE.equals(exists)) {
+			jdbcTemplate.execute(adaptDdlForDialect(createTableSql));
+		}
+	}
+
+	private String adaptDdlForDialect(String sql) {
+		if (!sqlServerDialect) {
+			return sql;
+		}
+		return sql
+				.replaceAll("(?i)\\bboolean\\b", "bit")
+				.replaceAll("(?i)\\btimestamp\\b", "datetime2");
+	}
+
 	private void dropIndexIfPresent(String tableName, String indexName) {
 		Boolean exists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
 			try (java.sql.ResultSet indexes = connection.getMetaData().getIndexInfo(connection.getCatalog(), null, tableName, false, false)) {
@@ -387,7 +409,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 			}
 		});
 		if (Boolean.FALSE.equals(columnExists)) {
-			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + columnDefinition);
+			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + adaptDdlForDialect(columnDefinition));
 		}
 	}
 

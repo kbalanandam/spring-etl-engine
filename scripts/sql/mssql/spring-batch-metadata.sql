@@ -117,3 +117,52 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'STEP_EXECUTION_JOB_EXECU
     CREATE INDEX STEP_EXECUTION_JOB_EXECUTION_IDX ON dbo.BATCH_STEP_EXECUTION (JOB_EXECUTION_ID);
 GO
 
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.sequences
+    WHERE name = N'BATCH_JOB_SEQ'
+      AND schema_id = SCHEMA_ID(N'dbo')
+)
+BEGIN
+    CREATE SEQUENCE dbo.BATCH_JOB_SEQ
+        AS BIGINT
+        START WITH 1
+        INCREMENT BY 1
+        NO CYCLE
+        NO CACHE;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.sequences
+    WHERE name = N'BATCH_JOB_EXECUTION_SEQ'
+      AND schema_id = SCHEMA_ID(N'dbo')
+)
+BEGIN
+    CREATE SEQUENCE dbo.BATCH_JOB_EXECUTION_SEQ
+        AS BIGINT
+        START WITH 1
+        INCREMENT BY 1
+        NO CYCLE
+        NO CACHE;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.sequences
+    WHERE name = N'BATCH_STEP_EXECUTION_SEQ'
+      AND schema_id = SCHEMA_ID(N'dbo')
+)
+BEGIN
+    CREATE SEQUENCE dbo.BATCH_STEP_EXECUTION_SEQ
+        AS BIGINT
+        START WITH 1
+        INCREMENT BY 1
+        NO CYCLE
+        NO CACHE;
+END;
+GO
+
+

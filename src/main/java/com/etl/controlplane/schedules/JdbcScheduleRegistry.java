@@ -1,5 +1,7 @@
 package com.etl.controlplane.schedules;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -8,6 +10,7 @@ import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -18,10 +21,18 @@ import java.util.Optional;
 public class JdbcScheduleRegistry implements ScheduleRegistry {
 
 	private final JdbcTemplate jdbcTemplate;
+	private final boolean sqlServerDialect;
+
+	@Autowired
+	public JdbcScheduleRegistry(JdbcTemplate jdbcTemplate,
+	                            @Value("${controlplane.db.vendor:mysql}") String dbVendor) {
+		this.jdbcTemplate = jdbcTemplate;
+		this.sqlServerDialect = isSqlServerVendor(dbVendor);
+		initializeSchema();
+	}
 
 	public JdbcScheduleRegistry(JdbcTemplate jdbcTemplate) {
-		this.jdbcTemplate = jdbcTemplate;
-		initializeSchema();
+		this(jdbcTemplate, "mysql");
 	}
 
 	@Override
@@ -147,8 +158,8 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 	}
 
 	private void initializeSchema() {
-		jdbcTemplate.execute("""
-				create table if not exists controlplane_schedule (
+		createTableIfMissing("controlplane_schedule", """
+				create table controlplane_schedule (
 					schedule_pk bigint primary key,
 					schedule_id varchar(80) not null unique,
 					schedule_key varchar(200) not null unique,
@@ -200,6 +211,26 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 		}
 	}
 
+	private void createTableIfMissing(String tableName, String createTableSql) {
+		Boolean exists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+			try (java.sql.ResultSet tables = connection.getMetaData().getTables(connection.getCatalog(), null, tableName, new String[]{"TABLE"})) {
+				return tables.next();
+			}
+		});
+		if (!Boolean.TRUE.equals(exists)) {
+			jdbcTemplate.execute(adaptDdlForDialect(createTableSql));
+		}
+	}
+
+	private String adaptDdlForDialect(String sql) {
+		if (!sqlServerDialect) {
+			return sql;
+		}
+		return sql
+				.replaceAll("(?i)\\bboolean\\b", "bit")
+				.replaceAll("(?i)\\btimestamp\\b", "datetime2");
+	}
+
 
 	private void ensureColumnExists(String tableName, String columnName, String columnDefinition) {
 		Boolean columnExists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
@@ -215,7 +246,7 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 			}
 		});
 		if (Boolean.FALSE.equals(columnExists)) {
-			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + columnDefinition);
+			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + adaptDdlForDialect(columnDefinition));
 		}
 	}
 
@@ -244,6 +275,11 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 
 	private String normalize(String value) {
 		return value == null ? "" : value.trim().toLowerCase();
+	}
+
+	private boolean isSqlServerVendor(String vendor) {
+		String normalized = vendor == null ? "" : vendor.trim().toLowerCase(Locale.ROOT);
+		return "mssql".equals(normalized) || "sqlserver".equals(normalized);
 	}
 }
 

@@ -2,6 +2,7 @@ package com.etl.controlplane.monitoring;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataAccessException;
@@ -40,6 +41,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	private final Map<String, Boolean> optionalColumnPresence = new HashMap<>();
 	private final boolean sqlServerDialect;
 
+	@Autowired
 	public JdbcRunSummaryRegistry(JdbcTemplate jdbcTemplate,
 	                              @Value("${controlplane.runs.retention:5000}") int retention,
 	                              @Value("${controlplane.db.vendor:mysql}") String dbVendor) {
@@ -680,8 +682,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	}
 
 	private void initializeSchema() {
-		jdbcTemplate.execute("""
-				create table if not exists controlplane_run_summary (
+		createTableIfMissing("controlplane_run_summary", """
+				create table controlplane_run_summary (
 					job_execution_id bigint primary key,
 					scenario varchar(200) not null,
 					status varchar(50) not null,
@@ -701,8 +703,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		ensureColumnExists("controlplane_run_summary", "recovery_policy", "varchar(120)");
 		createIndexIfMissing("controlplane_run_summary", "idx_run_summary_start_time",
 				"create index idx_run_summary_start_time on controlplane_run_summary (start_time, job_execution_id)");
-		jdbcTemplate.execute("""
-				create table if not exists controlplane_run_record (
+		createTableIfMissing("controlplane_run_record", """
+				create table controlplane_run_record (
 					run_record_pk bigint primary key,
 					run_record_id varchar(80) not null unique,
 					job_execution_id bigint not null unique,
@@ -741,8 +743,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				"create index idx_run_record_trigger_event on controlplane_run_record (trigger_event_id)");
 		createIndexIfMissing("controlplane_run_record", "idx_run_record_job_status_time",
 				"create index idx_run_record_job_status_time on controlplane_run_record (selected_job_key, run_status, started_at)");
-		jdbcTemplate.execute("""
-				create table if not exists controlplane_step_record (
+		createTableIfMissing("controlplane_step_record", """
+				create table controlplane_step_record (
 					step_record_pk bigint primary key,
 					step_record_id varchar(80) not null unique,
 					run_record_pk bigint not null,
@@ -766,8 +768,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				"create index idx_step_record_run_pk on controlplane_step_record (run_record_pk, started_at)");
 		createIndexIfMissing("controlplane_step_record", "idx_step_record_id_run_pk",
 				"create unique index idx_step_record_id_run_pk on controlplane_step_record (step_record_id, run_record_pk)");
-		jdbcTemplate.execute("""
-				create table if not exists controlplane_artifact_record (
+		createTableIfMissing("controlplane_artifact_record", """
+				create table controlplane_artifact_record (
 					artifact_record_pk bigint primary key,
 					artifact_record_id varchar(80) not null unique,
 					run_record_pk bigint not null,
@@ -782,8 +784,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				"create index idx_artifact_record_run_pk on controlplane_artifact_record (run_record_pk, created_at)");
 		createIndexIfMissing("controlplane_artifact_record", "idx_artifact_record_step",
 				"create index idx_artifact_record_step on controlplane_artifact_record (step_record_id, created_at)");
-		jdbcTemplate.execute("""
-				create table if not exists controlplane_attempt_link (
+		createTableIfMissing("controlplane_attempt_link", """
+				create table controlplane_attempt_link (
 					attempt_link_pk bigint primary key,
 					attempt_link_id varchar(80) not null unique,
 					run_record_pk bigint not null,
@@ -798,8 +800,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				"create index idx_attempt_link_run_pk on controlplane_attempt_link (run_record_pk, created_at)");
 		createIndexIfMissing("controlplane_attempt_link", "idx_attempt_link_prior_pk",
 				"create index idx_attempt_link_prior_pk on controlplane_attempt_link (prior_run_record_pk, created_at)");
-		jdbcTemplate.execute("""
-				create table if not exists controlplane_checkpoint_anchor (
+		createTableIfMissing("controlplane_checkpoint_anchor", """
+				create table controlplane_checkpoint_anchor (
 					checkpoint_anchor_pk bigint primary key,
 					checkpoint_anchor_id varchar(80) not null unique,
 					run_record_pk bigint not null,
@@ -1687,7 +1689,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	private void ensureColumnExists(String tableName, String columnName, String columnDefinition) {
 		Boolean columnExists = columnExists(tableName, columnName);
 		if (Boolean.FALSE.equals(columnExists)) {
-			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + columnDefinition);
+			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + adaptDdlForDialect(columnDefinition));
 		}
 	}
 
@@ -1732,6 +1734,26 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (!Boolean.TRUE.equals(exists)) {
 			jdbcTemplate.execute(createIndexSql);
 		}
+	}
+
+	private void createTableIfMissing(String tableName, String createTableSql) {
+		Boolean exists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
+			try (java.sql.ResultSet tables = connection.getMetaData().getTables(connection.getCatalog(), null, tableName, new String[]{"TABLE"})) {
+				return tables.next();
+			}
+		});
+		if (!Boolean.TRUE.equals(exists)) {
+			jdbcTemplate.execute(adaptDdlForDialect(createTableSql));
+		}
+	}
+
+	private String adaptDdlForDialect(String sql) {
+		if (!sqlServerDialect) {
+			return sql;
+		}
+		return sql
+				.replaceAll("(?i)\\bboolean\\b", "bit")
+				.replaceAll("(?i)\\btimestamp\\b", "datetime2");
 	}
 
 	private void backfillRunRecordPk() {
