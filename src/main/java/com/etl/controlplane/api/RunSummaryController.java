@@ -66,19 +66,30 @@ public class RunSummaryController {
 	                                        @RequestParam(name = "recoveryPolicy", required = false) String recoveryPolicy,
 	                                        @RequestParam(name = "triggerSource", required = false) String triggerSource,
 	                                        @RequestParam(name = "startDate", required = false) String startDate,
-	                                        @RequestParam(name = "timezone", required = false) String timezone) {
+	                                        @RequestParam(name = "timezone", required = false) String timezone,
+	                                        @RequestParam(name = "refresh", required = false, defaultValue = "false") boolean refresh) {
 		int effectiveLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
 		LocalDate effectiveStartDate = parseStartDate(startDate);
 		ZoneId effectiveZoneId = parseTimezone(timezone);
-		var runs = runSummaryReadModelService.latestRunsFiltered(
-				effectiveLimit,
-				job,
-				runMode,
-				recoveryPolicy,
-				triggerSource,
-				effectiveStartDate,
-				effectiveZoneId
-		);
+		var runs = refresh
+				? runSummaryReadModelService.latestRunsFilteredFresh(
+					effectiveLimit,
+					job,
+					runMode,
+					recoveryPolicy,
+					triggerSource,
+					effectiveStartDate,
+					effectiveZoneId
+				)
+				: runSummaryReadModelService.latestRunsFiltered(
+					effectiveLimit,
+					job,
+					runMode,
+					recoveryPolicy,
+					triggerSource,
+					effectiveStartDate,
+					effectiveZoneId
+				);
 		return new RunSummaryListResponse(runs, 0, effectiveLimit, runs.size());
 	}
 

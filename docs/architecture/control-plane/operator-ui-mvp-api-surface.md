@@ -294,13 +294,16 @@ Current query support:
 - `job` (optional selected-job filter)
 - `runMode` (optional execution-mode filter, for example `explicit-job`)
 - `recoveryPolicy` (optional recovery-policy filter, for example `rerun-from-start`)
+- `triggerSource` (optional trigger-source filter, for example `SCHEDULE`)
 - `startDate` (optional inclusive start date in `yyyy-MM-dd`)
 - `timezone` (optional IANA timezone used with `startDate`, defaults to server timezone)
+- `refresh=true` (optional hard refresh hint that forces a synchronous run-summary reindex before returning the list)
 
 Current filter-input hardening:
 
 - optional `job`, `runMode`, and `recoveryPolicy` values are normalized (trimmed/canonicalized) before repository filtering so equivalent inputs produce one deterministic query path
 - `startDate` must match `yyyy-MM-dd`; malformed values fail fast as request validation errors instead of falling through to timezone/date parsing
+- the Runs screen can now offer a user-triggered Refresh action that bypasses the client cache and calls `GET /api/v1/runs?...&refresh=true` when operators need the newest runs immediately
 
 Response body shape:
 

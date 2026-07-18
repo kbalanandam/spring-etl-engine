@@ -124,3 +124,24 @@ test("fetchRunsForFilters normalizes non-array payload items", async () => {
 }
 );
 
+test("fetchRunsForFilters appends refresh flag when hard refresh is requested", async () => {
+  let requestedUrl = "";
+
+  await fetchRunsForFilters({
+    cache: createCache(),
+    forceRefresh: true,
+    bypassCache: true,
+    fetchFn: async (url) => {
+      requestedUrl = String(url);
+      return {
+        ok: true,
+        async json() {
+          return { items: [{ jobExecutionId: 77 }] };
+        },
+      };
+    },
+  });
+
+  assert.match(requestedUrl, /refresh=true/);
+});
+

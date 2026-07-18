@@ -916,7 +916,7 @@ function invalidateRunsState() {
 async function refreshRunsAfterTriggerAccepted() {
   invalidateRunsState();
   if (currentRouteState().key === "runs") {
-    await loadRuns({ forceRefresh: true });
+    await loadRuns();
   }
 }
 
@@ -2108,7 +2108,7 @@ async function loadRuns(options = {}) {
   }
 
   state.className = "state";
-  state.textContent = "Loading runs...";
+  state.textContent = forceRefresh ? "Refreshing runs..." : "Loading runs...";
   table.hidden = true;
   body.innerHTML = "";
   runsListUi.clearInstanceOptions();
@@ -2123,7 +2123,10 @@ async function loadRuns(options = {}) {
       selectedTriggerSource,
       selectedStartDate,
       selectedTimezone,
-      { bypassCache: forceRefresh }
+      {
+        bypassCache: forceRefresh,
+        forceRefresh,
+      }
     );
     if (!shouldApplyRouteScopedUpdate("runs", requestId)) {
       return;
@@ -2189,7 +2192,24 @@ function formatDateForInput(date) {
 function initializeControls() {
   jobsListUi.initializeControls();
   runsListUi.initializeControls();
+  initializeRunsControls();
   initializeScheduleControls();
+}
+
+function initializeRunsControls() {
+  const refreshButton = document.getElementById("runs-refresh-btn");
+  if (!refreshButton) {
+    return;
+  }
+  refreshButton.addEventListener("click", async () => {
+    refreshButton.disabled = true;
+    try {
+      invalidateRunsState();
+      await loadRuns({ forceRefresh: true });
+    } finally {
+      refreshButton.disabled = false;
+    }
+  });
 }
 
 function initializeScheduleControls() {

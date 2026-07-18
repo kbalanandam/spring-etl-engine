@@ -172,6 +172,13 @@ paths:
           required: false
           schema:
             type: string
+        - in: query
+          name: refresh
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Force a synchronous run-summary reindex before returning the list.
       responses:
         '200':
           description: Run summary projections

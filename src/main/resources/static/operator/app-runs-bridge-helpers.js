@@ -47,6 +47,7 @@ export function createAppRunsBridgeHelpers(options = {}) {
       timezone,
       cache: viewState.runs.cache,
       bypassCache: Boolean(requestOptions?.bypassCache),
+      forceRefresh: Boolean(requestOptions?.forceRefresh),
     });
   }
 

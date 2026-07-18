@@ -75,6 +75,16 @@ public class RunSummaryReadModelService {
 		return latestRunsFiltered(limit, null, null, null, null, ZoneId.systemDefault());
 	}
 
+	public List<RunSummaryView> latestRunsFilteredFresh(int limit,
+	                                                  String jobFilter,
+	                                                  String runModeFilter,
+	                                                  String recoveryPolicyFilter,
+	                                                  String triggerSourceFilter,
+	                                                  LocalDate startDate,
+	                                                  ZoneId selectedZoneId) {
+		return latestRunsFilteredInternal(limit, jobFilter, runModeFilter, recoveryPolicyFilter, triggerSourceFilter, startDate, selectedZoneId, true);
+	}
+
 	public List<RunSummaryView> latestRunsFiltered(int limit,
 	                                              String jobFilter,
 	                                              String runModeFilter,
@@ -91,10 +101,21 @@ public class RunSummaryReadModelService {
 	                                              String triggerSourceFilter,
 	                                              LocalDate startDate,
 	                                              ZoneId selectedZoneId) {
+		return latestRunsFilteredInternal(limit, jobFilter, runModeFilter, recoveryPolicyFilter, triggerSourceFilter, startDate, selectedZoneId, false);
+	}
+
+	private List<RunSummaryView> latestRunsFilteredInternal(int limit,
+	                                                      String jobFilter,
+	                                                      String runModeFilter,
+	                                                      String recoveryPolicyFilter,
+	                                                      String triggerSourceFilter,
+	                                                      LocalDate startDate,
+	                                                      ZoneId selectedZoneId,
+	                                                      boolean forceRefresh) {
 		if (limit <= 0) {
 			return List.of();
 		}
-		refreshReadModel();
+		refreshReadModel(forceRefresh);
 		String normalizedJobFilter = normalizeToken(jobFilter);
 		String normalizedRunModeFilter = normalizeToken(runModeFilter);
 		String normalizedRecoveryPolicyFilter = normalizeToken(recoveryPolicyFilter);
@@ -118,7 +139,7 @@ public class RunSummaryReadModelService {
 	}
 
 	public Optional<RunSummaryView> findRunByJobExecutionId(long jobExecutionId) {
-		refreshReadModel();
+		refreshReadModel(false);
 		Optional<RunSummaryView> existing = registry.findByJobExecutionId(jobExecutionId);
 		if (existing.isPresent() && isTerminalStatus(existing.orElseThrow().status())) {
 			return existing;
@@ -131,7 +152,7 @@ public class RunSummaryReadModelService {
 		if (limit <= 0) {
 			return List.of();
 		}
-		refreshReadModel();
+		refreshReadModel(false);
 		String normalizedJobKey = normalize(jobKey);
 		String normalizedDisplayName = normalize(displayName);
 		return registry.latestRuns(Integer.MAX_VALUE).stream()
@@ -140,7 +161,11 @@ public class RunSummaryReadModelService {
 				.toList();
 	}
 
-	private void refreshReadModel() {
+	private void refreshReadModel(boolean forceRefresh) {
+		if (forceRefresh) {
+			forceReindexFromLogsBlocking();
+			return;
+		}
 		if (registry.latestRuns(1).isEmpty()) {
 			reindexFromLogsBlocking();
 			return;

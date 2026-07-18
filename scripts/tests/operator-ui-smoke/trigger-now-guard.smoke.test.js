@@ -25,6 +25,8 @@ test("operator app trigger-now flow includes in-flight and cooldown guards", asy
   assert.match(source, /function scheduleFollowUpRunsRefresh\(\)/);
   assert.match(source, /await refreshJobDetailRecentRuns\(normalizedJobKey, currentRouteState\(\)\?\.query\);/);
   assert.match(source, /await refreshRunsAfterTriggerAccepted\(\);/);
+  assert.match(source, /if \(currentRouteState\(\)\.key === "runs"\) \{\s*await loadRuns\(\);\s*\}/);
+  assert.match(source, /await loadRuns\(\{ forceRefresh: true \}\);/);
   assert.match(source, /scheduleFollowUpRunsRefresh\(\);/);
 });
 

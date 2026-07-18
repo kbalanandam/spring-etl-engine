@@ -87,6 +87,7 @@ export async function fetchRunsForFilters(options) {
     cacheTtlMs = RUNS_FILTER_CACHE_TTL_MS,
     cacheMaxEntries = RUNS_FILTER_CACHE_MAX_ENTRIES,
     bypassCache = false,
+    forceRefresh = false,
   } = options || {};
 
   const cacheKey = buildRunsFilterCacheKey(selectedJobKey, runMode, recoveryPolicy, triggerSource, startDate, timezone);
@@ -114,6 +115,9 @@ export async function fetchRunsForFilters(options) {
   }
   if (timezone) {
     params.set("timezone", timezone);
+  }
+  if (forceRefresh) {
+    params.set("refresh", "true");
   }
 
   const response = await fetchFn(`/api/v1/runs?${params.toString()}`, { headers: { Accept: "application/json" } });
