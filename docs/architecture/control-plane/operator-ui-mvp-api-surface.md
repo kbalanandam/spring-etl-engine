@@ -635,6 +635,8 @@ Suggested response:
 
 Returns environment and version metadata for display.
 
+The Operator UI header uses this payload to show both the active Spring profile and the active control-plane database lane so local testing can clearly distinguish MySQL from SQL Server.
+
 Suggested response:
 
 ```json
@@ -644,7 +646,9 @@ Suggested response:
   "profile": "controlplane",
   "schedulerEnabled": false,
   "schedulerMissedRunPolicy": "SKIP",
-  "schedulerOverlapPolicy": "ALLOW"
+  "schedulerOverlapPolicy": "ALLOW",
+  "databaseVendor": "mssql",
+  "databaseDisplayName": "SQL Server"
 }
 ```
 

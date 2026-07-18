@@ -1,7 +1,7 @@
 -- Bootstrap script for control-plane MySQL schema.
 -- Usage example:
 --   mysql -h localhost -P 3306 -u root -p < scripts/sql/mysql/controlplane-bootstrap.sql
--- Token {{CONTROLPLANE_DATABASE_NAME}} is materialized by scripts/setup-controlplane-mysql.ps1.
+-- Token {{CONTROLPLANE_DATABASE_NAME}} is materialized by scripts/setup-controlplane.ps1.
 -- Spring Batch BATCH_* metadata tables are bootstrapped separately into the same database
 -- so control-plane trigger/run projections can read worker batch metadata without cross-db joins.
 

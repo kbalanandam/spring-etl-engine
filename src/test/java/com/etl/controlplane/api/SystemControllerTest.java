@@ -15,7 +15,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(SystemController.class)
 @AutoConfigureMockMvc
 @ActiveProfiles("testcp")
-@TestPropertySource(properties = "spring.main.web-application-type=servlet")
+@TestPropertySource(properties = {
+		"spring.main.web-application-type=servlet",
+		"controlplane.db.vendor=sqlserver"
+})
 class SystemControllerTest {
 
 	@Autowired
@@ -38,7 +41,9 @@ class SystemControllerTest {
 				.andExpect(jsonPath("$.javaVersion").exists())
 				.andExpect(jsonPath("$.schedulerEnabled").value(false))
 				.andExpect(jsonPath("$.schedulerMissedRunPolicy").value("SKIP"))
-				.andExpect(jsonPath("$.schedulerOverlapPolicy").value("ALLOW"));
+				.andExpect(jsonPath("$.schedulerOverlapPolicy").value("ALLOW"))
+				.andExpect(jsonPath("$.databaseVendor").value("mssql"))
+				.andExpect(jsonPath("$.databaseDisplayName").value("SQL Server"));
 	}
 }
 

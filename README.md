@@ -121,13 +121,22 @@ An optional monitoring-first control-plane API starter is now available as a sep
 
 It intentionally runs as a separate process from the ETL worker so the selected-job runtime contract stays unchanged.
 
-Example local run:
+Preferred local run:
 
 ```powershell
-mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dspring-boot.run.main-class=com.etl.controlplane.ControlPlaneApiApplication" "-Dspring-boot.run.profiles=controlplane" spring-boot:run
+Set-Location "C:\spring-etl-engine"
+
+$env:CONTROLPLANE_DB_VENDOR="mysql"
+$env:CONTROLPLANE_DB_URL="jdbc:mysql://localhost:3306/etl_controlplane?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+$env:CONTROLPLANE_DB_USERNAME="root"
+$env:CONTROLPLANE_DB_PASSWORD="<password>"
+$env:CONTROLPLANE_DB_DRIVER_CLASS_NAME="com.mysql.cj.jdbc.Driver"
+
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane.ps1 -Vendor mysql -ServerName localhost -Port 3306 -DatabaseName etl_controlplane -Username root -Password "<password>"
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 -Action Start -Profile controlplane -Port 8081 -CleanMode Preserve -StartupTimeoutSec 120
 ```
 
-The shipped `controlplane` profile now defaults to MySQL-backed persistence through `CONTROLPLANE_MYSQL_URL`, `CONTROLPLANE_MYSQL_USERNAME`, and `CONTROLPLANE_MYSQL_PASSWORD` so control-plane tables and worker-launched run metadata stay aligned in one relational store.
+The shipped `controlplane` profile now uses one canonical datasource contract through `CONTROLPLANE_DB_VENDOR`, `CONTROLPLANE_DB_URL`, `CONTROLPLANE_DB_USERNAME`, `CONTROLPLANE_DB_PASSWORD`, and `CONTROLPLANE_DB_DRIVER_CLASS_NAME` so control-plane tables and worker-launched run metadata stay aligned in one relational store.
 
 SQLite migration helper scripts remain available for legacy local data recovery, but SQLite is no longer the default control-plane/dev datasource contract.
 
@@ -140,11 +149,12 @@ mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dspring-boot.run.
 Operator UI endpoint for this profile:
 
 - `http://localhost:8081/operator#/jobs`
+- The header now shows `Profile: ... · DB: ...` so local testing can tell MySQL and SQL Server runs apart at a glance.
 
 Quick local diagnostics:
 
-- if you see `Unable to find a single main class`, use `spring-boot.run.main-class` exactly as shown above
-- if startup fails due to database connectivity, verify `CONTROLPLANE_MYSQL_URL`, credentials, and that the local MySQL instance is reachable
+- if you bypass `scripts/restart-controlplane.ps1` and see `Unable to find a single main class`, run Maven with `-Dspring-boot.run.main-class=com.etl.controlplane.ControlPlaneApiApplication`
+- if startup fails due to database connectivity, verify the `CONTROLPLANE_DB_*` environment variables, credentials, and that the selected database instance is reachable
 - if you see `Trigger-event persistence mode switch detected`, add `-Dcontrolplane.triggers.persistence.allow-mode-switch=true` for the intentional local switch
 
 First monitoring endpoints:

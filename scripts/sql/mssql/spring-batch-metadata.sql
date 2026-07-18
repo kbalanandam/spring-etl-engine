@@ -1,7 +1,7 @@
 -- Bootstrap script for Spring Batch metadata tables on SQL Server.
 -- Usage example:
 --   sqlcmd -S localhost -U sa -P <password> -i scripts/sql/mssql/spring-batch-metadata.sql
--- Token {{CONTROLPLANE_DATABASE_NAME}} is materialized by scripts/setup-controlplane-mssql.ps1.
+-- Token {{CONTROLPLANE_DATABASE_NAME}} is materialized by scripts/setup-controlplane.ps1.
 
 IF DB_ID(N'{{CONTROLPLANE_DATABASE_NAME}}') IS NULL
 BEGIN

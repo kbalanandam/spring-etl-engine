@@ -120,6 +120,8 @@ const topLevelTabs = {
   runs: document.getElementById("tab-runs"),
 };
 
+const topbarRuntimeElement = document.getElementById("topbar-runtime");
+
 const JOBS_PAGE_SIZE_OPTIONS = [8, 10, 15, 20];
 
 const viewState = {
@@ -395,6 +397,7 @@ const scheduleEditorHelpers = createAppScheduleEditorHelpers({
 
 window.addEventListener("hashchange", renderRoute);
 window.addEventListener("DOMContentLoaded", () => {
+  void loadSystemRuntimeInfo();
   initializeRunsDefaults();
   initializeControls();
   runLogViewer.initializeControls();
@@ -404,6 +407,40 @@ window.addEventListener("DOMContentLoaded", () => {
   }
   renderRoute();
 });
+
+async function loadSystemRuntimeInfo() {
+  if (!topbarRuntimeElement) {
+    return;
+  }
+
+  topbarRuntimeElement.textContent = "Profile: loading... · DB: loading...";
+  try {
+    const response = await fetch("/api/v1/system/info", { headers: { Accept: "application/json" } });
+    if (!response.ok) {
+      throw new Error(`System info API returned ${response.status}`);
+    }
+    const payload = await response.json();
+    renderSystemRuntimeInfo(payload);
+  } catch (error) {
+    console.error("Failed to load system runtime info.", error);
+    topbarRuntimeElement.textContent = "Profile: unavailable · DB: unavailable";
+  }
+}
+
+function renderSystemRuntimeInfo(payload) {
+  if (!topbarRuntimeElement) {
+    return;
+  }
+
+  const profile = String(payload?.profile || "default").trim() || "default";
+  const databaseDisplayName = String(payload?.databaseDisplayName || payload?.databaseVendor || "Unknown").trim() || "Unknown";
+  const databaseVendor = String(payload?.databaseVendor || "").trim();
+  const databaseLabel = databaseVendor !== "" && databaseVendor.toLowerCase() !== databaseDisplayName.toLowerCase()
+    ? `${databaseDisplayName} (${databaseVendor})`
+    : databaseDisplayName;
+
+  topbarRuntimeElement.textContent = `Profile: ${profile} · DB: ${databaseLabel}`;
+}
 
 function currentRouteState() {
   const parsed = parseHashRoute();

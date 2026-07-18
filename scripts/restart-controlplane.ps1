@@ -3,6 +3,8 @@ param(
     [string]$Action = "Restart",
     [int]$Port = 8081,
     [string]$Profile = "controlplane",
+    [ValidateSet("Preserve", "Clean")]
+    [string]$CleanMode,
     [switch]$Clean,
     [switch]$NoClean,
     [int]$StartupTimeoutSec = 90,
@@ -103,10 +105,18 @@ function Start-ControlPlane {
 
 function Resolve-CleanMode {
     param(
+        [string]$RequestedCleanMode,
         [switch]$RequestedClean,
         [switch]$RequestedNoClean,
         [hashtable]$BoundParameters
     )
+
+    if ($BoundParameters.ContainsKey("CleanMode")) {
+        if ($BoundParameters.ContainsKey("Clean") -or $BoundParameters.ContainsKey("NoClean")) {
+            throw "Use either -CleanMode or the legacy -Clean/-NoClean switches, not both."
+        }
+        return $RequestedCleanMode -eq "Clean"
+    }
 
     if ($BoundParameters.ContainsKey("Clean") -and $BoundParameters.ContainsKey("NoClean")) {
         throw "Use either -Clean or -NoClean, not both."
@@ -121,6 +131,29 @@ function Resolve-CleanMode {
 
     # Default to preserve generated model classes so explicit-job runs remain launch-ready.
     return $false
+}
+
+function Invoke-ControlPlaneStartFlow {
+    param(
+        [string]$WorkingDirectory,
+        [string]$ActiveProfile,
+        [bool]$EnableClean,
+        [bool]$PerformStop,
+        [int]$TargetPort,
+        [bool]$ShouldSkipHealthCheck,
+        [string]$HealthUrl,
+        [int]$TimeoutSec
+    )
+
+    if ($PerformStop) {
+        Stop-ControlPlane -TargetPort $TargetPort
+    }
+
+    $startInfo = Start-ControlPlane -WorkingDirectory $WorkingDirectory -ActiveProfile $ActiveProfile -EnableClean:$EnableClean
+    if (-not $ShouldSkipHealthCheck) {
+        $health = Wait-ForHealth -Url $HealthUrl -TimeoutSec $TimeoutSec -StartupProcess $startInfo.Process -StdoutPath $startInfo.StdoutPath -StderrPath $startInfo.StderrPath
+        Write-Host "Healthy profile=$($health.profile) schedulerEnabled=$($health.schedulerEnabled)"
+    }
 }
 
 function Wait-ForHealth {
@@ -165,21 +198,12 @@ switch ($Action) {
         Stop-ControlPlane -TargetPort $Port
     }
     "Start" {
-        $cleanMode = Resolve-CleanMode -RequestedClean:$Clean -RequestedNoClean:$NoClean -BoundParameters $PSBoundParameters
-        $startInfo = Start-ControlPlane -WorkingDirectory $repoRoot -ActiveProfile $Profile -EnableClean:$cleanMode
-        if (-not $SkipHealthCheck) {
-            $health = Wait-ForHealth -Url $systemInfoUrl -TimeoutSec $StartupTimeoutSec -StartupProcess $startInfo.Process -StdoutPath $startInfo.StdoutPath -StderrPath $startInfo.StderrPath
-            Write-Host "Healthy profile=$($health.profile) schedulerEnabled=$($health.schedulerEnabled)"
-        }
+        $cleanModeValue = Resolve-CleanMode -RequestedCleanMode $CleanMode -RequestedClean:$Clean -RequestedNoClean:$NoClean -BoundParameters $PSBoundParameters
+        Invoke-ControlPlaneStartFlow -WorkingDirectory $repoRoot -ActiveProfile $Profile -EnableClean:$cleanModeValue -PerformStop:$false -TargetPort $Port -ShouldSkipHealthCheck:$SkipHealthCheck -HealthUrl $systemInfoUrl -TimeoutSec $StartupTimeoutSec
     }
     "Restart" {
-        Stop-ControlPlane -TargetPort $Port
-        $cleanMode = Resolve-CleanMode -RequestedClean:$Clean -RequestedNoClean:$NoClean -BoundParameters $PSBoundParameters
-        $startInfo = Start-ControlPlane -WorkingDirectory $repoRoot -ActiveProfile $Profile -EnableClean:$cleanMode
-        if (-not $SkipHealthCheck) {
-            $health = Wait-ForHealth -Url $systemInfoUrl -TimeoutSec $StartupTimeoutSec -StartupProcess $startInfo.Process -StdoutPath $startInfo.StdoutPath -StderrPath $startInfo.StderrPath
-            Write-Host "Healthy profile=$($health.profile) schedulerEnabled=$($health.schedulerEnabled)"
-        }
+        $cleanModeValue = Resolve-CleanMode -RequestedCleanMode $CleanMode -RequestedClean:$Clean -RequestedNoClean:$NoClean -BoundParameters $PSBoundParameters
+        Invoke-ControlPlaneStartFlow -WorkingDirectory $repoRoot -ActiveProfile $Profile -EnableClean:$cleanModeValue -PerformStop:$true -TargetPort $Port -ShouldSkipHealthCheck:$SkipHealthCheck -HealthUrl $systemInfoUrl -TimeoutSec $StartupTimeoutSec
     }
     "Status" {
         $pids = @(Get-PortPids -TargetPort $Port)

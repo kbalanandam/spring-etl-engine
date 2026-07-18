@@ -215,8 +215,20 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 
 	private void createTableIfMissing(String tableName, String createTableSql) {
 		Boolean exists = jdbcTemplate.execute((org.springframework.jdbc.core.ConnectionCallback<Boolean>) connection -> {
-			try (java.sql.ResultSet tables = connection.getMetaData().getTables(connection.getCatalog(), null, tableName, new String[]{"TABLE"})) {
-				return tables.next();
+			java.sql.DatabaseMetaData metadata = connection.getMetaData();
+			try (java.sql.ResultSet exact = metadata.getTables(connection.getCatalog(), null, tableName, new String[]{"TABLE"})) {
+				if (exact.next()) {
+					return true;
+				}
+			}
+			try (java.sql.ResultSet scanned = metadata.getTables(connection.getCatalog(), null, "%", new String[]{"TABLE"})) {
+				while (scanned.next()) {
+					String existingTableName = scanned.getString("TABLE_NAME");
+					if (existingTableName != null && tableName.equalsIgnoreCase(existingTableName)) {
+						return true;
+					}
+				}
+				return false;
 			}
 		});
 		if (!Boolean.TRUE.equals(exists)) {

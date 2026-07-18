@@ -1,7 +1,7 @@
 -- Bootstrap script for control-plane SQL Server schema.
 -- Usage example:
 --   sqlcmd -S localhost -U sa -P <password> -i scripts/sql/mssql/controlplane-bootstrap.sql
--- Token {{CONTROLPLANE_DATABASE_NAME}} is materialized by scripts/setup-controlplane-mssql.ps1.
+-- Token {{CONTROLPLANE_DATABASE_NAME}} is materialized by scripts/setup-controlplane.ps1.
 -- Spring Batch BATCH_* metadata tables are bootstrapped separately into the same database.
 
 IF DB_ID(N'{{CONTROLPLANE_DATABASE_NAME}}') IS NULL

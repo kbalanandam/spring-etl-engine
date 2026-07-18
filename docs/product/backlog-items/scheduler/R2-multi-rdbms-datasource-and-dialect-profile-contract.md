@@ -41,7 +41,7 @@ Make database selection a deployment concern with explicit profile contracts and
 
 Publish one configuration matrix in docs and properties guidance that is environment-driven, profile-safe, and explicit about optional control-plane behavior.
 
-The active contract anchor is [`docs/config/control-plane-persistence-profiles.md`](../../../config/control-plane-persistence-profiles.md).
+The active contract anchor is [`docs/config/control-plane/control-plane-persistence-profiles.md`](../../../config/control-plane/control-plane-persistence-profiles.md).
 
 ## Operator / runtime impact
 
@@ -117,7 +117,7 @@ The active contract anchor is [`docs/config/control-plane-persistence-profiles.m
 - [`Product backlog`](../../product-backlog.md)
 - [`Epic R`](../../epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)
 - [`docs/config/README.md`](../../../config/README.md)
-- [`docs/config/control-plane-persistence-profiles.md`](../../../config/control-plane-persistence-profiles.md)
+- [`docs/config/control-plane/control-plane-persistence-profiles.md`](../../../config/control-plane/control-plane-persistence-profiles.md)
 - [`Control-plane persistence boundary contract`](../../../architecture/control-plane/control-plane-persistence-boundary-contract.md)
 - [`application-controlplane.properties`](../../../../src/main/resources/application-controlplane.properties)
 

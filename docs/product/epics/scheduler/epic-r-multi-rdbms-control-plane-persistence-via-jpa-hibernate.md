@@ -27,7 +27,7 @@ This epic is **not** the place to make control-plane persistence mandatory for E
 ## Related docs
 
 - [`../../product-backlog.md`](../../product-backlog.md)
-- [`../../../config/control-plane-persistence-profiles.md`](../../../config/control-plane-persistence-profiles.md)
+- [`../../../config/control-plane/control-plane-persistence-profiles.md`](../../../config/control-plane/control-plane-persistence-profiles.md)
 - [`../../../architecture/control-plane/control-plane-worker-boundary.md`](../../../architecture/control-plane/control-plane-worker-boundary.md)
 - [`../../../architecture/control-plane/control-plane-persistence-boundary-contract.md`](../../../architecture/control-plane/control-plane-persistence-boundary-contract.md)
 - [`../../../architecture/control-plane/control-plane-operational-data-model.md`](../../../architecture/control-plane/control-plane-operational-data-model.md)

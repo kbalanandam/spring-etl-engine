@@ -6,8 +6,7 @@ Automation helpers under `scripts/` for local verification, cleanup, project-boa
 
 - Generate local verification report (`mvn test` + smoke + markdown report): `generate-verification-report.ps1`
 - Run smoke-only verification checks: `verify-recent-changes.ps1`
-- Bootstrap MySQL control-plane schema/tables/indexes and optional grants: `setup-controlplane-mysql.ps1`
-- Bootstrap SQL Server control-plane schema/tables/indexes: `setup-controlplane-mssql.ps1`
+- Bootstrap control-plane schema/tables/metadata for supported RDBMS with one common contract: `setup-controlplane.ps1`
 - Remove one job bundle and matching generated artifacts safely: `remove-job-bundle.ps1`
 - Restart/start/stop/status control-plane quickly on port 8081: `restart-controlplane.ps1`
 - Generate job-scoped model classes for all job configs under folder roots: `generate-models-batch.ps1`
@@ -71,80 +70,65 @@ Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\verify-recent-changes.ps1 -ScenarioTimeoutMinutes 20
 ```
 
-## `setup-controlplane-mysql.ps1`
+## `setup-controlplane.ps1`
 
 Purpose:
-- Creates a selected MySQL database (default `etl_controlplane`) if missing
+- Single supported setup entrypoint for supported control-plane relational engines
 - Creates active `controlplane_*` schema tables and indexes
 - Creates Spring Batch `BATCH_*` metadata tables in the same database
 - Seeds `controlplane_trigger_source` master rows
-- Optionally creates/updates one app user and grants on the selected database
+- Keeps the user contract stable across vendors: server, port, database, username, password
+- MySQL-only grants remain available as an optional branch
+- Safety behavior: rerun-safe and non-destructive for existing control-plane run history (no table/database drop and no truncate/delete of run data)
 
-SQL sources:
-- `scripts/sql/mysql/controlplane-bootstrap.sql`
-- `scripts/sql/mysql/spring-batch-metadata.sql`
-- `scripts/sql/mysql/controlplane-grants-template.sql` (optional reference template)
+Use this script for both MySQL and SQL Server. No vendor-specific setup wrappers are required.
 
-Bootstrap schema only:
+Important safety note:
+
+- `setup-controlplane.ps1` is non-destructive for existing run history data.
+- Re-running setup does not drop tables/databases and does not truncate/delete existing control-plane rows.
+- Setup only creates missing objects, ensures indexes, and refreshes seed rows in `controlplane_trigger_source`.
+
+Common MySQL usage:
 
 ```powershell
 Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mysql.ps1 -HostName localhost -Port 3306 -RootUser root -RootPassword "<root-password>"
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane.ps1 -Vendor mysql -ServerName localhost -Port 3306 -DatabaseName etl_controlplane -Username root -Password "<root-password>"
 ```
 
-Bootstrap a fresh database for control-plane + batch metadata together:
+Common SQL Server usage:
 
 ```powershell
 Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mysql.ps1 -HostName localhost -Port 3306 -RootUser root -RootPassword "<root-password>" -DatabaseName etl_controlplane_batch
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane.ps1 -Vendor mssql -ServerName localhost -Port 1433 -DatabaseName etl_controlplane -Username sa -Password "<sa-password>"
 ```
 
-Bootstrap + grants for app user:
+SQL Server integrated security:
 
 ```powershell
 Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mysql.ps1 -HostName localhost -Port 3306 -RootUser root -RootPassword "<root-password>" -ApplyGrants -AppUser etl_app -AppHost % -AppPassword "<app-password>"
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane.ps1 -Vendor mssql -ServerName localhost -Port 1433 -DatabaseName etl_controlplane -UseIntegratedSecurity
+```
+
+MySQL grants for app user:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane.ps1 -Vendor mysql -ServerName localhost -Port 3306 -DatabaseName etl_controlplane -Username root -Password "<root-password>" -ApplyGrants -AppUser etl_app -AppHost % -AppPassword "<app-password>"
 ```
 
 Preview without executing (WhatIf):
 
 ```powershell
 Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mysql.ps1 -WhatIf
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane.ps1 -Vendor mysql -WhatIf
 ```
 
-## `setup-controlplane-mssql.ps1`
+Impact notes:
 
-Purpose:
-- Creates a selected SQL Server database (default `etl_controlplane`) if missing
-- Creates active `controlplane_*` schema tables and indexes
-- Creates Spring Batch `BATCH_*` metadata tables in the same database
-- Seeds `controlplane_trigger_source` master rows
-
-SQL sources:
-- `scripts/sql/mssql/controlplane-bootstrap.sql`
-- `scripts/sql/mssql/spring-batch-metadata.sql`
-
-Bootstrap schema with SQL authentication:
-
-```powershell
-Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mssql.ps1 -ServerName localhost -Port 1433 -AdminUser sa -AdminPassword "<sa-password>"
-```
-
-Bootstrap schema with integrated security:
-
-```powershell
-Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mssql.ps1 -ServerName localhost -Port 1433 -UseIntegratedSecurity
-```
-
-Preview without executing (WhatIf):
-
-```powershell
-Set-Location (Resolve-Path ..)
-powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane-mssql.ps1 -WhatIf
-```
+- Existing control-plane and Spring Batch rows are preserved when setup is re-run.
+- Setup can create missing database/tables/indexes and refresh seed rows in `controlplane_trigger_source`.
+- With `-ApplyGrants` (MySQL), setup can create/update app-user grants.
 
 ## `remove-job-bundle.ps1`
 
@@ -166,12 +150,21 @@ Purpose:
 - Stops any process listening on control-plane port (default `8081`)
 - Starts control-plane with explicit main class and `controlplane` profile
 - Supports quick `Restart`, `Start`, `Stop`, and `Status`
+- Defaults to `CleanMode Preserve` so generated model classes remain intact unless an explicit clean rebuild is requested
 
 Common usage:
 
 ```powershell
 Set-Location (Resolve-Path ..)
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 -Action Restart
+```
+
+Explicit clean-mode selection:
+
+```powershell
+Set-Location (Resolve-Path ..)
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 -Action Restart -CleanMode Preserve
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 -Action Start -CleanMode Clean
 ```
 
 Status only:

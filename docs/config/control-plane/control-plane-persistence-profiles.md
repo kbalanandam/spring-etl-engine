@@ -12,7 +12,7 @@ The contract applies to retained control-plane history only. It does not change 
 - Control-plane persistence remains optional and additive.
 - Direct ETL runs remain valid when control-plane persistence is disabled or unavailable.
 
-See [`../architecture/control-plane/control-plane-persistence-boundary-contract.md`](../architecture/control-plane/control-plane-persistence-boundary-contract.md) for frozen boundary invariants.
+See [`../../architecture/control-plane/control-plane-persistence-boundary-contract.md`](../../architecture/control-plane/control-plane-persistence-boundary-contract.md) for frozen boundary invariants.
 
 ## Supported target lanes
 
@@ -111,6 +111,10 @@ controlplane.db.driver-class-name=${CONTROLPLANE_DB_DRIVER_CLASS_NAME:...}
 ```
 
 - `spring.datasource.*` and `controlplane.job-launch.worker.datasource.*` are wired from these canonical properties unless explicitly overridden by worker-specific env vars.
+- Use one simplified script surface for local control-plane work: `scripts/setup-controlplane.ps1` for database bootstrap and `scripts/restart-controlplane.ps1` for start/restart/status/stop.
+- Bootstrap safety note: `scripts/setup-controlplane.ps1` is rerun-safe and non-destructive for existing run history. It does not drop databases/tables or truncate/delete existing run data. It creates missing database objects, ensures indexes, and upserts `controlplane_trigger_source` seed rows.
+
+> Safety reminder: running `scripts/setup-controlplane.ps1` by mistake will not wipe existing control-plane run history data.
 
 - Local/CI MySQL run with the default `controlplane` profile:
 
@@ -120,7 +124,8 @@ $env:CONTROLPLANE_DB_URL="jdbc:mysql://localhost:3306/etl_controlplane?useSSL=fa
 $env:CONTROLPLANE_DB_USERNAME="root"
 $env:CONTROLPLANE_DB_PASSWORD="<password>"
 $env:CONTROLPLANE_DB_DRIVER_CLASS_NAME="com.mysql.cj.jdbc.Driver"
-mvn --no-transfer-progress "-Dspring-boot.run.profiles=controlplane" spring-boot:run
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane.ps1 -Vendor mysql -ServerName localhost -Port 3306 -DatabaseName etl_controlplane -Username root -Password "<password>"
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 -Action Start -Profile controlplane -Port 8081 -CleanMode Preserve -StartupTimeoutSec 120
 ```
 
 - Local SQL Server run with the default `controlplane` profile:
@@ -131,21 +136,25 @@ $env:CONTROLPLANE_DB_URL="jdbc:sqlserver://localhost:1433;databaseName=etl_contr
 $env:CONTROLPLANE_DB_USERNAME="sa"
 $env:CONTROLPLANE_DB_PASSWORD="<password>"
 $env:CONTROLPLANE_DB_DRIVER_CLASS_NAME="com.microsoft.sqlserver.jdbc.SQLServerDriver"
-mvn --no-transfer-progress "-Dspring-boot.run.profiles=controlplane" spring-boot:run
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane.ps1 -Vendor mssql -ServerName localhost -Port 1433 -DatabaseName etl_controlplane -Username sa -Password "<password>"
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 -Action Start -Profile controlplane -Port 8081 -CleanMode Preserve -StartupTimeoutSec 120
 ```
 
 
 - Keep `controlplane.job-launch.worker.datasource.*` aligned to the same URL/credentials so trigger events, run records, step projections, and Spring Batch metadata remain linkable without cross-database joins.
-- Bootstrap both `controlplane_*` and `BATCH_*` tables into the same selected database (`scripts/setup-controlplane-mysql.ps1` or `scripts/setup-controlplane-mssql.ps1`) before starting the control-plane profile.
+- Bootstrap both `controlplane_*` and `BATCH_*` tables into the same selected database with `scripts/setup-controlplane.ps1` before starting the control-plane profile.
+- MySQL optional grants (`-ApplyGrants`) can create/update the app user grant statements but still do not delete control-plane run history data.
+- After startup, confirm the active runtime lane in the Operator UI header or via `GET /api/v1/system/info`, which now reports both `profile` and the active database fields `databaseVendor` / `databaseDisplayName`.
 - Ensure `controlplane.job-launch.worker.connection-init-sql` is blank (or vendor-valid) so SQLite-only `PRAGMA` statements are not passed to MySQL/SQL Server workers.
 - Active trigger/run JDBC read paths now use vendor-aware paging clauses (`LIMIT/OFFSET` for MySQL, `OFFSET ... FETCH NEXT` for SQL Server) to keep control-plane list/detail endpoints runnable across both lanes.
 - The currently verified no-server portability scope is registry startup plus update/insert write paths without SQLite-only `on conflict ... excluded`, string-concatenation, or `cast(... as text)` SQL. Legacy SQLite bridge migrations (`pragma_table_info`, `rowid`, SQLite trigger DDL) remain isolated to SQLite-gated paths and still need real MySQL-lane validation before MySQL can be treated as full parity.
 
 ## Related docs
 
-- [`README.md`](README.md)
-- [`../product/backlog-items/scheduler/R2-multi-rdbms-datasource-and-dialect-profile-contract.md`](../product/backlog-items/scheduler/R2-multi-rdbms-datasource-and-dialect-profile-contract.md)
-- [`../product/epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md`](../product/epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)
-- [`../architecture/control-plane/control-plane-persistence-boundary-contract.md`](../architecture/control-plane/control-plane-persistence-boundary-contract.md)
+- [`../README.md`](../README.md)
+- [`../../product/backlog-items/scheduler/R2-multi-rdbms-datasource-and-dialect-profile-contract.md`](../../product/backlog-items/scheduler/R2-multi-rdbms-datasource-and-dialect-profile-contract.md)
+- [`../../product/epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md`](../../product/epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)
+- [`../../architecture/control-plane/control-plane-persistence-boundary-contract.md`](../../architecture/control-plane/control-plane-persistence-boundary-contract.md)
+
 
 

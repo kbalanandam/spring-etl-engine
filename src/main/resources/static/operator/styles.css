@@ -11,6 +11,11 @@ body {
   background: #0f172a;
   color: #e2e8f0;
   padding: 6px 12px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .topbar h1 {
@@ -22,6 +27,14 @@ body {
   margin: 1px 0 0;
   font-size: 11px;
   color: #94a3b8;
+}
+
+.topbar-runtime {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #cbd5e1;
+  text-align: right;
+  white-space: nowrap;
 }
 
 .tabs {
