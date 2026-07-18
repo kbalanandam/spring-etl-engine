@@ -110,6 +110,39 @@ class RunSummaryReadModelServiceTest {
 	}
 
 	@Test
+	void latestRunsFilteredFreshBypassesThrottleAndReturnsUpdatedProjection() throws IOException {
+		Path logPath = createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T11:00:00.000+00:00 INFO [main] [scenario:customer-load] [run:20260527-110000-000] [job:160] [step:n/a] logger - RUN_EVENT event=job_started scenario=customer-load jobExecutionId=160 startTime=2026-05-27T11:00:00 runMode=explicit-job"
+		);
+
+		InMemoryRunSummaryRegistry registry = new InMemoryRunSummaryRegistry();
+		RunSummaryReadModelService service = new RunSummaryReadModelService(
+				tempDir,
+				new RunSummaryLogParser(),
+				registry,
+				5_000_000L,
+				500,
+				60_000L
+		);
+
+		List<RunSummaryView> firstRead = service.latestRunsFiltered(10, null, null, null, null, ZoneId.of("UTC"));
+		assertEquals(1, firstRead.size());
+		assertEquals("STARTED", firstRead.get(0).status());
+
+		Files.writeString(logPath,
+				"2026-05-27T11:02:03.001+00:00 INFO [main] [scenario:customer-load] [run:20260527-110000-000] [job:160] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=160 status=COMPLETED startTime=2026-05-27T11:00:00 endTime=2026-05-27T11:02:03 durationSeconds=123 sourceCount=10 writtenCount=10 rejectedCount=0"
+		);
+
+		List<RunSummaryView> staleRead = service.latestRunsFiltered(10, null, null, null, null, ZoneId.of("UTC"));
+		assertEquals("STARTED", staleRead.get(0).status());
+
+		List<RunSummaryView> refreshedRead = service.latestRunsFilteredFresh(10, null, null, null, null, null, ZoneId.of("UTC"));
+		assertEquals("COMPLETED", refreshedRead.get(0).status());
+		assertEquals(10L, refreshedRead.get(0).writtenCount());
+	}
+
+	@Test
 	void findRunByJobExecutionIdForcesRefreshWhenProjectionIsStillStarted() throws IOException {
 		Path logPath = createLog(
 				tempDir.resolve("2026-05-27/customer-load.log"),

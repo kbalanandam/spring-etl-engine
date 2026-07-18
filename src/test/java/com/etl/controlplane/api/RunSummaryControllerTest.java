@@ -147,6 +147,19 @@ class RunSummaryControllerTest {
 	}
 
 	@Test
+	void refreshFlagForcesFreshRunsProjection() throws Exception {
+		when(runSummaryReadModelService.latestRunsFilteredFresh(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault())))
+				.thenReturn(List.of());
+
+		mockMvc.perform(get("/api/v1/runs").param("refresh", "true"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.items").isArray())
+				.andExpect(jsonPath("$.size").value(25));
+
+		verify(runSummaryReadModelService).latestRunsFilteredFresh(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()));
+	}
+
+	@Test
 	void returnsTriggerSourceOptions() throws Exception {
 		when(triggerSourceCatalog.listActiveSources()).thenReturn(List.of(
 				new com.etl.controlplane.triggers.TriggerSourceOptionView("MANUAL", "Manual", "desc")
