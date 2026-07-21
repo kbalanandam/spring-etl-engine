@@ -89,6 +89,19 @@ class GitHubGraphQLForbiddenError(GitHubGraphQLRequestError):
     pass
 
 
+def is_graphql_forbidden_error(exc: BaseException) -> bool:
+    if isinstance(exc, GitHubGraphQLForbiddenError):
+        return True
+    if not isinstance(exc, GitHubGraphQLRequestError):
+        return False
+    if exc.details is not None and exc.details.has_type("FORBIDDEN"):
+        return True
+
+    # Defensive fallback: some API responses surface permission failures via message text only.
+    normalized = str(exc).lower()
+    return "resource not accessible by personal access token" in normalized
+
+
 @dataclass
 class FieldBinding:
     logical_name: str
@@ -839,7 +852,9 @@ def sync_items(
                 continue
             try:
                 existing = client.create_draft_item(project_id, desired_title, desired_body)
-            except GitHubGraphQLForbiddenError as exc:
+            except GitHubGraphQLRequestError as exc:
+                if not is_graphql_forbidden_error(exc):
+                    raise
                 print(
                     f"WARN  {item.backlog_id}: skipping draft creation due to insufficient project-write permission ({exc})."
                 )
@@ -854,7 +869,9 @@ def sync_items(
             if not dry_run:
                 try:
                     client.update_draft_issue(existing.content_id, desired_title, desired_body)
-                except GitHubGraphQLForbiddenError as exc:
+                except GitHubGraphQLRequestError as exc:
+                    if not is_graphql_forbidden_error(exc):
+                        raise
                     print(
                         f"WARN  {item.backlog_id}: skipping draft update due to insufficient project-write permission ({exc})."
                     )
@@ -867,7 +884,9 @@ def sync_items(
             if not dry_run and existing is not None:
                 try:
                     client.update_field_value(project_id, existing.item_id, binding.field, field_value)
-                except GitHubGraphQLForbiddenError as exc:
+                except GitHubGraphQLRequestError as exc:
+                    if not is_graphql_forbidden_error(exc):
+                        raise
                     print(
                         f"WARN  {item.backlog_id}: skipping field sync for '{binding.resolved_name}' due to insufficient project-write permission ({exc})."
                     )

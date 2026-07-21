@@ -63,6 +63,13 @@ class SyncProjectBoardTests(unittest.TestCase):
 
         self.assertEqual(errors, filtered)
 
+    def test_is_graphql_forbidden_error_detects_message_only_permission_failures(self) -> None:
+        exc = sync_project_board.GitHubGraphQLRequestError(
+            "GitHub GraphQL returned errors: Resource not accessible by personal access token"
+        )
+
+        self.assertTrue(sync_project_board.is_graphql_forbidden_error(exc))
+
     def test_resolve_single_select_option_matches_normalized_status_value(self) -> None:
         field = sync_project_board.ProjectField(
             field_id="field-status",
@@ -325,6 +332,74 @@ class SyncProjectBoardTests(unittest.TestCase):
         self.assertEqual(6, actions)
         self.assertIn("FIELD A1: Module = etl-core", rendered)
         self.assertNotIn("FIELD A1: Domain =", rendered)
+
+    def test_sync_items_continues_when_update_draft_forbidden_is_reported_as_generic_request_error(self) -> None:
+        item = self.make_item("A1")
+
+        class FakeClient:
+            def get_project(self) -> tuple[str, dict[str, object], dict[str, object]]:
+                fields = {
+                    "Status": sync_project_board.ProjectField(
+                        field_id="field-status",
+                        name="Status",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Priority": sync_project_board.ProjectField(
+                        field_id="field-priority",
+                        name="Priority",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Epic": sync_project_board.ProjectField(
+                        field_id="field-epic",
+                        name="Epic",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Module": sync_project_board.ProjectField(
+                        field_id="field-module",
+                        name="Module",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Milestone": sync_project_board.ProjectField(
+                        field_id="field-milestone",
+                        name="Milestone",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                    "Dependency": sync_project_board.ProjectField(
+                        field_id="field-dependency",
+                        name="Dependency",
+                        data_type="TEXT",
+                        options_by_name={},
+                    ),
+                }
+                existing_items = {
+                    "A1": sync_project_board.ExistingProjectItem(
+                        item_id="item-a1",
+                        content_id="draft-a1",
+                        content_type="DraftIssue",
+                        title="outdated title",
+                        body="outdated body",
+                    )
+                }
+                return "project-1", fields, existing_items
+
+            def update_draft_issue(self, draft_issue_id: str, title: str, body: str) -> None:
+                raise sync_project_board.GitHubGraphQLRequestError(
+                    "GitHub GraphQL returned errors: Resource not accessible by personal access token"
+                )
+
+        output = io.StringIO()
+        with redirect_stdout(output):
+            actions = sync_project_board.sync_items(FakeClient(), [item], dry_run=False, public_mode=False)
+
+        rendered = output.getvalue()
+        self.assertEqual(1, actions)
+        self.assertIn("UPDATE A1: title/body", rendered)
+        self.assertIn("skipping draft update due to insufficient project-write permission", rendered)
 
     def test_parse_backlog_items_reads_current_execution_board(self) -> None:
         markdown = textwrap.dedent(
