@@ -2,6 +2,7 @@ export function createAppScheduleDetailHelpers(options = {}) {
   const {
     valueOrDash,
     formatScheduleTriggerOriginToken,
+    formatDateTimeSeconds,
   } = options;
 
   function setScheduleDetailTriggersExpanded(expanded) {
@@ -18,7 +19,9 @@ export function createAppScheduleDetailHelpers(options = {}) {
   function buildScheduleTriggerEventLine(item, scheduleId, scheduleListQuery) {
     const line = document.createElement("li");
     line.className = "job-trigger-event-item";
-    const requestedAt = valueOrDash(item?.requestedAt);
+    const requestedAt = typeof formatDateTimeSeconds === "function"
+      ? formatDateTimeSeconds(item?.requestedAt)
+      : valueOrDash(item?.requestedAt);
     const origin = formatScheduleTriggerOriginToken(item?.triggerOrigin);
     const decision = valueOrDash(item?.decisionStatus);
     const triggerEventId = valueOrDash(item?.triggerEventId);

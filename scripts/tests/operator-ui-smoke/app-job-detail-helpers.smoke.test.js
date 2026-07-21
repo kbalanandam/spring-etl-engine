@@ -58,10 +58,15 @@ function installDom(ids) {
 function createHelpers() {
   return createAppJobDetailHelpers({
     valueOrDash: (value) => (value === null || value === undefined || value === "" ? "-" : String(value)),
+    formatDateTimeSeconds: (value) => {
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? "-" : parsed.toISOString().replace("T", " ").slice(0, 19);
+    },
     formatTriggerOriginToken: (value) => {
       const normalized = String(value || "").trim().toUpperCase();
       return normalized === "EVENT" ? "EVENT" : normalized === "SCHEDULE" ? "SCHEDULE" : "MANUAL";
     },
+    triggerEventsTimeZoneLabel: "Asia/Kolkata",
   });
 }
 
@@ -78,7 +83,7 @@ test("job detail helpers render empty trigger evidence state", () => {
 
     helpers.renderJobTriggerEvents([], "customer-load", {});
 
-    assert.equal(state.textContent, "No recent trigger events found for this job.");
+    assert.equal(state.textContent, "No recent trigger events found for this job. Times shown in Asia/Kolkata.");
     assert.equal(list.hidden, true);
   } finally {
     dom.restore();
@@ -109,7 +114,7 @@ test("job detail helpers render trigger evidence with launched run link and mess
       },
     ], "customer-load", { from: "schedule", scheduleId: "sch-1", scheduleListQuery: "sort=scheduleKey" });
 
-    assert.equal(state.textContent, "Showing 1 recent trigger event(s).");
+    assert.equal(state.textContent, "Showing 1 recent trigger event(s). Times shown in Asia/Kolkata.");
     assert.equal(list.hidden, false);
     assert.equal(list.children.length, 1);
     const item = list.children[0];
@@ -119,6 +124,7 @@ test("job detail helpers render trigger evidence with launched run link and mess
     assert.equal(decisionChip.textContent, "ACCEPTED");
     assert.equal(decisionChip.className, "decision-chip");
     assert.equal(decisionChip.classList.contains("decision-chip-success"), true);
+    assert.match(item.children[2].textContent, /^2026-06-24 09:15:00 \|/);
     assert.match(item.children[2].textContent, /origin=MANUAL/);
     const runLink = item.children[3];
     assert.equal(runLink.tagName, "A");

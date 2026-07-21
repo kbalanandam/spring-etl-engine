@@ -72,7 +72,9 @@ import {
 import {
   categorizeTriggerFailure,
   escapeHtml,
+  formatDateTimeSeconds,
   formatJobDetailRecentRunLabel,
+  resolveBrowserTimeZoneLabel,
   valueOrDash,
 } from "./operator-text-utils.js";
 
@@ -374,8 +376,10 @@ const scheduleRequestState = {
   inFlightActionByScheduleId: {},
   inFlightTriggerByScheduleId: {},
 };
+const triggerEventsTimeZoneLabel = resolveBrowserTimeZoneLabel();
 const scheduleDetailHelpers = createAppScheduleDetailHelpers({
   valueOrDash,
+  formatDateTimeSeconds,
   formatScheduleTriggerOriginToken,
 });
 const runDetailHelpers = createAppRunDetailHelpers({
@@ -386,7 +390,9 @@ const runDetailHelpers = createAppRunDetailHelpers({
 });
 const jobDetailHelpers = createAppJobDetailHelpers({
   valueOrDash,
+  formatDateTimeSeconds,
   formatTriggerOriginToken,
+  triggerEventsTimeZoneLabel,
 });
 const scheduleEditorHelpers = createAppScheduleEditorHelpers({
   describeScheduleExpression,
@@ -2003,7 +2009,7 @@ async function refreshScheduleDetailTriggerEvents(scheduleId, scheduleListQuery,
   if (triggerItems.length === 0) {
     triggerList.hidden = true;
     triggerList.innerHTML = "";
-    triggerState.textContent = "No trigger events recorded for this schedule yet.";
+    triggerState.textContent = `No trigger events recorded for this schedule yet. Times shown in ${triggerEventsTimeZoneLabel}.`;
   } else {
     const triggerNodes = document.createDocumentFragment();
     triggerItems.forEach((item) => {
@@ -2011,7 +2017,7 @@ async function refreshScheduleDetailTriggerEvents(scheduleId, scheduleListQuery,
     });
     triggerList.innerHTML = "";
     triggerList.appendChild(triggerNodes);
-    triggerState.textContent = `Showing ${triggerItems.length} trigger event(s).`;
+    triggerState.textContent = `Showing ${triggerItems.length} trigger event(s). Times shown in ${triggerEventsTimeZoneLabel}.`;
     triggerList.hidden = false;
   }
 

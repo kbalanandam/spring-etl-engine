@@ -2,12 +2,21 @@ export function createAppJobDetailHelpers(options = {}) {
   const {
     valueOrDash,
     formatTriggerOriginToken,
+    formatDateTimeSeconds,
+    triggerEventsTimeZoneLabel,
   } = options;
+
+  const normalizedTriggerEventsTimeZoneLabel = String(triggerEventsTimeZoneLabel || "").trim();
+  const triggerEventsTimeZoneSuffix = normalizedTriggerEventsTimeZoneLabel === ""
+    ? ""
+    : ` Times shown in ${normalizedTriggerEventsTimeZoneLabel}.`;
 
   function buildJobTriggerEventLine(item, jobKey, query) {
     const line = document.createElement("li");
     line.className = "job-trigger-event-item";
-    const requestedAt = valueOrDash(item?.requestedAt);
+    const requestedAt = typeof formatDateTimeSeconds === "function"
+      ? formatDateTimeSeconds(item?.requestedAt)
+      : valueOrDash(item?.requestedAt);
     const origin = formatTriggerOriginToken(item?.triggerOrigin);
     const decision = valueOrDash(item?.decisionStatus);
     const reason = valueOrDash(item?.reason);
@@ -73,7 +82,7 @@ export function createAppJobDetailHelpers(options = {}) {
 
     if (events.length === 0) {
       triggerEventsState.className = "state";
-      triggerEventsState.textContent = "No recent trigger events found for this job.";
+      triggerEventsState.textContent = `No recent trigger events found for this job.${triggerEventsTimeZoneSuffix}`;
       triggerEventsList.hidden = true;
       return;
     }
@@ -83,7 +92,7 @@ export function createAppJobDetailHelpers(options = {}) {
     });
 
     triggerEventsState.className = "state";
-    triggerEventsState.textContent = `Showing ${events.length} recent trigger event(s).`;
+    triggerEventsState.textContent = `Showing ${events.length} recent trigger event(s).${triggerEventsTimeZoneSuffix}`;
     triggerEventsList.hidden = false;
   }
 

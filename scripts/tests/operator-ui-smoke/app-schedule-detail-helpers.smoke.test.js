@@ -79,6 +79,10 @@ test("schedule detail helpers build trigger event line with run link and schedul
   try {
     const helpers = createAppScheduleDetailHelpers({
       valueOrDash: (value) => (value === null || value === undefined || value === "" ? "-" : String(value)),
+      formatDateTimeSeconds: (value) => {
+        const parsed = new Date(value);
+        return Number.isNaN(parsed.getTime()) ? "-" : parsed.toISOString().replace("T", " ").slice(0, 19);
+      },
       formatScheduleTriggerOriginToken: (token) => {
         const normalized = String(token || "").toUpperCase();
         return normalized === "EVENT" ? "EVENT" : "SCHEDULE";
@@ -103,6 +107,7 @@ test("schedule detail helpers build trigger event line with run link and schedul
     assert.equal(line.children[0].tagName, "SPAN");
     assert.equal(line.children[0].className, "decision-chip");
     assert.equal(line.children[0].classList.contains("decision-chip-success"), true);
+    assert.match(line.children[2].textContent, /^2026-06-23 10:00:00 \|/);
     assert.match(line.children[2].textContent, /origin=EVENT/);
     assert.equal(line.children[3].tagName, "A");
     assert.equal(line.children[3].textContent, "42");
