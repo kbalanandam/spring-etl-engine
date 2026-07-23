@@ -37,6 +37,27 @@ class JdbcScheduleRegistryTest {
 	}
 
 	@Test
+	void stampsAuditActorFromApplicationName() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(jdbcTemplate, "mysql", "controlplane-audit-test");
+		registry.upsert(schedule("sch-audit", "daily-audit", LocalDateTime.parse("2026-05-28T09:00:00")));
+
+		String createdBy = jdbcTemplate.queryForObject(
+				"select created_by from controlplane_schedule where schedule_id = ?",
+				String.class,
+				"sch-audit"
+		);
+		String updatedBy = jdbcTemplate.queryForObject(
+				"select updated_by from controlplane_schedule where schedule_id = ?",
+				String.class,
+				"sch-audit"
+		);
+
+		assertEquals("controlplane-audit-test", createdBy);
+		assertEquals("controlplane-audit-test", updatedBy);
+	}
+
+	@Test
 	void assignsDistinctSchedulePkValuesForNewRows() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		JdbcScheduleRegistry registry = new JdbcScheduleRegistry(jdbcTemplate);

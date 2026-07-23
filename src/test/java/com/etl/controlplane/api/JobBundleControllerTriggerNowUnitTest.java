@@ -75,7 +75,7 @@ class JobBundleControllerTriggerNowUnitTest {
         assertEquals("DUPLICATE_SUPPRESSED", body.decisionStatus());
         assertEquals("te-existing", body.triggerEventId());
         verify(triggerEventRegistry, never()).recordAccepted(anyString(), anyString(), anyString(), anyString());
-        verify(selectedJobLaunchService, never()).launchSelectedJob(anyString(), anyString(), anyString());
+        verify(selectedJobLaunchService, never()).launchSelectedJob(anyString(), anyString(), anyString(), anyString());
     }
 
     @Test
@@ -114,7 +114,7 @@ class JobBundleControllerTriggerNowUnitTest {
                         null,
                         "accepted"
                 ));
-        when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null)))
+        when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null), eq("te-new")))
                 .thenReturn(new SelectedJobLaunchService.LaunchResult(true, "Worker launch started [pid=5555]."));
 
         var response = controller.triggerNow("customer-load", new TriggerNowRequest("manual_operator_request", "operator-ui"));
@@ -125,7 +125,7 @@ class JobBundleControllerTriggerNowUnitTest {
         assertEquals("ACCEPTED", body.decisionStatus());
         assertEquals("te-new", body.triggerEventId());
         verify(triggerEventRegistry).recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator-ui"), anyString());
-        verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null));
+        verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null), eq("te-new"));
     }
 
     @Test
@@ -153,7 +153,7 @@ class JobBundleControllerTriggerNowUnitTest {
                         null,
                         "accepted"
                 ));
-        when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null)))
+        when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null), eq("te-new")))
                 .thenReturn(new SelectedJobLaunchService.LaunchResult(false, "Worker launch skipped because an execution is already running."));
 
         var response = controller.triggerNow("customer-load", new TriggerNowRequest("manual_operator_request", "operator-ui"));
@@ -164,7 +164,7 @@ class JobBundleControllerTriggerNowUnitTest {
         assertEquals("LAUNCH_SKIPPED", body.decisionStatus());
         assertEquals("te-new", body.triggerEventId());
         verify(triggerEventRegistry).recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator-ui"), anyString());
-        verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null));
+        verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null), eq("te-new"));
     }
 
     private JobBundleSummaryView sampleBundle() {

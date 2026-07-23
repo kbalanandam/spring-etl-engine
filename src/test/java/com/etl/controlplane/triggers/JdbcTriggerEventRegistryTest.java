@@ -8,10 +8,10 @@ import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class JdbcTriggerEventRegistryTest {
@@ -32,6 +32,67 @@ class JdbcTriggerEventRegistryTest {
 	}
 
 	@Test
+	void derivesLaunchedRunIdFromLinkedRunRecordForJobListings() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+		TriggerEventView event = registry.recordAccepted("customer-load", "manual_operator_request", "operator-ui", "queued");
+		jdbcTemplate.execute("""
+				create table controlplane_run_record (
+					run_record_pk bigint primary key,
+					run_record_id varchar(80) not null unique,
+					job_execution_id bigint not null unique,
+					trigger_event_pk bigint,
+					trigger_event_id varchar(80),
+					selected_job_key varchar(200),
+					scenario varchar(200) not null,
+					run_status varchar(50) not null,
+					started_at timestamp,
+					finished_at timestamp,
+					duration_seconds bigint,
+					source_count bigint,
+					written_count bigint,
+					rejected_count bigint,
+					run_mode varchar(80),
+					recovery_policy varchar(120),
+					created_at timestamp not null,
+					updated_at timestamp not null
+				)
+				""");
+		Long triggerEventPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				event.triggerEventId()
+		);
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_pk, run_record_id, job_execution_id, trigger_event_pk, trigger_event_id,
+					selected_job_key, scenario, run_status, started_at, finished_at,
+					duration_seconds, source_count, written_count, rejected_count, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				1L,
+				"rr-9901",
+				9901L,
+				triggerEventPk,
+				event.triggerEventId(),
+				"customer-load",
+				"customer-load",
+				"COMPLETED",
+				java.sql.Timestamp.valueOf("2026-05-28 10:00:00"),
+				java.sql.Timestamp.valueOf("2026-05-28 10:00:01"),
+				1L,
+				1L,
+				1L,
+				0L,
+				java.sql.Timestamp.valueOf("2026-05-28 10:00:00"),
+				java.sql.Timestamp.valueOf("2026-05-28 10:00:01")
+		);
+
+		List<TriggerEventView> events = registry.listByJobKey("customer-load", 10);
+		assertEquals("9901", events.get(0).launchedRunId());
+	}
+
+	@Test
 	void assignsTriggerEventPkForNewRows() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(jdbcTemplate, 10);
@@ -43,6 +104,27 @@ class JdbcTriggerEventRegistryTest {
 				created.triggerEventId()
 		);
 		assertEquals(1L, triggerEventPk);
+	}
+
+	@Test
+	void stampsAuditActorFromApplicationName() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(jdbcTemplate, 10, "mysql", "controlplane-audit-test");
+		TriggerEventView created = registry.recordAccepted("customer-load", "manual_operator_request", "operator-ui", "audit");
+
+		String createdBy = jdbcTemplate.queryForObject(
+				"select created_by from controlplane_trigger_event where trigger_event_id = ?",
+				String.class,
+				created.triggerEventId()
+		);
+		String updatedBy = jdbcTemplate.queryForObject(
+				"select updated_by from controlplane_trigger_event where trigger_event_id = ?",
+				String.class,
+				created.triggerEventId()
+		);
+
+		assertEquals("controlplane-audit-test", createdBy);
+		assertEquals("controlplane-audit-test", updatedBy);
 	}
 
 	@Test
@@ -189,6 +271,186 @@ class JdbcTriggerEventRegistryTest {
 		assertEquals("second", events.get(0).message());
 		assertEquals("first", events.get(1).message());
 		assertEquals("SCHEDULE", events.get(0).triggerOrigin());
+	}
+
+	@Test
+	void derivesLaunchedRunIdFromLinkedRunRecordForScheduleListings() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry scheduleRegistry = new JdbcScheduleRegistry(jdbcTemplate);
+		scheduleRegistry.upsert(new ScheduleView(
+				"sch-der",
+				"daily-der",
+				"customer-load",
+				"0 0 * * *",
+				"UTC",
+				true,
+				false,
+				"desc",
+				LocalDateTime.parse("2026-05-28T09:00:00"),
+				LocalDateTime.parse("2026-05-28T10:00:00"),
+				null,
+				null
+		));
+		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+		TriggerEventView event = registry.recordAcceptedForSchedule("sch-der", "customer-load", "schedule_tick", "scheduler", "queued");
+		jdbcTemplate.execute("""
+				create table controlplane_run_record (
+					run_record_pk bigint primary key,
+					run_record_id varchar(80) not null unique,
+					job_execution_id bigint not null unique,
+					trigger_event_pk bigint,
+					trigger_event_id varchar(80),
+					selected_job_key varchar(200),
+					scenario varchar(200) not null,
+					run_status varchar(50) not null,
+					started_at timestamp,
+					finished_at timestamp,
+					duration_seconds bigint,
+					source_count bigint,
+					written_count bigint,
+					rejected_count bigint,
+					run_mode varchar(80),
+					recovery_policy varchar(120),
+					created_at timestamp not null,
+					updated_at timestamp not null
+				)
+				""");
+		Long triggerEventPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				event.triggerEventId()
+		);
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_pk, run_record_id, job_execution_id, trigger_event_pk, trigger_event_id,
+					selected_job_key, scenario, run_status, started_at, finished_at,
+					duration_seconds, source_count, written_count, rejected_count, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				2L,
+				"rr-9902",
+				9902L,
+				triggerEventPk,
+				event.triggerEventId(),
+				"customer-load",
+				"customer-load",
+				"COMPLETED",
+				java.sql.Timestamp.valueOf("2026-05-28 10:05:00"),
+				java.sql.Timestamp.valueOf("2026-05-28 10:05:01"),
+				1L,
+				1L,
+				1L,
+				0L,
+				java.sql.Timestamp.valueOf("2026-05-28 10:05:00"),
+				java.sql.Timestamp.valueOf("2026-05-28 10:05:01")
+		);
+
+		List<TriggerEventView> events = registry.listByScheduleId("sch-der", 10);
+		assertEquals("9902", events.get(0).launchedRunId());
+	}
+
+	@Test
+	void ignoresStalePkOnlyRunRecordWhenTriggerEventIdDoesNotMatch() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry scheduleRegistry = new JdbcScheduleRegistry(jdbcTemplate);
+		scheduleRegistry.upsert(new ScheduleView(
+				"sch-stale",
+				"daily-stale",
+				"customer-load",
+				"0 0 * * *",
+				"UTC",
+				true,
+				false,
+				"desc",
+				LocalDateTime.parse("2026-05-28T09:00:00"),
+				LocalDateTime.parse("2026-05-28T10:00:00"),
+				null,
+				null
+		));
+		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+		TriggerEventView event = registry.recordAcceptedForSchedule("sch-stale", "customer-load", "schedule_tick", "scheduler", "queued");
+		jdbcTemplate.execute("""
+				create table controlplane_run_record (
+					run_record_pk bigint primary key,
+					run_record_id varchar(80) not null unique,
+					job_execution_id bigint not null unique,
+					trigger_event_pk bigint,
+					trigger_event_id varchar(80),
+					selected_job_key varchar(200),
+					scenario varchar(200) not null,
+					run_status varchar(50) not null,
+					started_at timestamp,
+					finished_at timestamp,
+					duration_seconds bigint,
+					source_count bigint,
+					written_count bigint,
+					rejected_count bigint,
+					run_mode varchar(80),
+					recovery_policy varchar(120),
+					created_at timestamp not null,
+					updated_at timestamp not null
+				)
+				""");
+		Long triggerEventPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				event.triggerEventId()
+		);
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_pk, run_record_id, job_execution_id, trigger_event_pk, trigger_event_id,
+					selected_job_key, scenario, run_status, started_at, finished_at,
+					duration_seconds, source_count, written_count, rejected_count, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				3L,
+				"rr-4",
+				4L,
+				triggerEventPk,
+				"te-legacy-mismatch",
+				"customer-load",
+				"customer-load",
+				"COMPLETED",
+				java.sql.Timestamp.valueOf("2026-05-28 10:04:00"),
+				java.sql.Timestamp.valueOf("2026-05-28 10:04:01"),
+				1L,
+				1L,
+				1L,
+				0L,
+				java.sql.Timestamp.valueOf("2026-05-28 10:04:00"),
+				java.sql.Timestamp.valueOf("2026-05-28 10:04:01")
+		);
+
+		List<TriggerEventView> beforeCorrectLink = registry.listByScheduleId("sch-stale", 10);
+		assertNull(beforeCorrectLink.get(0).launchedRunId());
+
+		jdbcTemplate.update("""
+				insert into controlplane_run_record (
+					run_record_pk, run_record_id, job_execution_id, trigger_event_pk, trigger_event_id,
+					selected_job_key, scenario, run_status, started_at, finished_at,
+					duration_seconds, source_count, written_count, rejected_count, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				4L,
+				"rr-73",
+				73L,
+				triggerEventPk,
+				event.triggerEventId(),
+				"customer-load",
+				"customer-load",
+				"COMPLETED",
+				java.sql.Timestamp.valueOf("2026-05-28 10:05:00"),
+				java.sql.Timestamp.valueOf("2026-05-28 10:05:01"),
+				1L,
+				1L,
+				1L,
+				0L,
+				java.sql.Timestamp.valueOf("2026-05-28 10:05:00"),
+				java.sql.Timestamp.valueOf("2026-05-28 10:05:01")
+		);
+
+		List<TriggerEventView> afterCorrectLink = registry.listByScheduleId("sch-stale", 10);
+		assertEquals("73", afterCorrectLink.get(0).launchedRunId());
 	}
 
 	@Test

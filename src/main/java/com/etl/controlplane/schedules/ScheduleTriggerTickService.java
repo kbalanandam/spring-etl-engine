@@ -201,15 +201,15 @@ public class ScheduleTriggerTickService {
 				log.debug("SCHEDULE_TICK event=schedule_duplicate_suppressed scheduleId={} dueAt={}", schedule.scheduleId(), dueAt);
 				continue;
 			}
-			triggerEventRegistry.recordAcceptedForSchedule(schedule.scheduleId(), schedule.selectedJobKey(), reason, requestedBy, message);
+			var triggerEvent = triggerEventRegistry.recordAcceptedForSchedule(schedule.scheduleId(), schedule.selectedJobKey(), reason, requestedBy, message);
 			log.info("SCHEDULE_TICK event=schedule_trigger_recorded scheduleId={} selectedJobKey={} dueAt={}",
 					schedule.scheduleId(), schedule.selectedJobKey(), dueAt);
-			launchScheduledJob(schedule, dueAt);
+			launchScheduledJob(schedule, dueAt, triggerEvent.triggerEventId());
 			lastAccepted = dueInstant;
 		}
 	}
 
-	private void launchScheduledJob(ScheduleView schedule, ZonedDateTime dueAt) {
+	private void launchScheduledJob(ScheduleView schedule, ZonedDateTime dueAt, String triggerEventId) {
 		if (!launchEnabled) {
 			return;
 		}
@@ -228,7 +228,8 @@ public class ScheduleTriggerTickService {
 		SelectedJobLaunchService.LaunchResult launchResult = selectedJobLaunchService.launchSelectedJob(
 				selectedJobKey,
 				"SCHEDULE",
-				schedule.scheduleId());
+				schedule.scheduleId(),
+				triggerEventId);
 		if (!launchResult.started()) {
 			log.warn("SCHEDULE_TICK event=schedule_launch_skipped scheduleId={} selectedJobKey={} dueAt={} reason={}",
 					schedule.scheduleId(), selectedJobKey, dueAt, launchResult.message());

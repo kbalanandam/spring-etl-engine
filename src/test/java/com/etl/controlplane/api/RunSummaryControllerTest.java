@@ -17,6 +17,7 @@ import com.etl.controlplane.monitoring.RunCheckpointAnchorView;
 import com.etl.controlplane.monitoring.RunRecoveryView;
 import com.etl.controlplane.monitoring.RunSummaryView;
 import com.etl.controlplane.triggers.TriggerSourceCatalog;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -62,6 +63,12 @@ class RunSummaryControllerTest {
 	@MockitoBean
 	private TriggerSourceCatalog triggerSourceCatalog;
 
+	@BeforeEach
+	void setUp() {
+		when(runSummaryReadModelService.freshnessSnapshot())
+				.thenReturn(new RunSummaryReadModelService.ReadModelFreshness(false, 123L));
+	}
+
 	@Test
 	void returnsRunsUsingDefaultLimit() throws Exception {
 		when(runSummaryReadModelService.latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()))).thenReturn(List.of(
@@ -79,7 +86,11 @@ class RunSummaryControllerTest {
 				.andExpect(jsonPath("$.items[0].recoveryPolicy").value("rerun-from-start"))
 				.andExpect(jsonPath("$.page").value(0))
 				.andExpect(jsonPath("$.size").value(25))
-				.andExpect(jsonPath("$.totalItems").value(1));
+				.andExpect(jsonPath("$.totalItems").value(1))
+				.andExpect(jsonPath("$.freshness.refreshRequested").value(false))
+				.andExpect(jsonPath("$.freshness.forceReplayApplied").value(false))
+				.andExpect(jsonPath("$.freshness.reindexInProgress").value(false))
+				.andExpect(jsonPath("$.freshness.lastReindexEpochMs").value(123));
 
 		verify(runSummaryReadModelService).latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()));
 	}
@@ -147,16 +158,33 @@ class RunSummaryControllerTest {
 	}
 
 	@Test
-	void refreshFlagForcesFreshRunsProjection() throws Exception {
-		when(runSummaryReadModelService.latestRunsFilteredFresh(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault())))
+	void refreshFlagDoesNotForceFullReplayByDefault() throws Exception {
+		when(runSummaryReadModelService.latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault())))
 				.thenReturn(List.of());
 
 		mockMvc.perform(get("/api/v1/runs").param("refresh", "true"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.items").isArray())
-				.andExpect(jsonPath("$.size").value(25));
+				.andExpect(jsonPath("$.size").value(25))
+				.andExpect(jsonPath("$.freshness.refreshRequested").value(true))
+				.andExpect(jsonPath("$.freshness.forceReplayApplied").value(false));
 
-		verify(runSummaryReadModelService).latestRunsFilteredFresh(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()));
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()));
+	}
+
+	@Test
+	void forceReplayParamIsIgnoredWhenAdminFlagIsDisabled() throws Exception {
+		when(runSummaryReadModelService.latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault())))
+				.thenReturn(List.of());
+
+		mockMvc.perform(get("/api/v1/runs")
+				.param("refresh", "true")
+				.param("forceReplay", "true"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.freshness.refreshRequested").value(true))
+				.andExpect(jsonPath("$.freshness.forceReplayApplied").value(false));
+
+		verify(runSummaryReadModelService).latestRunsFiltered(eq(25), isNull(), isNull(), isNull(), isNull(), isNull(), eq(ZoneId.systemDefault()));
 	}
 
 	@Test

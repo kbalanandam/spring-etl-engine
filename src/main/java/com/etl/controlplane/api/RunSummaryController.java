@@ -10,6 +10,7 @@ import com.etl.controlplane.monitoring.RunScopedLogView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryView;
 import com.etl.controlplane.triggers.TriggerSourceCatalog;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,17 +38,20 @@ public class RunSummaryController {
 	private final RunDetailReadModelService runDetailReadModelService;
 	private final RunScopedLogReadModelService runScopedLogReadModelService;
 	private final TriggerSourceCatalog triggerSourceCatalog;
+	private final boolean allowForceReplayOnRefresh;
 
 	public RunSummaryController(RunSummaryReadModelService runSummaryReadModelService,
 	                            RunSummaryRegistry runSummaryRegistry,
 	                            RunDetailReadModelService runDetailReadModelService,
 	                            RunScopedLogReadModelService runScopedLogReadModelService,
-	                            TriggerSourceCatalog triggerSourceCatalog) {
+	                            TriggerSourceCatalog triggerSourceCatalog,
+	                            @Value("${controlplane.runs.allow-force-refresh:false}") boolean allowForceReplayOnRefresh) {
 		this.runSummaryReadModelService = runSummaryReadModelService;
 		this.runSummaryRegistry = runSummaryRegistry;
 		this.runDetailReadModelService = runDetailReadModelService;
 		this.runScopedLogReadModelService = runScopedLogReadModelService;
 		this.triggerSourceCatalog = triggerSourceCatalog;
+		this.allowForceReplayOnRefresh = allowForceReplayOnRefresh;
 	}
 
 	@GetMapping("/trigger-sources")
@@ -67,11 +71,13 @@ public class RunSummaryController {
 	                                        @RequestParam(name = "triggerSource", required = false) String triggerSource,
 	                                        @RequestParam(name = "startDate", required = false) String startDate,
 	                                        @RequestParam(name = "timezone", required = false) String timezone,
-	                                        @RequestParam(name = "refresh", required = false, defaultValue = "false") boolean refresh) {
+	                                        @RequestParam(name = "refresh", required = false, defaultValue = "false") boolean refresh,
+	                                        @RequestParam(name = "forceReplay", required = false, defaultValue = "false") boolean forceReplay) {
 		int effectiveLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
 		LocalDate effectiveStartDate = parseStartDate(startDate);
 		ZoneId effectiveZoneId = parseTimezone(timezone);
-		var runs = refresh
+		boolean forceReplayApplied = refresh && forceReplay && allowForceReplayOnRefresh;
+		var runs = forceReplayApplied
 				? runSummaryReadModelService.latestRunsFilteredFresh(
 					effectiveLimit,
 					job,
@@ -90,7 +96,19 @@ public class RunSummaryController {
 					effectiveStartDate,
 					effectiveZoneId
 				);
-		return new RunSummaryListResponse(runs, 0, effectiveLimit, runs.size());
+		RunSummaryReadModelService.ReadModelFreshness freshnessSnapshot = runSummaryReadModelService.freshnessSnapshot();
+		return new RunSummaryListResponse(
+				runs,
+				0,
+				effectiveLimit,
+				runs.size(),
+				new RunSummaryFreshnessView(
+						refresh,
+						forceReplayApplied,
+						freshnessSnapshot.reindexInProgress(),
+						freshnessSnapshot.lastReindexEpochMs()
+				)
+		);
 	}
 
 	private LocalDate parseStartDate(String value) {

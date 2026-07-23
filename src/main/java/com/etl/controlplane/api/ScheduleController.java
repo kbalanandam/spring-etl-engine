@@ -180,7 +180,8 @@ public class ScheduleController {
 					SelectedJobLaunchService.LaunchResult launchResult = selectedJobLaunchService.launchSelectedJob(
 							schedule.selectedJobKey(),
 							"SCHEDULE",
-							schedule.scheduleId());
+							schedule.scheduleId(),
+							triggerEvent.triggerEventId());
 					log.info("CONTROLPLANE_TRIGGER event=trigger_now_accepted scope=SCHEDULE scheduleId={} jobKey={} reason={} requestedBy={} triggerEventId={} launchStarted={} launchMessage={}",
 							schedule.scheduleId(),
 							schedule.selectedJobKey(),

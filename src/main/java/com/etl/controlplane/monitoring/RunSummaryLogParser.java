@@ -33,6 +33,7 @@ final class RunSummaryLogParser {
 					toLong(fields.get("rejectedCount")),
 					nullIfBlank(fields.get("runMode")),
 					nullIfBlank(fields.get("recoveryPolicy")),
+					nullIfBlank(fields.get("triggerEventId")),
 					nullIfBlank(fields.get("triggerOrigin")),
 					logPath.toString()
 			));
@@ -65,6 +66,7 @@ final class RunSummaryLogParser {
 					null,
 					nullIfBlank(fields.get("runMode")),
 					nullIfBlank(fields.get("recoveryPolicy")),
+					nullIfBlank(fields.get("triggerEventId")),
 					nullIfBlank(fields.get("triggerOrigin")),
 					logPath.toString()
 			));

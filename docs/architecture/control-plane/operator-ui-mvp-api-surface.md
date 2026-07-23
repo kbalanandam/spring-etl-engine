@@ -297,13 +297,15 @@ Current query support:
 - `triggerSource` (optional trigger-source filter, for example `SCHEDULE`)
 - `startDate` (optional inclusive start date in `yyyy-MM-dd`)
 - `timezone` (optional IANA timezone used with `startDate`, defaults to server timezone)
-- `refresh=true` (optional hard refresh hint that forces a synchronous run-summary reindex before returning the list)
+- `refresh=true` (optional refresh hint; keeps normal path lightweight and does not force full replay by default)
+- `forceReplay=true` (optional explicit full-replay request, applied only when `controlplane.runs.allow-force-refresh=true`)
 
 Current filter-input hardening:
 
 - optional `job`, `runMode`, and `recoveryPolicy` values are normalized (trimmed/canonicalized) before repository filtering so equivalent inputs produce one deterministic query path
 - `startDate` must match `yyyy-MM-dd`; malformed values fail fast as request validation errors instead of falling through to timezone/date parsing
-- the Runs screen can now offer a user-triggered Refresh action that bypasses the client cache and calls `GET /api/v1/runs?...&refresh=true` when operators need the newest runs immediately
+- the Runs screen can offer a user-triggered Refresh action that bypasses client cache and calls `GET /api/v1/runs?...&refresh=true`
+- full synchronous replay remains an explicit operator/admin repair action via `refresh=true&forceReplay=true` when server-side flag `controlplane.runs.allow-force-refresh=true` is enabled
 
 Response body shape:
 
@@ -326,7 +328,13 @@ Response body shape:
   ],
   "page": 0,
   "size": 25,
-  "totalItems": 1
+  "totalItems": 1,
+  "freshness": {
+    "refreshRequested": true,
+    "forceReplayApplied": false,
+    "reindexInProgress": false,
+    "lastReindexEpochMs": 1761123456789
+  }
 }
 ```
 

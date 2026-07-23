@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS controlplane_schedule (
     description VARCHAR(2000),
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
+    created_by VARCHAR(200),
+    updated_by VARCHAR(200),
     watcher_key VARCHAR(200),
     last_accepted_due_at TIMESTAMP NULL
 );
@@ -70,7 +72,9 @@ CREATE TABLE IF NOT EXISTS controlplane_trigger_source (
     description VARCHAR(300),
     is_active BOOLEAN NOT NULL,
     created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    updated_at TIMESTAMP NOT NULL,
+    created_by VARCHAR(200),
+    updated_by VARCHAR(200)
 );
 
 CREATE TABLE IF NOT EXISTS controlplane_trigger_event (
@@ -87,7 +91,10 @@ CREATE TABLE IF NOT EXISTS controlplane_trigger_event (
     message VARCHAR(2000),
     trigger_origin VARCHAR(50),
     schedule_pk BIGINT,
-    external_origin_key VARCHAR(200)
+    external_origin_key VARCHAR(200),
+    updated_at TIMESTAMP NULL,
+    created_by VARCHAR(200),
+    updated_by VARCHAR(200)
 );
 
 CALL add_index_if_missing('controlplane_trigger_event', 'idx_trigger_event_pk', 'trigger_event_pk', TRUE);
@@ -111,7 +118,10 @@ CREATE TABLE IF NOT EXISTS controlplane_run_summary (
     run_mode VARCHAR(80),
     recovery_policy VARCHAR(120),
     log_path VARCHAR(2000),
-    last_seen_at TIMESTAMP NOT NULL
+    last_seen_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NULL,
+    created_by VARCHAR(200),
+    updated_by VARCHAR(200)
 );
 
 CALL add_index_if_missing('controlplane_run_summary', 'idx_run_summary_start_time', 'start_time, job_execution_id', FALSE);
@@ -134,7 +144,9 @@ CREATE TABLE IF NOT EXISTS controlplane_run_record (
     run_mode VARCHAR(80),
     recovery_policy VARCHAR(120),
     created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    updated_at TIMESTAMP NOT NULL,
+    created_by VARCHAR(200),
+    updated_by VARCHAR(200)
 );
 
 CALL add_index_if_missing('controlplane_run_record', 'idx_run_record_started_at', 'started_at, job_execution_id', FALSE);
@@ -160,7 +172,9 @@ CREATE TABLE IF NOT EXISTS controlplane_step_record (
     rollback_count BIGINT,
     rejected_count BIGINT,
     created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    updated_at TIMESTAMP NOT NULL,
+    created_by VARCHAR(200),
+    updated_by VARCHAR(200)
 );
 
 CALL add_index_if_missing('controlplane_step_record', 'idx_step_record_run_pk', 'run_record_pk, started_at', FALSE);
@@ -173,7 +187,10 @@ CREATE TABLE IF NOT EXISTS controlplane_artifact_record (
     step_record_id VARCHAR(80),
     artifact_role VARCHAR(80) NOT NULL,
     artifact_path VARCHAR(2000),
-    created_at TIMESTAMP NOT NULL
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NULL,
+    created_by VARCHAR(200),
+    updated_by VARCHAR(200)
 );
 
 CALL add_index_if_missing('controlplane_artifact_record', 'idx_artifact_record_run_pk', 'run_record_pk, created_at', FALSE);
@@ -185,7 +202,10 @@ CREATE TABLE IF NOT EXISTS controlplane_attempt_link (
     run_record_pk BIGINT NOT NULL,
     prior_run_record_pk BIGINT,
     link_kind VARCHAR(50) NOT NULL,
-    created_at TIMESTAMP NOT NULL
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NULL,
+    created_by VARCHAR(200),
+    updated_by VARCHAR(200)
 );
 
 CALL add_index_if_missing('controlplane_attempt_link', 'idx_attempt_link_run_pk', 'run_record_pk, created_at', FALSE);
@@ -201,12 +221,34 @@ CREATE TABLE IF NOT EXISTS controlplane_checkpoint_anchor (
     anchor_ref VARCHAR(2000),
     anchor_status VARCHAR(50),
     created_at TIMESTAMP NOT NULL,
-    updated_at TIMESTAMP NOT NULL
+    updated_at TIMESTAMP NOT NULL,
+    created_by VARCHAR(200),
+    updated_by VARCHAR(200)
 );
 
 CALL add_index_if_missing('controlplane_checkpoint_anchor', 'idx_checkpoint_anchor_run_pk', 'run_record_pk, created_at', FALSE);
 CALL add_index_if_missing('controlplane_checkpoint_anchor', 'idx_checkpoint_anchor_step_pk', 'step_record_pk, created_at', FALSE);
 CALL add_index_if_missing('controlplane_checkpoint_anchor', 'idx_checkpoint_anchor_step_id', 'step_record_id, created_at', FALSE);
+
+CREATE TABLE IF NOT EXISTS controlplane_log_checkpoint (
+    log_path VARCHAR(2000) PRIMARY KEY,
+    last_offset_bytes BIGINT NOT NULL,
+    file_size_at_checkpoint BIGINT NOT NULL,
+    file_mtime_at_checkpoint BIGINT NOT NULL,
+    updated_at TIMESTAMP NOT NULL,
+    created_by VARCHAR(200),
+    updated_by VARCHAR(200)
+);
+
+CALL add_index_if_missing('controlplane_log_checkpoint', 'idx_log_checkpoint_updated_at', 'updated_at', FALSE);
+
+CREATE TABLE IF NOT EXISTS controlplane_pk_sequence (
+    sequence_name VARCHAR(120) NOT NULL PRIMARY KEY,
+    next_value BIGINT NOT NULL,
+    updated_at TIMESTAMP NULL,
+    created_by VARCHAR(200),
+    updated_by VARCHAR(200)
+);
 
 INSERT INTO controlplane_trigger_source (
     trigger_source_pk,

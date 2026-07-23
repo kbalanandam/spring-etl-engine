@@ -250,7 +250,7 @@ class ScheduleControllerTest {
 		when(triggerEventRegistry.listByScheduleId(eq("sch-1"), eq(5))).thenReturn(List.of());
 		when(triggerEventRegistry.recordAcceptedForSchedule(eq("sch-1"), eq("customer-load"), eq("manual_operator_request"), eq("operator-ui"), org.mockito.ArgumentMatchers.contains("Schedule trigger request accepted for scheduleId='sch-1'")))
 				.thenReturn(new TriggerEventView("te-2", "customer-load", "ACCEPTED", "manual_operator_request", "operator-ui", Instant.now(), null, "accepted", "SCHEDULE"));
-		when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("SCHEDULE"), eq("sch-1")))
+		when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("SCHEDULE"), eq("sch-1"), eq("te-2")))
 				.thenReturn(new SelectedJobLaunchService.LaunchResult(true, "Worker launch started [pid=1234]."));
 
 		mockMvc.perform(post("/api/v1/schedules/sch-1:trigger-now")
@@ -261,7 +261,7 @@ class ScheduleControllerTest {
 				.andExpect(jsonPath("$.triggerEventId").value("te-2"));
 
 		verify(triggerEventRegistry).recordAcceptedForSchedule(eq("sch-1"), eq("customer-load"), eq("manual_operator_request"), eq("operator-ui"), org.mockito.ArgumentMatchers.anyString());
-		verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("SCHEDULE"), eq("sch-1"));
+		verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("SCHEDULE"), eq("sch-1"), eq("te-2"));
 	}
 
 	@Test
@@ -278,7 +278,7 @@ class ScheduleControllerTest {
 				.andExpect(jsonPath("$.decisionStatus").value("DUPLICATE_SUPPRESSED"))
 				.andExpect(jsonPath("$.triggerEventId").value("te-1"));
 
-		verify(selectedJobLaunchService, org.mockito.Mockito.never()).launchSelectedJob(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+		verify(selectedJobLaunchService, org.mockito.Mockito.never()).launchSelectedJob(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
 	}
 
 	@Test
@@ -287,7 +287,7 @@ class ScheduleControllerTest {
 		when(triggerEventRegistry.listByScheduleId(eq("sch-1"), eq(5))).thenReturn(List.of());
 		when(triggerEventRegistry.recordAcceptedForSchedule(eq("sch-1"), eq("customer-load"), eq("manual_operator_request"), eq("operator-ui"), org.mockito.ArgumentMatchers.anyString()))
 				.thenReturn(new TriggerEventView("te-3", "customer-load", "ACCEPTED", "manual_operator_request", "operator-ui", Instant.now(), null, "accepted", "SCHEDULE"));
-		when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("SCHEDULE"), eq("sch-1")))
+		when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("SCHEDULE"), eq("sch-1"), eq("te-3")))
 				.thenReturn(new SelectedJobLaunchService.LaunchResult(false, "Worker launch skipped because an execution is already running."));
 
 		mockMvc.perform(post("/api/v1/schedules/sch-1:trigger-now")
@@ -297,7 +297,7 @@ class ScheduleControllerTest {
 				.andExpect(jsonPath("$.decisionStatus").value("LAUNCH_SKIPPED"))
 				.andExpect(jsonPath("$.triggerEventId").value("te-3"));
 
-		verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("SCHEDULE"), eq("sch-1"));
+		verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("SCHEDULE"), eq("sch-1"), eq("te-3"));
 	}
 
 	private ScheduleView schedule(String id, String key) {

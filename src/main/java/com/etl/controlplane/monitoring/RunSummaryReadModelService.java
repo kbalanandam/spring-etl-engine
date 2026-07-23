@@ -5,6 +5,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,6 +13,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Stream;
 
@@ -29,8 +31,12 @@ public class RunSummaryReadModelService {
 	private final long maxLogFileSizeBytes;
 	private final int maxLogFilesPerRefresh;
 	private final long minReindexIntervalMs;
+	private final ConcurrentHashMap<Path, LogCheckpoint> transientLogCheckpoints = new ConcurrentHashMap<>();
 	private volatile long lastReindexEpochMs = Long.MIN_VALUE;
 	private final AtomicBoolean reindexInProgress = new AtomicBoolean(false);
+
+	public record ReadModelFreshness(boolean reindexInProgress, long lastReindexEpochMs) {
+	}
 
 	@Autowired
 	public RunSummaryReadModelService(@Value("${etl.logging.base-dir:logs}") String logBaseDir,
@@ -73,6 +79,10 @@ public class RunSummaryReadModelService {
 
 	public List<RunSummaryView> latestRuns(int limit) {
 		return latestRunsFiltered(limit, null, null, null, null, ZoneId.systemDefault());
+	}
+
+	public ReadModelFreshness freshnessSnapshot() {
+		return new ReadModelFreshness(reindexInProgress.get(), lastReindexEpochMs);
 	}
 
 	public List<RunSummaryView> latestRunsFilteredFresh(int limit,
@@ -148,11 +158,59 @@ public class RunSummaryReadModelService {
 		return registry.findByJobExecutionId(jobExecutionId);
 	}
 
+	public boolean syncRunFromScenarioLog(String scenario, LocalDate logDate, long jobExecutionId) {
+		if (jobExecutionId <= 0L) {
+			return false;
+		}
+		String normalizedScenario = normalize(scenario);
+		if (normalizedScenario.isBlank()) {
+			return false;
+		}
+		LocalDate effectiveDate = logDate == null ? LocalDate.now() : logDate;
+		Path logPath = logBaseDir
+				.resolve(effectiveDate.toString())
+				.resolve(normalizedScenario + ".log");
+		return syncRunFromLogPath(logPath, jobExecutionId);
+	}
+
+	boolean syncRunFromLogPath(Path logPath, long jobExecutionId) {
+		if (jobExecutionId <= 0L || logPath == null) {
+			return false;
+		}
+		if (!Files.isRegularFile(logPath) || !isWithinSizeLimit(logPath)) {
+			return false;
+		}
+		AtomicBoolean synced = new AtomicBoolean(false);
+		try (Stream<String> lines = Files.lines(logPath)) {
+			lines
+					.map(line -> parser.parse(line, logPath))
+					.filter(Optional::isPresent)
+					.map(Optional::orElseThrow)
+					.filter(summary -> summary.jobExecutionId() != null && summary.jobExecutionId() == jobExecutionId)
+					.forEach(summary -> {
+						registry.upsert(summary);
+						synced.set(true);
+					});
+		} catch (IOException | UncheckedIOException ignored) {
+			// Targeted sync is best-effort and falls back to broader read-model refresh paths.
+			return false;
+		}
+		return synced.get();
+	}
+
 	public List<RunSummaryView> latestRunsForJob(String jobKey, String displayName, int limit) {
+		return latestRunsForJobInternal(jobKey, displayName, limit, false);
+	}
+
+	public List<RunSummaryView> latestRunsForJobFresh(String jobKey, String displayName, int limit) {
+		return latestRunsForJobInternal(jobKey, displayName, limit, true);
+	}
+
+	private List<RunSummaryView> latestRunsForJobInternal(String jobKey, String displayName, int limit, boolean forceRefresh) {
 		if (limit <= 0) {
 			return List.of();
 		}
-		refreshReadModel(false);
+		refreshReadModel(forceRefresh);
 		String normalizedJobKey = normalize(jobKey);
 		String normalizedDisplayName = normalize(displayName);
 		return registry.latestRuns(Integer.MAX_VALUE).stream()
@@ -174,6 +232,10 @@ public class RunSummaryReadModelService {
 	}
 
 	private void triggerAsyncReindexIfDue() {
+		if (minReindexIntervalMs == 0L) {
+			reindexFromLogsBlocking();
+			return;
+		}
 		long now = System.currentTimeMillis();
 		if (!shouldReindex(now) || !reindexInProgress.compareAndSet(false, true)) {
 			return;
@@ -199,17 +261,17 @@ public class RunSummaryReadModelService {
 			if (!shouldReindex(now)) {
 				return;
 			}
-			reindexFromLogsUnchecked();
+			reindexFromLogsUnchecked(true);
 		}
 	}
 
 	private void forceReindexFromLogsBlocking() {
 		synchronized (this) {
-			reindexFromLogsUnchecked();
+			reindexFromLogsUnchecked(false);
 		}
 	}
 
-	private void reindexFromLogsUnchecked() {
+	private void reindexFromLogsUnchecked(boolean incremental) {
 		try {
 			if (!Files.exists(logBaseDir)) {
 				return;
@@ -221,7 +283,7 @@ public class RunSummaryReadModelService {
 						.filter(this::isScenarioRunLog)
 						.filter(this::isWithinSizeLimit)
 						.limit(maxLogFilesPerRefresh)
-						.forEach(this::collectRunSummaries);
+						.forEach(path -> collectRunSummaries(path, incremental));
 			}
 		} catch (IOException ignored) {
 			// Read-model refresh is best-effort; stale cache is acceptable for this slice.
@@ -270,15 +332,75 @@ public class RunSummaryReadModelService {
 		}
 	}
 
-	private void collectRunSummaries(Path logPath) {
-		try (Stream<String> lines = Files.lines(logPath)) {
-			lines.map(line -> parser.parse(line, logPath))
-					.filter(java.util.Optional::isPresent)
-					.map(java.util.Optional::get)
-					.forEach(registry::upsert);
+	private void collectRunSummaries(Path logPath, boolean incremental) {
+		Path normalizedPath = logPath.toAbsolutePath().normalize();
+		long fileSize;
+		long fileMtime;
+		try {
+			fileSize = Files.size(normalizedPath);
+			fileMtime = Files.getLastModifiedTime(normalizedPath).toMillis();
+		} catch (IOException ignored) {
+			return;
+		}
+
+		if (!incremental) {
+			long processedOffset = collectRunSummariesFromOffset(normalizedPath, 0L);
+			storeCheckpoint(normalizedPath, processedOffset, fileSize, fileMtime);
+			return;
+		}
+
+		LogCheckpoint checkpoint = resolveCheckpoint(normalizedPath);
+		long offset = checkpoint == null ? 0L : checkpoint.offsetBytes();
+		if (offset < 0L
+				|| offset > fileSize
+				|| (checkpoint != null && checkpoint.fileSizeBytes() > fileSize)) {
+			offset = 0L;
+		}
+
+		long processedOffset = collectRunSummariesFromOffset(normalizedPath, offset);
+		storeCheckpoint(normalizedPath, processedOffset, fileSize, fileMtime);
+	}
+
+	private LogCheckpoint resolveCheckpoint(Path normalizedPath) {
+		RunSummaryRegistry.LogReadCheckpoint persistedCheckpoint = registry.findLogCheckpoint(normalizedPath.toString()).orElse(null);
+		if (persistedCheckpoint != null) {
+			LogCheckpoint checkpoint = new LogCheckpoint(
+					persistedCheckpoint.offsetBytes(),
+					persistedCheckpoint.fileSizeBytes(),
+					persistedCheckpoint.fileLastModifiedMillis()
+			);
+			transientLogCheckpoints.put(normalizedPath, checkpoint);
+			return checkpoint;
+		}
+		return transientLogCheckpoints.get(normalizedPath);
+	}
+
+	private void storeCheckpoint(Path normalizedPath, long processedOffset, long fileSize, long fileMtime) {
+		LogCheckpoint checkpoint = new LogCheckpoint(processedOffset, fileSize, fileMtime);
+		transientLogCheckpoints.put(normalizedPath, checkpoint);
+		registry.upsertLogCheckpoint(normalizedPath.toString(), processedOffset, fileSize, fileMtime);
+	}
+
+	private long collectRunSummariesFromOffset(Path logPath, long offsetBytes) {
+		long safeOffset = Math.max(0L, offsetBytes);
+		try (RandomAccessFile file = new RandomAccessFile(logPath.toFile(), "r")) {
+			long length = file.length();
+			if (safeOffset > length) {
+				safeOffset = 0L;
+			}
+			file.seek(safeOffset);
+			String line;
+			while ((line = file.readLine()) != null) {
+				parser.parse(line, logPath).ifPresent(registry::upsert);
+			}
+			return file.getFilePointer();
 		} catch (IOException | UncheckedIOException ignored) {
 			// Read-model collection is best-effort for now; unavailable files are skipped.
+			return safeOffset;
 		}
+	}
+
+	private record LogCheckpoint(long offsetBytes, long fileSizeBytes, long fileLastModifiedMillis) {
 	}
 
 	private boolean matchesJob(RunSummaryView run, String normalizedJobKey, String normalizedDisplayName) {

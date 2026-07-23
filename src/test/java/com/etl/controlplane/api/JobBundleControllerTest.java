@@ -118,6 +118,48 @@ class JobBundleControllerTest {
 	}
 
 	@Test
+	void returnsBundleDetailWithForcedRefreshWhenRefreshTrue() throws Exception {
+		when(jobBundleReadModelService.findBundle(eq("customer-load"))).thenReturn(Optional.of(
+				new JobBundleSummaryView("customer-load", "Customer Load",
+						"src/main/resources/config-jobs/customer-load/job-config.yaml", "READY", List.of())
+		));
+		when(runSummaryReadModelService.latestRunsForJobFresh(eq("customer-load"), eq("Customer Load"), eq(5))).thenReturn(List.of());
+		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(7))).thenReturn(List.of());
+
+		mockMvc.perform(get("/api/v1/jobs/customer-load")
+				.param("recentRunsLimit", "5")
+				.param("recentTriggerEventsLimit", "7")
+				.param("refresh", "true"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.recentRuns").isArray())
+				.andExpect(jsonPath("$.recentTriggerEvents").isArray());
+
+		verify(runSummaryReadModelService).latestRunsForJobFresh(eq("customer-load"), eq("Customer Load"), eq(5));
+		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(7));
+	}
+
+	@Test
+	void returnsBundleDetailWithoutForcedRefreshWhenRefreshIsFalse() throws Exception {
+		when(jobBundleReadModelService.findBundle(eq("customer-load"))).thenReturn(Optional.of(
+				new JobBundleSummaryView("customer-load", "Customer Load",
+						"src/main/resources/config-jobs/customer-load/job-config.yaml", "READY", List.of())
+		));
+		when(runSummaryReadModelService.latestRunsForJob(eq("customer-load"), eq("Customer Load"), eq(5))).thenReturn(List.of());
+		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(7))).thenReturn(List.of());
+
+		mockMvc.perform(get("/api/v1/jobs/customer-load")
+				.param("recentRunsLimit", "5")
+				.param("recentTriggerEventsLimit", "7")
+				.param("refresh", "false"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.recentRuns").isArray())
+				.andExpect(jsonPath("$.recentTriggerEvents").isArray());
+
+		verify(runSummaryReadModelService).latestRunsForJob(eq("customer-load"), eq("Customer Load"), eq(5));
+		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(7));
+	}
+
+	@Test
 	void returnsNotFoundWhenJobDoesNotExist() throws Exception {
 		when(jobBundleReadModelService.findBundle(eq("missing-job"))).thenReturn(Optional.empty());
 
@@ -174,7 +216,7 @@ class JobBundleControllerTest {
 		));
 		when(triggerEventRegistry.recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator@example"), eq("Trigger request accepted for reason='manual_operator_request' requestedBy='operator@example'.")))
 				.thenReturn(new TriggerEventView("te-123", "customer-load", "ACCEPTED", "manual_operator_request", "operator@example", Instant.parse("2026-05-27T10:15:30Z"), null, "Trigger request accepted for reason='manual_operator_request' requestedBy='operator@example'."));
-		when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null)))
+		when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null), eq("te-123")))
 				.thenReturn(new SelectedJobLaunchService.LaunchResult(true, "Worker launch started [pid=2222]."));
 
 		mockMvc.perform(post("/api/v1/jobs/customer-load:trigger-now")
@@ -187,7 +229,7 @@ class JobBundleControllerTest {
 
 		verify(jobBundleReadModelService).findBundle(eq("customer-load"));
 		verify(triggerEventRegistry).recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator@example"), eq("Trigger request accepted for reason='manual_operator_request' requestedBy='operator@example'."));
-		verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null));
+		verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null), eq("te-123"));
 	}
 
 	@Test
@@ -222,7 +264,7 @@ class JobBundleControllerTest {
 		verify(jobBundleReadModelService).findBundle(eq("customer-load"));
 		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(5));
 		verify(triggerEventRegistry, never()).recordAccepted(any(), any(), any(), any());
-		verify(selectedJobLaunchService, never()).launchSelectedJob(any(), any(), any());
+		verify(selectedJobLaunchService, never()).launchSelectedJob(any(), any(), any(), any());
 	}
 
 	@Test

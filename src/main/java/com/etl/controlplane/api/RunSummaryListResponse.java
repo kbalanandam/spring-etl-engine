@@ -11,7 +11,8 @@ public record RunSummaryListResponse(
 		List<RunSummaryView> items,
 		int page,
 		int size,
-		long totalItems
+		long totalItems,
+		RunSummaryFreshnessView freshness
 ) {
 }
 

@@ -23,25 +23,29 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 
 	private final JdbcTemplate jdbcTemplate;
 	private final boolean sqlServerDialect;
+	private final String auditActor;
 
 	@Autowired
 	public JdbcScheduleRegistry(JdbcTemplate jdbcTemplate,
-	                            @Value("${controlplane.db.vendor:mysql}") String dbVendor) {
+	                            @Value("${controlplane.db.vendor:mysql}") String dbVendor,
+	                            @Value("${spring.application.name:spring-etl-engine}") String applicationName) {
 		this.jdbcTemplate = jdbcTemplate;
 		this.sqlServerDialect = isSqlServerVendor(dbVendor);
+		this.auditActor = resolveAuditActor(applicationName);
 		initializeSchema();
 	}
 
 	public JdbcScheduleRegistry(JdbcTemplate jdbcTemplate) {
-		this(jdbcTemplate, "mysql");
+		this(jdbcTemplate, "mysql", "spring-etl-engine");
 	}
 
 	@Override
 	public ScheduleView upsert(ScheduleView schedule) {
+		Timestamp updatedAt = toTimestamp(schedule.updatedAt());
 		int updated = jdbcTemplate.update("""
 				update controlplane_schedule
 				set schedule_key = ?, selected_job_key = ?, expression = ?, timezone = ?,
-				    is_enabled = ?, is_paused = ?, description = ?, updated_at = ?, watcher_key = ?, last_accepted_due_at = ?
+				    is_enabled = ?, is_paused = ?, description = ?, updated_at = ?, updated_by = ?, watcher_key = ?, last_accepted_due_at = ?
 				where schedule_id = ?
 				""",
 				schedule.scheduleKey(),
@@ -51,7 +55,8 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 				schedule.enabled(),
 				schedule.paused(),
 				schedule.description(),
-				toTimestamp(schedule.updatedAt()),
+				updatedAt,
+				auditActor,
 				schedule.watcherKey(),
 				toTimestamp(schedule.lastAcceptedDueAt()),
 				schedule.scheduleId()
@@ -60,8 +65,8 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 			jdbcTemplate.update("""
 					insert into controlplane_schedule (
 						schedule_id, schedule_key, selected_job_key, expression, timezone,
-						is_enabled, is_paused, description, created_at, updated_at, watcher_key, last_accepted_due_at, schedule_pk
-					) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+						is_enabled, is_paused, description, created_at, updated_at, created_by, updated_by, watcher_key, last_accepted_due_at, schedule_pk
+					) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 					""",
 					schedule.scheduleId(),
 					schedule.scheduleKey(),
@@ -72,7 +77,9 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 					schedule.paused(),
 					schedule.description(),
 					toTimestamp(schedule.createdAt()),
-					toTimestamp(schedule.updatedAt()),
+					updatedAt,
+					auditActor,
+					auditActor,
 					schedule.watcherKey(),
 					toTimestamp(schedule.lastAcceptedDueAt()),
 					nextSchedulePk()
@@ -129,12 +136,13 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 		Timestamp dueTimestamp = Timestamp.from(dueAt);
 		int updated = jdbcTemplate.update("""
 				update controlplane_schedule
-				set last_accepted_due_at = ?, updated_at = ?
+				set last_accepted_due_at = ?, updated_at = ?, updated_by = ?
 				where schedule_id = ?
 				  and (last_accepted_due_at is null or last_accepted_due_at < ?)
 				""",
 				dueTimestamp,
 				Timestamp.valueOf(LocalDateTime.now()),
+				auditActor,
 				normalizedScheduleId,
 				dueTimestamp
 		);
@@ -173,12 +181,16 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 					description varchar(2000),
 					created_at timestamp not null,
 					updated_at timestamp not null,
+					created_by varchar(200),
+					updated_by varchar(200),
 					watcher_key varchar(200),
 					last_accepted_due_at timestamp
 				)
 				""");
 		ensureColumnExists("controlplane_schedule", "last_accepted_due_at", "timestamp");
 		ensureColumnExists("controlplane_schedule", "schedule_pk", "bigint");
+		ensureColumnExists("controlplane_schedule", "created_by", "varchar(200)");
+		ensureColumnExists("controlplane_schedule", "updated_by", "varchar(200)");
 		createIndexIfMissing(
 				"controlplane_schedule",
 				"idx_schedule_pk",
@@ -260,7 +272,8 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 			}
 		});
 		if (Boolean.FALSE.equals(columnExists)) {
-			jdbcTemplate.execute("alter table " + tableName + " add column " + columnName + " " + adaptDdlForDialect(columnDefinition));
+			String addClause = sqlServerDialect ? " add " : " add column ";
+			jdbcTemplate.execute("alter table " + tableName + addClause + columnName + " " + adaptDdlForDialect(columnDefinition));
 		}
 	}
 
@@ -274,13 +287,20 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 		createTableIfMissing("controlplane_pk_sequence", """
 				create table controlplane_pk_sequence (
 					sequence_name varchar(120) not null primary key,
-					next_value bigint not null
+					next_value bigint not null,
+					updated_at timestamp,
+					created_by varchar(200),
+					updated_by varchar(200)
 				)
 				""");
+		ensureColumnExists("controlplane_pk_sequence", "updated_at", "timestamp");
+		ensureColumnExists("controlplane_pk_sequence", "created_by", "varchar(200)");
+		ensureColumnExists("controlplane_pk_sequence", "updated_by", "varchar(200)");
 	}
 
 	private long nextPk(String sequenceName) {
 		String normalizedSequenceName = normalize(sequenceName);
+		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 		for (int attempt = 0; attempt < 20; attempt++) {
 			Long current = jdbcTemplate.query(
 					"select next_value from controlplane_pk_sequence where sequence_name = ?",
@@ -290,9 +310,12 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 			if (current == null) {
 				try {
 					jdbcTemplate.update(
-							"insert into controlplane_pk_sequence (sequence_name, next_value) values (?, ?)",
+							"insert into controlplane_pk_sequence (sequence_name, next_value, updated_at, created_by, updated_by) values (?, ?, ?, ?, ?)",
 							normalizedSequenceName,
-							2L
+							2L,
+							now,
+							auditActor,
+							auditActor
 					);
 					return 1L;
 				} catch (DuplicateKeyException ignored) {
@@ -300,8 +323,10 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 				}
 			}
 			int updated = jdbcTemplate.update(
-					"update controlplane_pk_sequence set next_value = ? where sequence_name = ? and next_value = ?",
+					"update controlplane_pk_sequence set next_value = ?, updated_at = ?, updated_by = ? where sequence_name = ? and next_value = ?",
 					current + 1,
+					now,
+					auditActor,
 					normalizedSequenceName,
 					current
 			);
@@ -330,6 +355,11 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 
 	private String normalize(String value) {
 		return value == null ? "" : value.trim().toLowerCase();
+	}
+
+	private String resolveAuditActor(String applicationName) {
+		String normalized = applicationName == null ? "" : applicationName.trim();
+		return normalized.isBlank() ? "spring-etl-engine" : normalized;
 	}
 
 	private boolean isSqlServerVendor(String vendor) {

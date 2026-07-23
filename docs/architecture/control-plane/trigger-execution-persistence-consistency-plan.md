@@ -1,6 +1,6 @@
 # Trigger, execution, and persistence consistency plan
 
-**Status:** Current baseline + future evolution  
+**Status:** Current baseline + approved implementation direction  
 **Audience:** control-plane backend and operator UI maintainers  
 **Scope:** trigger acceptance, run launch/linking, run projections, UI consistency behavior
 
@@ -13,6 +13,30 @@ The current shipped control-plane path is functionally correct but briefly incon
 - Backfill/reconciliation is still doing correctness work that should be primary-link work.
 
 This note defines the review baseline and the target design before implementation.
+
+## Approved implementation direction (current)
+
+The control-plane path should converge on the following operational model:
+
+1. **Forward link first**: trigger acceptance and run identity linkage are written deterministically on the launch path.
+2. **Immediate run/step persistence**: run lifecycle and step snapshots are written directly from runtime lifecycle callbacks.
+3. **Projection as enrichment**: log-based projection remains best-effort enrichment/recovery, not primary identity correctness.
+4. **Incremental checkpoint sync**: log parsing advances from persisted checkpoints instead of full rescans during normal refresh.
+
+Current implementation note:
+
+- `RunSummaryReadModelService` now records per-log replay progress through `RunSummaryRegistry`.
+- `JdbcRunSummaryRegistry` persists that progress in `controlplane_log_checkpoint` keyed by normalized absolute `log_path`.
+- Full replay is still available for forced refresh and recovery paths, but normal refresh can resume from the stored byte offset.
+
+This direction keeps identity correctness on authoritative tables while making read-model refresh cheaper and less disruptive.
+
+### Incremental checkpoint scope
+
+- Checkpoints are tracked **per log file** (for example `logs/<yyyy-MM-dd>/<scenario>.log`), not per job key.
+- One checkpoint row records where parsing stopped for that file and resumes from that exact position.
+- In a multi-job environment where jobs write to different files, each file advances independently.
+- On restart, the sync loop resumes from the last committed checkpoint for each file.
 
 ## Current baseline (shipped)
 
@@ -150,6 +174,30 @@ Design intent: reduce cross-table eventual consistency to projection freshness o
 - `controlplane_artifact_record`
 - `controlplane_attempt_link`
 - `controlplane_checkpoint_anchor`
+- `controlplane_log_checkpoint` (incremental log-sync resume state)
+
+### `controlplane_log_checkpoint` purpose
+
+`controlplane_log_checkpoint` stores incremental read state so normal refreshes parse appended evidence only.
+
+Suggested shape:
+
+- `log_path` (unique file identity)
+- `last_offset_bytes` (resume position)
+- `file_size_at_checkpoint`
+- `file_mtime_at_checkpoint`
+- `last_processed_job_execution_id` (optional observability)
+- `updated_at`
+
+Checkpoint update rule:
+
+1. parse appended lines,
+2. apply idempotent upserts,
+3. then commit the checkpoint.
+
+If a crash occurs before step 3, replay from the previous checkpoint is expected and safe.
+
+The current service keeps an in-process fallback cache as a compatibility path for non-JDBC registries, but durable restart-safe behavior comes from the persisted checkpoint row.
 
 ### DML minimization policy
 
@@ -157,6 +205,8 @@ Design intent: reduce cross-table eventual consistency to projection freshness o
 - Avoid back-to-back updates when forward link already exists in `controlplane_run_record`.
 - Keep reverse-link updates (`trigger_event.launched_run_*`) compatibility-only and idempotent.
 - Treat backfill as migration/repair mode, not normal correctness mode.
+- Skip no-op updates where projected values are unchanged.
+- Prefer monotonic updates (never downgrade terminal run state from later evidence).
 
 ## Backward reconciliation fallback
 
@@ -246,6 +296,7 @@ This work should be planned together with forward-linking, not deferred until af
 - Add projection version/watermark metadata.
 - Enforce monotonic read behavior for recent trigger -> run detail navigation.
 - Keep asynchronous projection for throughput while preserving identity correctness.
+- Replace normal-path full scans with incremental checkpoint-based parsing; reserve full scan for startup recovery/repair only.
 
 ## Observability additions
 

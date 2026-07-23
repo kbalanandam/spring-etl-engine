@@ -158,7 +158,7 @@ const viewState = {
     refreshDetailInPlace: false,
     triggersExpanded: false,
     detailTriggerEventsPage: 0,
-    detailTriggerEventsSize: 20,
+    detailTriggerEventsSize: 10,
     detailTriggerEventsTotalItems: 0,
     editorMode: "create",
     editingScheduleId: "",
@@ -233,6 +233,7 @@ const SUPPORTED_RECOVERY_POLICIES = new Set(["rerun-from-start", "resume-from-ch
 const TRIGGER_NOW_DUPLICATE_WINDOW_MS = 5 * 1000;
 const DEFAULT_SCHEDULE_LOOKUP_LIMIT = 200;
 const DEFAULT_TRIGGER_EVENT_LIMIT = 20;
+const DEFAULT_SCHEDULE_DETAIL_TRIGGER_EVENT_LIMIT = 10;
 const DEFAULT_TRIGGER_EVENTS_PAGE = 0;
 const JOB_DETAIL_RECENT_RUNS_LIMIT = 10;
 const SCHEDULE_STATE_CHANGE_ACTIONS = new Set(["enable", "disable", "pause", "resume"]);
@@ -1986,7 +1987,7 @@ async function refreshScheduleDetailTriggerEvents(scheduleId, scheduleListQuery,
   }
 
   const page = Math.max(0, Number(viewState.schedules.detailTriggerEventsPage || DEFAULT_TRIGGER_EVENTS_PAGE));
-  const size = Math.max(1, Number(viewState.schedules.detailTriggerEventsSize || DEFAULT_TRIGGER_EVENT_LIMIT));
+  const size = Math.max(1, Number(viewState.schedules.detailTriggerEventsSize || DEFAULT_SCHEDULE_DETAIL_TRIGGER_EVENT_LIMIT));
   const triggerResponse = await fetch(`/api/v1/schedules/${encodeURIComponent(normalizedScheduleId)}/trigger-events?page=${page}&size=${size}`, {
     headers: { Accept: "application/json" },
   });

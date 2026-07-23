@@ -110,6 +110,8 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 - Child retained-history tables now depend on `controlplane_run_record.run_record_pk` for relational linkage (`controlplane_step_record.run_record_pk`, `controlplane_artifact_record.run_record_pk`, `controlplane_attempt_link.run_record_pk|prior_run_record_pk`, `controlplane_checkpoint_anchor.run_record_pk`) while `run_record_id` remains a projected operator/API-facing identity from the parent run row.
 - `controlplane_checkpoint_anchor.step_record_pk` is the active step-level relational linkage key; `step_record_id` remains a projected compatibility identity for operator/API readability.
 - Artifact ownership should be explicit and non-ambiguous: one `artifact_record` row is either run-level (`run_record_pk` set, `step_record_id` null) or step-level (`step_record_id` set with consistent `run_record_pk` lineage), never an unowned or contradictory combination.
+- Artifact identities are deterministic for the active projection (`ar-log-<jobExecutionId>`, `ar-step-*`), so overwrite freshness now uses `controlplane_artifact_record.updated_at` while `created_at` remains insert-time evidence.
+- Control-plane retained-history tables now carry nullable audit actor fields (`created_by`, `updated_by`) populated from the application process identity (`spring.application.name`) on new writes; historical rows are not backfilled by default.
 - Current non-SQLite portability is partial-but-testable: normal registry startup and update/insert write paths are now exercised without SQLite-only SQL, and active child retained-history writes now assume the PK-only linkage contract rather than backfilling legacy child `run_record_id` columns at runtime.
 
 ```mermaid

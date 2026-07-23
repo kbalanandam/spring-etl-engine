@@ -6,14 +6,17 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RunSummaryReadModelServiceTest {
 
@@ -143,6 +146,37 @@ class RunSummaryReadModelServiceTest {
 	}
 
 	@Test
+	void syncRunFromLogPathRefreshesOnlyTargetExecutionAndKeepsExistingRuns() throws IOException {
+		Path logPath = createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T11:00:00.000+00:00 INFO [main] [scenario:customer-load] [run:1] [job:2001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=2001 status=COMPLETED startTime=2026-05-27T11:00:00 endTime=2026-05-27T11:00:01 durationSeconds=1 sourceCount=1 writtenCount=1 rejectedCount=0",
+				"2026-05-27T11:02:00.000+00:00 INFO [main] [scenario:customer-load] [run:2] [job:2002] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=2002 status=COMPLETED startTime=2026-05-27T11:02:00 endTime=2026-05-27T11:02:02 durationSeconds=2 sourceCount=2 writtenCount=2 rejectedCount=0"
+		);
+
+		InMemoryRunSummaryRegistry registry = new InMemoryRunSummaryRegistry();
+		registry.upsert(new RunSummaryView(
+				"existing-run",
+				9000L,
+				"COMPLETED",
+				LocalDateTime.parse("2026-05-26T10:00:00"),
+				LocalDateTime.parse("2026-05-26T10:00:01"),
+				1L,
+				1L,
+				1L,
+				0L,
+				"logs/2026-05-26/existing-run.log"
+		));
+		RunSummaryReadModelService service = new RunSummaryReadModelService(tempDir, new RunSummaryLogParser(), registry);
+
+		boolean synced = service.syncRunFromLogPath(logPath, 2002L);
+
+		assertEquals(true, synced);
+		assertEquals(Optional.empty(), registry.findByJobExecutionId(2001L));
+		assertEquals(true, registry.findByJobExecutionId(2002L).isPresent());
+		assertEquals(true, registry.findByJobExecutionId(9000L).isPresent());
+	}
+
+	@Test
 	void findRunByJobExecutionIdForcesRefreshWhenProjectionIsStillStarted() throws IOException {
 		Path logPath = createLog(
 				tempDir.resolve("2026-05-27/customer-load.log"),
@@ -265,6 +299,44 @@ class RunSummaryReadModelServiceTest {
 	}
 
 	@Test
+	void preservesUnfilteredHistoryWhenRegistryBrieflyReturnsEmpty() {
+		IntermittentEmptyRegistry registry = new IntermittentEmptyRegistry();
+		registry.upsert(new RunSummaryView(
+				"customer-load",
+				701L,
+				"COMPLETED",
+				LocalDateTime.parse("2026-07-22T11:00:00"),
+				LocalDateTime.parse("2026-07-22T11:00:03"),
+				3L,
+				6L,
+				6L,
+				0L,
+				"explicit-job",
+				"rerun-from-start",
+				"logs/2026-07-22/customer-load.log"
+		));
+
+		RunSummaryReadModelService service = new RunSummaryReadModelService(
+				tempDir,
+				new RunSummaryLogParser(),
+				registry,
+				5_000_000L,
+				500,
+				60_000L
+		);
+
+		List<RunSummaryView> firstRead = service.latestRunsFiltered(10, null, null, null, null, ZoneId.of("UTC"));
+		assertEquals(1, firstRead.size());
+		assertEquals(701L, firstRead.get(0).jobExecutionId());
+
+		// Simulate a transient empty read for both the emptiness probe and the data fetch.
+		registry.returnEmptyLatestRunsTimes(2);
+		List<RunSummaryView> secondRead = service.latestRunsFiltered(10, null, null, null, null, ZoneId.of("UTC"));
+		assertEquals(1, secondRead.size());
+		assertEquals(701L, secondRead.get(0).jobExecutionId());
+	}
+
+	@Test
 	void skipsUnreadableLogFilesAndStillReturnsValidRuns() throws IOException {
 		createLog(
 				tempDir.resolve("2026-05-27/customer-load.log"),
@@ -324,6 +396,96 @@ class RunSummaryReadModelServiceTest {
 		assertEquals(1002L, runs.get(0).jobExecutionId());
 	}
 
+	@Test
+	void resumesFromPersistedCheckpointAfterServiceRestart() throws IOException {
+		Path logPath = createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T11:00:00.000+00:00 INFO [main] [scenario:customer-load] [run:20260527-110000-000] [job:160] [step:n/a] logger - RUN_EVENT event=job_started scenario=customer-load jobExecutionId=160 startTime=2026-05-27T11:00:00 runMode=explicit-job"
+		);
+
+		DurableCheckpointTestRegistry registry = new DurableCheckpointTestRegistry();
+		RunSummaryReadModelService firstService = new RunSummaryReadModelService(
+				tempDir,
+				new RunSummaryLogParser(),
+				registry,
+				5_000_000L,
+				500,
+				0L
+		);
+
+		assertEquals("STARTED", firstService.latestRuns(10).get(0).status());
+		String normalizedPath = logPath.toAbsolutePath().normalize().toString();
+		RunSummaryRegistry.LogReadCheckpoint initialCheckpoint = registry.findLogCheckpoint(normalizedPath).orElseThrow();
+
+		Files.writeString(
+				logPath,
+				System.lineSeparator() + "2026-05-27T11:02:03.001+00:00 INFO [main] [scenario:customer-load] [run:20260527-110000-000] [job:160] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=160 status=COMPLETED startTime=2026-05-27T11:00:00 endTime=2026-05-27T11:02:03 durationSeconds=123 sourceCount=10 writtenCount=10 rejectedCount=0",
+				StandardOpenOption.APPEND
+		);
+
+		registry.returnEmptyLatestRunsOnce();
+		RunSummaryReadModelService restartedService = new RunSummaryReadModelService(
+				tempDir,
+				new RunSummaryLogParser(),
+				registry,
+				5_000_000L,
+				500,
+				0L
+		);
+
+		List<RunSummaryView> refreshedRuns = restartedService.latestRuns(10);
+		assertEquals(1, refreshedRuns.size());
+		assertEquals("COMPLETED", refreshedRuns.get(0).status());
+		assertEquals(10L, refreshedRuns.get(0).writtenCount());
+
+		RunSummaryRegistry.LogReadCheckpoint updatedCheckpoint = registry.findLogCheckpoint(normalizedPath).orElseThrow();
+		assertTrue(updatedCheckpoint.offsetBytes() > initialCheckpoint.offsetBytes());
+	}
+
+	@Test
+	void resetsPersistedCheckpointWhenLogFileShrinks() throws IOException {
+		Path logPath = createLog(
+				tempDir.resolve("2026-05-27/customer-load.log"),
+				"2026-05-27T11:00:00.000+00:00 INFO [main] [scenario:customer-load] [run:1] [job:2001] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=2001 status=COMPLETED startTime=2026-05-27T11:00:00 endTime=2026-05-27T11:00:05 durationSeconds=5 sourceCount=1 writtenCount=1 rejectedCount=0",
+				"2026-05-27T11:10:00.000+00:00 INFO [main] [scenario:customer-load] [run:2] [job:2002] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=2002 status=COMPLETED startTime=2026-05-27T11:10:00 endTime=2026-05-27T11:10:05 durationSeconds=5 sourceCount=2 writtenCount=2 rejectedCount=0"
+		);
+
+		DurableCheckpointTestRegistry registry = new DurableCheckpointTestRegistry();
+		RunSummaryReadModelService firstService = new RunSummaryReadModelService(
+				tempDir,
+				new RunSummaryLogParser(),
+				registry,
+				5_000_000L,
+				500,
+				0L
+		);
+		firstService.latestRuns(10);
+
+		String normalizedPath = logPath.toAbsolutePath().normalize().toString();
+		RunSummaryRegistry.LogReadCheckpoint initialCheckpoint = registry.findLogCheckpoint(normalizedPath).orElseThrow();
+
+		Files.writeString(
+				logPath,
+				"2026-05-27T11:20:00.000+00:00 INFO [main] [scenario:customer-load] [run:3] [job:2003] [step:n/a] logger - RUN_SUMMARY event=run_summary scenario=customer-load jobExecutionId=2003 status=COMPLETED startTime=2026-05-27T11:20:00 endTime=2026-05-27T11:20:02 durationSeconds=2 sourceCount=3 writtenCount=3 rejectedCount=0"
+		);
+
+		registry.returnEmptyLatestRunsOnce();
+		RunSummaryReadModelService restartedService = new RunSummaryReadModelService(
+				tempDir,
+				new RunSummaryLogParser(),
+				registry,
+				5_000_000L,
+				500,
+				0L
+		);
+		restartedService.latestRuns(10);
+
+		assertTrue(registry.findByJobExecutionId(2003L).isPresent());
+		RunSummaryRegistry.LogReadCheckpoint updatedCheckpoint = registry.findLogCheckpoint(normalizedPath).orElseThrow();
+		assertTrue(updatedCheckpoint.offsetBytes() <= Files.size(logPath));
+		assertTrue(updatedCheckpoint.offsetBytes() < initialCheckpoint.offsetBytes());
+	}
+
 	private Path createLog(Path path, String... lines) throws IOException {
 		Files.createDirectories(path.getParent());
 		Files.write(path, List.of(lines));
@@ -342,6 +504,111 @@ class RunSummaryReadModelServiceTest {
 		@Override
 		public List<RunSummaryView> latestRuns(int limit) {
 			lastLatestRunsLimit.set(limit);
+			return delegate.latestRuns(limit);
+		}
+
+		@Override
+		public Optional<RunSummaryView> findByJobExecutionId(long jobExecutionId) {
+			return delegate.findByJobExecutionId(jobExecutionId);
+		}
+
+		@Override
+		public Optional<RunRecoveryView> findRecoveryByJobExecutionId(long jobExecutionId) {
+			return delegate.findRecoveryByJobExecutionId(jobExecutionId);
+		}
+
+		@Override
+		public List<RunStepRecordView> listStepRecordsByJobExecutionId(long jobExecutionId, int limit) {
+			return delegate.listStepRecordsByJobExecutionId(jobExecutionId, limit);
+		}
+
+		@Override
+		public List<RunArtifactRecordView> listArtifactRecordsByJobExecutionId(long jobExecutionId, int limit) {
+			return delegate.listArtifactRecordsByJobExecutionId(jobExecutionId, limit);
+		}
+
+		@Override
+		public List<RunArtifactRecordView> listArtifactRecordsByStepRecordId(String stepRecordId, int limit) {
+			return delegate.listArtifactRecordsByStepRecordId(stepRecordId, limit);
+		}
+	}
+
+	private static class DurableCheckpointTestRegistry implements RunSummaryRegistry {
+		private final InMemoryRunSummaryRegistry delegate = new InMemoryRunSummaryRegistry();
+		private final ConcurrentHashMap<String, LogReadCheckpoint> checkpoints = new ConcurrentHashMap<>();
+		private final AtomicInteger emptyLatestRunsCallsRemaining = new AtomicInteger(0);
+
+		void returnEmptyLatestRunsOnce() {
+			emptyLatestRunsCallsRemaining.set(1);
+		}
+
+		@Override
+		public void upsert(RunSummaryView runSummary) {
+			delegate.upsert(runSummary);
+		}
+
+		@Override
+		public Optional<LogReadCheckpoint> findLogCheckpoint(String logPath) {
+			return Optional.ofNullable(checkpoints.get(logPath));
+		}
+
+		@Override
+		public void upsertLogCheckpoint(String logPath, long offsetBytes, long fileSizeBytes, long fileLastModifiedMillis) {
+			checkpoints.put(logPath, new LogReadCheckpoint(logPath, offsetBytes, fileSizeBytes, fileLastModifiedMillis));
+		}
+
+		@Override
+		public List<RunSummaryView> latestRuns(int limit) {
+			if (emptyLatestRunsCallsRemaining.getAndUpdate(value -> Math.max(0, value - 1)) > 0) {
+				return List.of();
+			}
+			return delegate.latestRuns(limit);
+		}
+
+		@Override
+		public Optional<RunSummaryView> findByJobExecutionId(long jobExecutionId) {
+			return delegate.findByJobExecutionId(jobExecutionId);
+		}
+
+		@Override
+		public Optional<RunRecoveryView> findRecoveryByJobExecutionId(long jobExecutionId) {
+			return delegate.findRecoveryByJobExecutionId(jobExecutionId);
+		}
+
+		@Override
+		public List<RunStepRecordView> listStepRecordsByJobExecutionId(long jobExecutionId, int limit) {
+			return delegate.listStepRecordsByJobExecutionId(jobExecutionId, limit);
+		}
+
+		@Override
+		public List<RunArtifactRecordView> listArtifactRecordsByJobExecutionId(long jobExecutionId, int limit) {
+			return delegate.listArtifactRecordsByJobExecutionId(jobExecutionId, limit);
+		}
+
+		@Override
+		public List<RunArtifactRecordView> listArtifactRecordsByStepRecordId(String stepRecordId, int limit) {
+			return delegate.listArtifactRecordsByStepRecordId(stepRecordId, limit);
+		}
+	}
+
+	private static class IntermittentEmptyRegistry implements RunSummaryRegistry {
+		private final InMemoryRunSummaryRegistry delegate = new InMemoryRunSummaryRegistry();
+		private final AtomicInteger emptyLatestRunsCallsRemaining = new AtomicInteger(0);
+
+		void returnEmptyLatestRunsTimes(int count) {
+			emptyLatestRunsCallsRemaining.set(Math.max(0, count));
+		}
+
+		@Override
+		public void upsert(RunSummaryView runSummary) {
+			delegate.upsert(runSummary);
+		}
+
+		@Override
+		public List<RunSummaryView> latestRuns(int limit) {
+			if (emptyLatestRunsCallsRemaining.getAndUpdate(value -> Math.max(0, value - 1)) > 0) {
+				return List.of();
+			}
 			return delegate.latestRuns(limit);
 		}
 

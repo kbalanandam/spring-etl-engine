@@ -44,6 +44,10 @@ public class SelectedJobLaunchService {
 	}
 
 	public LaunchResult launchSelectedJob(String selectedJobKey, String triggerOrigin, String scheduleId) {
+		return launchSelectedJob(selectedJobKey, triggerOrigin, scheduleId, null);
+	}
+
+	public LaunchResult launchSelectedJob(String selectedJobKey, String triggerOrigin, String scheduleId, String triggerEventId) {
 		if (!launchEnabled) {
 			return LaunchResult.skipped("Worker launch is disabled by controlplane.job-launch.enabled=false.");
 		}
@@ -88,6 +92,10 @@ public class SelectedJobLaunchService {
 		if (!workerConnectionInitSql.isBlank()) {
 			command.add("-Dspring.datasource.hikari.connection-init-sql=" + workerConnectionInitSql);
 		}
+		String normalizedTriggerEventId = normalize(triggerEventId);
+		if (!normalizedTriggerEventId.isBlank()) {
+			command.add("-Dcontrolplane.trigger-event-id=" + normalizedTriggerEventId);
+		}
 		command.add("-cp");
 		command.add(classPath);
 		command.add("com.etl.ETLEngineApplication");
@@ -101,9 +109,10 @@ public class SelectedJobLaunchService {
 		try {
 			Process process = processBuilder.start();
 			long pid = process.pid();
-			log.info("CONTROLPLANE_LAUNCH event=launch_started triggerOrigin={} scheduleId={} selectedJobKey={} pid={} jobConfigPath={}",
+			log.info("CONTROLPLANE_LAUNCH event=launch_started triggerOrigin={} scheduleId={} triggerEventId={} selectedJobKey={} pid={} jobConfigPath={}",
 					normalizedOrigin,
 					normalizedScheduleId,
+					normalizedTriggerEventId,
 					normalizedJobKey,
 					pid,
 					jobConfigPath);
@@ -114,9 +123,10 @@ public class SelectedJobLaunchService {
 			completionWatcher.start();
 			return LaunchResult.started(pid, jobConfigPath.toString());
 		} catch (IOException ex) {
-			log.error("CONTROLPLANE_LAUNCH event=launch_failed triggerOrigin={} scheduleId={} selectedJobKey={} reason=process_start_failed message={}",
+			log.error("CONTROLPLANE_LAUNCH event=launch_failed triggerOrigin={} scheduleId={} triggerEventId={} selectedJobKey={} reason=process_start_failed message={}",
 					normalizedOrigin,
 					normalizedScheduleId,
+					normalizedTriggerEventId,
 					normalizedJobKey,
 					ex.getMessage(),
 					ex);

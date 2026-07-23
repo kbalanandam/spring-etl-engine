@@ -68,13 +68,16 @@ public class JobBundleController {
 	@GetMapping("/{jobKey}")
 	public ResponseEntity<JobBundleDetailResponse> jobDetail(@PathVariable String jobKey,
 	                                                        @RequestParam(name = "recentRunsLimit", required = false) Integer recentRunsLimit,
-	                                                        @RequestParam(name = "recentTriggerEventsLimit", required = false) Integer recentTriggerEventsLimit) {
+	                                                        @RequestParam(name = "recentTriggerEventsLimit", required = false) Integer recentTriggerEventsLimit,
+	                                                        @RequestParam(name = "refresh", required = false, defaultValue = "false") boolean refresh) {
 		int effectiveRecentRunLimit = clampLimit(recentRunsLimit, DEFAULT_RECENT_RUN_LIMIT, MAX_RECENT_RUN_LIMIT);
 		int effectiveTriggerEventLimit = clampLimit(recentTriggerEventsLimit, DEFAULT_TRIGGER_EVENT_LIMIT, MAX_TRIGGER_EVENT_LIMIT);
 		return jobBundleReadModelService.findBundle(jobKey)
 				.map(job -> ResponseEntity.ok(new JobBundleDetailResponse(
 						job,
-						runSummaryReadModelService.latestRunsForJob(job.jobKey(), job.displayName(), effectiveRecentRunLimit),
+						refresh
+								? runSummaryReadModelService.latestRunsForJobFresh(job.jobKey(), job.displayName(), effectiveRecentRunLimit)
+								: runSummaryReadModelService.latestRunsForJob(job.jobKey(), job.displayName(), effectiveRecentRunLimit),
 						triggerEventRegistry.listByJobKey(job.jobKey(), effectiveTriggerEventLimit)
 				)))
 				.orElseGet(() -> ResponseEntity.notFound().build());
@@ -160,7 +163,11 @@ public class JobBundleController {
 
 		String message = "Trigger request accepted for reason='" + reason + "' requestedBy='" + requestedBy + "'.";
 		var triggerEvent = triggerEventRegistry.recordAccepted(jobKey, reason, requestedBy, message);
-		SelectedJobLaunchService.LaunchResult launchResult = selectedJobLaunchService.launchSelectedJob(jobKey, "MANUAL", null);
+		SelectedJobLaunchService.LaunchResult launchResult = selectedJobLaunchService.launchSelectedJob(
+				jobKey,
+				"MANUAL",
+				null,
+				triggerEvent.triggerEventId());
 		log.info("CONTROLPLANE_TRIGGER event=trigger_now_accepted scope=JOB jobKey={} reason={} requestedBy={} triggerEventId={} launchStarted={} launchMessage={}",
 				jobKey,
 				reason,

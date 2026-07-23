@@ -27,6 +27,8 @@ BEGIN
         description VARCHAR(2000) NULL,
         created_at DATETIME2 NOT NULL,
         updated_at DATETIME2 NOT NULL,
+        created_by VARCHAR(200) NULL,
+        updated_by VARCHAR(200) NULL,
         watcher_key VARCHAR(200) NULL,
         last_accepted_due_at DATETIME2 NULL
     );
@@ -50,7 +52,9 @@ BEGIN
         description VARCHAR(300) NULL,
         is_active BIT NOT NULL,
         created_at DATETIME2 NOT NULL,
-        updated_at DATETIME2 NOT NULL
+        updated_at DATETIME2 NOT NULL,
+        created_by VARCHAR(200) NULL,
+        updated_by VARCHAR(200) NULL
     );
 END;
 GO
@@ -71,7 +75,10 @@ BEGIN
         message VARCHAR(2000) NULL,
         trigger_origin VARCHAR(50) NULL,
         schedule_pk BIGINT NULL,
-        external_origin_key VARCHAR(200) NULL
+        external_origin_key VARCHAR(200) NULL,
+        updated_at DATETIME2 NULL,
+        created_by VARCHAR(200) NULL,
+        updated_by VARCHAR(200) NULL
     );
 END;
 GO
@@ -107,7 +114,10 @@ BEGIN
         run_mode VARCHAR(80) NULL,
         recovery_policy VARCHAR(120) NULL,
         log_path VARCHAR(2000) NULL,
-        last_seen_at DATETIME2 NOT NULL
+        last_seen_at DATETIME2 NOT NULL,
+        updated_at DATETIME2 NULL,
+        created_by VARCHAR(200) NULL,
+        updated_by VARCHAR(200) NULL
     );
 END;
 GO
@@ -136,7 +146,9 @@ BEGIN
         run_mode VARCHAR(80) NULL,
         recovery_policy VARCHAR(120) NULL,
         created_at DATETIME2 NOT NULL,
-        updated_at DATETIME2 NOT NULL
+        updated_at DATETIME2 NOT NULL,
+        created_by VARCHAR(200) NULL,
+        updated_by VARCHAR(200) NULL
     );
 END;
 GO
@@ -173,7 +185,9 @@ BEGIN
         rollback_count BIGINT NULL,
         rejected_count BIGINT NULL,
         created_at DATETIME2 NOT NULL,
-        updated_at DATETIME2 NOT NULL
+        updated_at DATETIME2 NOT NULL,
+        created_by VARCHAR(200) NULL,
+        updated_by VARCHAR(200) NULL
     );
 END;
 GO
@@ -193,7 +207,10 @@ BEGIN
         step_record_id VARCHAR(80) NULL,
         artifact_role VARCHAR(80) NOT NULL,
         artifact_path VARCHAR(2000) NULL,
-        created_at DATETIME2 NOT NULL
+        created_at DATETIME2 NOT NULL,
+        updated_at DATETIME2 NULL,
+        created_by VARCHAR(200) NULL,
+        updated_by VARCHAR(200) NULL
     );
 END;
 GO
@@ -212,7 +229,10 @@ BEGIN
         run_record_pk BIGINT NOT NULL,
         prior_run_record_pk BIGINT NULL,
         link_kind VARCHAR(50) NOT NULL,
-        created_at DATETIME2 NOT NULL
+        created_at DATETIME2 NOT NULL,
+        updated_at DATETIME2 NULL,
+        created_by VARCHAR(200) NULL,
+        updated_by VARCHAR(200) NULL
     );
 END;
 GO
@@ -235,7 +255,9 @@ BEGIN
         anchor_ref VARCHAR(2000) NULL,
         anchor_status VARCHAR(50) NULL,
         created_at DATETIME2 NOT NULL,
-        updated_at DATETIME2 NOT NULL
+        updated_at DATETIME2 NOT NULL,
+        created_by VARCHAR(200) NULL,
+        updated_by VARCHAR(200) NULL
     );
 END;
 GO
@@ -246,6 +268,36 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_checkpoint_anchor_st
     CREATE INDEX idx_checkpoint_anchor_step_pk ON dbo.controlplane_checkpoint_anchor (step_record_pk, created_at);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_checkpoint_anchor_step_id' AND object_id = OBJECT_ID(N'dbo.controlplane_checkpoint_anchor'))
     CREATE INDEX idx_checkpoint_anchor_step_id ON dbo.controlplane_checkpoint_anchor (step_record_id, created_at);
+GO
+
+IF OBJECT_ID(N'dbo.controlplane_log_checkpoint', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.controlplane_log_checkpoint (
+        log_path VARCHAR(2000) NOT NULL PRIMARY KEY,
+        last_offset_bytes BIGINT NOT NULL,
+        file_size_at_checkpoint BIGINT NOT NULL,
+        file_mtime_at_checkpoint BIGINT NOT NULL,
+        updated_at DATETIME2 NOT NULL,
+        created_by VARCHAR(200) NULL,
+        updated_by VARCHAR(200) NULL
+    );
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_log_checkpoint_updated_at' AND object_id = OBJECT_ID(N'dbo.controlplane_log_checkpoint'))
+    CREATE INDEX idx_log_checkpoint_updated_at ON dbo.controlplane_log_checkpoint (updated_at);
+GO
+
+IF OBJECT_ID(N'dbo.controlplane_pk_sequence', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.controlplane_pk_sequence (
+        sequence_name VARCHAR(120) NOT NULL PRIMARY KEY,
+        next_value BIGINT NOT NULL,
+        updated_at DATETIME2 NULL,
+        created_by VARCHAR(200) NULL,
+        updated_by VARCHAR(200) NULL
+    );
+END;
 GO
 
 MERGE dbo.controlplane_trigger_source AS target

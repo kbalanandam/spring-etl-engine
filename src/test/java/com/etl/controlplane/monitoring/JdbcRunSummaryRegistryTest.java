@@ -49,6 +49,58 @@ class JdbcRunSummaryRegistryTest {
 	}
 
 	@Test
+	void stampsAuditActorFromApplicationName() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100, "mysql", "controlplane-audit-test");
+		registry.upsert(new RunSummaryView(
+				"customer-load",
+				7101L,
+				"COMPLETED",
+				LocalDateTime.parse("2026-07-22T11:00:00"),
+				LocalDateTime.parse("2026-07-22T11:00:03"),
+				3L,
+				6L,
+				6L,
+				0L,
+				"explicit-job",
+				"rerun-from-start",
+				"logs/2026-07-22/customer-load.log"
+		));
+		registry.upsertLogCheckpoint("C:/logs/2026-07-22/customer-load.log", 16L, 32L, 1700000000L);
+
+		assertEquals("controlplane-audit-test", jdbcTemplate.queryForObject(
+				"select created_by from controlplane_run_summary where job_execution_id = ?",
+				String.class,
+				7101L
+		));
+		assertEquals("controlplane-audit-test", jdbcTemplate.queryForObject(
+				"select updated_by from controlplane_run_record where job_execution_id = ?",
+				String.class,
+				7101L
+		));
+		assertEquals("controlplane-audit-test", jdbcTemplate.queryForObject(
+				"select updated_by from controlplane_artifact_record where artifact_record_id = ?",
+				String.class,
+				"ar-log-7101"
+		));
+		assertEquals("controlplane-audit-test", jdbcTemplate.queryForObject(
+				"select updated_by from controlplane_attempt_link where attempt_link_id = ?",
+				String.class,
+				"al-7101"
+		));
+		assertEquals("controlplane-audit-test", jdbcTemplate.queryForObject(
+				"select updated_by from controlplane_checkpoint_anchor where checkpoint_anchor_id = ?",
+				String.class,
+				"ca-log-7101"
+		));
+		assertEquals("controlplane-audit-test", jdbcTemplate.queryForObject(
+				"select updated_by from controlplane_log_checkpoint where log_path = ?",
+				String.class,
+				"C:/logs/2026-07-22/customer-load.log"
+		));
+	}
+
+	@Test
 	void writesRunRecordFoundationRowsAlongsideRunSummary() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
@@ -91,6 +143,43 @@ class JdbcRunSummaryRegistryTest {
 				String.class,
 				2002L
 		));
+	}
+
+	@Test
+	void persistsAndReadsDurableLogCheckpointRows() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		registry.upsertLogCheckpoint("C:/logs/2026-05-27/customer-load.log", 128L, 256L, 123456789L);
+
+		RunSummaryRegistry.LogReadCheckpoint checkpoint = registry.findLogCheckpoint("C:/logs/2026-05-27/customer-load.log").orElseThrow();
+		assertEquals(128L, checkpoint.offsetBytes());
+		assertEquals(256L, checkpoint.fileSizeBytes());
+		assertEquals(123456789L, checkpoint.fileLastModifiedMillis());
+
+		Long rowCount = jdbcTemplate.queryForObject("select count(*) from controlplane_log_checkpoint", Long.class);
+		assertEquals(1L, rowCount);
+	}
+
+	@Test
+	void updatesExistingLogCheckpointInPlace() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		registry.upsertLogCheckpoint("C:/logs/2026-05-27/customer-load.log", 128L, 256L, 123456789L);
+		registry.upsertLogCheckpoint("C:/logs/2026-05-27/customer-load.log", 512L, 512L, 123456999L);
+
+		RunSummaryRegistry.LogReadCheckpoint checkpoint = registry.findLogCheckpoint("C:/logs/2026-05-27/customer-load.log").orElseThrow();
+		assertEquals(512L, checkpoint.offsetBytes());
+		assertEquals(512L, checkpoint.fileSizeBytes());
+		assertEquals(123456999L, checkpoint.fileLastModifiedMillis());
+
+		Long rowCount = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_log_checkpoint where log_path = ?",
+				Long.class,
+				"C:/logs/2026-05-27/customer-load.log"
+		);
+		assertEquals(1L, rowCount);
 	}
 
 	@Test
@@ -328,6 +417,45 @@ class JdbcRunSummaryRegistryTest {
 	}
 
 	@Test
+	void upsertRepairsMissingAttemptAndCheckpointAuditActorsWithoutOverwritingCreatedAt() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(run(2210L, "customer-load", LocalDateTime.parse("2026-05-27T10:30:00"), "COMPLETED"));
+
+		Timestamp legacyCreatedAt = Timestamp.valueOf(LocalDateTime.parse("2026-05-27T10:30:05"));
+		jdbcTemplate.update("update controlplane_attempt_link set created_at = ?, created_by = null, updated_by = null where attempt_link_id = ?", legacyCreatedAt, "al-2210");
+		jdbcTemplate.update("update controlplane_checkpoint_anchor set created_at = ?, created_by = null, updated_by = null where checkpoint_anchor_id = ?", legacyCreatedAt, "ca-log-2210");
+
+		registry.upsert(run(2210L, "customer-load", LocalDateTime.parse("2026-05-27T10:30:00"), "COMPLETED"));
+
+		Timestamp attemptCreatedAt = jdbcTemplate.queryForObject(
+				"select created_at from controlplane_attempt_link where attempt_link_id = ?",
+				Timestamp.class,
+				"al-2210"
+		);
+		String attemptCreatedBy = jdbcTemplate.queryForObject(
+				"select created_by from controlplane_attempt_link where attempt_link_id = ?",
+				String.class,
+				"al-2210"
+		);
+		Timestamp checkpointCreatedAt = jdbcTemplate.queryForObject(
+				"select created_at from controlplane_checkpoint_anchor where checkpoint_anchor_id = ?",
+				Timestamp.class,
+				"ca-log-2210"
+		);
+		String checkpointCreatedBy = jdbcTemplate.queryForObject(
+				"select created_by from controlplane_checkpoint_anchor where checkpoint_anchor_id = ?",
+				String.class,
+				"ca-log-2210"
+		);
+
+		assertEquals(legacyCreatedAt, attemptCreatedAt);
+		assertEquals("spring-etl-engine", attemptCreatedBy);
+		assertEquals(legacyCreatedAt, checkpointCreatedAt);
+		assertEquals("spring-etl-engine", checkpointCreatedBy);
+	}
+
+	@Test
 	void readsAdvisoryRecoveryViewFromAttemptLinksAndCheckpointAnchors() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
@@ -508,14 +636,9 @@ class JdbcRunSummaryRegistryTest {
 				Long.class,
 				triggerEvent.triggerEventId()
 		);
-		Long runRecordPk = jdbcTemplate.queryForObject(
-				"select run_record_pk from controlplane_run_record where job_execution_id = ?",
-				Long.class,
-				4001L
-		);
 		assertEquals(triggerEvent.triggerEventId(), linkedTriggerEventId);
 		assertEquals(1L, linkedTriggerEventPk);
-		assertEquals(runRecordPk, launchedRunPk);
+		assertNull(launchedRunPk);
 	}
 
 	@Test
@@ -615,13 +738,127 @@ class JdbcRunSummaryRegistryTest {
 				String.class,
 				9001L
 		);
+		Long linkedTriggerEventPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				9001L
+		);
+		Long expectedTriggerEventPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				freshTrigger.triggerEventId()
+		);
 		String freshLaunchedRunId = jdbcTemplate.queryForObject(
 				"select launched_run_id from controlplane_trigger_event where trigger_event_id = ?",
 				String.class,
 				freshTrigger.triggerEventId()
 		);
 		assertEquals(freshTrigger.triggerEventId(), linkedTriggerEventId);
-		assertEquals("9001", freshLaunchedRunId);
+		assertEquals(expectedTriggerEventPk, linkedTriggerEventPk);
+		assertNull(freshLaunchedRunId);
+	}
+
+	@Test
+	void startupBackfillRepairsMismatchedTriggerEventPkForExistingTriggerEventId() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcTriggerEventRegistry triggerRegistry = new JdbcTriggerEventRegistry(jdbcTemplate, 100);
+
+		TriggerEventView staleTrigger = triggerRegistry.recordAccepted("customer-load", "manual_operator_request", "operator-ui", "queued");
+		TriggerEventView freshTrigger = triggerRegistry.recordAccepted("cust-dept-load", "manual_operator_request", "operator-ui", "queued");
+
+		JdbcRunSummaryRegistry runRegistry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		runRegistry.upsert(run(9101L, "cust-dept-load", LocalDateTime.parse("2026-07-22T19:33:55"), "COMPLETED"));
+
+		Long staleTriggerPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				staleTrigger.triggerEventId()
+		);
+		Long freshTriggerPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				freshTrigger.triggerEventId()
+		);
+
+		jdbcTemplate.update(
+				"update controlplane_run_record set trigger_event_id = ?, trigger_event_pk = ? where job_execution_id = ?",
+				freshTrigger.triggerEventId(),
+				staleTriggerPk,
+				9101L
+		);
+
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		Long repairedTriggerPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				9101L
+		);
+		assertEquals(freshTriggerPk, repairedTriggerPk);
+	}
+
+	@Test
+	void startupBackfillFillsMissingTriggerEventIdForExistingTriggerEventPk() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcTriggerEventRegistry triggerRegistry = new JdbcTriggerEventRegistry(jdbcTemplate, 100);
+
+		TriggerEventView freshTrigger = triggerRegistry.recordAccepted("customer-load", "manual_operator_request", "operator-ui", "queued");
+
+		JdbcRunSummaryRegistry runRegistry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		runRegistry.upsert(run(9102L, "customer-load", LocalDateTime.parse("2026-07-22T19:40:00"), "COMPLETED"));
+
+		Long freshTriggerPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_trigger_event where trigger_event_id = ?",
+				Long.class,
+				freshTrigger.triggerEventId()
+		);
+
+		jdbcTemplate.update(
+				"update controlplane_run_record set trigger_event_id = ?, trigger_event_pk = ? where job_execution_id = ?",
+				null,
+				freshTriggerPk,
+				9102L
+		);
+
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		String repairedTriggerEventId = jdbcTemplate.queryForObject(
+				"select trigger_event_id from controlplane_run_record where job_execution_id = ?",
+				String.class,
+				9102L
+		);
+		assertEquals(freshTrigger.triggerEventId(), repairedTriggerEventId);
+	}
+
+	@Test
+	void upsertDoesNotUseLegacyReverseLaunchFallbackWhenNoCandidateMatchesScenario() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcTriggerEventRegistry triggerRegistry = new JdbcTriggerEventRegistry(jdbcTemplate, 100);
+
+		TriggerEventView unrelatedTrigger = triggerRegistry.recordAccepted("inventory-load", "manual_operator_request", "operator-ui", "queued");
+		jdbcTemplate.update(
+				"update controlplane_trigger_event set launched_run_id = ?, launched_run_pk = null, requested_at = ? where trigger_event_id = ?",
+				"9201",
+				Timestamp.valueOf(LocalDateTime.parse("2026-05-27T07:00:00")),
+				unrelatedTrigger.triggerEventId()
+		);
+
+		JdbcRunSummaryRegistry runRegistry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		runRegistry.upsert(run(9201L, "customer-load", LocalDateTime.parse("2026-07-22T19:45:00"), "COMPLETED"));
+
+		String linkedTriggerEventId = jdbcTemplate.queryForObject(
+				"select trigger_event_id from controlplane_run_record where job_execution_id = ?",
+				String.class,
+				9201L
+		);
+		Long linkedTriggerEventPk = jdbcTemplate.queryForObject(
+				"select trigger_event_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				9201L
+		);
+
+		assertNull(linkedTriggerEventId);
+		assertNull(linkedTriggerEventPk);
 	}
 
 	@Test
@@ -711,7 +948,7 @@ class JdbcRunSummaryRegistryTest {
 				"te-window-1"
 		);
 		assertEquals("te-window-1", linkedTriggerEventId);
-		assertEquals("6001", launchedRunId);
+		assertNull(launchedRunId);
 	}
 
 	@Test
@@ -767,7 +1004,74 @@ class JdbcRunSummaryRegistryTest {
 				"te-window-upsert-multi-2"
 		);
 		assertEquals("te-window-upsert-multi-2", linkedTriggerEventId);
-		assertEquals("6002", launchedRunId);
+		assertNull(launchedRunId);
+	}
+
+	@Test
+	void upsertPrefersExplicitTriggerEventIdFromRunSummaryOverTimeWindowMatching() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		new JdbcTriggerEventRegistry(jdbcTemplate, 100);
+
+		jdbcTemplate.update("""
+				insert into controlplane_trigger_event (
+					trigger_event_pk, trigger_event_id, job_key, decision_status, reason, requested_by,
+					requested_at, launched_run_id, message, trigger_origin
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				31L,
+				"te-explicit-link",
+				"different-job-key",
+				"ACCEPTED",
+				"manual_operator_request",
+				"operator-ui",
+				Timestamp.valueOf(LocalDateTime.parse("2026-05-27T08:20:00")),
+				null,
+				"queued",
+				"MANUAL"
+		);
+
+		jdbcTemplate.update("""
+				insert into controlplane_trigger_event (
+					trigger_event_pk, trigger_event_id, job_key, decision_status, reason, requested_by,
+					requested_at, launched_run_id, message, trigger_origin
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				32L,
+				"te-window-candidate",
+				"customer-load",
+				"ACCEPTED",
+				"manual_operator_request",
+				"operator-ui",
+				Timestamp.valueOf(LocalDateTime.parse("2026-05-27T08:50:00")),
+				null,
+				"queued",
+				"MANUAL"
+		);
+
+		JdbcRunSummaryRegistry runRegistry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		runRegistry.upsert(new RunSummaryView(
+				"customer-load",
+				6201L,
+				"COMPLETED",
+				LocalDateTime.parse("2026-05-27T09:00:00"),
+				LocalDateTime.parse("2026-05-27T09:01:00"),
+				60L,
+				10L,
+				10L,
+				0L,
+				"explicit-job",
+				"rerun-from-start",
+				"te-explicit-link",
+				null,
+				"logs/2026-05-27/customer-load.log"
+		));
+
+		String linkedTriggerEventId = jdbcTemplate.queryForObject(
+				"select trigger_event_id from controlplane_run_record where job_execution_id = ?",
+				String.class,
+				6201L
+		);
+		assertEquals("te-explicit-link", linkedTriggerEventId);
 	}
 
 	@Test
@@ -808,7 +1112,7 @@ class JdbcRunSummaryRegistryTest {
 				"te-window-backfill-1"
 		);
 		assertEquals("te-window-backfill-1", linkedTriggerEventId);
-		assertEquals("7001", launchedRunId);
+		assertNull(launchedRunId);
 	}
 
 	@Test
@@ -1230,6 +1534,107 @@ class JdbcRunSummaryRegistryTest {
 		);
 		assertEquals("RUN_LOG", artifactRole);
 		assertEquals("logs/2026-05-27/customer-load.log", artifactPath);
+	}
+
+	@Test
+	void refreshesRunLogArtifactUpdatedAtWhenExistingArtifactRowIsOverwritten() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(new RunSummaryView(
+				"cust-dept-load",
+				160L,
+				"COMPLETED",
+				LocalDateTime.parse("2026-07-22T14:07:18"),
+				LocalDateTime.parse("2026-07-22T14:07:20"),
+				2L,
+				3L,
+				3L,
+				0L,
+				"explicit-job",
+				"rerun-from-start",
+				"C:\\spring-etl-engine\\logs\\2026-07-22\\cust-dept-load.log"
+		));
+
+		Timestamp staleUpdatedAt = Timestamp.valueOf(LocalDateTime.parse("2026-07-15T14:07:18"));
+		jdbcTemplate.update(
+				"update controlplane_artifact_record set artifact_path = ?, updated_at = ? where artifact_record_id = ?",
+				"C:\\spring-etl-engine\\logs\\2026-07-15\\cust-dept-load.log",
+				staleUpdatedAt,
+				"ar-log-160"
+		);
+
+		registry.upsert(new RunSummaryView(
+				"cust-dept-load",
+				160L,
+				"COMPLETED",
+				LocalDateTime.parse("2026-07-22T14:07:18"),
+				LocalDateTime.parse("2026-07-22T14:07:20"),
+				2L,
+				3L,
+				3L,
+				0L,
+				"explicit-job",
+				"rerun-from-start",
+				"C:\\spring-etl-engine\\logs\\2026-07-22\\cust-dept-load.log"
+		));
+
+		Timestamp refreshedUpdatedAt = jdbcTemplate.queryForObject(
+				"select updated_at from controlplane_artifact_record where artifact_record_id = ?",
+				Timestamp.class,
+				"ar-log-160"
+		);
+		String artifactPath = jdbcTemplate.queryForObject(
+				"select artifact_path from controlplane_artifact_record where artifact_record_id = ?",
+				String.class,
+				"ar-log-160"
+		);
+
+		assertEquals("C:\\spring-etl-engine\\logs\\2026-07-22\\cust-dept-load.log", artifactPath);
+		assertTrue(refreshedUpdatedAt.after(staleUpdatedAt));
+	}
+
+	@Test
+	void startupBackfillRefreshesStaleRunLogArtifactUpdatedAt() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcRunSummaryRegistry firstRegistry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		firstRegistry.upsert(new RunSummaryView(
+				"cust-dept-load",
+				161L,
+				"COMPLETED",
+				LocalDateTime.parse("2026-07-22T14:07:18"),
+				LocalDateTime.parse("2026-07-22T14:07:20"),
+				2L,
+				3L,
+				3L,
+				0L,
+				"explicit-job",
+				"rerun-from-start",
+				"C:\\spring-etl-engine\\logs\\2026-07-22\\cust-dept-load.log"
+		));
+
+		Timestamp staleUpdatedAt = Timestamp.valueOf(LocalDateTime.parse("2026-07-15T14:07:18"));
+		jdbcTemplate.update(
+				"update controlplane_artifact_record set artifact_path = ?, updated_at = ? where artifact_record_id = ?",
+				"C:\\spring-etl-engine\\logs\\2026-07-15\\cust-dept-load.log",
+				staleUpdatedAt,
+				"ar-log-161"
+		);
+
+		new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+
+		Timestamp refreshedUpdatedAt = jdbcTemplate.queryForObject(
+				"select updated_at from controlplane_artifact_record where artifact_record_id = ?",
+				Timestamp.class,
+				"ar-log-161"
+		);
+		String artifactPath = jdbcTemplate.queryForObject(
+				"select artifact_path from controlplane_artifact_record where artifact_record_id = ?",
+				String.class,
+				"ar-log-161"
+		);
+
+		assertEquals("C:\\spring-etl-engine\\logs\\2026-07-22\\cust-dept-load.log", artifactPath);
+		assertTrue(refreshedUpdatedAt.after(staleUpdatedAt));
 	}
 
 	@Test
@@ -1751,6 +2156,111 @@ class JdbcRunSummaryRegistryTest {
 				"customers-step"
 		);
 		assertEquals(1L, duplicateCount);
+	}
+
+	@Test
+	void prunesStaleStepRowsOutsideCurrentRunWindowForReusedExecution() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		jdbcTemplate.execute("""
+				create table batch_step_execution (
+					step_execution_id bigint primary key,
+					job_execution_id bigint not null,
+					step_name varchar(100) not null,
+					status varchar(20),
+					start_time timestamp,
+					end_time timestamp,
+					read_count bigint,
+					write_count bigint,
+					filter_count bigint,
+					rollback_count bigint
+				)
+				""");
+		jdbcTemplate.update("""
+				insert into batch_step_execution (
+					step_execution_id, job_execution_id, step_name, status, start_time, end_time,
+					read_count, write_count, filter_count, rollback_count
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				80L, 58L, "customers-step", "COMPLETED",
+				Timestamp.valueOf("2026-07-21 17:06:24"), Timestamp.valueOf("2026-07-21 17:06:24"),
+				3L, 3L, 0L, 0L);
+		jdbcTemplate.update("""
+				insert into batch_step_execution (
+					step_execution_id, job_execution_id, step_name, status, start_time, end_time,
+					read_count, write_count, filter_count, rollback_count
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				81L, 58L, "departments-step", "COMPLETED",
+				Timestamp.valueOf("2026-07-21 17:06:25"), Timestamp.valueOf("2026-07-21 17:06:25"),
+				3L, 3L, 0L, 0L);
+
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100);
+		registry.upsert(new RunSummaryView(
+				"customer-load",
+				58L,
+				"COMPLETED",
+				LocalDateTime.parse("2026-07-21T17:06:24"),
+				LocalDateTime.parse("2026-07-21T17:06:26"),
+				2L,
+				3L,
+				3L,
+				0L,
+				"logs/2026-07-21/customer-load.log"
+		));
+
+		Long runRecordPk = jdbcTemplate.queryForObject(
+				"select run_record_pk from controlplane_run_record where job_execution_id = ?",
+				Long.class,
+				58L);
+		jdbcTemplate.update("""
+				insert into controlplane_step_record (
+					step_record_pk, step_record_id, run_record_pk, step_name, step_status,
+					started_at, finished_at, duration_seconds, read_count, write_count,
+					filter_count, skip_count, rollback_count, rejected_count, created_at, updated_at
+				) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+				""",
+				9001L,
+				"sr-58-64",
+				runRecordPk,
+				"customers-step",
+				"COMPLETED",
+				Timestamp.valueOf("2026-06-30 14:52:27"),
+				Timestamp.valueOf("2026-06-30 14:52:27"),
+				0L,
+				3L,
+				3L,
+				0L,
+				0L,
+				0L,
+				0L,
+				Timestamp.valueOf("2026-07-15 13:04:12"),
+				Timestamp.valueOf("2026-07-16 14:20:44"));
+
+		registry.upsert(new RunSummaryView(
+				"customer-load",
+				58L,
+				"COMPLETED",
+				LocalDateTime.parse("2026-07-21T17:06:24"),
+				LocalDateTime.parse("2026-07-21T17:06:26"),
+				2L,
+				3L,
+				3L,
+				0L,
+				"logs/2026-07-21/customer-load.log"
+		));
+
+		Long staleCount = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_step_record where run_record_pk = ? and step_record_id = ?",
+				Long.class,
+				runRecordPk,
+				"sr-58-64");
+		Long totalCount = jdbcTemplate.queryForObject(
+				"select count(*) from controlplane_step_record where run_record_pk = ?",
+				Long.class,
+				runRecordPk);
+
+		assertEquals(0L, staleCount);
+		assertEquals(2L, totalCount);
 	}
 
 	@Test
