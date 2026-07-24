@@ -112,7 +112,7 @@ controlplane.db.driver-class-name=${CONTROLPLANE_DB_DRIVER_CLASS_NAME:...}
 
 - `spring.datasource.*` and `controlplane.job-launch.worker.datasource.*` are wired from these canonical properties unless explicitly overridden by worker-specific env vars.
 - Use one simplified script surface for local control-plane work: `scripts/setup-controlplane.ps1` for database bootstrap and `scripts/restart-controlplane.ps1` for start/restart/status/stop.
-- Bootstrap safety note: `scripts/setup-controlplane.ps1` is rerun-safe and non-destructive for existing run history. It does not drop databases/tables or truncate/delete existing run data. It creates missing database objects, ensures indexes, and upserts `controlplane_trigger_source` seed rows.
+- Bootstrap safety note: `scripts/setup-controlplane.ps1` is rerun-safe and non-destructive for existing run history. It does not drop databases/tables or truncate/delete existing run data. It creates missing database objects, ensures indexes, seeds `controlplane_pk_sequence` floors, and upserts `controlplane_trigger_source` seed rows. It does not run legacy row/column repair patches during bootstrap.
 
 > Safety reminder: running `scripts/setup-controlplane.ps1` by mistake will not wipe existing control-plane run history data.
 
