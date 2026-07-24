@@ -6,6 +6,8 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-07-24
+
 ### Added
 - Added `scripts/generate-models-batch.ps1` to batch-generate XML model classes across discovered `job-config.yaml` bundles, with duplicate job-name detection, dry-run mode, optional private bundle scanning, and continue-on-error controls.
 - Added control-plane trigger-source catalog foundations (`TriggerSourceCatalog`, JDBC-backed `TriggerSourceCatalogService`, `TriggerSourceOptionView`, and `TriggerSourceListResponse`) for API/UI trigger-source filter option envelopes.
