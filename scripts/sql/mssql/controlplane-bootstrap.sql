@@ -83,6 +83,8 @@ BEGIN
 END;
 GO
 
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_trigger_event_schedule_time' AND object_id = OBJECT_ID(N'dbo.controlplane_trigger_event'))
+    DROP INDEX idx_trigger_event_schedule_time ON dbo.controlplane_trigger_event;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_trigger_event_pk' AND object_id = OBJECT_ID(N'dbo.controlplane_trigger_event'))
     CREATE UNIQUE INDEX idx_trigger_event_pk ON dbo.controlplane_trigger_event (trigger_event_pk);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_trigger_event_job_time' AND object_id = OBJECT_ID(N'dbo.controlplane_trigger_event'))
@@ -102,7 +104,9 @@ GO
 IF OBJECT_ID(N'dbo.controlplane_run_summary', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.controlplane_run_summary (
-        job_execution_id BIGINT NOT NULL PRIMARY KEY,
+        run_summary_pk BIGINT NOT NULL PRIMARY KEY,
+        run_record_pk BIGINT NULL,
+        job_execution_id BIGINT NOT NULL UNIQUE,
         scenario VARCHAR(200) NOT NULL,
         status VARCHAR(50) NOT NULL,
         start_time DATETIME2 NULL,
@@ -122,6 +126,10 @@ BEGIN
 END;
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_run_summary_pk' AND object_id = OBJECT_ID(N'dbo.controlplane_run_summary'))
+    CREATE UNIQUE INDEX idx_run_summary_pk ON dbo.controlplane_run_summary (run_summary_pk);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_run_summary_run_record_pk' AND object_id = OBJECT_ID(N'dbo.controlplane_run_summary'))
+    CREATE INDEX idx_run_summary_run_record_pk ON dbo.controlplane_run_summary (run_record_pk);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = N'idx_run_summary_start_time' AND object_id = OBJECT_ID(N'dbo.controlplane_run_summary'))
     CREATE INDEX idx_run_summary_start_time ON dbo.controlplane_run_summary (start_time, job_execution_id);
 GO
@@ -300,6 +308,32 @@ BEGIN
 END;
 GO
 
+MERGE dbo.controlplane_pk_sequence AS target
+USING (
+    VALUES
+        (N'controlplane_schedule_pk', 1),
+        (N'controlplane_trigger_event_pk', 1),
+        (N'controlplane_run_summary_pk', 1),
+        (N'controlplane_run_record_pk', 1),
+        (N'controlplane_step_record_pk', 1),
+        (N'controlplane_artifact_record_pk', 1),
+        (N'controlplane_attempt_link_pk', 1),
+        (N'controlplane_checkpoint_anchor_pk', 1)
+) AS source (sequence_name, next_value)
+ON target.sequence_name = source.sequence_name
+WHEN MATCHED THEN
+    UPDATE SET
+        target.next_value = CASE
+            WHEN target.next_value >= source.next_value THEN target.next_value
+            ELSE source.next_value
+        END,
+        target.updated_at = SYSDATETIME(),
+        target.updated_by = 'spring-etl-engine-bootstrap'
+WHEN NOT MATCHED THEN
+    INSERT (sequence_name, next_value, updated_at, created_by, updated_by)
+    VALUES (source.sequence_name, source.next_value, SYSDATETIME(), 'spring-etl-engine-bootstrap', 'spring-etl-engine-bootstrap');
+GO
+
 MERGE dbo.controlplane_trigger_source AS target
 USING (VALUES
     (1, 'MANUAL', 'Manual', 'Ad hoc operator or API-triggered launch', 1),
@@ -312,9 +346,10 @@ WHEN MATCHED THEN
         target.display_name = source.display_name,
         target.description = source.description,
         target.is_active = source.is_active,
-        target.updated_at = SYSDATETIME()
+        target.updated_at = SYSDATETIME(),
+        target.updated_by = 'spring-etl-engine-bootstrap'
 WHEN NOT MATCHED THEN
-    INSERT (trigger_source_pk, source_code, display_name, description, is_active, created_at, updated_at)
-    VALUES (source.trigger_source_pk, source.source_code, source.display_name, source.description, source.is_active, SYSDATETIME(), SYSDATETIME());
+    INSERT (trigger_source_pk, source_code, display_name, description, is_active, created_at, updated_at, created_by, updated_by)
+    VALUES (source.trigger_source_pk, source.source_code, source.display_name, source.description, source.is_active, SYSDATETIME(), SYSDATETIME(), 'spring-etl-engine-bootstrap', 'spring-etl-engine-bootstrap');
 GO
 

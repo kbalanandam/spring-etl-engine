@@ -32,6 +32,7 @@ public class RunSummaryReadModelService {
 	private final int maxLogFilesPerRefresh;
 	private final long minReindexIntervalMs;
 	private final ConcurrentHashMap<Path, LogCheckpoint> transientLogCheckpoints = new ConcurrentHashMap<>();
+	private volatile List<RunSummaryView> lastNonEmptyLatestRuns = List.of();
 	private volatile long lastReindexEpochMs = Long.MIN_VALUE;
 	private final AtomicBoolean reindexInProgress = new AtomicBoolean(false);
 
@@ -135,7 +136,12 @@ public class RunSummaryReadModelService {
 				&& normalizedRecoveryPolicyFilter.isBlank()
 				&& normalizedTriggerSourceFilter.isBlank()
 				&& startDate == null) {
-			return registry.latestRuns(limit);
+			List<RunSummaryView> latestRuns = registry.latestRuns(limit);
+			if (!latestRuns.isEmpty()) {
+				lastNonEmptyLatestRuns = List.copyOf(latestRuns);
+				return latestRuns;
+			}
+			return lastNonEmptyLatestRuns.stream().limit(limit).toList();
 		}
 		ZoneId effectiveZone = selectedZoneId == null ? ZoneId.systemDefault() : selectedZoneId;
 		return registry.latestRuns(Integer.MAX_VALUE).stream()

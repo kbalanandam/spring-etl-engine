@@ -66,12 +66,35 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (jobExecutionId == null) {
 			return;
 		}
+		RunRecordRef runRecord = upsertRunRecord(runSummary);
+		if (runRecord == null || runRecord.isEmpty()) {
+			return;
+		}
+		upsertRunSummaryRecord(runSummary, runRecord);
+		upsertAttemptAndCheckpointRecords(runSummary, runRecord);
+		upsertStepAndArtifactRecords(runSummary, runRecord);
+		pruneOverflow();
+	}
+
+	private void upsertRunSummaryRecord(RunSummaryView runSummary, RunRecordRef runRecord) {
+		Long jobExecutionId = runSummary.jobExecutionId();
+		if (jobExecutionId == null) {
+			return;
+		}
+		Long runRecordPk = runRecord == null ? null : runRecord.runRecordPk();
+		Long runSummaryPkForUpdate = resolveRunSummaryPk(runRecordPk, jobExecutionId);
+		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 		int updated = jdbcTemplate.update("""
 				update controlplane_run_summary
-				set scenario = ?, status = ?, start_time = ?, end_time = ?, duration_seconds = ?,
+				set run_summary_pk = coalesce(run_summary_pk, ?),
+				    run_record_pk = coalesce(run_record_pk, ?),
+				    scenario = ?, status = ?, start_time = ?, end_time = ?, duration_seconds = ?,
 				    source_count = ?, written_count = ?, rejected_count = ?, run_mode = ?, recovery_policy = ?, log_path = ?, last_seen_at = ?, updated_at = ?, updated_by = ?
-				where job_execution_id = ?
+				where (? is not null and run_record_pk = ?)
+				   or (run_record_pk is null and job_execution_id = ?)
 				""",
+				runSummaryPkForUpdate,
+				runRecordPk,
 				runSummary.scenario(),
 				runSummary.status(),
 				toTimestamp(runSummary.startTime()),
@@ -83,63 +106,94 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				runSummary.runMode(),
 				runSummary.recoveryPolicy(),
 				runSummary.logPath(),
-				Timestamp.valueOf(LocalDateTime.now()),
-				Timestamp.valueOf(LocalDateTime.now()),
+				now,
+				now,
 				auditActor,
+				runRecordPk,
+				runRecordPk,
 				jobExecutionId
 		);
 		if (updated == 0) {
-			jdbcTemplate.update("""
-					insert into controlplane_run_summary (
-						job_execution_id,
-						scenario,
-						status,
-						start_time,
-						end_time,
-						duration_seconds,
-						source_count,
-						written_count,
-						rejected_count,
-						run_mode,
-						recovery_policy,
-						log_path,
-						last_seen_at,
-						updated_at,
-						created_by,
-						updated_by
-					) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-					""",
-					jobExecutionId,
-					runSummary.scenario(),
-					runSummary.status(),
-					toTimestamp(runSummary.startTime()),
-					toTimestamp(runSummary.endTime()),
-					runSummary.durationSeconds(),
-					runSummary.sourceCount(),
-					runSummary.writtenCount(),
-					runSummary.rejectedCount(),
-					runSummary.runMode(),
-					runSummary.recoveryPolicy(),
-					runSummary.logPath(),
-					Timestamp.valueOf(LocalDateTime.now()),
-					Timestamp.valueOf(LocalDateTime.now()),
-					auditActor,
-					auditActor
-			);
+			long allocatedRunSummaryPk = nextRunSummaryPk();
+			try {
+				jdbcTemplate.update("""
+						insert into controlplane_run_summary (
+							run_summary_pk,
+							run_record_pk,
+							job_execution_id,
+							scenario,
+							status,
+							start_time,
+							end_time,
+							duration_seconds,
+							source_count,
+							written_count,
+							rejected_count,
+							run_mode,
+							recovery_policy,
+							log_path,
+							last_seen_at,
+							updated_at,
+							created_by,
+							updated_by
+						) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+						""",
+						allocatedRunSummaryPk,
+						runRecordPk,
+						jobExecutionId,
+						runSummary.scenario(),
+						runSummary.status(),
+						toTimestamp(runSummary.startTime()),
+						toTimestamp(runSummary.endTime()),
+						runSummary.durationSeconds(),
+						runSummary.sourceCount(),
+						runSummary.writtenCount(),
+						runSummary.rejectedCount(),
+						runSummary.runMode(),
+						runSummary.recoveryPolicy(),
+						runSummary.logPath(),
+						now,
+						now,
+						auditActor,
+						auditActor
+				);
+			} catch (DuplicateKeyException ignored) {
+				Long retryRunSummaryPk = resolveRunSummaryPk(runRecordPk, jobExecutionId);
+				jdbcTemplate.update("""
+						update controlplane_run_summary
+						set run_summary_pk = coalesce(run_summary_pk, ?),
+						    run_record_pk = coalesce(run_record_pk, ?),
+						    scenario = ?, status = ?, start_time = ?, end_time = ?, duration_seconds = ?,
+						    source_count = ?, written_count = ?, rejected_count = ?, run_mode = ?, recovery_policy = ?, log_path = ?, last_seen_at = ?, updated_at = ?, updated_by = ?
+						where (? is not null and run_record_pk = ?)
+						   or (run_record_pk is null and job_execution_id = ?)
+						""",
+						retryRunSummaryPk,
+						runRecordPk,
+						runSummary.scenario(),
+						runSummary.status(),
+						toTimestamp(runSummary.startTime()),
+						toTimestamp(runSummary.endTime()),
+						runSummary.durationSeconds(),
+						runSummary.sourceCount(),
+						runSummary.writtenCount(),
+						runSummary.rejectedCount(),
+						runSummary.runMode(),
+						runSummary.recoveryPolicy(),
+						runSummary.logPath(),
+						now,
+						now,
+						auditActor,
+						runRecordPk,
+						runRecordPk,
+						jobExecutionId
+				);
+			}
 		}
-		upsertRunRecord(runSummary);
-		upsertAttemptAndCheckpointRecords(runSummary);
-		upsertStepAndArtifactRecords(runSummary);
-		pruneOverflow();
 	}
 
-	private void upsertAttemptAndCheckpointRecords(RunSummaryView runSummary) {
-		Long jobExecutionId = runSummary.jobExecutionId();
-		if (jobExecutionId == null) {
-			return;
-		}
-		RunRecordRef runRecord = resolveRunRecordRef(jobExecutionId);
-		if (runRecord.isEmpty()) {
+	private void upsertAttemptAndCheckpointRecords(RunSummaryView runSummary, RunRecordRef runRecord) {
+		if (runRecord == null || runRecord.isEmpty()) {
 			return;
 		}
 
@@ -164,7 +218,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		boolean legacyRunRecordIdColumn = hasOptionalColumn("controlplane_attempt_link", "run_record_id");
 		boolean legacyPriorRunRecordIdColumn = hasOptionalColumn("controlplane_attempt_link", "prior_run_record_id");
 
-		String attemptLinkId = "al-" + jobExecutionId;
+		String attemptLinkId = "al-" + runRecord.runRecordPk();
 		List<Object> updateParams = new ArrayList<>();
 		StringBuilder updateSql = new StringBuilder("update controlplane_attempt_link set run_record_pk = ?");
 		updateParams.add(runRecord.runRecordPk());
@@ -178,7 +232,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			updateSql.append(", prior_run_record_id = ?");
 			updateParams.add(priorRunRecord.runRecordId());
 		}
-		updateSql.append(", link_kind = ?, created_at = coalesce(created_at, ?), created_by = coalesce(nullif(trim(created_by), ''), ?), updated_at = ?, updated_by = ? where attempt_link_id = ?");
+		updateSql.append(", link_kind = ?, created_at = ?, created_by = ?, updated_at = ?, updated_by = ? where attempt_link_id = ?");
 		updateParams.add(linkKind);
 		updateParams.add(now);
 		updateParams.add(auditActor);
@@ -236,7 +290,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			return;
 		}
 
-		String checkpointAnchorId = "ca-log-" + jobExecutionId;
+		String checkpointAnchorId = "ca-log-" + runRecord.runRecordPk();
 		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 		boolean legacyRunRecordIdColumn = hasOptionalColumn("controlplane_checkpoint_anchor", "run_record_id");
 		List<Object> updateParams = new ArrayList<>();
@@ -246,7 +300,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			updateSql.append(", run_record_id = ?");
 			updateParams.add(runRecord.runRecordId());
 		}
-		updateSql.append(", step_record_pk = ?, step_record_id = ?, anchor_kind = ?, anchor_ref = ?, anchor_status = ?, created_at = coalesce(created_at, ?), created_by = coalesce(nullif(trim(created_by), ''), ?), updated_at = ?, updated_by = ? where checkpoint_anchor_id = ?");
+		updateSql.append(", step_record_pk = ?, step_record_id = ?, anchor_kind = ?, anchor_ref = ?, anchor_status = ?, created_at = ?, created_by = ?, updated_at = ?, updated_by = ? where checkpoint_anchor_id = ?");
 		updateParams.add(null);
 		updateParams.add(null);
 		updateParams.add("RUN_LOG");
@@ -373,7 +427,9 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				       te.schedule_pk,
 				       te.external_origin_key
 				from controlplane_run_summary rs
-				left join controlplane_run_record rr on rr.job_execution_id = rs.job_execution_id
+				left join controlplane_run_record rr
+				  on (rs.run_record_pk is not null and rr.run_record_pk = rs.run_record_pk)
+				  or (rs.run_record_pk is null and rr.job_execution_id = rs.job_execution_id)
 				left join controlplane_trigger_event te
 				  on (rr.trigger_event_pk is not null and te.trigger_event_pk = rr.trigger_event_pk)
 				  or (rr.trigger_event_pk is null and rr.trigger_event_id is not null and te.trigger_event_id = rr.trigger_event_id)
@@ -447,7 +503,9 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				       te.schedule_pk,
 				       te.external_origin_key
 				from controlplane_run_summary rs
-				left join controlplane_run_record rr on rr.job_execution_id = rs.job_execution_id
+				left join controlplane_run_record rr
+				  on (rs.run_record_pk is not null and rr.run_record_pk = rs.run_record_pk)
+				  or (rs.run_record_pk is null and rr.job_execution_id = rs.job_execution_id)
 				left join controlplane_trigger_event te
 				  on (rr.trigger_event_pk is not null and te.trigger_event_pk = rr.trigger_event_pk)
 				  or (rr.trigger_event_pk is null and rr.trigger_event_id is not null and te.trigger_event_id = rr.trigger_event_id)
@@ -627,7 +685,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				.filter(java.util.Objects::nonNull)
 				.sorted(java.util.Comparator.comparing(StepExecution::getId, java.util.Comparator.nullsLast(Long::compareTo)))
 				.forEach(stepExecution -> {
-					String stepRecordId = toStepRecordId(jobExecutionId, stepExecution);
+					String stepRecordId = toStepRecordId(runRecord, jobExecutionId, stepExecution);
 					if (stepRecordId.isBlank()) {
 						return;
 					}
@@ -735,18 +793,21 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		}
 	}
 
-	private String toStepRecordId(long jobExecutionId, StepExecution stepExecution) {
+	private String toStepRecordId(RunRecordRef runRecord, long jobExecutionId, StepExecution stepExecution) {
 		if (stepExecution == null) {
 			return "";
 		}
+		String runIdentity = runRecord != null && runRecord.runRecordPk() != null
+				? String.valueOf(runRecord.runRecordPk())
+				: String.valueOf(jobExecutionId);
 		if (stepExecution.getId() != null) {
-			return "sr-" + jobExecutionId + "-" + stepExecution.getId();
+			return "sr-" + runIdentity + "-" + stepExecution.getId();
 		}
 		String stepNameKey = normalizeStepNameKey(stepExecution.getStepName());
 		if (stepNameKey.isBlank()) {
 			return "";
 		}
-		return "sr-" + jobExecutionId + "-name-" + stepNameKey;
+		return "sr-" + runIdentity + "-name-" + stepNameKey;
 	}
 
 	private List<RunCheckpointAnchorView> listCheckpointAnchorsByRunRecordPk(Long runRecordPk) {
@@ -847,7 +908,9 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		ensurePkSequenceTable();
 		createTableIfMissing("controlplane_run_summary", """
 				create table controlplane_run_summary (
-					job_execution_id bigint primary key,
+					run_summary_pk bigint primary key,
+					run_record_pk bigint,
+					job_execution_id bigint not null unique,
 					scenario varchar(200) not null,
 					status varchar(50) not null,
 					start_time timestamp,
@@ -865,13 +928,20 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 					updated_by varchar(200)
 				)
 				""");
+		ensureColumnExists("controlplane_run_summary", "run_summary_pk", "bigint");
+		ensureColumnExists("controlplane_run_summary", "run_record_pk", "bigint");
 		ensureColumnExists("controlplane_run_summary", "run_mode", "varchar(80)");
 		ensureColumnExists("controlplane_run_summary", "recovery_policy", "varchar(120)");
 		ensureColumnExists("controlplane_run_summary", "updated_at", "timestamp");
 		ensureColumnExists("controlplane_run_summary", "created_by", "varchar(200)");
 		ensureColumnExists("controlplane_run_summary", "updated_by", "varchar(200)");
+		backfillRunSummaryPk();
 		createIndexIfMissing("controlplane_run_summary", "idx_run_summary_start_time",
 				"create index idx_run_summary_start_time on controlplane_run_summary (start_time, job_execution_id)");
+		createIndexIfMissing("controlplane_run_summary", "idx_run_summary_pk",
+				"create unique index idx_run_summary_pk on controlplane_run_summary (run_summary_pk)");
+		createIndexIfMissing("controlplane_run_summary", "idx_run_summary_run_record_pk",
+				"create index idx_run_summary_run_record_pk on controlplane_run_summary (run_record_pk)");
 		createTableIfMissing("controlplane_run_record", """
 				create table controlplane_run_record (
 					run_record_pk bigint primary key,
@@ -1036,6 +1106,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				"create index idx_log_checkpoint_updated_at on controlplane_log_checkpoint (updated_at)");
 		createArtifactOwnershipTriggers();
 		backfillRunRecordFromRunSummary();
+		backfillRunSummaryRunRecordPk();
 		backfillRunRecordTriggerEventId();
 		backfillRunRecordTriggerEventPk();
 		backfillRunRecordSelectedJobKey();
@@ -1044,45 +1115,6 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		backfillStepRecordsFromBatchMetadata();
 		backfillStepRecordsFromRunLogs();
 		backfillCheckpointAnchorStepRecordPk();
-		backfillAttemptAndCheckpointAuditColumns();
-	}
-
-	private void backfillAttemptAndCheckpointAuditColumns() {
-		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
-		try {
-			jdbcTemplate.update("""
-					update controlplane_attempt_link
-					set created_at = coalesce(created_at, updated_at, ?),
-					    updated_at = coalesce(updated_at, created_at, ?),
-					    created_by = coalesce(nullif(trim(created_by), ''), ?),
-					    updated_by = coalesce(nullif(trim(updated_by), ''), ?)
-					where created_at is null
-					   or updated_at is null
-					   or created_by is null
-					   or trim(created_by) = ''
-					   or updated_by is null
-					   or trim(updated_by) = ''
-					""", now, now, auditActor, auditActor);
-		} catch (DataAccessException ignored) {
-			// Keep startup resilient when legacy schema/data cleanup cannot be applied.
-		}
-		try {
-			jdbcTemplate.update("""
-					update controlplane_checkpoint_anchor
-					set created_at = coalesce(created_at, updated_at, ?),
-					    updated_at = coalesce(updated_at, created_at, ?),
-					    created_by = coalesce(nullif(trim(created_by), ''), ?),
-					    updated_by = coalesce(nullif(trim(updated_by), ''), ?)
-					where created_at is null
-					   or updated_at is null
-					   or created_by is null
-					   or trim(created_by) = ''
-					   or updated_by is null
-					   or trim(updated_by) = ''
-					""", now, now, auditActor, auditActor);
-		} catch (DataAccessException ignored) {
-			// Keep startup resilient when legacy schema/data cleanup cannot be applied.
-		}
 	}
 
 	private void backfillCheckpointAnchorStepRecordPk() {
@@ -1104,13 +1136,9 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		}
 	}
 
-	private void upsertStepAndArtifactRecords(RunSummaryView runSummary) {
+	private void upsertStepAndArtifactRecords(RunSummaryView runSummary, RunRecordRef runRecord) {
 		Long jobExecutionId = runSummary.jobExecutionId();
-		if (jobExecutionId == null) {
-			return;
-		}
-		RunRecordRef runRecord = resolveRunRecordRef(jobExecutionId);
-		if (runRecord.isEmpty()) {
+		if (jobExecutionId == null || runRecord == null || runRecord.isEmpty()) {
 			return;
 		}
 		upsertStepRecordsFromBatchMetadata(jobExecutionId, runRecord, runSummary.startTime(), runSummary.endTime());
@@ -1302,8 +1330,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		int sequence = 1;
 		for (LogStepProjection projection : projections.values()) {
 			String stepRecordId = projection.stepExecutionId == null
-					? "sr-" + jobExecutionId + "-log-" + sequence
-					: "sr-" + jobExecutionId + "-" + projection.stepExecutionId;
+					? "sr-" + runRecord.runRecordPk() + "-log-" + sequence
+					: "sr-" + runRecord.runRecordPk() + "-" + projection.stepExecutionId;
 			Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 			upsertStepRecord(
 					stepRecordId,
@@ -1376,7 +1404,9 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			candidates = jdbcTemplate.query("""
 					select rs.job_execution_id, rr.run_record_pk, rr.run_record_id, rs.log_path
 					from controlplane_run_summary rs
-					join controlplane_run_record rr on rr.job_execution_id = rs.job_execution_id
+					join controlplane_run_record rr
+					  on (rs.run_record_pk is not null and rr.run_record_pk = rs.run_record_pk)
+					  or (rs.run_record_pk is null and rr.job_execution_id = rs.job_execution_id)
 					where rs.log_path is not null
 					  and trim(rs.log_path) <> ''
 					""", (rs, rowNum) -> new RunLogArtifactBackfillCandidate(
@@ -1503,7 +1533,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				if (!isStepWithinRunWindow(step.startTime(), step.endTime(), runStart, runEnd)) {
 					continue;
 				}
-				String stepRecordId = "sr-" + jobExecutionId + "-" + step.stepExecutionId();
+				String stepRecordId = "sr-" + runRecord.runRecordPk() + "-" + step.stepExecutionId();
 				Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 				upsertStepRecord(
 						stepRecordId,
@@ -1604,7 +1634,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			return;
 		}
 		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
-		upsertArtifactRecord("ar-log-" + jobExecutionId, runRecord, null, "RUN_LOG", normalizedLogPath, now);
+		upsertArtifactRecord("ar-log-" + runRecord.runRecordPk(), runRecord, null, "RUN_LOG", normalizedLogPath, now);
 	}
 
 	private Long nextStepRecordPk() {
@@ -1627,8 +1657,82 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (jobExecutionId == null) {
 			return RunRecordRef.empty();
 		}
+		return resolveMostRecentRunRecordByJobExecutionId(jobExecutionId);
+	}
+
+	private RunRecordRef resolveRunRecordRefForUpsert(RunSummaryView runSummary, TriggerEventLink resolvedTriggerEvent) {
+		String explicitTriggerEventId = normalize(runSummary.triggerEventId());
+		if (!explicitTriggerEventId.isBlank()) {
+			RunRecordRef explicitMatch = resolveRunRecordRefByTriggerEventId(explicitTriggerEventId);
+			if (!explicitMatch.isEmpty()) {
+				return explicitMatch;
+			}
+			// Trigger identity is explicit for this run; avoid jobExecutionId-based reuse.
+			return RunRecordRef.empty();
+		}
+		if (resolvedTriggerEvent != null && !resolvedTriggerEvent.isEmpty()) {
+			RunRecordRef byPk = resolveRunRecordRefByTriggerEventPk(resolvedTriggerEvent.triggerEventPk());
+			if (!byPk.isEmpty()) {
+				return byPk;
+			}
+			RunRecordRef byId = resolveRunRecordRefByTriggerEventId(resolvedTriggerEvent.triggerEventId());
+			if (!byId.isEmpty()) {
+				return byId;
+			}
+			return RunRecordRef.empty();
+		}
+		return resolveMostRecentRunRecordByJobExecutionId(runSummary.jobExecutionId());
+	}
+
+	private RunRecordRef resolveRunRecordRefByTriggerEventId(String triggerEventId) {
+		String normalizedTriggerEventId = normalize(triggerEventId);
+		if (normalizedTriggerEventId.isBlank()) {
+			return RunRecordRef.empty();
+		}
+		String sql = """
+				select run_record_pk, run_record_id
+				from controlplane_run_record
+				where lower(trim(trigger_event_id)) = lower(trim(?))
+				order by run_record_pk desc
+				""" + firstRowsClause(1);
 		return jdbcTemplate.query(
-				"select run_record_pk, run_record_id from controlplane_run_record where job_execution_id = ?",
+				sql,
+				rs -> rs.next() ? new RunRecordRef(rs.getObject("run_record_pk", Long.class), rs.getString("run_record_id")) : RunRecordRef.empty(),
+				normalizedTriggerEventId
+		);
+	}
+
+	private RunRecordRef resolveRunRecordRefByTriggerEventPk(Long triggerEventPk) {
+		if (triggerEventPk == null) {
+			return RunRecordRef.empty();
+		}
+		String sql = """
+				select run_record_pk, run_record_id
+				from controlplane_run_record
+				where trigger_event_pk = ?
+				order by run_record_pk desc
+				""" + firstRowsClause(1);
+		return jdbcTemplate.query(
+				sql,
+				rs -> rs.next() ? new RunRecordRef(rs.getObject("run_record_pk", Long.class), rs.getString("run_record_id")) : RunRecordRef.empty(),
+				triggerEventPk
+		);
+	}
+
+	private RunRecordRef resolveMostRecentRunRecordByJobExecutionId(Long jobExecutionId) {
+		if (jobExecutionId == null) {
+			return RunRecordRef.empty();
+		}
+		String sql = """
+				select run_record_pk, run_record_id
+				from controlplane_run_record
+				where job_execution_id = ?
+				order by case when started_at is null then 1 else 0 end,
+				         started_at desc,
+				         run_record_pk desc
+				""" + firstRowsClause(1);
+		return jdbcTemplate.query(
+				sql,
 				rs -> rs.next() ? new RunRecordRef(rs.getObject("run_record_pk", Long.class), rs.getString("run_record_id")) : RunRecordRef.empty(),
 				jobExecutionId
 		);
@@ -1650,24 +1754,27 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		// No-op: legacy primary-key migration removed.
 	}
 
-	private void upsertRunRecord(RunSummaryView runSummary) {
+	private RunRecordRef upsertRunRecord(RunSummaryView runSummary) {
 		Long jobExecutionId = runSummary.jobExecutionId();
 		if (jobExecutionId == null) {
-			return;
+			return RunRecordRef.empty();
 		}
 		String selectedJobKey = normalize(runSummary.scenario());
 		TriggerEventLink resolvedTriggerEvent = resolveCompleteTriggerEventLink(resolveTriggerEventLinkForUpsert(runSummary));
+		RunRecordRef existingRunRecord = resolveRunRecordRefForUpsert(runSummary, resolvedTriggerEvent);
 		boolean applyTriggerLink = !resolvedTriggerEvent.isEmpty();
+		if (applyTriggerLink && shouldBlockTriggerLinkOverwrite(existingRunRecord, resolvedTriggerEvent)) {
+			applyTriggerLink = false;
+		}
 		Long triggerEventPkForWrite = applyTriggerLink ? resolvedTriggerEvent.triggerEventPk() : null;
 		String triggerEventIdForWrite = applyTriggerLink ? resolvedTriggerEvent.triggerEventId() : null;
+		Long runRecordPkForUpdate = existingRunRecord.isEmpty() ? null : existingRunRecord.runRecordPk();
 		String runRecordId = "rr-" + jobExecutionId;
 		String resolvedSelectedJobKey = selectedJobKey.isBlank() ? null : selectedJobKey;
-		long allocatedRunRecordPk = nextRunRecordPk();
 		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 		int updated = jdbcTemplate.update("""
 				update controlplane_run_record
-				set run_record_pk = coalesce(run_record_pk, ?),
-				    trigger_event_pk = case when ? = 1 then ? else trigger_event_pk end,
+				set trigger_event_pk = case when ? = 1 then ? else trigger_event_pk end,
 				    trigger_event_id = case when ? = 1 then ? else trigger_event_id end,
 				    selected_job_key = coalesce(nullif(trim(?), ''), selected_job_key),
 				    scenario = ?,
@@ -1680,11 +1787,12 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				    rejected_count = ?,
 				    run_mode = ?,
 				    recovery_policy = ?,
+				    created_at = ?,
 				    updated_at = ?,
 				    updated_by = ?
-				where job_execution_id = ?
+				where ? is not null
+				  and run_record_pk = ?
 				""",
-				allocatedRunRecordPk,
 				applyTriggerLink ? 1 : 0,
 				triggerEventPkForWrite,
 				applyTriggerLink ? 1 : 0,
@@ -1701,10 +1809,13 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				runSummary.runMode(),
 				runSummary.recoveryPolicy(),
 				now,
+				now,
 				auditActor,
-				jobExecutionId
+				runRecordPkForUpdate,
+				runRecordPkForUpdate
 		);
 		if (updated == 0) {
+			long allocatedRunRecordPk = nextRunRecordPk();
 			try {
 				jdbcTemplate.update("""
 						insert into controlplane_run_record (
@@ -1751,11 +1862,17 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 						auditActor,
 						auditActor
 				);
+				return new RunRecordRef(allocatedRunRecordPk, runRecordId);
 			} catch (DuplicateKeyException ignored) {
+				RunRecordRef retryRunRecord = resolveMostRecentRunRecordByJobExecutionId(jobExecutionId);
+				Long retryRunRecordPk = retryRunRecord.isEmpty() ? null : retryRunRecord.runRecordPk();
+				boolean applyTriggerLinkOnRetry = applyTriggerLink;
+				if (applyTriggerLinkOnRetry && shouldBlockTriggerLinkOverwrite(retryRunRecord, resolvedTriggerEvent)) {
+					applyTriggerLinkOnRetry = false;
+				}
 				jdbcTemplate.update("""
 						update controlplane_run_record
-						set run_record_pk = coalesce(run_record_pk, ?),
-						    trigger_event_pk = case when ? = 1 then ? else trigger_event_pk end,
+						set trigger_event_pk = case when ? = 1 then ? else trigger_event_pk end,
 						    trigger_event_id = case when ? = 1 then ? else trigger_event_id end,
 						    selected_job_key = coalesce(nullif(trim(?), ''), selected_job_key),
 						    scenario = ?,
@@ -1768,14 +1885,15 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 						    rejected_count = ?,
 						    run_mode = ?,
 						    recovery_policy = ?,
+						    created_at = ?,
 						    updated_at = ?,
 						    updated_by = ?
-						where job_execution_id = ?
+						where ? is not null
+						  and run_record_pk = ?
 						""",
-						allocatedRunRecordPk,
-						applyTriggerLink ? 1 : 0,
+						applyTriggerLinkOnRetry ? 1 : 0,
 						triggerEventPkForWrite,
-						applyTriggerLink ? 1 : 0,
+						applyTriggerLinkOnRetry ? 1 : 0,
 						triggerEventIdForWrite,
 						resolvedSelectedJobKey,
 						runSummary.scenario(),
@@ -1789,13 +1907,75 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 						runSummary.runMode(),
 						runSummary.recoveryPolicy(),
 						now,
+						now,
 						auditActor,
-						jobExecutionId
+						retryRunRecordPk,
+						retryRunRecordPk
 				);
+				if (!retryRunRecord.isEmpty()) {
+					return retryRunRecord;
+				}
 			}
 		}
+		if (!existingRunRecord.isEmpty()) {
+			return existingRunRecord;
+		}
+		return resolveMostRecentRunRecordByJobExecutionId(jobExecutionId);
 		// Forward link in controlplane_run_record is the authoritative path.
 		// Reverse trigger-event launched_run_* writes are reserved for legacy repair flows.
+	}
+
+	private boolean shouldBlockTriggerLinkOverwrite(RunRecordRef runRecord, TriggerEventLink candidate) {
+		if (runRecord == null || runRecord.isEmpty() || candidate == null || candidate.isEmpty()) {
+			return false;
+		}
+		TriggerEventLink existing = resolveRunRecordTriggerEventLink(runRecord.runRecordPk());
+		if (existing == null || existing.isEmpty()) {
+			return false;
+		}
+		TriggerEventLink existingComplete = resolveCompleteTriggerEventLink(existing);
+		TriggerEventLink candidateComplete = resolveCompleteTriggerEventLink(candidate);
+		if (existingComplete.isEmpty() || candidateComplete.isEmpty()) {
+			return false;
+		}
+		boolean sameLink = sameTriggerEventLink(existingComplete, candidateComplete);
+		if (sameLink) {
+			return false;
+		}
+		logger.warn(
+				"RUN_LINK_CONFLICT event=run_link_conflict runRecordPk={} existingTriggerEventId={} existingTriggerEventPk={} candidateTriggerEventId={} candidateTriggerEventPk={} action=keep_existing_link",
+				runRecord.runRecordPk(),
+				existingComplete.triggerEventId(),
+				existingComplete.triggerEventPk(),
+				candidateComplete.triggerEventId(),
+				candidateComplete.triggerEventPk()
+		);
+		return true;
+	}
+
+	private TriggerEventLink resolveRunRecordTriggerEventLink(Long runRecordPk) {
+		if (runRecordPk == null) {
+			return TriggerEventLink.empty();
+		}
+		return Optional.ofNullable(jdbcTemplate.query(
+				"select trigger_event_id, trigger_event_pk from controlplane_run_record where run_record_pk = ?",
+				rs -> rs.next()
+						? new TriggerEventLink(rs.getString("trigger_event_id"), nullableLong(rs, "trigger_event_pk"))
+						: TriggerEventLink.empty(),
+				runRecordPk
+		)).orElse(TriggerEventLink.empty());
+	}
+
+	private boolean sameTriggerEventLink(TriggerEventLink first, TriggerEventLink second) {
+		if (first == null || second == null || first.isEmpty() || second.isEmpty()) {
+			return false;
+		}
+		String firstId = normalize(first.triggerEventId()).toLowerCase(Locale.ROOT);
+		String secondId = normalize(second.triggerEventId()).toLowerCase(Locale.ROOT);
+		if (firstId.isBlank() || secondId.isBlank() || !firstId.equals(secondId)) {
+			return false;
+		}
+		return first.triggerEventPk() != null && first.triggerEventPk().equals(second.triggerEventPk());
 	}
 
 	private TriggerEventLink resolveCompleteTriggerEventLink(TriggerEventLink candidate) {
@@ -1830,11 +2010,12 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				       rs.run_mode,
 				       rs.recovery_policy
 				from controlplane_run_summary rs
-				where not exists (
+				where rs.run_record_pk is null
+				   or not exists (
 					select 1
 					from controlplane_run_record rr
-					where rr.job_execution_id = rs.job_execution_id
-				)
+					where rr.run_record_pk = rs.run_record_pk
+				   )
 				""", (rs, rowNum) -> new RunRecordBackfillCandidate(
 				rs.getLong("job_execution_id"),
 				rs.getString("scenario"),
@@ -1852,6 +2033,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			Timestamp now = Timestamp.valueOf(LocalDateTime.now());
 			String selectedJobKey = normalize(candidate.scenario());
 			try {
+				long runRecordPk = nextRunRecordPk();
 				jdbcTemplate.update("""
 						insert into controlplane_run_record (
 							run_record_pk,
@@ -1876,7 +2058,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 							updated_by
 						) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 						""",
-						nextRunRecordPk(),
+						runRecordPk,
 						"rr-" + candidate.jobExecutionId(),
 						candidate.jobExecutionId(),
 						null,
@@ -1903,6 +2085,53 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		}
 	}
 
+	private void backfillRunSummaryPk() {
+		List<Long> jobExecutionIds;
+		try {
+			jobExecutionIds = jdbcTemplate.queryForList(
+					"select job_execution_id from controlplane_run_summary where run_summary_pk is null order by job_execution_id",
+					Long.class
+			);
+		} catch (DataAccessException ignored) {
+			return;
+		}
+		for (Long jobExecutionId : jobExecutionIds) {
+			if (jobExecutionId == null) {
+				continue;
+			}
+			try {
+				jdbcTemplate.update(
+						"update controlplane_run_summary set run_summary_pk = ? where job_execution_id = ? and run_summary_pk is null",
+						nextRunSummaryPk(),
+						jobExecutionId
+				);
+			} catch (DuplicateKeyException ignored) {
+				// Concurrent startup may fill this surrogate first; ignore and continue.
+			}
+		}
+	}
+
+	private void backfillRunSummaryRunRecordPk() {
+		try {
+			jdbcTemplate.update("""
+					update controlplane_run_summary
+					set run_record_pk = (
+						select rr.run_record_pk
+						from controlplane_run_record rr
+						where rr.job_execution_id = controlplane_run_summary.job_execution_id
+					)
+					where run_record_pk is null
+					  and exists (
+						select 1
+						from controlplane_run_record rr
+						where rr.job_execution_id = controlplane_run_summary.job_execution_id
+					  )
+					""");
+		} catch (DataAccessException ignored) {
+			// Keep startup resilient while legacy run-summary rows are bridged to run_record_pk.
+		}
+	}
+
 	private void upsertStepRecord(String stepRecordId,
 	                             RunRecordRef runRecord,
 	                             String stepName,
@@ -1925,7 +2154,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			updateSql.append(", run_record_id = ?");
 			updateParams.add(runRecord.runRecordId());
 		}
-		updateSql.append(", step_name = ?, step_status = ?, started_at = ?, finished_at = ?, duration_seconds = ?, read_count = ?, write_count = ?, filter_count = ?, skip_count = ?, rollback_count = ?, rejected_count = ?, updated_at = ?, updated_by = ? where step_record_id = ?");
+		updateSql.append(", step_name = ?, step_status = ?, started_at = ?, finished_at = ?, duration_seconds = ?, read_count = ?, write_count = ?, filter_count = ?, skip_count = ?, rollback_count = ?, rejected_count = ?, created_at = ?, updated_at = ?, updated_by = ? where step_record_id = ?");
 		updateParams.add(stepName);
 		updateParams.add(stepStatus);
 		updateParams.add(startedAt);
@@ -1937,6 +2166,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		updateParams.add(skipCount);
 		updateParams.add(rollbackCount);
 		updateParams.add(rejectedCount);
+		updateParams.add(now);
 		updateParams.add(now);
 		updateParams.add(auditActor);
 		updateParams.add(stepRecordId);
@@ -1994,10 +2224,11 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			updateSql.append(", run_record_id = ?");
 			updateParams.add(runRecord.runRecordId());
 		}
-		updateSql.append(", step_record_id = ?, artifact_role = ?, artifact_path = ?, updated_at = ?, updated_by = ? where artifact_record_id = ?");
+		updateSql.append(", step_record_id = ?, artifact_role = ?, artifact_path = ?, created_at = ?, updated_at = ?, updated_by = ? where artifact_record_id = ?");
 		updateParams.add(stepRecordId);
 		updateParams.add(artifactRole);
 		updateParams.add(artifactPath);
+		updateParams.add(now);
 		updateParams.add(now);
 		updateParams.add(auditActor);
 		updateParams.add(artifactRecordId);
@@ -2122,6 +2353,25 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 
 	private void backfillRunRecordTriggerEventPk() {
 		try {
+			Long conflictCount = jdbcTemplate.queryForObject("""
+					select count(*)
+					from controlplane_run_record
+					where trigger_event_id is not null
+					  and exists (
+						select 1
+						from controlplane_trigger_event te
+						where te.trigger_event_id = controlplane_run_record.trigger_event_id
+					  )
+					  and trigger_event_pk is not null
+					  and coalesce(trigger_event_pk, -1) <> coalesce((
+						select te.trigger_event_pk
+						from controlplane_trigger_event te
+						where te.trigger_event_id = controlplane_run_record.trigger_event_id
+					  ), -1)
+					""", Long.class);
+			if (conflictCount != null && conflictCount > 0) {
+				logger.warn("RUN_LINK_CONFLICT event=startup_run_link_conflict count={} action=keep_existing_link", conflictCount);
+			}
 			jdbcTemplate.update("""
 					update controlplane_run_record
 					set trigger_event_pk = (
@@ -2135,14 +2385,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 						from controlplane_trigger_event te
 						where te.trigger_event_id = controlplane_run_record.trigger_event_id
 					  )
-					  and (
-						trigger_event_pk is null
-						or coalesce(trigger_event_pk, -1) <> coalesce((
-							select te.trigger_event_pk
-							from controlplane_trigger_event te
-							where te.trigger_event_id = controlplane_run_record.trigger_event_id
-						), -1)
-					  )
+					  and trigger_event_pk is null
 					""");
 		} catch (DataAccessException ignored) {
 			// Keep run-summary persistence available when trigger table state is optional.
@@ -2394,14 +2637,8 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 	}
 
 	private Long resolveRunRecordPk(Long jobExecutionId) {
-		if (jobExecutionId == null) {
-			return null;
-		}
-		return jdbcTemplate.query(
-				"select run_record_pk from controlplane_run_record where job_execution_id = ?",
-				rs -> rs.next() ? rs.getObject(1, Long.class) : null,
-				jobExecutionId
-		);
+		RunRecordRef runRecordRef = resolveMostRecentRunRecordByJobExecutionId(jobExecutionId);
+		return runRecordRef.isEmpty() ? null : runRecordRef.runRecordPk();
 	}
 
 	private void backfillLaunchedRunLink(Long jobExecutionId, TriggerEventLink triggerEvent) {
@@ -2431,6 +2668,23 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 
 	private long nextRunRecordPk() {
 		return nextPk("controlplane_run_record_pk");
+	}
+
+	private long nextRunSummaryPk() {
+		return nextPk("controlplane_run_summary_pk");
+	}
+
+	private Long resolveRunSummaryPk(Long runRecordPk, Long jobExecutionId) {
+		if (runRecordPk == null && jobExecutionId == null) {
+			return null;
+		}
+		return jdbcTemplate.query(
+				"select run_summary_pk from controlplane_run_summary where (? is not null and run_record_pk = ?) or (run_record_pk is null and job_execution_id = ?)",
+				rs -> rs.next() ? rs.getObject(1, Long.class) : null,
+				runRecordPk,
+				runRecordPk,
+				jobExecutionId
+		);
 	}
 
 	private void ensurePkSequenceTable() {
@@ -2556,6 +2810,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 
 	private record RunLogArtifactBackfillCandidate(long jobExecutionId, Long runRecordPk, String runRecordId, String logPath) {
 	}
+
 
 	private record RunRecordRef(Long runRecordPk, String runRecordId) {
 		private static RunRecordRef empty() {

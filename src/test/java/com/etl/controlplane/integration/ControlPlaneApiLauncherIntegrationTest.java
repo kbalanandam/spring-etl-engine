@@ -185,7 +185,7 @@ class ControlPlaneApiLauncherIntegrationTest {
 				.andExpect(jsonPath("$.recovery.jobExecutionId").value(901))
 				.andExpect(jsonPath("$.recovery.runRecordId").value("rr-901"))
 				.andExpect(jsonPath("$.recovery.resumeSupported").value(false))
-				.andExpect(jsonPath("$.recovery.checkpointAnchors[0].checkpointAnchorId").value("ca-log-901"))
+				.andExpect(jsonPath("$.recovery.checkpointAnchors[0].checkpointAnchorId").value("ca-log-1"))
 				.andExpect(jsonPath("$.recovery.checkpointAnchors[0].anchorRef").value(LOG_ROOT.resolve("2026-05-27/customer-load.log").toString()));
 
 		mockMvc.perform(get("/api/v1/runs/901/step-records").param("limit", "10"))
