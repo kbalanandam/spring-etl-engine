@@ -271,12 +271,12 @@ This table is the day-to-day execution view for the current product stage.
 | [X2](backlog-items/etl-core/X2-first-inbound-sftp-staged-pull-capability.md) | Add first inbound SFTP staged pull capability | Epic X | P1 | Deferred | M2 | X1, B2, C2 | First slice should stage remote files locally and emit transfer evidence |
 | [X3](backlog-items/etl-core/X3-remote-post-success-file-handling-and-failure-categorization.md) | Add remote post-success file handling and failure categorization for SFTP | Epic X | P1 | Deferred | M2 | X2, D1 | Add remote move/rename/archive semantics only after the first inbound pull slice is stable |
 | [X4](backlog-items/etl-core/X4-partner-facing-transport-security-and-isolated-worker-boundary.md) | Define partner-facing transport security rules and optional isolated worker deployment | Epic X | P1 | Deferred | M3 | X1, G1 | Preserve optional external MFT or isolated transport-worker deployment for stronger partner-facing isolation |
-| [S1](backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md) | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | In Progress | M2 | A1, C1 | First slice in progress: freeze one selected-job launch contract plus trigger-origin/identity evidence boundary before `S2` implementation expands controls |
-| [S2](backlog-items/scheduler/S2-time-based-schedule-definitions-with-pause-resume.md) | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | In Progress | M2 | S1 | Current-release first slice in progress: time-based definitions and pause/resume controls on the frozen selected-job launch boundary |
-| [S3](backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md) | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Deferred | M3 | S1, S2, F1 | Enterprise scheduler credibility depends on run control and evidence |
+| [S1](backlog-items/scheduler/S1-schedule-model-and-trigger-contract.md) | Define schedule model and trigger contract for scenario-based execution | Epic S | P1 | Done | M2 | A1, C1 | Launch-contract freeze is shipped: native scheduler, operator ad hoc, and external launchers stay on the selected-job boundary with explicit trigger-origin evidence |
+| [S2](backlog-items/scheduler/S2-time-based-schedule-definitions-with-pause-resume.md) | Add time-based schedule definitions with pause/resume controls | Epic S | P1 | Done | M2 | S1 | Time-based schedules, scheduler tick execution, pause/resume controls, bounded launch toggles, and Operator UI controls are shipped on the selected-job boundary |
+| [S3](backlog-items/scheduler/S3-overlap-policy-missed-run-handling-and-trigger-audit-trail.md) | Add overlap policy, missed-run handling, and basic trigger audit trail | Epic S | P1 | Ready | M3 | S1, S2, F1 | Phase-1 overlap/missed-run policy baseline is shipped; next phase closes run-state-aware governance and trigger audit hardening |
 | [S4](backlog-items/scheduler/S4-control-plane-operational-data-model.md) | Define control-plane operational data model for schedules, watchers, trigger events, run and step history, artifact lineage, and restartability anchors | Epic S | P1 | Done | M2 | S1, C1, C2 | Current-release S4a slice is shipped (schedule/trigger/run PK-cutover foundations); S4b baseline is complete with durable `step_record` + `artifact_record` schema, lineage guardrails, step+artifact projection writes, persisted read-model APIs, and Operator UI run-detail consumption; S4c first functional slice is now shipped for `attempt_link`/`checkpoint_anchor` persistence and recovery lookups, with any future semantic expansion explicitly aligned to `F1` restart decisions (see [`S4c checklist`](backlog-items/scheduler/S4c-attempt-link-checkpoint-anchor-checklist.md)). |
-| [R1](backlog-items/scheduler/R1-freeze-jpa-hibernate-control-plane-persistence-boundary.md) | Freeze JPA/Hibernate control-plane persistence boundary | Epic R | P1 | Ready | M3 | S1, S4 | Freeze one optional control-plane persistence boundary around the selected-job runtime contract before implementation spreads |
-| [R2](backlog-items/scheduler/R2-multi-rdbms-datasource-and-dialect-profile-contract.md) | Define multi-RDBMS datasource and dialect profile contract | Epic R | P1 | Ready | M3 | R1 | Add deploy-time profile guidance for SQLite, PostgreSQL, SQL Server, MySQL, and Oracle without making control-plane DB mandatory |
+| [R1](backlog-items/scheduler/R1-freeze-jpa-hibernate-control-plane-persistence-boundary.md) | Freeze JPA/Hibernate control-plane persistence boundary | Epic R | P1 | Done | M3 | S1, S4 | ADR-0014 and persistence boundary docs now freeze optional-control-plane invariants for multi-RDBMS follow-on work |
+| [R2](backlog-items/scheduler/R2-multi-rdbms-datasource-and-dialect-profile-contract.md) | Define multi-RDBMS datasource and dialect profile contract | Epic R | P1 | In Progress | M3 | R1 | Vendor-neutral datasource contract, MySQL/SQL Server bootstrap parity, and profile/property docs are shipped; next step is validation-matrix closure before `R3` |
 | [R3](backlog-items/scheduler/R3-jpa-hibernate-entities-and-repositories-for-control-plane-history.md) | Add JPA/Hibernate entities and repositories for control-plane history | Epic R | P1 | Ready | M3 | R1, R2, S4 | Implement portable mappings for retained control-plane history while preserving stable external IDs and read-model behavior |
 | [R4](backlog-items/scheduler/R4-cross-rdbms-schema-migration-baseline.md) | Introduce cross-RDBMS schema migration baseline | Epic R | P1 | Ready | M3 | R2, R3 | Establish migration/versioning rules with portable-first DDL and isolated vendor deltas where required |
 | [R5](backlog-items/scheduler/R5-multi-rdbms-parity-and-fallback-verification.md) | Prove multi-RDBMS parity and fallback behavior | Epic R | P2 | Ready | M3 | R3, R4 | Validate parity for supported engines and keep direct selected-job ETL runs functional when control-plane persistence is disabled |
@@ -284,7 +284,7 @@ This table is the day-to-day execution view for the current product stage.
 | [U2](backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md) | Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer | Epic U | P1 | Done | M2 | U1, C2 | Completed run-detail drill-down with step/failure/artifact evidence, independent/combined runs-list job + start-date filtering, and richer run-instance-scoped in-page log rendering (without widening scheduler/launch boundaries) |
 | [U3](backlog-items/operator-ui/U3-guarded-trigger-now-from-job-details.md) | Add guarded trigger-now action from job details without scheduler coupling | Epic U | P1 | Done | M2 | U1, S1 | Completed guarded trigger-now action on job detail with confirmation, traceable `triggerEventId`/decision feedback, categorized failure messages, and explicit selected-job boundary wording (no scheduler-management controls added) |
 | [U4](backlog-items/operator-ui/U4-schedule-visibility-and-pause-resume-controls.md) | Add schedule visibility and pause/resume controls in Operator UI without making native scheduling mandatory | Epic U | P1 | Done | M2 | S2, U3 | Shipped bounded native-schedule visibility and guarded pause/resume controls in job detail while preserving direct selected-job execution boundaries |
-| [U5](backlog-items/operator-ui/U5-schedule-workbench-and-trigger-origin-visibility.md) | Add schedule workbench and run trigger-origin visibility (Manual, Schedule, Event) | Epic U | P1 | In Progress | M2 | U4, S2 | Active lane: schedule workbench route/actions, trigger-origin visibility in runs, and operator-shell tab/navigation refinements |
+| [U5](backlog-items/operator-ui/U5-schedule-workbench-and-trigger-origin-visibility.md) | Add schedule workbench and run trigger-origin visibility (Manual, Schedule, Event) | Epic U | P1 | Done | M2 | U4, S2 | Schedule workbench, trigger-origin visibility, trigger-source filtering, and bounded refresh/replay controls are shipped; `Event` remains reserved for next-phase expansion |
 | [G1](backlog-items/etl-core/G1-secret-injection-via-environment-or-secure-config-source.md) | Support secret injection via environment or secure config source | Epic G | P1 | Deferred | M3 | C1 | Important for enterprise readiness, but not first delivery blocker |
 | [V1](backlog-items/etl-core/V1-enterprise-verification-evidence-model-and-report-categories.md) | Define enterprise verification evidence model and report categories | Epic V | P1 | Done | M3 | C1, C2 | Shared evidence model and phase-1 report categories are defined in the report generator and ADRs |
 | [V2](backlog-items/etl-core/V2-markdown-verification-reports-from-shared-evidence-model.md) | Generate Markdown verification reports from the shared evidence model | Epic V | P1 | Done | M3 | V1 | Markdown reporting now renders from the shared evidence model |
@@ -295,21 +295,16 @@ This table is the day-to-day execution view for the current product stage.
 
 Use this section as the near-term sequencing view behind the execution board:
 
-1. Run the next balanced-growth lane as one ETL item, one scheduler item, and one UI item in parallel so boundary assumptions are exercised together rather than only serially.
-2. Use `A7b` + `S2` + `U4` as the default balanced trio for that lane: ETL custom-step follow-on contract, scheduler pause/resume baseline, and UI schedule visibility/pause-resume controls.
-3. Keep `A7b` near-term so typed context handoff, outcome mapping, and failure finalization are bounded before ad hoc customer hooks spread.
-4. Keep `T16` near-term with `A7b` so customer-owned processor transforms and customer-owned job steps evolve as one bounded extension model, now building on the shipped D1 taxonomy baseline and A7 phase-1 baseline.
-5. Keep duplicate-handling follow-on split explicitly: `T15` is closed and larger duplicate-state scale redesign remains deferred under `T7`.
-6. Prioritize deferred advanced transformation items in this dependency-safe order: `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`.
-7. Before expanding parser scope further, prove the current Java runtime on a small set of real-file business scenarios such as `xml-to-csv-events`, `xml-to-json-events`, `csv-to-sqlserver`, and the preserved multi-step XML roundtrip bundles.
-8. Keep parser expansion grouped under `Epic P`, but frozen to CSV/XML source-native maturity and preserved-scenario proof rather than reopening parser scope ad hoc.
-9. Treat `P5` as future boundary-readiness work only: native-parser adoptability must stay behind the Java reader seam and start, if ever activated, with a narrow CSV-first sidecar shape rather than a parser-centered redesign.
-10. Leave JSON source-parser planning out of the active board until the CSV/XML parser baseline proves enough maturity for more demanding real-world scenarios.
-11. Start transport work with `X1`, then `X2` once the contract and boundary are clear.
-12. `U1` -> `U4` are now closed as shipped monitoring/control slices; keep `U5` active as the bounded follow-on (schedule-workbench + run-origin visibility) rather than reopening broad UI scope.
-13. Run `S1` contract freeze as the active scheduler boundary and execute first `S2` + phased `S4` slices in the same release lane (`S4a`/`S4b` shipped and `S4c` first functional slice shipped), while keeping advanced `S3` overlap/missed-run policy deferred.
-14. Treat `Epic F` docs freeze as complete for `D1`/`D2`/`D3`; any next restartability work should now be implementation-oriented or release-gate oriented rather than another contract-freeze pass.
-15. Keep `Epic R` in docs-freeze mode for now (`R1`/`R2` anchors in place) and defer `R3` -> `R5` implementation plus unresolved `R2` validation execution until Epic F implementation priority changes.
+1. Treat the next phase as a **product-grade optional control-plane lane**: close `R2`, then move directly into `R3`/`R4`/`R5` without reopening MVP UI/scheduler scope.
+2. Keep `R1` closed as the freeze gate and use the shipped MySQL/SQL Server bootstrap parity plus vendor-neutral property surface as the starting proof point for Epic R execution.
+3. Make `R2` the immediate gate: complete validation-matrix evidence, profile-token consistency, fallback proof, and operator runbook updates before `R3` expands persistence internals.
+4. Start `R3` as an adapter/persistence seam exercise that preserves today’s read-model contracts (`runs`, `recovery`, step/artifact lineage) while reducing vendor-specific drift.
+5. Start `R4` only after `R3` parity is stable; migration/versioning must stay explicit and never become bootstrap-time repair logic.
+6. Keep `R5` close behind `R4` so parity and control-plane-disabled fallback are proven as part of the same product-grade lane, not a late cleanup phase.
+7. Treat `S1`, `S2`, `S4`, and `U5` as shipped foundations; the next scheduler/UI credibility slice is `S3` run-state-aware overlap governance and stronger trigger audit behavior.
+8. Keep `F1` active as implementation-oriented restartability hardening only: advisory recovery/read-model evidence is shipped, but any future resume execution must remain deliberate and target-aware.
+9. Start `G1` and `V4` in the same planning window as Epic R so secure configuration, release gating, and evidence retention are not deferred until after portability work lands.
+10. Leave advanced transform/parser/transport expansion deferred while the product-grade persistence, scheduler-governance, and release-control lane is being stabilized.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -812,16 +807,13 @@ Exit signal:
 
 Use this as the condensed near-term priority order:
 
-1. balanced-growth lane - `A7b` / `S2` / `U4` as one ETL + one scheduler + one UI slice delivered in parallel against the same selected-job and optional-control-plane boundaries
-2. active UI lane - `U5` schedule workbench plus run trigger-origin visibility (`Manual` / `Schedule` now, `Event` ready)
-3. `A7b` / `T16` - bounded customer extensibility through job-level custom steps plus processor-level custom transforms, now anchored to the shipped D1 taxonomy baseline, shipped A7 phase-1 baseline, and shipped `B1`/`B2` fault-tolerance baselines
-4. duplicate follow-on - `T7` (larger duplicate-scale redesign)
-5. deferred `Epic T` advanced sequence - `T8` -> `T10` -> `T12` -> `T13` -> `T9` -> `T14` -> `T11`
-6. `Epic P` - first prove the existing Java runtime on a few real-file business scenarios, then keep parser maturity planning frozen around CSV/XML source-native growth and preserved proof, with JSON source parsing still later and any future native-parser direction constrained to Java-reader-boundary / sidecar-first readiness
-7. `X1` / `X2` - SFTP contract and first inbound slice
-8. `F1` / `S1` / `S2` / `S4` - restartability, scheduler baseline, and first retained-history table-structure evolution slice
-9. `R1` / `R2` / `R3` / `R4` / `R5` - freeze and deliver deploy-time configurable multi-RDBMS control-plane persistence via JPA/Hibernate
-10. `V3` / `V4` / `G1` - reporting, release gating, and secure config
+1. product-grade persistence lane - `R2` validation closure, then `R3` / `R4` / `R5` as the main next-phase delivery track
+2. scheduler credibility lane - `S3` run-state-aware overlap governance, missed-run audit hardening, and stronger trigger evidence
+3. restartability lane - `F1` implementation follow-on, keeping advisory recovery shipped and future resume execution deliberately gated
+4. secure/releasable operations lane - `G1` + `V4` so secret handling, release gates, and evidence retention mature with persistence work
+5. optional reporting enhancement - `V3` HTML drill-down reporting once `V4` release-control semantics are stable
+6. deferred transform/parser growth - keep `T16`, `T7`, `Epic T`, and `Epic P` parked until the product-grade control-plane lane is stable
+7. deferred transport expansion - keep `X1` / `X2` ready but not active until persistence/governance/release-control work clears
 
 ---
 
@@ -831,24 +823,24 @@ Use this week-by-week plan when the team wants a concrete 90-day lane against th
 
 | Week | Focus items | PR slices | Go / No-Go |
 |---|---|---|---|
-| 1 | `A7b`, `F1`, `S2` | `A7b` scope kickoff package; `F1` recovery-evidence gap closure; `S2` transition hardening prep | Go if `A7b` implementation owners and checkpoints are scheduled |
-| 2 | `A7b`, `F1`, `S2`, `U4` | `A7b` runtime+scheduler+UI follow-on design artifacts; `F1` handoff consistency fixes; `U4` UI readiness gap PR | Go if `A7b` follow-on artifacts are approved and blockers are explicit |
-| 3 | `S2`, `U4`, `F1` | `S2` pause/resume API completion; `U4` schedule visibility + control wiring; focused regression suite update | Go if `S2`/`U4` acceptance tests pass and `F1` evidence remains green |
-| 4 | `U4`, `S2` | `U4` empty/error states + guardrail wording; scheduler evidence consistency hardening; docs/changelog sync | Go if `U4` and `S2` can move to Done without boundary drift |
-| 5 | `U5` | trigger-origin projection (`Manual`/`Schedule` baseline); schedule workbench route/actions; origin regression proof | Go if trigger-origin is deterministic end-to-end |
-| 6 | `R1`, `R2` | `R1` persistence-boundary freeze updates; `R2` datasource/dialect contract docs; startup validation harness | Go if persistence boundary remains optional and explicit |
-| 7 | `R2` | `R2` profile/dialect validation wiring; fallback behavior checks (control-plane on/off); config matrix tests | Go if `R2` matrix is green across declared profiles |
-| 8 | `R3` | `R3` entity/repository skeleton; adapter seam under existing read models; parity tests | Go if external IDs and read-model contract stay stable |
-| 9 | `R3`, `R4` | `R3` parity completion; `R4` migration baseline scripts; migration dry-run verification | Go if `R3` parity evidence is complete |
-| 10 | `R4`, `R5` | `R4` vendor-delta migration hardening; `R5` automated parity lanes; engine-specific runbook notes | Go if migrations are deterministic and repeatable |
-| 11 | `R5` | `R5` control-plane-disabled fallback proof; parity evidence publication; release-readiness portability summary | Go if parity + fallback evidence is signed off |
-| 12 | `V3`, `V4`, `G1` | `V3` HTML report renderer from shared evidence model; `V4` provenance/retention/gating policy freeze; `G1` first secure secret-injection slice | Go if shared evidence model is preserved and secret failure paths are explicit |
+| 1 | `R2`, `F1` | `R2` validation-matrix kickoff; explicit runbook/property-surface review; `F1` replay/recovery evidence guardrail review | Go if current persistence boundary and refresh/replay semantics are stable and documented |
+| 2 | `R2`, `S3` | vendor-token/profile validation proof; scheduler-governance scope package for run-state-aware overlap and audit hardening | Go if `R2` matrix blockers are explicit and `S3` scope stays restart-semantics-safe |
+| 3 | `R2`, `R3` | close `R2` docs/tests/runbook acceptance; start `R3` persistence adapter skeleton under existing read models | Go if `R2` is evidence-complete and fallback behavior is green |
+| 4 | `R3` | `R3` repository/entity seam plus contract-preserving parity tests for runs/recovery detail flows | Go if external IDs and current API/read-model shapes remain stable |
+| 5 | `R3`, `R4` | complete `R3` parity and open `R4` migration/versioning baseline with vendor-delta rules | Go if `R3` write/read parity is verified on active vendors |
+| 6 | `R4`, `R5` | deterministic migration dry-runs; MySQL/SQL Server parity lanes; control-plane-disabled fallback checks | Go if migrations do not reintroduce bootstrap repair behavior |
+| 7 | `R5`, `S3` | publish parity evidence; begin `S3` run-state-aware overlap / missed-run governance implementation slice | Go if persistence parity is stable enough to support scheduler-governance follow-on |
+| 8 | `S3`, `F1` | trigger audit hardening; restartability/read-model consistency checks for governed scheduler behavior | Go if `S3` remains bounded from unsupported resume semantics |
+| 9 | `G1`, `V4` | first secure secret-injection slice; verification retention/provenance and release-gating rule freeze | Go if secret failure paths and release exceptions are explicit |
+| 10 | `V3`, `V4` | HTML verification drill-down from shared evidence model; gate/report workflow updates | Go if shared evidence categories stay stable across formats |
+| 11 | `1.10.0` readiness | changelog/release note draft; product-grade runbooks; go/no-go checklist for optional control-plane persistence lane | Go if parity, fallback, and gating evidence are all green |
+| 12 | post-lane selection | choose follow-on between `X1` transport contract, `T16` extensibility follow-on, or additional `S3` governance depth based on release outcome | Go if `1.10.0` lane exits cleanly without reopening MVP boundary work |
 
 Execution guardrails for this plan:
 
 - keep no more than two major `In Progress` items per lane at once
 - do not start `R3` before `R1` and `R2` acceptance gates are complete
-- treat A7 phase-1 closure plus A7b scope approval as a hard gate before broader custom-step implementation
+- treat `R2` validation completion as the hard gate before `R3` implementation spreads
 - keep scheduler/control-plane optionality intact; direct selected-job ETL execution remains supported in every phase
 
 ---

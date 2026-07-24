@@ -8,7 +8,7 @@ Add a dedicated Operator UI schedule workbench that lists existing schedules, ro
 
 - Epic: **[Epic U](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **U4, S2**
 
@@ -100,12 +100,12 @@ Runs
 
 ## Acceptance criteria
 
-- [ ] Operator UI has a schedule workbench listing existing schedules with state and next due
-- [ ] schedule workbench keeps bounded actions with compact symbols (`ⓘ`, `↗`, `▶`) and hover labels (`Details`, `Open job`, `Trigger now`), while deferring state changes to schedule detail
-- [ ] Runs list and Run detail show explicit trigger origin (`Manual`, `Schedule`)
-- [ ] trigger-origin contract reserves `Event` and does not require UI redesign when event triggers ship
-- [ ] persistence/read-model flow keeps run origin auditable from trigger event to run projection
-- [ ] selected-job and control-plane boundary wording remains explicit
+- [x] Operator UI has a schedule workbench listing existing schedules with state and next due
+- [x] schedule workbench keeps bounded actions with compact symbols (`ⓘ`, `↗`, `▶`) and hover labels (`Details`, `Open job`, `Trigger now`), while deferring state changes to schedule detail
+- [x] Runs list and Run detail show explicit trigger origin (`Manual`, `Schedule`)
+- [x] trigger-origin contract reserves `Event` and does not require UI redesign when event triggers ship
+- [x] persistence/read-model flow keeps run origin auditable from trigger event to run projection
+- [x] selected-job and control-plane boundary wording remains explicit
 
 ## Related docs
 
@@ -124,6 +124,6 @@ Implementation sequencing for this item follows the frozen low-fidelity contract
 
 ## Status notes
 
-- Active bounded Operator UI lane after `U4` closure, focusing on schedule-workbench routing/actions and explicit run trigger-origin visibility.
-- Event triggers remain explicitly next-phase, while this item hardens the shared UI and persistence origin contract now.
+- Bounded Operator UI schedule workbench and run trigger-origin visibility are now shipped.
+- Event triggers remain explicitly next-phase, while this item closes the shared UI and persistence origin contract for current Manual/Schedule behavior.
 

@@ -11,7 +11,7 @@ This document captures the intended product direction for `spring-etl-engine` so
 
 Use this note to answer three questions before starting or expanding a feature: what phase of product maturity are we in, does this feature belong in that phase, and are we introducing too much platform complexity too early. It is a direction-and-phases guide, not the execution backlog and not a connector-specific implementation spec.
 
-The product is currently in an ETL-first phase. The near-term goal is to make each supported source and target type operational, reliable, and consistent while becoming the default internal runtime for repeatable file-based integration scenarios. The longer-term goal is to evolve the product toward an enterprise integration foundation and, later, a secure enterprise integration mediation platform.
+The product is currently exiting the ETL-first foundation phase and entering the next maturity checkpoint: **product-grade optional control-plane hardening**. The near-term goal is to keep the ETL runtime stable while making the optional control-plane persistence, scheduler evidence, operator refresh/replay behavior, and multi-RDBMS deployment surface production-directed enough to support the next release lane. The longer-term goal remains to evolve the product toward an enterprise integration foundation and, later, a secure enterprise integration mediation platform.
 
 The preferred next runtime contract for that evolution is documented in [`scenario-driven-runtime-direction.md`](../etl-core/scenario-driven-runtime-direction.md): one selected scenario should remain the only normal execution boundary, while scale policy, UI views, and richer transformation growth stay layered on top of that contract rather than creating a second runtime model.
 
@@ -185,6 +185,7 @@ Expand beyond connector completeness into stronger integration capability.
 - reusable connection and partner configuration patterns emerge
 - richer target behaviors and orchestration rules are introduced
 - security and audit capabilities become more explicit
+- optional control-plane persistence becomes product-grade through explicit profile contracts, portable schema/versioning rules, replay-aware read models, and cross-RDBMS operational evidence
 
 ### Typical features in this phase
 - API connectors and broader native SFTP capability beyond the first staged inbound slice
@@ -193,6 +194,7 @@ Expand beyond connector completeness into stronger integration capability.
 - expression-based mapping, then conditional transformations, with broader validation, rejected-record/quarantine behavior, and lookup/enrichment patterns after the first file-based validation slice is stable
 - routing and transformation enhancements
 - first optional control-plane capabilities such as scheduling, file watching, persisted operational history, and operator APIs built on explicit run-state, audit, and operator visibility, while preserving external-scheduler interoperability through the same selected-job boundary
+- product-grade control-plane follow-on work such as vendor-neutral datasource/property governance, MySQL/SQL Server bootstrap parity, migration/versioning seams, replay-safe run-summary recovery from scenario logs, and release-gated verification evidence
 
 ## Phase 3: Enterprise mediation platform
 

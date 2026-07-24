@@ -8,7 +8,7 @@ Add the first practical built-in scheduling slice so jobs can be configured to r
 
 - Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **S1**
 
@@ -61,9 +61,9 @@ Balanced-growth pairing for this slice:
 
 ## Acceptance criteria
 
-- [ ] time-based schedule definitions are documented and implemented for the first slice
-- [ ] pause/resume controls are explicit and observable
-- [ ] built-in scheduling remains optional rather than mandatory for normal ETL use
+- [x] time-based schedule definitions are documented and implemented for the first slice
+- [x] pause/resume controls are explicit and observable
+- [x] built-in scheduling remains optional rather than mandatory for normal ETL use
 
 ## Related docs
 
@@ -77,5 +77,5 @@ Do not let S2 redefine the worker contract; it should trigger the same selected-
 
 ## Status notes
 
-Started as a current-release first slice after S1 boundary freeze, focused on time-based schedule definitions and pause/resume controls without changing the selected-job worker contract.
+S2 first slice is now shipped: time-based schedules, pause/resume controls, and bounded scheduler launch behavior remain layered on the same selected-job worker contract.
 

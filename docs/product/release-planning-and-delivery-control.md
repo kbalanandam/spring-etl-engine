@@ -17,13 +17,13 @@ This plan is a control layer over the canonical execution board in [`product-bac
 
 Use a train model with one visible product chunk per minor release.
 
-- `patch` (`1.7.x`): security, compatibility, and low-risk hardening
-- `minor` (`1.8.0`, `1.9.0`): user-visible capability chunks
+- `patch` (`1.9.x`): security, compatibility, and low-risk hardening
+- `minor` (`1.10.0`, `1.11.0`): user-visible capability chunks
 - `rc` (`-rcN`): optional cut for high-risk cross-cutting changes
 
 ## Proposed release lanes
 
-### Lane A - current patch line (`1.7.x`)
+### Lane A - current patch line (`1.9.x`)
 
 Goal: keep the branch safe and releasable while larger chunks are built.
 
@@ -31,34 +31,35 @@ Goal: keep the branch safe and releasable while larger chunks are built.
 - targeted bug fixes
 - docs and verification workflow hardening
 
-### Lane B - next visible chunk (`1.8.0`)
+### Lane B - next visible chunk (`1.10.0`)
 
-Goal: ship **Scheduled Runs MVP** as one visible operational value jump.
+Goal: ship the first **product-grade optional control-plane persistence lane** as one visible operational value jump.
 
 Planned scope:
 
-- `A7b` same-release ETL follow-on (typed custom-step context handoff, explicit `CONTINUE/STOP/FAIL` outcome mapping, bounded failure-finalization baseline)
-- `S1` contract freeze (single selected-job launch boundary, trigger-origin evidence, retry/restart separation)
-- first `S2` slice (time-based schedule definitions + pause/resume baseline)
-- first `S4` slice (scheduler data-model and table-structure evolution baseline for portable retained history)
-- operator UI schedule visibility and controls aligned to the same launch contract
-- run evidence fields to explain launch origin and schedule identity
+- `R2` acceptance closure (profile/property matrix, vendor-token validation, fallback proof, runbook updates)
+- `R3` first implementation slice for portable control-plane history persistence without breaking current read-model/API contracts
+- `R4` migration/versioning baseline that stays separate from bootstrap repair behavior
+- `R5` first parity evidence for MySQL/SQL Server plus control-plane-disabled fallback proof
+- `S3` follow-on scheduler governance hardening once the persistence lane is stable enough to support run-state-aware overlap/audit behavior
+- `F1` implementation-oriented recovery/read-model hardening that keeps advisory recovery shipped while deferring unsupported resume execution
 
-Out of scope for `1.8.0`:
+Out of scope for `1.10.0`:
 
-- advanced overlap/missed-run policies (`S3`)
-- full retained operational data model closure (`S4`) beyond the first table-structure evolution slice
 - broad transport expansion beyond already-approved scope
+- advanced transform/parser growth that is not required for the product-grade control-plane lane
+- any change that makes control-plane persistence mandatory for direct ETL execution
 
-### Lane C - follow-on visible chunk (`1.9.0`)
+### Lane C - follow-on visible chunk (`1.11.0`)
 
-Goal: expand into controlled transport and scheduler reliability follow-ons.
+Goal: expand the product-grade baseline into stronger governance, release control, and enterprise deployment readiness.
 
 Candidate scope:
 
-- `X1` transport contract freeze and first implementation sequencing into `X2`
-- `S3` overlap/missed-run policy baseline
-- scheduler evidence hardening and retained diagnostics improvements
+- `G1` secure secret-injection slice
+- `V4` verification provenance/retention/release gating
+- `V3` HTML verification reporting from the shared evidence model
+- follow-on `S3` governance depth and/or `X1` transport contract work once the persistence lane exits cleanly
 
 ## PR stacking strategy for parallel delivery
 
@@ -88,8 +89,8 @@ Map backlog milestones to release targets before coding starts.
 
 | Milestone | Default release target | Notes |
 |---|---|---|
-| `M2` | `1.8.0` | primary near-term visible chunk lane |
-| `M3` | `1.9.0` | follow-on reliability/transport scale-up |
+| `M2` | shipped across `1.8.0` -> `1.9.1` | closed MVP/control-plane foundation lane |
+| `M3` | `1.10.0` | product-grade persistence, governance, and release-control lane |
 
 If an `M2` item is intentionally deferred, keep milestone status in the board but record version exception notes in this file.
 
@@ -99,7 +100,7 @@ If an `M2` item is intentionally deferred, keep milestone status in the board bu
 
 - scope is bounded and written
 - acceptance criteria are testable
-- release target is named (`1.8.0` or `1.9.0`)
+- release target is named (`1.10.0` or `1.11.0`)
 - dependencies are explicitly resolved or declared blocked
 
 ### Exit gate (before release cut)
@@ -149,6 +150,6 @@ Use this compact template for each new target version:
 
 ## Immediate next step
 
-`1.8.0` lane is now running `A7b` + `S2` + `U4` as the balanced ETL/scheduler/UI trio while preserving the same selected-job launch boundary and the ongoing `S1`/`S4` scheduler foundation slices.
+`1.10.0` lane should now start with `R2` closure and then move directly into `R3` / `R4` / `R5`, with `S3`, `F1`, `G1`, and `V4` treated as bounded product-grade follow-ons rather than reopening MVP scheduler/UI scope.
 
 

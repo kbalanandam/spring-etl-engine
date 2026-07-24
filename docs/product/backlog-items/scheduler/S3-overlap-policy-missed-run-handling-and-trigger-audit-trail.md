@@ -8,7 +8,7 @@ Add the next scheduler-credibility slice after basic schedule definitions so nat
 
 - Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
-- Status: **Deferred**
+- Status: **Ready**
 - Milestone: **M3**
 - Dependency: **S1, S2, F1**
 
@@ -82,5 +82,7 @@ The phase-1 baseline keeps this guardrail by implementing tick-time due-instant 
 
 ## Status notes
 
-Phase-1 baseline started: overlap and missed-run policies are now explicit with safe defaults that preserve prior behavior.
+Phase-1 baseline is shipped: overlap and missed-run policies are now explicit with safe defaults that preserve prior behavior.
+
+Next-phase focus is run-state-aware overlap governance plus stronger trigger audit hardening once the product-grade persistence lane (`R2` -> `R5`) is ready to support it.
 
