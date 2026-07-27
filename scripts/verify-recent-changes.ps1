@@ -325,6 +325,15 @@ $previousSpringBatchInitializeSchema = $env:SPRING_BATCH_JDBC_INITIALIZE_SCHEMA
 $previousSpringProfilesActive = $env:SPRING_PROFILES_ACTIVE
 
 try {
+    if ($env:ETL_VERIFY_RECENT_CHANGES_TEST_FORCE_TIMEOUT -eq '1') {
+        $captureDir = Split-Path -Path $positiveCapture -Parent
+        if (-not [string]::IsNullOrWhiteSpace($captureDir) -and -not (Test-Path $captureDir)) {
+            New-Item -ItemType Directory -Path $captureDir -Force | Out-Null
+        }
+        Add-Content -Path $positiveCapture -Value 'TIMED_OUT: smoke verification forced timeout for test coverage.'
+        throw "TIMED_OUT: smoke verification forced timeout for test coverage. See $positiveCapture"
+    }
+
     $env:SPRING_PROFILES_ACTIVE = 'dev'
     $env:SPRING_DATASOURCE_URL = $customerSmokeDbJdbcUrl
     $env:SPRING_DATASOURCE_DRIVER_CLASS_NAME = 'org.h2.Driver'
