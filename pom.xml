@@ -34,10 +34,12 @@
 		<java.version>17</java.version>
 		<maven.compiler.source>${java.version}</maven.compiler.source>
 		<maven.compiler.target>${java.version}</maven.compiler.target>
+		<!-- Keeps Jackson on a CVE-remediated 2.x line compatible with Spring Boot 3.x. -->
+		<jackson.version>2.21.4</jackson.version>
 		<!-- Keeps the transitive log4j-to-slf4j/log4j-api bridge off older vulnerable coordinates. -->
-		<log4j2.version>2.25.4</log4j2.version>
+		<log4j2.version>2.25.5</log4j2.version>
 		<!-- Overrides the Spring-managed Tomcat embed line to a CVE-remediated release. -->
-		<tomcat.version>10.1.55</tomcat.version>
+		<tomcat.version>10.1.56</tomcat.version>
 		<!-- Temporary override until the Spring Boot parent line advances with equivalent Spring CVE remediations. -->
 		<spring-framework.version>6.2.19</spring-framework.version>
 	</properties>
@@ -87,6 +89,11 @@
 		<dependency>
 			<groupId>com.fasterxml.jackson.dataformat</groupId>
 			<artifactId>jackson-dataformat-xml</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<version>${jackson.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
