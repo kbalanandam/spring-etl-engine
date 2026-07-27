@@ -286,7 +286,8 @@ CALL add_index_if_missing('controlplane_checkpoint_anchor', 'idx_checkpoint_anch
 CALL add_index_if_missing('controlplane_checkpoint_anchor', 'idx_checkpoint_anchor_step_id', 'step_record_id, created_at', FALSE);
 
 CREATE TABLE IF NOT EXISTS controlplane_log_checkpoint (
-    log_path VARCHAR(2000) PRIMARY KEY,
+    log_path_key VARCHAR(64) PRIMARY KEY,
+    log_path VARCHAR(2000) NOT NULL,
     last_offset_bytes BIGINT NOT NULL,
     file_size_at_checkpoint BIGINT NOT NULL,
     file_mtime_at_checkpoint BIGINT NOT NULL,

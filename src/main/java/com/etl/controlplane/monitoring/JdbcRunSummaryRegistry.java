@@ -17,6 +17,8 @@ import java.sql.Timestamp;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -53,7 +55,7 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		this.retention = Math.max(1, retention);
 		this.sqlServerDialect = isSqlServerVendor(dbVendor);
 		this.auditActor = resolveAuditActor(applicationName);
-		initializeSchema();
+		runStartupPhase("registry_startup_initialize_schema", this::initializeSchema);
 	}
 
 	JdbcRunSummaryRegistry(JdbcTemplate jdbcTemplate, int retention) {
@@ -717,16 +719,38 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		if (normalizedLogPath.isBlank()) {
 			return Optional.empty();
 		}
-		List<LogReadCheckpoint> checkpoints = jdbcTemplate.query("""
-				select log_path, last_offset_bytes, file_size_at_checkpoint, file_mtime_at_checkpoint
-				from controlplane_log_checkpoint
-				where log_path = ?
-				""", (rs, rowNum) -> new LogReadCheckpoint(
-				rs.getString("log_path"),
-				rs.getLong("last_offset_bytes"),
-				rs.getLong("file_size_at_checkpoint"),
-				rs.getLong("file_mtime_at_checkpoint")
-		), normalizedLogPath);
+		boolean hashedKeyShape = usesHashedLogCheckpointKey();
+		List<LogReadCheckpoint> checkpoints;
+		if (hashedKeyShape) {
+			String logPathKey = toLogPathKey(normalizedLogPath);
+			checkpoints = jdbcTemplate.query("""
+					select log_path, last_offset_bytes, file_size_at_checkpoint, file_mtime_at_checkpoint
+					from controlplane_log_checkpoint
+					where log_path_key = ?
+					  and log_path = ?
+					""", (rs, rowNum) -> new LogReadCheckpoint(
+					rs.getString("log_path"),
+					rs.getLong("last_offset_bytes"),
+					rs.getLong("file_size_at_checkpoint"),
+					rs.getLong("file_mtime_at_checkpoint")
+			), logPathKey, normalizedLogPath);
+		} else {
+			checkpoints = jdbcTemplate.query("""
+					select log_path, last_offset_bytes, file_size_at_checkpoint, file_mtime_at_checkpoint
+					from controlplane_log_checkpoint
+					where log_path = ?
+					""", (rs, rowNum) -> new LogReadCheckpoint(
+					rs.getString("log_path"),
+					rs.getLong("last_offset_bytes"),
+					rs.getLong("file_size_at_checkpoint"),
+					rs.getLong("file_mtime_at_checkpoint")
+			), normalizedLogPath);
+		}
+		logger.info("LOG_CHECKPOINT_SYNC event=checkpoint_read dbVendor={} checkpointKeyMode={} outcome={} logPath={}",
+				dbVendorLabel(),
+				hashedKeyShape ? "hashed" : "direct",
+				checkpoints.isEmpty() ? "missing" : "found",
+				normalizedLogPath);
 		return checkpoints.stream().findFirst();
 	}
 
@@ -737,60 +761,129 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			return;
 		}
 		Timestamp now = Timestamp.valueOf(LocalDateTime.now());
-		int updated = jdbcTemplate.update("""
-				update controlplane_log_checkpoint
-				set last_offset_bytes = ?,
-				    file_size_at_checkpoint = ?,
-				    file_mtime_at_checkpoint = ?,
-				    updated_at = ?,
-				    updated_by = ?
-				where log_path = ?
-				""",
-				offsetBytes,
-				fileSizeBytes,
-				fileLastModifiedMillis,
-				now,
-				auditActor,
-				normalizedLogPath);
-		if (updated > 0) {
-			return;
-		}
-		try {
-			jdbcTemplate.update("""
-					insert into controlplane_log_checkpoint (
-						log_path,
-						last_offset_bytes,
-						file_size_at_checkpoint,
-						file_mtime_at_checkpoint,
-						updated_at,
-						created_by,
-						updated_by
-					) values (?, ?, ?, ?, ?, ?, ?)
-					""",
-					normalizedLogPath,
+		boolean hashedKeyShape = usesHashedLogCheckpointKey();
+		String logPathKey = hashedKeyShape ? toLogPathKey(normalizedLogPath) : null;
+		String outcome;
+		int updated = hashedKeyShape
+				? jdbcTemplate.update("""
+						update controlplane_log_checkpoint
+						set last_offset_bytes = ?,
+						    file_size_at_checkpoint = ?,
+						    file_mtime_at_checkpoint = ?,
+						    updated_at = ?,
+						    updated_by = ?
+						where log_path_key = ?
+						  and log_path = ?
+						""",
 					offsetBytes,
 					fileSizeBytes,
 					fileLastModifiedMillis,
 					now,
 					auditActor,
-					auditActor);
-		} catch (DuplicateKeyException ignored) {
-			jdbcTemplate.update("""
-					update controlplane_log_checkpoint
-					set last_offset_bytes = ?,
-					    file_size_at_checkpoint = ?,
-					    file_mtime_at_checkpoint = ?,
-					    updated_at = ?,
-					    updated_by = ?
-					where log_path = ?
-					""",
+					logPathKey,
+					normalizedLogPath)
+				: jdbcTemplate.update("""
+						update controlplane_log_checkpoint
+						set last_offset_bytes = ?,
+						    file_size_at_checkpoint = ?,
+						    file_mtime_at_checkpoint = ?,
+						    updated_at = ?,
+						    updated_by = ?
+						where log_path = ?
+						""",
 					offsetBytes,
 					fileSizeBytes,
 					fileLastModifiedMillis,
 					now,
 					auditActor,
 					normalizedLogPath);
+		if (updated > 0) {
+			outcome = "updated";
+			emitCheckpointUpsertEvidence(normalizedLogPath, hashedKeyShape, outcome, offsetBytes, fileSizeBytes, fileLastModifiedMillis);
+			return;
 		}
+		try {
+			if (hashedKeyShape) {
+				jdbcTemplate.update("""
+						insert into controlplane_log_checkpoint (
+							log_path_key,
+							log_path,
+							last_offset_bytes,
+							file_size_at_checkpoint,
+							file_mtime_at_checkpoint,
+							updated_at,
+							created_by,
+							updated_by
+						) values (?, ?, ?, ?, ?, ?, ?, ?)
+						""",
+						logPathKey,
+						normalizedLogPath,
+						offsetBytes,
+						fileSizeBytes,
+						fileLastModifiedMillis,
+						now,
+						auditActor,
+						auditActor);
+			} else {
+				jdbcTemplate.update("""
+						insert into controlplane_log_checkpoint (
+							log_path,
+							last_offset_bytes,
+							file_size_at_checkpoint,
+							file_mtime_at_checkpoint,
+							updated_at,
+							created_by,
+							updated_by
+						) values (?, ?, ?, ?, ?, ?, ?)
+						""",
+						normalizedLogPath,
+						offsetBytes,
+						fileSizeBytes,
+						fileLastModifiedMillis,
+						now,
+						auditActor,
+						auditActor);
+			}
+			outcome = "inserted";
+		} catch (DuplicateKeyException ignored) {
+			if (hashedKeyShape) {
+				jdbcTemplate.update("""
+						update controlplane_log_checkpoint
+						set last_offset_bytes = ?,
+						    file_size_at_checkpoint = ?,
+						    file_mtime_at_checkpoint = ?,
+						    updated_at = ?,
+						    updated_by = ?
+						where log_path_key = ?
+						  and log_path = ?
+						""",
+						offsetBytes,
+						fileSizeBytes,
+						fileLastModifiedMillis,
+						now,
+						auditActor,
+						logPathKey,
+						normalizedLogPath);
+			} else {
+				jdbcTemplate.update("""
+						update controlplane_log_checkpoint
+						set last_offset_bytes = ?,
+						    file_size_at_checkpoint = ?,
+						    file_mtime_at_checkpoint = ?,
+						    updated_at = ?,
+						    updated_by = ?
+						where log_path = ?
+						""",
+						offsetBytes,
+						fileSizeBytes,
+						fileLastModifiedMillis,
+						now,
+						auditActor,
+						normalizedLogPath);
+			}
+			outcome = "updated_after_conflict";
+		}
+		emitCheckpointUpsertEvidence(normalizedLogPath, hashedKeyShape, outcome, offsetBytes, fileSizeBytes, fileLastModifiedMillis);
 	}
 
 	private String toStepRecordId(RunRecordRef runRecord, long jobExecutionId, StepExecution stepExecution) {
@@ -1085,17 +1178,30 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 				"create index idx_checkpoint_anchor_step_pk on controlplane_checkpoint_anchor (step_record_pk, created_at)");
 		createIndexIfMissing("controlplane_checkpoint_anchor", "idx_checkpoint_anchor_step_id",
 				"create index idx_checkpoint_anchor_step_id on controlplane_checkpoint_anchor (step_record_id, created_at)");
-		createTableIfMissing("controlplane_log_checkpoint", """
-				create table controlplane_log_checkpoint (
-					log_path varchar(2000) primary key,
-					last_offset_bytes bigint not null,
-					file_size_at_checkpoint bigint not null,
-					file_mtime_at_checkpoint bigint not null,
-					updated_at timestamp not null,
-					created_by varchar(200),
-					updated_by varchar(200)
-				)
-				""");
+		createTableIfMissing("controlplane_log_checkpoint", sqlServerDialect
+				? """
+						create table controlplane_log_checkpoint (
+							log_path varchar(2000) primary key,
+							last_offset_bytes bigint not null,
+							file_size_at_checkpoint bigint not null,
+							file_mtime_at_checkpoint bigint not null,
+							updated_at timestamp not null,
+							created_by varchar(200),
+							updated_by varchar(200)
+						)
+						"""
+				: """
+						create table controlplane_log_checkpoint (
+							log_path_key varchar(64) primary key,
+							log_path varchar(2000) not null,
+							last_offset_bytes bigint not null,
+							file_size_at_checkpoint bigint not null,
+							file_mtime_at_checkpoint bigint not null,
+							updated_at timestamp not null,
+							created_by varchar(200),
+							updated_by varchar(200)
+						)
+						""");
 		ensureColumnExists("controlplane_log_checkpoint", "last_offset_bytes", "bigint");
 		ensureColumnExists("controlplane_log_checkpoint", "file_size_at_checkpoint", "bigint");
 		ensureColumnExists("controlplane_log_checkpoint", "file_mtime_at_checkpoint", "bigint");
@@ -1104,17 +1210,62 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		ensureColumnExists("controlplane_log_checkpoint", "updated_by", "varchar(200)");
 		createIndexIfMissing("controlplane_log_checkpoint", "idx_log_checkpoint_updated_at",
 				"create index idx_log_checkpoint_updated_at on controlplane_log_checkpoint (updated_at)");
-		createArtifactOwnershipTriggers();
-		backfillRunRecordFromRunSummary();
-		backfillRunSummaryRunRecordPk();
-		backfillRunRecordTriggerEventId();
-		backfillRunRecordTriggerEventPk();
-		backfillRunRecordSelectedJobKey();
-		backfillRunRecordTriggerEventLinkage();
-		backfillRunLogArtifactsFromRunSummary();
-		backfillStepRecordsFromBatchMetadata();
-		backfillStepRecordsFromRunLogs();
-		backfillCheckpointAnchorStepRecordPk();
+		runStartupPhase("create_artifact_ownership_triggers", this::createArtifactOwnershipTriggers);
+		runStartupPhase("backfill_run_record_from_run_summary", this::backfillRunRecordFromRunSummary);
+		runStartupPhase("backfill_run_summary_run_record_pk", this::backfillRunSummaryRunRecordPk);
+		runStartupPhase("backfill_run_record_trigger_event_id", this::backfillRunRecordTriggerEventId);
+		runStartupPhase("backfill_run_record_trigger_event_pk", this::backfillRunRecordTriggerEventPk);
+		runStartupPhase("backfill_run_record_selected_job_key", this::backfillRunRecordSelectedJobKey);
+		runStartupPhase("backfill_run_record_trigger_event_linkage", this::backfillRunRecordTriggerEventLinkage);
+		runStartupPhase("backfill_run_log_artifacts_from_run_summary", this::backfillRunLogArtifactsFromRunSummary);
+		runStartupPhase("backfill_step_records_from_batch_metadata", this::backfillStepRecordsFromBatchMetadata);
+		runStartupPhase("backfill_step_records_from_run_logs", this::backfillStepRecordsFromRunLogs);
+		runStartupPhase("backfill_checkpoint_anchor_step_record_pk", this::backfillCheckpointAnchorStepRecordPk);
+		emitLogCheckpointBootstrapEvidence();
+	}
+
+	private void runStartupPhase(String phase, Runnable action) {
+		long startedAtNanos = System.nanoTime();
+		logger.info("STARTUP_SCHEMA event=phase_started phase={} dbVendor={}", phase, dbVendorLabel());
+		try {
+			action.run();
+			long durationMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos);
+			logger.info("STARTUP_SCHEMA event=phase_finished phase={} dbVendor={} durationMs={}", phase, dbVendorLabel(), durationMs);
+		} catch (RuntimeException | Error ex) {
+			long durationMs = java.util.concurrent.TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startedAtNanos);
+			String message = ex.getMessage() == null ? "" : ex.getMessage().trim();
+			logger.error("STARTUP_SCHEMA event=phase_failed phase={} dbVendor={} durationMs={} errorType={} message={}",
+					phase,
+					dbVendorLabel(),
+					durationMs,
+					ex.getClass().getSimpleName(),
+					message,
+					ex);
+			throw ex;
+		}
+	}
+
+	private void emitLogCheckpointBootstrapEvidence() {
+		boolean hashedKeyShape = usesHashedLogCheckpointKey();
+		logger.info("STARTUP_SCHEMA event=log_checkpoint_ready dbVendor={} checkpointKeyMode={} table=controlplane_log_checkpoint",
+				dbVendorLabel(),
+				hashedKeyShape ? "hashed" : "direct");
+	}
+
+	private void emitCheckpointUpsertEvidence(String normalizedLogPath,
+	                                         boolean hashedKeyShape,
+	                                         String outcome,
+	                                         long offsetBytes,
+	                                         long fileSizeBytes,
+	                                         long fileLastModifiedMillis) {
+		logger.info("LOG_CHECKPOINT_SYNC event=checkpoint_upsert dbVendor={} checkpointKeyMode={} outcome={} offsetBytes={} fileSizeBytes={} fileLastModifiedMillis={} logPath={}",
+				dbVendorLabel(),
+				hashedKeyShape ? "hashed" : "direct",
+				outcome,
+				offsetBytes,
+				fileSizeBytes,
+				fileLastModifiedMillis,
+				normalizedLogPath);
 	}
 
 	private void backfillCheckpointAnchorStepRecordPk() {
@@ -2345,6 +2496,28 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 		return sql
 				.replaceAll("(?i)\\bboolean\\b", "bit")
 				.replaceAll("(?i)\\btimestamp\\b", "datetime2");
+	}
+
+	private boolean usesHashedLogCheckpointKey() {
+		return hasOptionalColumn("controlplane_log_checkpoint", "log_path_key");
+	}
+
+	private String toLogPathKey(String normalizedLogPath) {
+		try {
+			MessageDigest digest = MessageDigest.getInstance("SHA-256");
+			byte[] hash = digest.digest(normalizedLogPath.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+			StringBuilder builder = new StringBuilder(hash.length * 2);
+			for (byte value : hash) {
+				builder.append(String.format("%02x", value));
+			}
+			return builder.toString();
+		} catch (NoSuchAlgorithmException ex) {
+			throw new IllegalStateException("SHA-256 unavailable for log checkpoint keying", ex);
+		}
+	}
+
+	private String dbVendorLabel() {
+		return sqlServerDialect ? "mssql" : "mysql";
 	}
 
 	private void backfillRunRecordPk() {

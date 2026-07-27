@@ -12,7 +12,7 @@ Scope:
 
 ## Notes
 
-- Redundant Spring keys that were duplicated by code-level defaults/annotations were removed from the profile file.
+- Spring keys that are required to override base profile behavior remain documented here.
 - This page documents active properties only.
 - Secrets should still be supplied through env vars, not committed literals.
 
@@ -21,6 +21,7 @@ Scope:
 | Property | Default in profile | Used by | Behavior |
 | --- | --- | --- | --- |
 | `spring.application.name` | `spring-etl-engine-control-plane` | `JdbcRunSummaryRegistry`, `JdbcTriggerEventRegistry`, `JdbcScheduleRegistry`, `SystemController` | Audit actor/service identity for control-plane writes and system-info reporting. |
+| `spring.main.web-application-type` | `servlet` | Spring Boot runtime bootstrap | Required override because base `application.properties` sets `none`; keeps control-plane HTTP API and `/api/v1/system/info` available. |
 | `server.port` | `8081` | Spring Boot web runtime | Control-plane API HTTP port. |
 | `etl.logging.base-dir` | `logs` | `RunSummaryReadModelService`, `OperatorLogController` | Base folder for scenario log reads and UI log access. |
 
@@ -94,8 +95,7 @@ Scope:
 
 - Control-plane-prefixed keys in this profile are actively consumed by runtime code.
 - Spring bridge keys retained here are intentional and active (datasource/pool/sql-init wiring).
-- Redundant Spring entries removed from this profile were:
-  - `spring.main.web-application-type`
+- Spring entries removed from this profile as redundant were:
   - `spring.autoconfigure.exclude`
   - `spring.batch.jdbc.initialize-schema`
 

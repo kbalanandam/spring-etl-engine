@@ -2,8 +2,11 @@ package com.etl.controlplane.monitoring;
 
 import com.etl.controlplane.triggers.JdbcTriggerEventRegistry;
 import com.etl.controlplane.triggers.TriggerEventView;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
@@ -211,6 +214,81 @@ class JdbcRunSummaryRegistryTest {
 				"C:/logs/2026-05-27/customer-load.log"
 		);
 		assertEquals(1L, rowCount);
+	}
+
+	@Test
+	void persistsLongLogPathCheckpointInMySqlMode() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(h2MySqlModeDataSource());
+		JdbcRunSummaryRegistry registry = new JdbcRunSummaryRegistry(jdbcTemplate, 100, "mysql", "controlplane-audit-test");
+		String longLogPath = "C:/logs/" + "a".repeat(1500) + "/customer-load.log";
+
+		registry.upsertLogCheckpoint(longLogPath, 42L, 84L, 777L);
+
+		RunSummaryRegistry.LogReadCheckpoint checkpoint = registry.findLogCheckpoint(longLogPath).orElseThrow();
+		assertEquals(longLogPath, checkpoint.logPath());
+		assertEquals(42L, checkpoint.offsetBytes());
+		Long keyColumnCount = jdbcTemplate.queryForObject(
+				"select count(*) from INFORMATION_SCHEMA.COLUMNS where upper(TABLE_NAME) = 'CONTROLPLANE_LOG_CHECKPOINT' and upper(COLUMN_NAME) = 'LOG_PATH_KEY'",
+				Long.class
+		);
+		assertEquals(1L, keyColumnCount);
+	}
+
+	@Test
+	void emitsBootstrapEvidenceForMySqlAndMssqlDialects() {
+		ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(JdbcRunSummaryRegistry.class);
+		ListAppender<ILoggingEvent> appender = new ListAppender<>();
+		appender.start();
+		logger.addAppender(appender);
+		try {
+			new JdbcRunSummaryRegistry(new JdbcTemplate(h2MySqlModeDataSource()), 100, "mysql", "controlplane-audit-test");
+			new JdbcRunSummaryRegistry(new JdbcTemplate(h2SqlServerModeDataSource()), 100, "mssql", "controlplane-audit-test");
+
+			boolean mysqlCheckpointShapeLogged = appender.list.stream()
+					.anyMatch(event -> event.getFormattedMessage().contains("STARTUP_SCHEMA event=log_checkpoint_ready dbVendor=mysql checkpointKeyMode=hashed"));
+			boolean mssqlCheckpointShapeLogged = appender.list.stream()
+					.anyMatch(event -> event.getFormattedMessage().contains("STARTUP_SCHEMA event=log_checkpoint_ready dbVendor=mssql checkpointKeyMode=direct"));
+
+			assertTrue(mysqlCheckpointShapeLogged);
+			assertTrue(mssqlCheckpointShapeLogged);
+		} finally {
+			logger.detachAppender(appender);
+			appender.stop();
+		}
+	}
+
+	@Test
+	void emitsCheckpointSyncEvidenceForMySqlAndMssqlDialects() {
+		ch.qos.logback.classic.Logger logger = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(JdbcRunSummaryRegistry.class);
+		ListAppender<ILoggingEvent> appender = new ListAppender<>();
+		appender.start();
+		logger.addAppender(appender);
+		try {
+			JdbcRunSummaryRegistry mysqlRegistry = new JdbcRunSummaryRegistry(new JdbcTemplate(h2MySqlModeDataSource()), 100, "mysql", "controlplane-audit-test");
+			mysqlRegistry.upsertLogCheckpoint("C:/logs/mysql/customer-load.log", 10L, 20L, 30L);
+			mysqlRegistry.findLogCheckpoint("C:/logs/mysql/customer-load.log");
+
+			JdbcRunSummaryRegistry mssqlRegistry = new JdbcRunSummaryRegistry(new JdbcTemplate(h2SqlServerModeDataSource()), 100, "mssql", "controlplane-audit-test");
+			mssqlRegistry.upsertLogCheckpoint("C:/logs/mssql/customer-load.log", 11L, 21L, 31L);
+			mssqlRegistry.findLogCheckpoint("C:/logs/mssql/customer-load.log");
+
+			boolean mysqlUpsertLogged = appender.list.stream()
+					.anyMatch(event -> event.getFormattedMessage().contains("LOG_CHECKPOINT_SYNC event=checkpoint_upsert dbVendor=mysql checkpointKeyMode=hashed outcome=inserted"));
+			boolean mysqlReadLogged = appender.list.stream()
+					.anyMatch(event -> event.getFormattedMessage().contains("LOG_CHECKPOINT_SYNC event=checkpoint_read dbVendor=mysql checkpointKeyMode=hashed outcome=found logPath=C:/logs/mysql/customer-load.log"));
+			boolean mssqlUpsertLogged = appender.list.stream()
+					.anyMatch(event -> event.getFormattedMessage().contains("LOG_CHECKPOINT_SYNC event=checkpoint_upsert dbVendor=mssql checkpointKeyMode=direct outcome=inserted"));
+			boolean mssqlReadLogged = appender.list.stream()
+					.anyMatch(event -> event.getFormattedMessage().contains("LOG_CHECKPOINT_SYNC event=checkpoint_read dbVendor=mssql checkpointKeyMode=direct outcome=found logPath=C:/logs/mssql/customer-load.log"));
+
+			assertTrue(mysqlUpsertLogged);
+			assertTrue(mysqlReadLogged);
+			assertTrue(mssqlUpsertLogged);
+			assertTrue(mssqlReadLogged);
+		} finally {
+			logger.detachAppender(appender);
+			appender.stop();
+		}
 	}
 
 	@Test
@@ -2628,6 +2706,15 @@ class JdbcRunSummaryRegistryTest {
 		DriverManagerDataSource dataSource = new DriverManagerDataSource();
 		dataSource.setDriverClassName("org.h2.Driver");
 		dataSource.setUrl("jdbc:h2:mem:cp-runs-" + System.nanoTime() + ";MODE=MySQL;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1");
+		dataSource.setUsername("sa");
+		dataSource.setPassword("");
+		return dataSource;
+	}
+
+	private DriverManagerDataSource h2SqlServerModeDataSource() {
+		DriverManagerDataSource dataSource = new DriverManagerDataSource();
+		dataSource.setDriverClassName("org.h2.Driver");
+		dataSource.setUrl("jdbc:h2:mem:cp-runs-mssql-" + System.nanoTime() + ";MODE=MSSQLServer;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1");
 		dataSource.setUsername("sa");
 		dataSource.setPassword("");
 		return dataSource;

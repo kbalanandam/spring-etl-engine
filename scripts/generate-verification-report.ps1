@@ -826,6 +826,30 @@ function New-VerificationReport {
         $lines.Add("- Slowest testcase: **$(Format-MarkdownInlineText -Text $slowestCase.Test)** ($($slowestCase.TimeSeconds)s)") | Out-Null
     }
     $lines.Add('') | Out-Null
+    $lines.Add('## Handoff summary') | Out-Null
+    $lines.Add('') | Out-Null
+    $lines.Add("- Release readiness: **$($Evidence.ReleaseReadiness.Recommendation)**") | Out-Null
+    $lines.Add("- Full verification suite: **$buildStatusBadge** ($($Evidence.Regression.Tests) tests; failures=$($Evidence.Regression.Failures), errors=$($Evidence.Regression.Errors), skipped=$($Evidence.Regression.Skipped))") | Out-Null
+    if ($Evidence.Metadata.SmokeWasSkipped) {
+        $lines.Add('- Smoke verification: **[SKIPPED]** in this report run, so runtime evidence must be reviewed separately before handoff.') | Out-Null
+    }
+    else {
+        $lines.Add("- Smoke verification: **$smokeStatusBadge**") | Out-Null
+        $lines.Add("- Positive smoke (`customer-load`): **$(Get-StatusBadge -Status $Evidence.Runtime.PositiveStatus)**") | Out-Null
+        if ($Evidence.Runtime.NegativeStatus -eq 'PASS') {
+            $lines.Add("- Negative smoke (`csv-to-sqlserver`): **[PASS]** expected fail-fast behavior confirmed.") | Out-Null
+        }
+        else {
+            $lines.Add("- Negative smoke (`csv-to-sqlserver`): **$(Get-StatusBadge -Status $Evidence.Runtime.NegativeStatus)**") | Out-Null
+        }
+    }
+    if ($Evidence.ReleaseReadiness.Caveats.Count -eq 0) {
+        $lines.Add('- Reviewer note: no release-readiness caveats were detected in the currently collected evidence.') | Out-Null
+    }
+    else {
+        $lines.Add('- Reviewer note: release readiness still has caveats; see the `Release readiness` section for details.') | Out-Null
+    }
+    $lines.Add('') | Out-Null
     $lines.Add('## How to read this report') | Out-Null
     $lines.Add('') | Out-Null
     $lines.Add('- **READY / PASS**: Maven tests passed, and if smoke verification ran, it also passed.') | Out-Null

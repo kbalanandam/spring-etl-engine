@@ -21,6 +21,7 @@ class ControlPlaneBootstrapScriptsTest {
 				() -> assertFalse(sql.contains("add_column_if_missing")),
 				() -> assertFalse(sql.contains("update controlplane_run_summary set run_summary_pk = job_execution_id where run_summary_pk is null;")),
 				() -> assertFalse(sql.contains("update controlplane_run_summary rs join controlplane_run_record rr on rr.job_execution_id = rs.job_execution_id set rs.run_record_pk = rr.run_record_pk where rs.run_record_pk is null;")),
+				() -> assertTrue(sql.contains("log_path_key varchar(64) primary key")),
 				() -> assertTrue(sql.contains("call upsert_pk_sequence_floor('controlplane_run_summary_pk', 1);")),
 				() -> assertTrue(sql.contains("call upsert_pk_sequence_floor('controlplane_run_record_pk', 1);"))
 		);

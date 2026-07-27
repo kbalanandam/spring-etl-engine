@@ -308,7 +308,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 			return null;
 		}
 		String sql = """
-				select cast(rr.job_execution_id as varchar(80))
+				select rr.job_execution_id
 				from controlplane_run_record rr
 				where lower(trim(coalesce(rr.trigger_event_id, ''))) = ?
 				order by case when rr.started_at is null then 1 else 0 end,
@@ -316,7 +316,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				         rr.job_execution_id desc
 				""" + (sqlServerDialect ? " offset 0 rows fetch next 1 rows only" : " limit 1");
 		return jdbcTemplate.query(sql,
-				rs -> rs.next() ? normalize(rs.getString(1)) : null,
+				rs -> rs.next() ? toNormalizedLaunchedRunId(rs.getObject(1)) : null,
 				normalizedTriggerEventId);
 	}
 
@@ -325,7 +325,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 			return null;
 		}
 		String sql = """
-				select cast(rr.job_execution_id as varchar(80))
+				select rr.job_execution_id
 				from controlplane_run_record rr
 				where rr.trigger_event_pk = ?
 				  and (rr.trigger_event_id is null or trim(rr.trigger_event_id) = '')
@@ -334,8 +334,16 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				         rr.job_execution_id desc
 				""" + (sqlServerDialect ? " offset 0 rows fetch next 1 rows only" : " limit 1");
 		return jdbcTemplate.query(sql,
-				rs -> rs.next() ? normalize(rs.getString(1)) : null,
+				rs -> rs.next() ? toNormalizedLaunchedRunId(rs.getObject(1)) : null,
 				triggerEventPk);
+	}
+
+	private String toNormalizedLaunchedRunId(Object value) {
+		if (value == null) {
+			return null;
+		}
+		String normalized = normalize(String.valueOf(value));
+		return normalized.isBlank() ? null : normalized;
 	}
 
 	private void pruneOverflow(String jobKey) {
