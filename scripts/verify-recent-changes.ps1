@@ -325,7 +325,7 @@ $previousSpringBatchInitializeSchema = $env:SPRING_BATCH_JDBC_INITIALIZE_SCHEMA
 $previousSpringProfilesActive = $env:SPRING_PROFILES_ACTIVE
 
 try {
-    if ($env:ETL_VERIFY_RECENT_CHANGES_TEST_FORCE_TIMEOUT -eq '1') {
+        if ($env:ETL_VERIFY_RECENT_CHANGES_TEST_FORCE_TIMEOUT -eq '1') {
         $captureDir = Split-Path -Path $positiveCapture -Parent
         if (-not [string]::IsNullOrWhiteSpace($captureDir) -and -not (Test-Path $captureDir)) {
             New-Item -ItemType Directory -Path $captureDir -Force | Out-Null

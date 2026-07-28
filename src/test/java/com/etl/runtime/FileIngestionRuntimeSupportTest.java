@@ -371,6 +371,7 @@ class FileIngestionRuntimeSupportTest {
       int workerIndex = worker;
       executor.submit(() -> {
         readyGate.countDown();
+        StepSynchronizationManager.register(stepExecution);
         try {
           boolean startSignalReceived = startGate.await(10, TimeUnit.SECONDS);
           if (!startSignalReceived) {
@@ -378,22 +379,19 @@ class FileIngestionRuntimeSupportTest {
             return;
           }
           for (int i = 0; i < rejectsPerWorker; i++) {
-            StepSynchronizationManager.register(stepExecution);
-            try {
-              boolean rejected = runtimeSupport.recordRejected(
-                  new EventRecord("", "25:99:00", "bad row " + workerIndex + "-" + i),
-                  List.of(new ValidationIssue("id", "notNull", "id must not be null"))
-              );
-              if (!rejected) {
-                failures.add(new AssertionError("Expected record to be rejected."));
-                break;
-              }
-            } finally {
-              StepSynchronizationManager.close();
+            boolean rejected = runtimeSupport.recordRejected(
+                new EventRecord("", "25:99:00", "bad row " + workerIndex + "-" + i),
+                List.of(new ValidationIssue("id", "notNull", "id must not be null"))
+            );
+            if (!rejected) {
+              failures.add(new AssertionError("Expected record to be rejected."));
+              break;
             }
           }
         } catch (Throwable t) {
           failures.add(t);
+        } finally {
+          StepSynchronizationManager.close();
         }
       });
     }
