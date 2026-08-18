@@ -25,7 +25,7 @@ Track the first bounded implementation slice for `1.11.0` so release gating and 
 
 ### 2) backend
 - [x] Validate profile/property matrix behavior (including fail-fast paths)
-- [ ] Validate vendor token/placeholder detection behavior
+- [x] Validate vendor token/placeholder detection behavior
 - [x] Preserve current read-model/API contracts
 
 ### 3) runtime
@@ -56,6 +56,10 @@ Track the first bounded implementation slice for `1.11.0` so release gating and 
   - `target/verify-customer-load.log`
   - `target/verify-csv-to-sqlserver.log`
   - `target/verify-trigger-now.log`
+- Persistence contract guard matrix/fail-fast tests (`11` tests): `target/tmp-r2-guard-tests.log`
+  - `target/surefire-reports/TEST-com.etl.controlplane.ControlPlanePersistenceContractGuardTest.xml`
+- Trigger registry unavailable fallback tests (`27` tests in slice): `target/tmp-r2-next-task-tests.log`
+  - Includes `JobBundleControllerTriggerNowUnitTest` and `JobBundleControllerTest` fallback coverage
 
 ## Exit evidence
 
@@ -63,5 +67,6 @@ Track the first bounded implementation slice for `1.11.0` so release gating and 
 - [x] Verification workflow is green or exceptions are documented
 - [x] Docs reflect shipped behavior and guardrails
 - [x] Release blockers are closed or explicitly deferred
+
 
 

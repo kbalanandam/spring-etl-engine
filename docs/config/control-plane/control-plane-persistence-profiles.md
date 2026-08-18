@@ -83,6 +83,7 @@ At startup, fail fast when:
 - dialect intent does not match configured vendor lane
 - an unsupported vendor token is configured
 - configuration requests a mixed or ambiguous mode contract
+- trigger/run/schedule persistence modes are not aligned to one shared mode (`memory` or `jdbc`)
 
 ## Non-SQLite example lane
 

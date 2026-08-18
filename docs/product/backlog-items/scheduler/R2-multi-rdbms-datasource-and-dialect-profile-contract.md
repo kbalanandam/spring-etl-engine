@@ -86,19 +86,19 @@ The active contract anchor is [`docs/config/control-plane/control-plane-persiste
 
 #### Valid combinations
 
-- [ ] `memory` mode starts without JDBC datasource settings
-- [ ] `jdbc + sqlite` starts with SQLite datasource + dialect pairing
-- [ ] `jdbc + postgresql` starts with PostgreSQL datasource + dialect pairing
-- [ ] `jdbc + mysql` starts with MySQL datasource + dialect pairing
-- [ ] `jdbc + sqlserver` starts with SQL Server datasource + dialect pairing
-- [ ] `jdbc + oracle` starts with Oracle datasource + dialect pairing
+- [x] `memory` mode starts without JDBC datasource settings
+- [x] `jdbc + sqlite` starts with SQLite datasource + dialect pairing
+- [x] `jdbc + postgresql` starts with PostgreSQL datasource + dialect pairing
+- [x] `jdbc + mysql` starts with MySQL datasource + dialect pairing
+- [x] `jdbc + sqlserver` starts with SQL Server datasource + dialect pairing
+- [x] `jdbc + oracle` starts with Oracle datasource + dialect pairing
 
 #### Invalid combinations (fail-fast expected)
 
-- [ ] `jdbc` mode without datasource URL/credentials fails fast with operator-friendly error
-- [ ] unsupported vendor token fails fast with operator-friendly error
-- [ ] vendor/dialect mismatch fails fast with operator-friendly error
-- [ ] ambiguous mode selection fails fast (`memory` and `jdbc` mixed)
+- [x] `jdbc` mode without datasource URL/credentials fails fast with operator-friendly error
+- [x] unsupported vendor token fails fast with operator-friendly error
+- [x] vendor/dialect mismatch fails fast with operator-friendly error
+- [x] ambiguous mode selection fails fast (`memory` and `jdbc` mixed)
 
 #### Fallback and boundary checks
 
@@ -122,11 +122,14 @@ The active contract anchor is [`docs/config/control-plane/control-plane-persiste
   - Surefire reports: `target/surefire-reports/TEST-com.etl.config.ApplicationDevProfileDatasourceTest.xml`, `target/surefire-reports/TEST-com.etl.controlplane.api.SystemControllerTest.xml`, `target/surefire-reports/TEST-com.etl.controlplane.monitoring.ControlPlaneBootstrapScriptsTest.xml`
 - Smoke/fallback verification passed: `target/tmp-r2-verify-recent.log`
   - Produced artifacts: `target/verify-customer-load.log`, `target/verify-csv-to-sqlserver.log`, `target/verify-trigger-now.log`
+- Persistence contract guard matrix/fail-fast tests passed (`11 tests`): `target/tmp-r2-guard-tests.log`
+  - Includes `ControlPlanePersistenceContractGuardTest`
+  - Surefire report: `target/surefire-reports/TEST-com.etl.controlplane.ControlPlanePersistenceContractGuardTest.xml`
+- Trigger-now persistence-unavailable fallback tests passed: `target/tmp-r2-next-task-tests.log`
+  - Includes `JobBundleControllerTriggerNowUnitTest` and `JobBundleControllerTest` fallback coverage where trigger registry read/write is unavailable.
 
 Remaining `R2` gate scope before moving status to `Done`:
 
-- complete explicit valid-combination matrix proof for `memory` and all listed `jdbc` vendor lanes
-- complete explicit fail-fast proofs for missing datasource settings, vendor/dialect mismatch, and mixed-mode ambiguity
 - complete explicit proof for control-plane persistence unavailable path
 
 ## Related docs

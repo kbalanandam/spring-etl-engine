@@ -9,12 +9,14 @@ and this project adheres to **Semantic Versioning**.
 ### Added
 - Added `docs/product/release-1.11.0-r2-kickoff-checklist.md` to track `1.11.0` `R2` entry/exit gates and PR-stack kickoff execution.
 - Added `docs/operations/control-plane-non-sqlite-bring-up.md` with quick MySQL/SQL Server bring-up steps for optional control-plane persistence.
+- Added `ControlPlanePersistenceContractGuard` to enforce one-mode selection (`memory` or `jdbc`) across trigger/run/schedule persistence, plus JDBC vendor/url/driver contract fail-fast checks for `sqlite`, `postgresql`, `mysql`, `mssql`, and `oracle`.
 - [Planned `1.11.0`] Start `R3` first implementation slice for portable control-plane history persistence while preserving current read-model/API compatibility.
 - [Planned `1.11.0`] Start `R4` cross-RDBMS migration/versioning baseline separated from bootstrap repair behavior.
 - [Planned `1.11.0`] Start `R5` parity-evidence scaffolding for MySQL/SQL Server plus control-plane-disabled fallback proof.
 
 ### Changed
 - Captured `R2` evidence-closure progress with targeted config/persistence tests and smoke fallback verification (`target/tmp-r2-targeted-tests.log`, `target/tmp-r2-profile-tests.log`, `target/tmp-r2-verify-recent.log`), and synced release/backlog trackers with remaining matrix-proof gates.
+- Updated `POST /api/v1/jobs/{jobKey}:trigger-now` to continue manual worker launch when optional trigger-event persistence is temporarily unavailable, returning accepted/launch-skipped decisions without blocking ETL launch.
 - [Planned `1.11.0`] Deliver bounded `S3` governance follow-on and bounded `F1` advisory recovery/read-model hardening without expanding unsupported resume execution.
 
 ### Fixed
