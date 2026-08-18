@@ -8,7 +8,7 @@ Define one deploy-time configuration contract for selecting control-plane dataso
 
 - Epic: **[Epic R](../../epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M3**
 - Dependency: **R1**
 
@@ -103,7 +103,7 @@ The active contract anchor is [`docs/config/control-plane/control-plane-persiste
 #### Fallback and boundary checks
 
 - [x] direct selected-job ETL run remains valid when control-plane persistence is disabled
-- [ ] direct selected-job ETL run remains valid when control-plane persistence is unavailable
+- [x] direct selected-job ETL run remains valid when control-plane persistence is unavailable
 - [x] run read-model fallback remains deterministic when optional persistence rows are missing
 
 ### Evidence and rollout handoff
@@ -127,10 +127,12 @@ The active contract anchor is [`docs/config/control-plane/control-plane-persiste
   - Surefire report: `target/surefire-reports/TEST-com.etl.controlplane.ControlPlanePersistenceContractGuardTest.xml`
 - Trigger-now persistence-unavailable fallback tests passed: `target/tmp-r2-next-task-tests.log`
   - Includes `JobBundleControllerTriggerNowUnitTest` and `JobBundleControllerTest` fallback coverage where trigger registry read/write is unavailable.
+- Verification workflow passed with intentionally unavailable control-plane DB settings: `target/tmp-r2-verify-recent-unavailable-controlplane.log`
+  - Confirms direct selected-job positive smoke run (`customer-load`) remains successful.
 
 Remaining `R2` gate scope before moving status to `Done`:
 
-- complete explicit proof for control-plane persistence unavailable path
+- none; `R2` acceptance scope is closed.
 
 ## Related docs
 
@@ -150,7 +152,7 @@ Prefer minimal property surface area and explicit defaults. Avoid vendor-specifi
 
 Kickoff moved into active implementation support after R1 boundary freeze; deploy-time datasource/dialect contract is now documented in the config reference set and aligned with the active control-plane profile/property surface.
 
-Validation do-ahead planning remains merged into this page under `R2 validation checklist`, with the next gate focused on matrix proof plus control-plane-disabled fallback evidence before `R3` opens.
+Validation do-ahead planning merged into this page is now closed for `R2`, including matrix proof, control-plane-disabled fallback, and control-plane-persistence-unavailable fallback evidence.
 
 Execution sequencing update: `R2` is now the active entry gate into the product-grade persistence lane, ahead of `R3`/`R4`/`R5`.
 

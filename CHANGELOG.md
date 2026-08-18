@@ -17,6 +17,7 @@ and this project adheres to **Semantic Versioning**.
 ### Changed
 - Captured `R2` evidence-closure progress with targeted config/persistence tests and smoke fallback verification (`target/tmp-r2-targeted-tests.log`, `target/tmp-r2-profile-tests.log`, `target/tmp-r2-verify-recent.log`), and synced release/backlog trackers with remaining matrix-proof gates.
 - Updated `POST /api/v1/jobs/{jobKey}:trigger-now` to continue manual worker launch when optional trigger-event persistence is temporarily unavailable, returning accepted/launch-skipped decisions without blocking ETL launch.
+- Closed `R2` acceptance scope by adding explicit unavailable-control-plane persistence proof (`target/tmp-r2-verify-recent-unavailable-controlplane.log`) and syncing release/backlog checklists to `R2=Done`.
 - [Planned `1.11.0`] Deliver bounded `S3` governance follow-on and bounded `F1` advisory recovery/read-model hardening without expanding unsupported resume execution.
 
 ### Fixed

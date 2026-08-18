@@ -20,7 +20,7 @@ Track the first bounded implementation slice for `1.11.0` so release gating and 
 
 ### 1) docs/contract
 - [x] Update affected `docs/config/*` contracts if R2 inputs change (no property-key contract change in this slice; existing contract references revalidated)
-- [ ] Update control-plane architecture notes if behavior/guardrails change
+- [x] Update control-plane architecture notes if behavior/guardrails change (no additional architecture-boundary delta required for this closure slice; contract and operational docs updated)
 - [x] Link R2 acceptance evidence targets from this checklist
 
 ### 2) backend
@@ -33,7 +33,7 @@ Track the first bounded implementation slice for `1.11.0` so release gating and 
 - [x] Verify startup/runtime guardrail evidence is emitted as expected
 
 ### 4) operator-ui
-- [ ] Confirm existing control-plane views remain contract-compatible
+- [x] Confirm existing control-plane views remain contract-compatible (controller/API contract coverage retained in `JobBundleControllerTest`)
 - [x] No new feature scope beyond R2 compatibility/diagnostics
 
 ### 5) hardening
@@ -60,13 +60,16 @@ Track the first bounded implementation slice for `1.11.0` so release gating and 
   - `target/surefire-reports/TEST-com.etl.controlplane.ControlPlanePersistenceContractGuardTest.xml`
 - Trigger registry unavailable fallback tests (`27` tests in slice): `target/tmp-r2-next-task-tests.log`
   - Includes `JobBundleControllerTriggerNowUnitTest` and `JobBundleControllerTest` fallback coverage
+- Verification workflow with unavailable control-plane DB settings: `target/tmp-r2-verify-recent-unavailable-controlplane.log`
+  - Confirms direct selected-job positive smoke run remains successful
 
 ## Exit evidence
 
-- [ ] All R2 acceptance items are marked complete with evidence links
+- [x] All R2 acceptance items are marked complete with evidence links
 - [x] Verification workflow is green or exceptions are documented
 - [x] Docs reflect shipped behavior and guardrails
 - [x] Release blockers are closed or explicitly deferred
+
 
 
 
