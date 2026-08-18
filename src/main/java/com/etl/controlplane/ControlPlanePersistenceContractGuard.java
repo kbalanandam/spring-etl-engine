@@ -13,6 +13,9 @@ import java.util.Set;
 @Profile("controlplane")
 class ControlPlanePersistenceContractGuard {
 
+    // Startup guard for the optional control-plane persistence contract.
+    // Keeps mode/vendor wiring explicit and fail-fast before registries initialize.
+
     private static final Set<String> SUPPORTED_MODES = Set.of("memory", "jdbc");
     private static final Set<String> SUPPORTED_VENDORS = Set.of("sqlite", "postgresql", "mysql", "mssql", "oracle");
 
@@ -44,16 +47,19 @@ class ControlPlanePersistenceContractGuard {
         validateMode("controlplane.runs.persistence.mode", runMode);
         validateMode("controlplane.schedules.persistence.mode", scheduleMode);
 
+        // All control-plane registries must run on one persistence mode to avoid split-brain behavior.
         if (!(triggerMode.equals(runMode) && runMode.equals(scheduleMode))) {
             throw new IllegalStateException("Ambiguous control-plane persistence mode selection:"
                     + " triggers='" + triggerMode + "', runs='" + runMode + "', schedules='" + scheduleMode + "'."
                     + " Use one shared mode across trigger/run/schedule persistence contracts.");
         }
 
+        // Memory mode intentionally avoids datasource requirements.
         if (!"jdbc".equals(triggerMode)) {
             return;
         }
 
+        // JDBC mode requires a recognized vendor plus URL/driver shape aligned to that vendor.
         if (!SUPPORTED_VENDORS.contains(dbVendor)) {
             throw new IllegalStateException("Unsupported controlplane.db.vendor='" + dbVendor + "'."
                     + " Supported values: sqlite, postgresql, mysql, mssql, oracle.");
@@ -121,4 +127,5 @@ class ControlPlanePersistenceContractGuard {
         ).get(vendor);
     }
 }
+
 
