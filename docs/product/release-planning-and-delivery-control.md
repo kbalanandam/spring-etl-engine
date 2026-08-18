@@ -17,13 +17,13 @@ This plan is a control layer over the canonical execution board in [`product-bac
 
 Use a train model with one visible product chunk per minor release.
 
-- `patch` (`1.9.x`): security, compatibility, and low-risk hardening
-- `minor` (`1.10.0`, `1.11.0`): user-visible capability chunks
+- `patch` (`1.10.x`): security, compatibility, and low-risk hardening
+- `minor` (`1.11.0`, `1.12.0`): user-visible capability chunks
 - `rc` (`-rcN`): optional cut for high-risk cross-cutting changes
 
 ## Proposed release lanes
 
-### Lane A - current patch line (`1.9.x`)
+### Lane A - current patch line (`1.10.x`)
 
 Goal: keep the branch safe and releasable while larger chunks are built.
 
@@ -31,7 +31,7 @@ Goal: keep the branch safe and releasable while larger chunks are built.
 - targeted bug fixes
 - docs and verification workflow hardening
 
-### Lane B - next visible chunk (`1.10.0`)
+### Lane B - next visible chunk (`1.11.0`)
 
 Goal: ship the first **product-grade optional control-plane persistence lane** as one visible operational value jump.
 
@@ -44,13 +44,13 @@ Planned scope:
 - `S3` follow-on scheduler governance hardening once the persistence lane is stable enough to support run-state-aware overlap/audit behavior
 - `F1` implementation-oriented recovery/read-model hardening that keeps advisory recovery shipped while deferring unsupported resume execution
 
-Out of scope for `1.10.0`:
+Out of scope for `1.11.0`:
 
 - broad transport expansion beyond already-approved scope
 - advanced transform/parser growth that is not required for the product-grade control-plane lane
 - any change that makes control-plane persistence mandatory for direct ETL execution
 
-### Lane C - follow-on visible chunk (`1.11.0`)
+### Lane C - follow-on visible chunk (`1.12.0`)
 
 Goal: expand the product-grade baseline into stronger governance, release control, and enterprise deployment readiness.
 
@@ -90,7 +90,7 @@ Map backlog milestones to release targets before coding starts.
 | Milestone | Default release target | Notes |
 |---|---|---|
 | `M2` | shipped across `1.8.0` -> `1.9.1` | closed MVP/control-plane foundation lane |
-| `M3` | `1.10.0` | product-grade persistence, governance, and release-control lane |
+| `M3` | `1.11.0` | product-grade persistence, governance, and release-control lane |
 
 If an `M2` item is intentionally deferred, keep milestone status in the board but record version exception notes in this file.
 
@@ -100,7 +100,7 @@ If an `M2` item is intentionally deferred, keep milestone status in the board bu
 
 - scope is bounded and written
 - acceptance criteria are testable
-- release target is named (`1.10.0` or `1.11.0`)
+- release target is named (`1.11.0` or `1.12.0`)
 - dependencies are explicitly resolved or declared blocked
 
 ### Exit gate (before release cut)
@@ -150,6 +150,8 @@ Use this compact template for each new target version:
 
 ## Immediate next step
 
-`1.10.0` lane should now start with `R2` closure and then move directly into `R3` / `R4` / `R5`, with `S3`, `F1`, `G1`, and `V4` treated as bounded product-grade follow-ons rather than reopening MVP scheduler/UI scope.
+`1.11.0` lane should now start with `R2` closure and then move directly into `R3` / `R4` / `R5`, with `S3`, `F1`, `G1`, and `V4` treated as bounded product-grade follow-ons rather than reopening MVP scheduler/UI scope.
+
+Use [`release-1.11.0-r2-kickoff-checklist.md`](release-1.11.0-r2-kickoff-checklist.md) as the active execution tracker for `R2` entry/exit gates and PR-stack progress.
 
 

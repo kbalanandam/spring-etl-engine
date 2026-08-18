@@ -6,6 +6,22 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Added
+- Added `docs/product/release-1.11.0-r2-kickoff-checklist.md` to track `1.11.0` `R2` entry/exit gates and PR-stack kickoff execution.
+- [Planned `1.11.0`] Start `R3` first implementation slice for portable control-plane history persistence while preserving current read-model/API compatibility.
+- [Planned `1.11.0`] Start `R4` cross-RDBMS migration/versioning baseline separated from bootstrap repair behavior.
+- [Planned `1.11.0`] Start `R5` parity-evidence scaffolding for MySQL/SQL Server plus control-plane-disabled fallback proof.
+
+### Changed
+- [Planned `1.11.0`] Close `R2` acceptance on profile/property matrix, vendor-token validation, fallback proof, and runbook alignment.
+- [Planned `1.11.0`] Deliver bounded `S3` governance follow-on and bounded `F1` advisory recovery/read-model hardening without expanding unsupported resume execution.
+
+### Fixed
+- [Planned `1.10.1`] Apply targeted fixes discovered during the `R2`-`R5` persistence lane rollout and verification hardening.
+
+### Security
+- [Planned `1.10.1`] Continue dependency/CVE remediations on the patch lane without expanding runtime scope.
+
 ## [1.10.0] - 2026-07-24
 
 ### Added
