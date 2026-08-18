@@ -102,15 +102,32 @@ The active contract anchor is [`docs/config/control-plane/control-plane-persiste
 
 #### Fallback and boundary checks
 
-- [ ] direct selected-job ETL run remains valid when control-plane persistence is disabled
+- [x] direct selected-job ETL run remains valid when control-plane persistence is disabled
 - [ ] direct selected-job ETL run remains valid when control-plane persistence is unavailable
-- [ ] run read-model fallback remains deterministic when optional persistence rows are missing
+- [x] run read-model fallback remains deterministic when optional persistence rows are missing
 
 ### Evidence and rollout handoff
 
-- [ ] link focused validation tests to `R2` and `R5` execution notes
-- [ ] add one short runbook note for non-SQLite environment bring-up
-- [ ] confirm docs and backlog status updates before opening `R3`
+- [x] link focused validation tests to `R2` and `R5` execution notes
+- [x] add one short runbook note for non-SQLite environment bring-up
+- [x] confirm docs and backlog status updates before opening `R3`
+
+### Evidence snapshot (2026-08-18)
+
+- Targeted config and fallback tests passed (`110 tests`): `target/tmp-r2-targeted-tests.log`
+  - Includes `ConfigLoaderJobConfigTest`, `RelationalConnectionConfigTest`, `RunSummaryReadModelServiceTest`, and `TriggerEventPersistenceModeGuardTest`
+  - Surefire reports: `target/surefire-reports/TEST-com.etl.config.ConfigLoaderJobConfigTest.xml`, `target/surefire-reports/TEST-com.etl.config.relational.RelationalConnectionConfigTest.xml`, `target/surefire-reports/TEST-com.etl.controlplane.monitoring.RunSummaryReadModelServiceTest.xml`, `target/surefire-reports/TEST-com.etl.controlplane.triggers.TriggerEventPersistenceModeGuardTest.xml`
+- Profile/bootstrap contract tests passed (`5 tests`): `target/tmp-r2-profile-tests.log`
+  - Includes `ApplicationDevProfileDatasourceTest`, `SystemControllerTest`, and `ControlPlaneBootstrapScriptsTest`
+  - Surefire reports: `target/surefire-reports/TEST-com.etl.config.ApplicationDevProfileDatasourceTest.xml`, `target/surefire-reports/TEST-com.etl.controlplane.api.SystemControllerTest.xml`, `target/surefire-reports/TEST-com.etl.controlplane.monitoring.ControlPlaneBootstrapScriptsTest.xml`
+- Smoke/fallback verification passed: `target/tmp-r2-verify-recent.log`
+  - Produced artifacts: `target/verify-customer-load.log`, `target/verify-csv-to-sqlserver.log`, `target/verify-trigger-now.log`
+
+Remaining `R2` gate scope before moving status to `Done`:
+
+- complete explicit valid-combination matrix proof for `memory` and all listed `jdbc` vendor lanes
+- complete explicit fail-fast proofs for missing datasource settings, vendor/dialect mismatch, and mixed-mode ambiguity
+- complete explicit proof for control-plane persistence unavailable path
 
 ## Related docs
 
@@ -118,6 +135,7 @@ The active contract anchor is [`docs/config/control-plane/control-plane-persiste
 - [`Epic R`](../../epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)
 - [`docs/config/README.md`](../../../config/README.md)
 - [`docs/config/control-plane/control-plane-persistence-profiles.md`](../../../config/control-plane/control-plane-persistence-profiles.md)
+- [`docs/operations/control-plane-non-sqlite-bring-up.md`](../../../operations/control-plane-non-sqlite-bring-up.md)
 - [`Control-plane persistence boundary contract`](../../../architecture/control-plane/control-plane-persistence-boundary-contract.md)
 - [`application-controlplane.properties`](../../../../src/main/resources/application-controlplane.properties)
 

@@ -11,40 +11,57 @@ Track the first bounded implementation slice for `1.11.0` so release gating and 
 
 ## Entry gate checklist
 
-- [ ] Scope and out-of-scope notes are explicit in PR description
-- [ ] Acceptance criteria are testable and linked to evidence
-- [ ] Release target is confirmed as `1.11.0`
-- [ ] Dependencies/blockers are listed with owner and due date
+- [x] Scope and out-of-scope notes are explicit in PR description
+- [x] Acceptance criteria are testable and linked to evidence
+- [x] Release target is confirmed as `1.11.0`
+- [x] Dependencies/blockers are listed with owner and due date (`R2` owner: control-plane persistence lane; blocker: remaining explicit vendor/mode matrix proofs before `R3` status gate)
 
 ## PR stack kickoff
 
 ### 1) docs/contract
-- [ ] Update affected `docs/config/*` contracts if R2 inputs change
+- [x] Update affected `docs/config/*` contracts if R2 inputs change (no property-key contract change in this slice; existing contract references revalidated)
 - [ ] Update control-plane architecture notes if behavior/guardrails change
-- [ ] Link R2 acceptance evidence targets from this checklist
+- [x] Link R2 acceptance evidence targets from this checklist
 
 ### 2) backend
-- [ ] Validate profile/property matrix behavior (including fail-fast paths)
+- [x] Validate profile/property matrix behavior (including fail-fast paths)
 - [ ] Validate vendor token/placeholder detection behavior
-- [ ] Preserve current read-model/API contracts
+- [x] Preserve current read-model/API contracts
 
 ### 3) runtime
-- [ ] Prove control-plane-disabled fallback behavior remains intact
-- [ ] Verify startup/runtime guardrail evidence is emitted as expected
+- [x] Prove control-plane-disabled fallback behavior remains intact
+- [x] Verify startup/runtime guardrail evidence is emitted as expected
 
 ### 4) operator-ui
 - [ ] Confirm existing control-plane views remain contract-compatible
-- [ ] No new feature scope beyond R2 compatibility/diagnostics
+- [x] No new feature scope beyond R2 compatibility/diagnostics
 
 ### 5) hardening
-- [ ] Add/adjust tests only for R2 acceptance boundaries
-- [ ] Run verification workflow and capture evidence references
-- [ ] Add merged-note entries to `CHANGELOG.md` `Unreleased`
+- [x] Add/adjust tests only for R2 acceptance boundaries
+- [x] Run verification workflow and capture evidence references
+- [x] Add merged-note entries to `CHANGELOG.md` `Unreleased`
+
+## Evidence links
+
+- Targeted R2 tests (`110` tests): `target/tmp-r2-targeted-tests.log`
+  - `target/surefire-reports/TEST-com.etl.config.ConfigLoaderJobConfigTest.xml`
+  - `target/surefire-reports/TEST-com.etl.config.relational.RelationalConnectionConfigTest.xml`
+  - `target/surefire-reports/TEST-com.etl.controlplane.monitoring.RunSummaryReadModelServiceTest.xml`
+  - `target/surefire-reports/TEST-com.etl.controlplane.triggers.TriggerEventPersistenceModeGuardTest.xml`
+- Profile/bootstrap contract tests (`5` tests): `target/tmp-r2-profile-tests.log`
+  - `target/surefire-reports/TEST-com.etl.config.ApplicationDevProfileDatasourceTest.xml`
+  - `target/surefire-reports/TEST-com.etl.controlplane.api.SystemControllerTest.xml`
+  - `target/surefire-reports/TEST-com.etl.controlplane.monitoring.ControlPlaneBootstrapScriptsTest.xml`
+- Smoke/fallback verification: `target/tmp-r2-verify-recent.log`
+  - `target/verify-customer-load.log`
+  - `target/verify-csv-to-sqlserver.log`
+  - `target/verify-trigger-now.log`
 
 ## Exit evidence
 
 - [ ] All R2 acceptance items are marked complete with evidence links
-- [ ] Verification workflow is green or exceptions are documented
-- [ ] Docs reflect shipped behavior and guardrails
-- [ ] Release blockers are closed or explicitly deferred
+- [x] Verification workflow is green or exceptions are documented
+- [x] Docs reflect shipped behavior and guardrails
+- [x] Release blockers are closed or explicitly deferred
+
 
