@@ -12,6 +12,9 @@ import com.etl.config.source.CsvSourceConfig;
 import com.etl.config.source.SourceWrapper;
 import com.etl.config.target.CsvTargetConfig;
 import com.etl.config.target.TargetWrapper;
+import com.etl.controlplane.monitoring.RunSummaryReadModelService;
+import com.etl.controlplane.monitoring.RunSummaryRegistry;
+import com.etl.controlplane.monitoring.RunSummaryView;
 import com.etl.logging.RunLoggingContext;
 import com.etl.runtime.FileIngestionRuntimeSupport;
 import com.etl.runtime.job.JobConfigPaths;
@@ -36,6 +39,7 @@ import org.springframework.batch.item.ExecutionContext;
 
 import java.net.URISyntaxException;
 import java.nio.file.Path;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Objects;
@@ -47,11 +51,14 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.anyCollection;
 
 class LoggingContextListenerTest {
 
@@ -417,6 +424,79 @@ class LoggingContextListenerTest {
 
         verify(customStepFactory, never()).getFailureFinalizer("run-finish-audit", custom);
     }
+
+  @Test
+  void persistsStartedAndCompletedSnapshotsToRunSummaryRegistry() {
+    RunSummaryRegistry runSummaryRegistry = mock(RunSummaryRegistry.class);
+    JobCompletionNotificationListener listener = new JobCompletionNotificationListener(null, null, null, runSummaryRegistry);
+    JobExecution jobExecution = mock(JobExecution.class);
+    JobInstance jobInstance = mock(JobInstance.class);
+    JobParameters jobParameters = new JobParametersBuilder()
+        .addString("scenario", "customer-load")
+        .addString("runMode", "explicit-job")
+        .addString("recoveryPolicy", "rerun-from-start")
+        .addString("triggerEventId", "te-123")
+        .toJobParameters();
+    LocalDateTime start = LocalDateTime.now().minusSeconds(2);
+    LocalDateTime end = LocalDateTime.now();
+    when(jobExecution.getJobParameters()).thenReturn(jobParameters);
+    when(jobExecution.getJobInstance()).thenReturn(jobInstance);
+    when(jobInstance.getJobName()).thenReturn("etlJob");
+    when(jobExecution.getId()).thenReturn(9001L);
+    when(jobExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
+    when(jobExecution.getStartTime()).thenReturn(start);
+    when(jobExecution.getEndTime()).thenReturn(end);
+    when(jobExecution.getAllFailureExceptions()).thenReturn(List.of());
+    when(jobExecution.getStepExecutions()).thenReturn(Set.of());
+
+    listener.beforeJob(jobExecution);
+    listener.afterJob(jobExecution);
+
+    var captor = forClass(RunSummaryView.class);
+    verify(runSummaryRegistry, times(2)).upsert(captor.capture());
+    List<RunSummaryView> snapshots = captor.getAllValues();
+    assertEquals("STARTED", snapshots.get(0).status());
+    assertEquals("COMPLETED", snapshots.get(1).status());
+    assertEquals("te-123", snapshots.get(1).triggerEventId());
+    verify(runSummaryRegistry, times(1)).upsertStepSnapshots(eq(9001L), anyCollection());
+  }
+
+  @Test
+  void syncsOnlyJustFinishedRunLogAfterCompletion() {
+    RunSummaryRegistry runSummaryRegistry = mock(RunSummaryRegistry.class);
+    RunSummaryReadModelService readModelService = mock(RunSummaryReadModelService.class);
+    when(readModelService.syncRunFromScenarioLog("customer-load", LocalDate.parse("2026-07-21"), 9101L)).thenReturn(true);
+    JobCompletionNotificationListener listener = new JobCompletionNotificationListener(
+        null,
+        null,
+        null,
+        runSummaryRegistry,
+        readModelService,
+        true
+    );
+    JobExecution jobExecution = mock(JobExecution.class);
+    JobInstance jobInstance = mock(JobInstance.class);
+    JobParameters jobParameters = new JobParametersBuilder()
+        .addString("scenario", "customer-load")
+        .addString("runMode", "explicit-job")
+        .addString("recoveryPolicy", "rerun-from-start")
+        .addString("triggerEventId", "te-9101")
+        .toJobParameters();
+    when(jobExecution.getJobParameters()).thenReturn(jobParameters);
+    when(jobExecution.getJobInstance()).thenReturn(jobInstance);
+    when(jobInstance.getJobName()).thenReturn("etlJob");
+    when(jobExecution.getId()).thenReturn(9101L);
+    when(jobExecution.getStatus()).thenReturn(BatchStatus.COMPLETED);
+    when(jobExecution.getStartTime()).thenReturn(LocalDateTime.parse("2026-07-21T10:00:00"));
+    when(jobExecution.getEndTime()).thenReturn(LocalDateTime.parse("2026-07-21T10:00:02"));
+    when(jobExecution.getAllFailureExceptions()).thenReturn(List.of());
+    when(jobExecution.getStepExecutions()).thenReturn(Set.of());
+
+    listener.beforeJob(jobExecution);
+    listener.afterJob(jobExecution);
+
+    verify(readModelService, times(1)).syncRunFromScenarioLog("customer-load", LocalDate.parse("2026-07-21"), 9101L);
+  }
 
   private ListAppender<ILoggingEvent> attachAppender(Logger logger) {
     logger.detachAndStopAllAppenders();

@@ -109,7 +109,7 @@ The near-term product focus is to make these recurring concerns consistent acros
 - broader processor-side transformation maturity beyond the shipped `valueMap` + `expression` transform baseline
 - an optional Java-first control plane for scheduling, file watching, trigger governance, persisted evidence, and a future integrated UI over the ETL core
 - first-class interoperability with external schedulers/orchestrators that trigger the same explicit selected-job runtime when teams do not want the built-in scheduler layer
-- local-first persisted OneFlow operational data, with lightweight relational storage such as SQLite acceptable for early developer/laptop control-plane work before stronger relational deployments are introduced
+- local-first persisted OneFlow operational data with MySQL-default control-plane persistence and SQL Server as a supported relational lane
 - richer fault tolerance, reconciliation, restartability, scheduling, and transport capabilities
 - deeper relational hardening and enterprise verification/reporting maturity
 
@@ -121,17 +121,24 @@ An optional monitoring-first control-plane API starter is now available as a sep
 
 It intentionally runs as a separate process from the ETL worker so the selected-job runtime contract stays unchanged.
 
-Example local run:
+Preferred local run:
 
 ```powershell
-mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dspring-boot.run.main-class=com.etl.controlplane.ControlPlaneApiApplication" "-Dspring-boot.run.profiles=controlplane" spring-boot:run
+Set-Location "C:\spring-etl-engine"
+
+$env:CONTROLPLANE_DB_VENDOR="mysql"
+$env:CONTROLPLANE_DB_URL="jdbc:mysql://localhost:3306/etl_controlplane?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+$env:CONTROLPLANE_DB_USERNAME="root"
+$env:CONTROLPLANE_DB_PASSWORD="<password>"
+$env:CONTROLPLANE_DB_DRIVER_CLASS_NAME="com.mysql.cj.jdbc.Driver"
+
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\setup-controlplane.ps1 -Vendor mysql -ServerName localhost -Port 3306 -DatabaseName etl_controlplane -Username root -Password "<password>"
+powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 -Action Start -Profile controlplane -Port 8081 -CleanMode Preserve -StartupTimeoutSec 120
 ```
 
-The shipped `controlplane` profile now defaults to the shared SQLite-first local persistence file under `.etl-dev/etl-dev.db` so control-plane tables and Spring Batch metadata live together for developer-laptop and single-node use.
+The shipped `controlplane` profile now uses one canonical datasource contract through `CONTROLPLANE_DB_VENDOR`, `CONTROLPLANE_DB_URL`, `CONTROLPLANE_DB_USERNAME`, `CONTROLPLANE_DB_PASSWORD`, and `CONTROLPLANE_DB_DRIVER_CLASS_NAME` so control-plane tables and worker-launched run metadata stay aligned in one relational store.
 
-If you have existing local retained-history data in the legacy `.controlplane/controlplane.db`, run `scripts/migrate-controlplane-sqlite-to-shared.ps1` once to merge the preserved `controlplane_*` tables into the shared `.etl-dev/etl-dev.db` file before deleting or archiving the old control-plane DB.
-
-If your local shared DB was created before the control-plane `*_pk bigint` typing updates (`schedule_pk`, `trigger_event_pk`, `launched_run_pk`, `run_record_pk`), recreate `.etl-dev/etl-dev.db` (or rebuild from migration + fresh startup) to apply the new column types because SQLite does not alter existing column definitions in place.
+SQLite migration helper scripts remain available for legacy local data recovery, but SQLite is no longer the default control-plane/dev datasource contract.
 
 If startup fails locally with trigger-persistence mode-switch guardrails, use the explicit override once for intentional local mode resets:
 
@@ -142,11 +149,12 @@ mvn -f "C:\spring-etl-engine\pom.xml" --no-transfer-progress "-Dspring-boot.run.
 Operator UI endpoint for this profile:
 
 - `http://localhost:8081/operator#/jobs`
+- The header now shows `Profile: ... · DB: ...` so local testing can tell MySQL and SQL Server runs apart at a glance.
 
 Quick local diagnostics:
 
-- if you see `Unable to find a single main class`, use `spring-boot.run.main-class` exactly as shown above
-- if you see `Database may be already in use` or `.etl-dev/etl-dev.db` locked, stop other ETL/control-plane JVMs and keep only one local process pointed at that SQLite file
+- if you bypass `scripts/restart-controlplane.ps1` and see `Unable to find a single main class`, run Maven with `-Dspring-boot.run.main-class=com.etl.controlplane.ControlPlaneApiApplication`
+- if startup fails due to database connectivity, verify the `CONTROLPLANE_DB_*` environment variables, credentials, and that the selected database instance is reachable
 - if you see `Trigger-event persistence mode switch detected`, add `-Dcontrolplane.triggers.persistence.allow-mode-switch=true` for the intentional local switch
 
 First monitoring endpoints:

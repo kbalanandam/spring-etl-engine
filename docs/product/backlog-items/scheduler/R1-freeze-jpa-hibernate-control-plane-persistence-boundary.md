@@ -8,7 +8,7 @@ Freeze one explicit persistence boundary for optional control-plane history so J
 
 - Epic: **[Epic R](../../epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **Done**
 - Milestone: **M3**
 - Dependency: **S1, S4**
 
@@ -80,6 +80,6 @@ Use R1 as a freeze gate. Do not merge substantial portability implementation bef
 
 ## Status notes
 
-- Kickoff started: boundary freeze anchors are now documented in ADR-0014 (Accepted) and the control-plane persistence boundary contract note.
+- Boundary freeze is complete: ADR-0014 (Accepted), the control-plane persistence boundary contract, and the local relational schema direction now act as the implementation guardrail for Epic R.
 
 

@@ -113,7 +113,7 @@ Use this short list when you want the newest or most actively discussed architec
 
 - [`control-plane-worker-boundary.md`](control-plane/control-plane-worker-boundary.md) - future boundary between ETL core worker and optional control plane (**Future direction**)
 - [`control-plane-operational-data-model.md`](control-plane/control-plane-operational-data-model.md) - retained data model for schedules, triggers, runs, steps, and artifacts (**Future direction**)
-- [`control-plane-local-relational-schema.md`](control-plane/control-plane-local-relational-schema.md) - SQLite-first local persistence direction for control-plane history (**Future direction**)
+- [`control-plane-local-relational-schema.md`](control-plane/control-plane-local-relational-schema.md) - MySQL-default local persistence direction for control-plane history (**Current baseline + future direction**)
 - [`control-plane/scheduler-architecture-direction.md`](control-plane/scheduler-architecture-direction.md) - scheduler backend direction that preserves the selected-job launch contract (**Future direction**)
 - [`control-plane/operator-ui-mvp-api-surface.md`](control-plane/operator-ui-mvp-api-surface.md) - first API contract map for Jobs, Runs, Run detail, Schedules, and System MVP screens (**Future direction**)
 - [`control-plane/operator-ui-mvp-openapi.yaml`](control-plane/operator-ui-mvp-openapi.yaml) - OpenAPI 3.1 YAML draft for machine-readable contract validation and client generation work (**Future direction**)

@@ -371,9 +371,13 @@ class FileIngestionRuntimeSupportTest {
       int workerIndex = worker;
       executor.submit(() -> {
         readyGate.countDown();
+        StepSynchronizationManager.register(stepExecution);
         try {
-          startGate.await(5, TimeUnit.SECONDS);
-          StepSynchronizationManager.register(stepExecution);
+          boolean startSignalReceived = startGate.await(10, TimeUnit.SECONDS);
+          if (!startSignalReceived) {
+            failures.add(new AssertionError("Timed out waiting for concurrent start gate."));
+            return;
+          }
           for (int i = 0; i < rejectsPerWorker; i++) {
             boolean rejected = runtimeSupport.recordRejected(
                 new EventRecord("", "25:99:00", "bad row " + workerIndex + "-" + i),

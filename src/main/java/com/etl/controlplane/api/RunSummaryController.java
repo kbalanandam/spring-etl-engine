@@ -9,6 +9,8 @@ import com.etl.controlplane.monitoring.RunScopedLogReadModelService;
 import com.etl.controlplane.monitoring.RunScopedLogView;
 import com.etl.controlplane.monitoring.RunSummaryReadModelService;
 import com.etl.controlplane.monitoring.RunSummaryView;
+import com.etl.controlplane.triggers.TriggerSourceCatalog;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -22,6 +24,7 @@ import java.time.ZoneId;
 import java.util.List;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.SERVICE_UNAVAILABLE;
 
 @RestController
 @RequestMapping("/api/v1/runs")
@@ -34,15 +37,30 @@ public class RunSummaryController {
 	private final RunSummaryRegistry runSummaryRegistry;
 	private final RunDetailReadModelService runDetailReadModelService;
 	private final RunScopedLogReadModelService runScopedLogReadModelService;
+	private final TriggerSourceCatalog triggerSourceCatalog;
+	private final boolean allowForceReplayOnRefresh;
 
 	public RunSummaryController(RunSummaryReadModelService runSummaryReadModelService,
 	                            RunSummaryRegistry runSummaryRegistry,
 	                            RunDetailReadModelService runDetailReadModelService,
-	                            RunScopedLogReadModelService runScopedLogReadModelService) {
+	                            RunScopedLogReadModelService runScopedLogReadModelService,
+	                            TriggerSourceCatalog triggerSourceCatalog,
+	                            @Value("${controlplane.runs.allow-force-refresh:false}") boolean allowForceReplayOnRefresh) {
 		this.runSummaryReadModelService = runSummaryReadModelService;
 		this.runSummaryRegistry = runSummaryRegistry;
 		this.runDetailReadModelService = runDetailReadModelService;
 		this.runScopedLogReadModelService = runScopedLogReadModelService;
+		this.triggerSourceCatalog = triggerSourceCatalog;
+		this.allowForceReplayOnRefresh = allowForceReplayOnRefresh;
+	}
+
+	@GetMapping("/trigger-sources")
+	public TriggerSourceListResponse triggerSources() {
+		try {
+			return new TriggerSourceListResponse(triggerSourceCatalog.listActiveSources());
+		} catch (IllegalStateException ex) {
+			throw new ResponseStatusException(SERVICE_UNAVAILABLE, "Trigger source catalog is unavailable.", ex);
+		}
 	}
 
 	@GetMapping
@@ -50,20 +68,47 @@ public class RunSummaryController {
 	                                        @RequestParam(name = "job", required = false) String job,
 	                                        @RequestParam(name = "runMode", required = false) String runMode,
 	                                        @RequestParam(name = "recoveryPolicy", required = false) String recoveryPolicy,
+	                                        @RequestParam(name = "triggerSource", required = false) String triggerSource,
 	                                        @RequestParam(name = "startDate", required = false) String startDate,
-	                                        @RequestParam(name = "timezone", required = false) String timezone) {
+	                                        @RequestParam(name = "timezone", required = false) String timezone,
+	                                        @RequestParam(name = "refresh", required = false, defaultValue = "false") boolean refresh,
+	                                        @RequestParam(name = "forceReplay", required = false, defaultValue = "false") boolean forceReplay) {
 		int effectiveLimit = limit == null ? DEFAULT_LIMIT : Math.max(1, Math.min(limit, MAX_LIMIT));
 		LocalDate effectiveStartDate = parseStartDate(startDate);
 		ZoneId effectiveZoneId = parseTimezone(timezone);
-		var runs = runSummaryReadModelService.latestRunsFiltered(
+		boolean forceReplayApplied = refresh && forceReplay && allowForceReplayOnRefresh;
+		var runs = forceReplayApplied
+				? runSummaryReadModelService.latestRunsFilteredFresh(
+					effectiveLimit,
+					job,
+					runMode,
+					recoveryPolicy,
+					triggerSource,
+					effectiveStartDate,
+					effectiveZoneId
+				)
+				: runSummaryReadModelService.latestRunsFiltered(
+					effectiveLimit,
+					job,
+					runMode,
+					recoveryPolicy,
+					triggerSource,
+					effectiveStartDate,
+					effectiveZoneId
+				);
+		RunSummaryReadModelService.ReadModelFreshness freshnessSnapshot = runSummaryReadModelService.freshnessSnapshot();
+		return new RunSummaryListResponse(
+				runs,
+				0,
 				effectiveLimit,
-				job,
-				runMode,
-				recoveryPolicy,
-				effectiveStartDate,
-				effectiveZoneId
+				runs.size(),
+				new RunSummaryFreshnessView(
+						refresh,
+						forceReplayApplied,
+						freshnessSnapshot.reindexInProgress(),
+						freshnessSnapshot.lastReindexEpochMs()
+				)
 		);
-		return new RunSummaryListResponse(runs, 0, effectiveLimit, runs.size());
 	}
 
 	private LocalDate parseStartDate(String value) {

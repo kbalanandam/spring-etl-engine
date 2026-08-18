@@ -11,9 +11,14 @@ const IDS = [
   "runs-job-select",
   "runs-run-mode-select",
   "runs-recovery-policy-select",
+  "runs-trigger-source-select",
   "runs-instance-select",
   "runs-sort-select",
   "runs-sort-dir-btn",
+  "runs-page-size-select",
+  "runs-page-prev-btn",
+  "runs-page-next-btn",
+  "runs-page-status",
   "runs-state",
   "runs-table",
   "runs-body",
@@ -32,6 +37,7 @@ function populateRunsSelectOptions(elements) {
   const jobSelect = elements.get("runs-job-select");
   const runModeSelect = elements.get("runs-run-mode-select");
   const recoveryPolicySelect = elements.get("runs-recovery-policy-select");
+  const triggerSourceSelect = elements.get("runs-trigger-source-select");
 
   jobSelect.innerHTML = "";
   const allJobs = globalThis.document.createElement("option");
@@ -59,6 +65,14 @@ function populateRunsSelectOptions(elements) {
   const rerun = globalThis.document.createElement("option");
   rerun.value = "rerun-from-start";
   recoveryPolicySelect.appendChild(rerun);
+
+  triggerSourceSelect.innerHTML = "";
+  const allSources = globalThis.document.createElement("option");
+  allSources.value = "";
+  triggerSourceSelect.appendChild(allSources);
+  const manualSource = globalThis.document.createElement("option");
+  manualSource.value = "MANUAL";
+  triggerSourceSelect.appendChild(manualSource);
 }
 
 test("runs list applies route state and renders sorted table", () => {
@@ -97,12 +111,15 @@ test("runs list applies route state and renders sorted table", () => {
       browserTimezone: "UTC",
       sortKey: "startTime",
       sortDirection: "desc",
+      page: 1,
+      pageSize: 10,
     };
 
     const ui = createRunsListUi({
       getState: () => state,
       syncRouteHash: () => {},
       renderJobOptions: () => populateRunsSelectOptions(elements),
+      renderTriggerSourceOptions: () => populateRunsSelectOptions(elements),
       formatDateForInput: () => "2026-06-03",
       escapeHtml,
     });
@@ -116,6 +133,8 @@ test("runs list applies route state and renders sorted table", () => {
       timezone: "UTC",
       sortKey: "jobExecutionId",
       sortDirection: "asc",
+      page: 1,
+      pageSize: 10,
     });
     ui.renderTable();
 
@@ -125,6 +144,10 @@ test("runs list applies route state and renders sorted table", () => {
     assert.equal(elements.get("runs-body").children.length, 2);
 
     const firstRow = elements.get("runs-body").children[0];
+    assert.match(firstRow.innerHTML, /runs-summary-title/);
+    assert.match(firstRow.innerHTML, /runs-summary-trigger/);
+    assert.match(firstRow.innerHTML, /runs-col-start/);
+    assert.match(firstRow.innerHTML, /runs-col-duration/);
     assert.match(firstRow.innerHTML, /SCHEDULE/);
     assert.match(firstRow.innerHTML, /explicit-job/);
     assert.match(firstRow.innerHTML, /rerun-from-start/);
@@ -152,6 +175,8 @@ test("runs controls update state and request route sync", () => {
       browserTimezone: "UTC",
       sortKey: "startTime",
       sortDirection: "desc",
+      page: 1,
+      pageSize: 10,
     };
     const syncCalls = [];
 
@@ -159,6 +184,7 @@ test("runs controls update state and request route sync", () => {
       getState: () => state,
       syncRouteHash: (routeKey) => syncCalls.push(routeKey),
       renderJobOptions: () => populateRunsSelectOptions(elements),
+      renderTriggerSourceOptions: () => populateRunsSelectOptions(elements),
       formatDateForInput: () => "2026-06-03",
       escapeHtml,
     });
@@ -173,6 +199,8 @@ test("runs controls update state and request route sync", () => {
     const sort = elements.get("runs-sort-select");
     const direction = elements.get("runs-sort-dir-btn");
     const instance = elements.get("runs-instance-select");
+    const pageSize = elements.get("runs-page-size-select");
+    const pageNext = elements.get("runs-page-next-btn");
 
     startDate.value = "2026-06-01";
     startDate.dispatch("change");
@@ -187,6 +215,9 @@ test("runs controls update state and request route sync", () => {
     sort.value = "status";
     sort.dispatch("change");
     direction.dispatch("click");
+    pageSize.value = "8";
+    pageSize.dispatch("change");
+    pageNext.dispatch("click");
     instance.value = "11";
     instance.dispatch("change");
 
@@ -197,8 +228,10 @@ test("runs controls update state and request route sync", () => {
     assert.equal(state.recoveryPolicyFilter, "rerun-from-start");
     assert.equal(state.sortKey, "status");
     assert.equal(state.sortDirection, "asc");
+    assert.equal(state.pageSize, 8);
+    assert.equal(state.page, 1);
     assert.equal(globalThis.location.hash, "#/runs/11");
-    assert.deepEqual(syncCalls, ["runs", "runs", "runs", "runs", "runs", "runs", "runs"]);
+    assert.deepEqual(syncCalls, ["runs", "runs", "runs", "runs", "runs", "runs", "runs", "runs", "runs", "runs"]);
 
     filter.value = "explicit-job";
     filter.dispatch("input");
@@ -223,12 +256,15 @@ test("runs list clears stale route filters that are not present in UI options", 
       browserTimezone: "UTC",
       sortKey: "startTime",
       sortDirection: "desc",
+      page: 1,
+      pageSize: 10,
     };
 
     const ui = createRunsListUi({
       getState: () => state,
       syncRouteHash: () => {},
       renderJobOptions: () => populateRunsSelectOptions(elements),
+      renderTriggerSourceOptions: () => populateRunsSelectOptions(elements),
       formatDateForInput: () => "2026-06-16",
       escapeHtml,
     });
@@ -248,6 +284,106 @@ test("runs list clears stale route filters that are not present in UI options", 
     assert.equal(state.recoveryPolicyFilter, "");
     assert.equal(state.startDate, "2026-06-16");
     assert.equal(state.timezone, "Asia/Kolkata");
+  } finally {
+    restore();
+  }
+});
+
+test("runs list paginates filtered rows", () => {
+  const { elements, restore } = installDom(IDS);
+  try {
+    const state = {
+      items: Array.from({ length: 12 }, (_, index) => ({
+        scenario: `scenario-${index + 1}`,
+        status: "COMPLETED",
+        triggerOrigin: "MANUAL",
+        runMode: "explicit-job",
+        recoveryPolicy: "rerun-from-start",
+        startTime: `2026-06-03T${String(index).padStart(2, "0")}:00:00`,
+        durationSeconds: index + 1,
+        jobExecutionId: index + 1,
+      })),
+      loaded: true,
+      filterText: "",
+      selectedJobKey: "",
+      runModeFilter: "",
+      recoveryPolicyFilter: "",
+      startDate: "2026-06-03",
+      timezone: "UTC",
+      browserTimezone: "UTC",
+      sortKey: "jobExecutionId",
+      sortDirection: "asc",
+      page: 1,
+      pageSize: 8,
+    };
+
+    const ui = createRunsListUi({
+      getState: () => state,
+      syncRouteHash: () => {},
+      renderJobOptions: () => populateRunsSelectOptions(elements),
+      renderTriggerSourceOptions: () => populateRunsSelectOptions(elements),
+      formatDateForInput: () => "2026-06-03",
+      escapeHtml,
+    });
+
+    ui.initializeControls();
+    ui.renderTable();
+    assert.equal(elements.get("runs-body").children.length, 8);
+    assert.equal(elements.get("runs-page-status").textContent, "Page 1 of 2");
+    assert.match(elements.get("runs-body").children[0].innerHTML, /runs-summary-meta/);
+
+    elements.get("runs-page-next-btn").dispatch("click");
+    assert.equal(elements.get("runs-body").children.length, 4);
+    assert.equal(elements.get("runs-page-status").textContent, "Page 2 of 2");
+  } finally {
+    restore();
+  }
+});
+
+test("runs list clamps out-of-range page and requests route sync", () => {
+  const { elements, restore } = installDom(IDS);
+  try {
+    const state = {
+      items: Array.from({ length: 12 }, (_, index) => ({
+        scenario: `scenario-${index + 1}`,
+        status: "COMPLETED",
+        triggerOrigin: "MANUAL",
+        runMode: "explicit-job",
+        recoveryPolicy: "rerun-from-start",
+        startTime: `2026-06-03T${String(index).padStart(2, "0")}:00:00`,
+        durationSeconds: index + 1,
+        jobExecutionId: index + 1,
+      })),
+      loaded: true,
+      filterText: "",
+      selectedJobKey: "",
+      runModeFilter: "",
+      recoveryPolicyFilter: "",
+      startDate: "2026-06-03",
+      timezone: "UTC",
+      browserTimezone: "UTC",
+      sortKey: "jobExecutionId",
+      sortDirection: "asc",
+      page: 99,
+      pageSize: 8,
+    };
+    const syncCalls = [];
+
+    const ui = createRunsListUi({
+      getState: () => state,
+      syncRouteHash: (routeKey) => syncCalls.push(routeKey),
+      renderJobOptions: () => populateRunsSelectOptions(elements),
+      renderTriggerSourceOptions: () => populateRunsSelectOptions(elements),
+      formatDateForInput: () => "2026-06-03",
+      escapeHtml,
+    });
+
+    ui.renderTable();
+
+    assert.equal(state.page, 2);
+    assert.equal(elements.get("runs-body").children.length, 4);
+    assert.equal(elements.get("runs-page-status").textContent, "Page 2 of 2");
+    assert.deepEqual(syncCalls, ["runs"]);
   } finally {
     restore();
   }

@@ -27,7 +27,7 @@ This epic is **not** the place to make control-plane persistence mandatory for E
 ## Related docs
 
 - [`../../product-backlog.md`](../../product-backlog.md)
-- [`../../../config/control-plane-persistence-profiles.md`](../../../config/control-plane-persistence-profiles.md)
+- [`../../../config/control-plane/control-plane-persistence-profiles.md`](../../../config/control-plane/control-plane-persistence-profiles.md)
 - [`../../../architecture/control-plane/control-plane-worker-boundary.md`](../../../architecture/control-plane/control-plane-worker-boundary.md)
 - [`../../../architecture/control-plane/control-plane-persistence-boundary-contract.md`](../../../architecture/control-plane/control-plane-persistence-boundary-contract.md)
 - [`../../../architecture/control-plane/control-plane-operational-data-model.md`](../../../architecture/control-plane/control-plane-operational-data-model.md)
@@ -40,5 +40,5 @@ This epic is **not** the place to make control-plane persistence mandatory for E
 
 Use [`../../product-backlog.md`](../../product-backlog.md) for live item-level board fields. Use this page for the shared Epic R boundary and phased multi-RDBMS persistence intent.
 
-Near-term sequencing: Epic R is currently parked at boundary/contract documentation (`R1`/`R2`) while active implementation focus remains on `Epic F` continuation gates.
+Near-term sequencing: Epic R is now the active next-phase lane. `R1` is closed, `R2` is the live gate for profile/property/matrix validation, and `R3` -> `R5` are the immediate product-grade persistence follow-ons once that gate is green.
 

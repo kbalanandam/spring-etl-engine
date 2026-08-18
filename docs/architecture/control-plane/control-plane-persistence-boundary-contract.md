@@ -50,6 +50,6 @@ Compatibility expectations:
 - [`ADR-0014: freeze JPA/Hibernate control-plane persistence boundary`](../../adr/control-plane/0014-freeze-jpa-hibernate-control-plane-persistence-boundary.md)
 - [`control-plane-worker-boundary.md`](./control-plane-worker-boundary.md)
 - [`control-plane-operational-data-model.md`](./control-plane-operational-data-model.md)
-- [`../../config/control-plane-persistence-profiles.md`](../../config/control-plane-persistence-profiles.md)
+- [`../../config/control-plane/control-plane-persistence-profiles.md`](../../config/control-plane/control-plane-persistence-profiles.md)
 - [`docs/product/backlog-items/scheduler/R1-freeze-jpa-hibernate-control-plane-persistence-boundary.md`](../../product/backlog-items/scheduler/R1-freeze-jpa-hibernate-control-plane-persistence-boundary.md)
 

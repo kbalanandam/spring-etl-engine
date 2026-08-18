@@ -17,6 +17,7 @@ public record RunSummaryView(
 		Long rejectedCount,
 		String runMode,
 		String recoveryPolicy,
+		String triggerEventId,
 		String triggerOrigin,
 		String logPath
 ) {
@@ -32,9 +33,27 @@ public record RunSummaryView(
 			Long rejectedCount,
 			String runMode,
 			String recoveryPolicy,
+			String triggerOrigin,
 			String logPath
 	) {
-		this(scenario, jobExecutionId, status, startTime, endTime, durationSeconds, sourceCount, writtenCount, rejectedCount, runMode, recoveryPolicy, null, logPath);
+		this(scenario, jobExecutionId, status, startTime, endTime, durationSeconds, sourceCount, writtenCount, rejectedCount, runMode, recoveryPolicy, null, triggerOrigin, logPath);
+	}
+
+	public RunSummaryView(
+			String scenario,
+			Long jobExecutionId,
+			String status,
+			LocalDateTime startTime,
+			LocalDateTime endTime,
+			Long durationSeconds,
+			Long sourceCount,
+			Long writtenCount,
+			Long rejectedCount,
+			String runMode,
+			String recoveryPolicy,
+			String logPath
+	) {
+		this(scenario, jobExecutionId, status, startTime, endTime, durationSeconds, sourceCount, writtenCount, rejectedCount, runMode, recoveryPolicy, null, null, logPath);
 	}
 
 	public RunSummaryView(
@@ -49,7 +68,7 @@ public record RunSummaryView(
 			Long rejectedCount,
 			String logPath
 	) {
-		this(scenario, jobExecutionId, status, startTime, endTime, durationSeconds, sourceCount, writtenCount, rejectedCount, null, null, null, logPath);
+		this(scenario, jobExecutionId, status, startTime, endTime, durationSeconds, sourceCount, writtenCount, rejectedCount, null, null, null, null, logPath);
 	}
 }
 

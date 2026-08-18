@@ -1,11 +1,15 @@
 import { labelDirection, sortItems, toggleDirection } from "./list-sort-utils.js";
 
+const RUNS_PAGE_SIZE_OPTIONS = [8, 10, 15, 20];
+
 export function createRunsListUi(options) {
   const getState = options.getState;
   const syncRouteHash = options.syncRouteHash;
   const renderJobOptions = options.renderJobOptions;
+  const renderTriggerSourceOptions = options.renderTriggerSourceOptions;
   const formatDateForInput = options.formatDateForInput;
   const escapeHtml = options.escapeHtml;
+  const formatTriggerOriginToken = options.formatTriggerOriginToken || ((value) => String(value || "Manual"));
 
   function initializeControls() {
     const runsFilter = document.getElementById("runs-filter-input");
@@ -14,9 +18,13 @@ export function createRunsListUi(options) {
     const runsJobSelect = document.getElementById("runs-job-select");
     const runsRunModeSelect = document.getElementById("runs-run-mode-select");
     const runsRecoveryPolicySelect = document.getElementById("runs-recovery-policy-select");
+    const runsTriggerSourceSelect = document.getElementById("runs-trigger-source-select");
     const runsInstanceSelect = document.getElementById("runs-instance-select");
     const runsSort = document.getElementById("runs-sort-select");
     const runsDirection = document.getElementById("runs-sort-dir-btn");
+    const runsPageSize = document.getElementById("runs-page-size-select");
+    const runsPagePrev = document.getElementById("runs-page-prev-btn");
+    const runsPageNext = document.getElementById("runs-page-next-btn");
 
     renderTimezoneOptions();
 
@@ -24,6 +32,7 @@ export function createRunsListUi(options) {
       runsStartDate.addEventListener("change", (event) => {
         const state = getState();
         state.startDate = event.target.value || "";
+        state.page = 1;
         state.loaded = false;
         syncRouteHash("runs");
       });
@@ -32,6 +41,7 @@ export function createRunsListUi(options) {
       runsTimezone.addEventListener("change", (event) => {
         const state = getState();
         state.timezone = event.target.value || state.browserTimezone;
+        state.page = 1;
         state.loaded = false;
         syncRouteHash("runs");
       });
@@ -41,6 +51,7 @@ export function createRunsListUi(options) {
       runsJobSelect.addEventListener("change", (event) => {
         const state = getState();
         state.selectedJobKey = event.target.value || "";
+        state.page = 1;
         state.loaded = false;
         syncRouteHash("runs");
       });
@@ -49,6 +60,7 @@ export function createRunsListUi(options) {
       runsRunModeSelect.addEventListener("change", (event) => {
         const state = getState();
         state.runModeFilter = event.target.value || "";
+        state.page = 1;
         state.loaded = false;
         syncRouteHash("runs");
       });
@@ -57,6 +69,16 @@ export function createRunsListUi(options) {
       runsRecoveryPolicySelect.addEventListener("change", (event) => {
         const state = getState();
         state.recoveryPolicyFilter = event.target.value || "";
+        state.page = 1;
+        state.loaded = false;
+        syncRouteHash("runs");
+      });
+    }
+    if (runsTriggerSourceSelect) {
+      runsTriggerSourceSelect.addEventListener("change", (event) => {
+        const state = getState();
+        state.triggerSourceFilter = event.target.value || "";
+        state.page = 1;
         state.loaded = false;
         syncRouteHash("runs");
       });
@@ -73,6 +95,7 @@ export function createRunsListUi(options) {
     if (runsFilter) {
       runsFilter.addEventListener("input", (event) => {
         getState().filterText = event.target.value || "";
+        getState().page = 1;
         syncRouteHash("runs");
         renderTable();
       });
@@ -80,6 +103,7 @@ export function createRunsListUi(options) {
     if (runsSort) {
       runsSort.addEventListener("change", (event) => {
         getState().sortKey = event.target.value;
+        getState().page = 1;
         syncRouteHash("runs");
         renderTable();
       });
@@ -88,7 +112,36 @@ export function createRunsListUi(options) {
       runsDirection.addEventListener("click", () => {
         const state = getState();
         state.sortDirection = toggleDirection(state.sortDirection);
+        state.page = 1;
         runsDirection.textContent = labelDirection(state.sortDirection);
+        syncRouteHash("runs");
+        renderTable();
+      });
+    }
+    if (runsPageSize) {
+      runsPageSize.addEventListener("change", (event) => {
+        const state = getState();
+        state.pageSize = normalizeRunsPageSize(event.target.value, state.pageSize || 10);
+        state.page = 1;
+        syncRouteHash("runs");
+        renderTable();
+      });
+    }
+    if (runsPagePrev) {
+      runsPagePrev.addEventListener("click", () => {
+        const state = getState();
+        if ((Number(state.page) || 1) <= 1) {
+          return;
+        }
+        state.page = (Number(state.page) || 1) - 1;
+        syncRouteHash("runs");
+        renderTable();
+      });
+    }
+    if (runsPageNext) {
+      runsPageNext.addEventListener("click", () => {
+        const state = getState();
+        state.page = (Number(state.page) || 1) + 1;
         syncRouteHash("runs");
         renderTable();
       });
@@ -108,22 +161,28 @@ export function createRunsListUi(options) {
       || "UTC";
     state.sortKey = routeState.sortKey || "startTime";
     state.sortDirection = routeState.sortDirection || "desc";
+    state.page = Math.max(1, Number(routeState.page) || 1);
+    state.pageSize = normalizeRunsPageSize(routeState.pageSize, state.pageSize || 10);
 
     renderTimezoneOptions();
     renderJobOptions();
+    renderTriggerSourceOptions();
 
     const startDate = document.getElementById("runs-start-date-input");
     const timezone = document.getElementById("runs-timezone-select");
     const jobSelect = document.getElementById("runs-job-select");
     const runModeSelect = document.getElementById("runs-run-mode-select");
     const recoveryPolicySelect = document.getElementById("runs-recovery-policy-select");
+    const triggerSourceSelect = document.getElementById("runs-trigger-source-select");
     const filter = document.getElementById("runs-filter-input");
     const sort = document.getElementById("runs-sort-select");
     const direction = document.getElementById("runs-sort-dir-btn");
+    const pageSize = document.getElementById("runs-page-size-select");
 
     state.selectedJobKey = normalizeSelectValue(routeState.selectedJobKey, jobSelect);
     state.runModeFilter = normalizeSelectValue(routeState.runModeFilter, runModeSelect);
     state.recoveryPolicyFilter = normalizeSelectValue(routeState.recoveryPolicyFilter, recoveryPolicySelect);
+    state.triggerSourceFilter = normalizeSelectValue(routeState.triggerSourceFilter, triggerSourceSelect);
     state.timezone = normalizeSelectValue(state.timezone, timezone)
       || normalizeToken(state.browserTimezone)
       || "UTC";
@@ -143,6 +202,9 @@ export function createRunsListUi(options) {
     if (recoveryPolicySelect) {
       recoveryPolicySelect.value = state.recoveryPolicyFilter;
     }
+    if (triggerSourceSelect) {
+      triggerSourceSelect.value = state.triggerSourceFilter;
+    }
     if (filter) {
       filter.value = state.filterText;
     }
@@ -151,6 +213,9 @@ export function createRunsListUi(options) {
     }
     if (direction) {
       direction.textContent = labelDirection(state.sortDirection);
+    }
+    if (pageSize) {
+      pageSize.value = String(state.pageSize);
     }
     clearInstanceOptions();
   }
@@ -196,6 +261,14 @@ export function createRunsListUi(options) {
     return optionValues.includes(candidate) ? candidate : "";
   }
 
+  function normalizeRunsPageSize(value, fallback) {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isFinite(parsed) && RUNS_PAGE_SIZE_OPTIONS.includes(parsed)) {
+      return parsed;
+    }
+    return RUNS_PAGE_SIZE_OPTIONS.includes(fallback) ? fallback : 10;
+  }
+
   function renderTimezoneOptions() {
     const select = document.getElementById("runs-timezone-select");
     if (!select) {
@@ -228,26 +301,43 @@ export function createRunsListUi(options) {
   function runFilterSummaryText(totalCount) {
     const state = getState();
     const bits = [];
-    if (state.startDate) {
-      bits.push(`startDate=${state.startDate}`);
-    }
-    if (state.timezone) {
-      bits.push(`timezone=${state.timezone}`);
-    }
     if (state.selectedJobKey) {
-      bits.push(`job='${state.selectedJobKey}'`);
+      bits.push(`job ${state.selectedJobKey}`);
+    }
+    if (state.triggerSourceFilter) {
+      bits.push(`source ${state.triggerSourceFilter}`);
+    }
+    if (state.startDate) {
+      bits.push(`from ${state.startDate}`);
     }
     if (bits.length === 0) {
       return `${totalCount} run(s)`;
     }
-    return `${totalCount} run(s) for ${bits.join(", ")}`;
+    return `${totalCount} run(s), ${bits.join(", ")}`;
+  }
+
+  function buildRunSummaryCell(run) {
+    const scenario = escapeHtml(run?.scenario || "-");
+    const runMode = escapeHtml(run?.runMode || "-");
+    const recoveryPolicy = escapeHtml(run?.recoveryPolicy || "-");
+    const triggerOrigin = escapeHtml(formatTriggerOriginToken(run?.triggerOrigin));
+    return `
+      <div class="runs-summary-cell">
+        <div class="runs-summary-title">${scenario}</div>
+        <div class="runs-summary-meta">${runMode} | ${recoveryPolicy}</div>
+        <div class="runs-summary-trigger">Trigger: ${triggerOrigin}</div>
+      </div>`;
   }
 
   function renderTable() {
     const stateElement = document.getElementById("runs-state");
     const table = document.getElementById("runs-table");
     const body = document.getElementById("runs-body");
-    if (!stateElement || !table || !body) {
+    const pageStatus = document.getElementById("runs-page-status");
+    const pagePrev = document.getElementById("runs-page-prev-btn");
+    const pageNext = document.getElementById("runs-page-next-btn");
+    const pageSizeSelect = document.getElementById("runs-page-size-select");
+    if (!stateElement || !table || !body || !pageStatus || !pagePrev || !pageNext || !pageSizeSelect) {
       return;
     }
 
@@ -257,16 +347,30 @@ export function createRunsListUi(options) {
       return haystack.includes(state.filterText.trim().toLowerCase());
     });
     const sorted = sortItems(filtered, state.sortKey, state.sortDirection);
-    renderInstanceOptions(sorted);
+    const pageSize = normalizeRunsPageSize(state.pageSize, 10);
+    const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+    const requestedPage = Math.max(Number(state.page) || 1, 1);
+    const clampedPage = Math.min(requestedPage, totalPages);
+    state.page = clampedPage;
+    state.pageSize = pageSize;
+    if (clampedPage !== requestedPage) {
+      syncRouteHash("runs");
+    }
+    const startIndex = (state.page - 1) * pageSize;
+    const visible = sorted.slice(startIndex, startIndex + pageSize);
+    renderInstanceOptions(visible);
 
     body.innerHTML = "";
     if (sorted.length === 0) {
       stateElement.textContent = "No runs match the current filters.";
+      pageStatus.textContent = "Page 0 of 0";
+      pagePrev.disabled = true;
+      pageNext.disabled = true;
       table.hidden = true;
       return;
     }
 
-    sorted.forEach((run) => {
+    visible.forEach((run) => {
       const row = document.createElement("tr");
       const runId = run.jobExecutionId;
       if (runId !== null && runId !== undefined) {
@@ -277,18 +381,20 @@ export function createRunsListUi(options) {
         });
       }
       row.innerHTML = `
-        <td>${escapeHtml(run.scenario || "-")}</td>
-        <td>${escapeHtml(run.status || "-")}</td>
-        <td>${escapeHtml(run.triggerOrigin || "MANUAL")}</td>
-        <td>${escapeHtml(run.runMode || "-")}</td>
-        <td>${escapeHtml(run.recoveryPolicy || "-")}</td>
-        <td>${escapeHtml(run.startTime || "-")}</td>
-        <td>${escapeHtml(String(run.durationSeconds ?? "-"))}</td>
-        <td>${escapeHtml(String(run.jobExecutionId ?? "-"))}</td>`;
+        <td class="runs-col-run">${buildRunSummaryCell(run)}</td>
+        <td class="runs-col-status">${escapeHtml(run.status || "-")}</td>
+        <td class="runs-col-trigger">${escapeHtml(formatTriggerOriginToken(run.triggerOrigin))}</td>
+        <td class="runs-col-start">${escapeHtml(run.startTime || "-")}</td>
+        <td class="runs-col-duration">${escapeHtml(String(run.durationSeconds ?? "-"))}</td>
+        <td class="runs-col-execution">${escapeHtml(String(run.jobExecutionId ?? "-"))}</td>`;
       body.appendChild(row);
     });
 
-    stateElement.textContent = `Showing ${sorted.length} of ${runFilterSummaryText(state.items.length)}.`;
+    pageSizeSelect.value = String(pageSize);
+    pageStatus.textContent = `Page ${state.page} of ${totalPages}`;
+    pagePrev.disabled = state.page <= 1;
+    pageNext.disabled = state.page >= totalPages;
+    stateElement.textContent = `Showing ${visible.length} of ${sorted.length} matching run(s) (${runFilterSummaryText(state.items.length)}).`;
     table.hidden = false;
   }
 

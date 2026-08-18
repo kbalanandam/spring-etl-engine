@@ -6,7 +6,9 @@ public record SystemInfoResponse(
 		String profile,
 		boolean schedulerEnabled,
 		String schedulerMissedRunPolicy,
-		String schedulerOverlapPolicy
+		String schedulerOverlapPolicy,
+		String databaseVendor,
+		String databaseDisplayName
 ) {
 }
 

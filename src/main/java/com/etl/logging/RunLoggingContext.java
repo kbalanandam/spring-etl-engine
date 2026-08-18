@@ -20,6 +20,7 @@ public final class RunLoggingContext {
 	public static final String MAIN_FLOW = "mainFlow";
 	public static final String SUB_FLOW = "subFlow";
 	public static final String RECOVERY_POLICY = "recoveryPolicy";
+	public static final String TRIGGER_EVENT_ID = "triggerEventId";
 	public static final String JOB_NAME = "jobName";
 	public static final String JOB_EXECUTION_ID = "jobExecutionId";
 	public static final String STEP_NAME = "stepName";
@@ -40,6 +41,7 @@ public final class RunLoggingContext {
 
 	public static void clearJobScope() {
 		clearStepScope();
+		MDC.remove(TRIGGER_EVENT_ID);
 		MDC.remove(JOB_NAME);
 		MDC.remove(JOB_EXECUTION_ID);
 	}

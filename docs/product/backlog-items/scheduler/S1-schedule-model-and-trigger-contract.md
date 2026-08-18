@@ -10,7 +10,7 @@ That contract must also preserve first-class interoperability with external sche
 
 - Epic: **[Epic S](../../epics/scheduler/epic-s-scheduling-and-control-plane.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **A1, C1**
 
@@ -110,12 +110,12 @@ Expected impact when this item ships:
 
 ## Acceptance criteria
 
-- [ ] schedule identity resolves to one selected job execution contract and does not introduce a second orchestration model
-- [ ] trigger-origin evidence contract is explicit for native scheduler, external orchestrator, and operator ad hoc launcher paths
-- [ ] launch contract keeps scheduling concerns separate from retry/restart semantics already governed by ETL runtime contracts
-- [ ] follow-on items `S2`, `S3`, and `S4` can extend controls/history without re-deciding launch boundary semantics
-- [ ] `U3` can consume the same trigger contract as an optional launcher without scheduler-only coupling
-- [ ] related backlog/architecture documentation is updated to reflect the frozen boundary checkpoint
+- [x] schedule identity resolves to one selected job execution contract and does not introduce a second orchestration model
+- [x] trigger-origin evidence contract is explicit for native scheduler, external orchestrator, and operator ad hoc launcher paths
+- [x] launch contract keeps scheduling concerns separate from retry/restart semantics already governed by ETL runtime contracts
+- [x] follow-on items `S2`, `S3`, and `S4` can extend controls/history without re-deciding launch boundary semantics
+- [x] `U3` can consume the same trigger contract as an optional launcher without scheduler-only coupling
+- [x] related backlog/architecture documentation is updated to reflect the frozen boundary checkpoint
 
 ## Related docs
 
@@ -138,7 +138,7 @@ For early local control-plane work, lightweight relational persistence such as S
 
 ## Status notes
 
-S1 contract-freeze slice is now in progress as a docs-first boundary baseline for follow-on backend/runtime/UI implementation PRs.
+S1 contract-freeze slice is now shipped as the active launch boundary baseline for backend/runtime/UI behavior.
 
 Contract freeze checkpoint for cross-track work:
 

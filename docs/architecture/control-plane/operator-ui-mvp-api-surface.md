@@ -146,6 +146,11 @@ Response body:
 
 Returns an aggregated job detail payload for the first Jobs drill-down screen.
 
+Current query support:
+
+- `recentRunsLimit` (optional, default `10`, max `200`)
+- `recentTriggerEventsLimit` (optional, default `20`, max `200`)
+
 Response body:
 
 ```json
@@ -252,6 +257,8 @@ Returns recent trigger history for one registered job bundle.
 Suggested first-slice query:
 
 - `limit` (optional)
+- `size` (optional, alias that takes precedence over `limit`)
+- `page` (optional, zero-based)
 
 Response body shape:
 
@@ -287,13 +294,18 @@ Current query support:
 - `job` (optional selected-job filter)
 - `runMode` (optional execution-mode filter, for example `explicit-job`)
 - `recoveryPolicy` (optional recovery-policy filter, for example `rerun-from-start`)
+- `triggerSource` (optional trigger-source filter, for example `SCHEDULE`)
 - `startDate` (optional inclusive start date in `yyyy-MM-dd`)
 - `timezone` (optional IANA timezone used with `startDate`, defaults to server timezone)
+- `refresh=true` (optional refresh hint; keeps normal path lightweight and does not force full replay by default)
+- `forceReplay=true` (optional explicit full-replay request, applied only when `controlplane.runs.allow-force-refresh=true`)
 
 Current filter-input hardening:
 
 - optional `job`, `runMode`, and `recoveryPolicy` values are normalized (trimmed/canonicalized) before repository filtering so equivalent inputs produce one deterministic query path
 - `startDate` must match `yyyy-MM-dd`; malformed values fail fast as request validation errors instead of falling through to timezone/date parsing
+- the Runs screen can offer a user-triggered Refresh action that bypasses client cache and calls `GET /api/v1/runs?...&refresh=true`
+- full synchronous replay remains an explicit operator/admin repair action via `refresh=true&forceReplay=true` when server-side flag `controlplane.runs.allow-force-refresh=true` is enabled
 
 Response body shape:
 
@@ -316,7 +328,13 @@ Response body shape:
   ],
   "page": 0,
   "size": 25,
-  "totalItems": 1
+  "totalItems": 1,
+  "freshness": {
+    "refreshRequested": true,
+    "forceReplayApplied": false,
+    "reindexInProgress": false,
+    "lastReindexEpochMs": 1761123456789
+  }
 }
 ```
 
@@ -580,6 +598,8 @@ Returns paged trigger history for schedule drill-down.
 Current query support:
 
 - `limit` (optional)
+- `size` (optional, alias that takes precedence over `limit`)
+- `page` (optional, zero-based)
 
 Response body shape:
 
@@ -626,6 +646,8 @@ Suggested response:
 
 Returns environment and version metadata for display.
 
+The Operator UI header uses this payload to show both the active Spring profile and the active control-plane database lane so local testing can clearly distinguish MySQL from SQL Server.
+
 Suggested response:
 
 ```json
@@ -635,7 +657,9 @@ Suggested response:
   "profile": "controlplane",
   "schedulerEnabled": false,
   "schedulerMissedRunPolicy": "SKIP",
-  "schedulerOverlapPolicy": "ALLOW"
+  "schedulerOverlapPolicy": "ALLOW",
+  "databaseVendor": "mssql",
+  "databaseDisplayName": "SQL Server"
 }
 ```
 

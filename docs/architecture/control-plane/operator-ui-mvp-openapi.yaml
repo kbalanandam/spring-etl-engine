@@ -105,6 +105,23 @@ paths:
             minimum: 1
             maximum: 200
             default: 20
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 20
+          description: Optional alias that takes precedence over `limit`.
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based page number.
       responses:
         '200':
           description: Trigger event history entries
@@ -155,6 +172,13 @@ paths:
           required: false
           schema:
             type: string
+        - in: query
+          name: refresh
+          required: false
+          schema:
+            type: boolean
+            default: false
+          description: Force a synchronous run-summary reindex before returning the list.
       responses:
         '200':
           description: Run summary projections
@@ -380,6 +404,23 @@ paths:
             minimum: 1
             maximum: 200
             default: 20
+        - in: query
+          name: size
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 200
+            default: 20
+          description: Optional alias that takes precedence over `limit`.
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based page number.
       responses:
         '200':
           description: Trigger event history entries
@@ -963,10 +1004,16 @@ components:
           type: string
         profile:
           type: string
+        databaseVendor:
+          type: string
+          description: Canonical control-plane database vendor token such as mysql or mssql.
+        databaseDisplayName:
+          type: string
+          description: Friendly control-plane database display label for the operator UI.
         schedulerEnabled:
           type: boolean
         schedulerMissedRunPolicy:
           type: string
         schedulerOverlapPolicy:
           type: string
-      required: [service, javaVersion, profile, schedulerEnabled, schedulerMissedRunPolicy, schedulerOverlapPolicy]
+      required: [service, javaVersion, profile, schedulerEnabled, schedulerMissedRunPolicy, schedulerOverlapPolicy, databaseVendor, databaseDisplayName]

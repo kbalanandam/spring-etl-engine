@@ -24,6 +24,87 @@ class ConfigLoaderRelationalConnectionRefTest {
     Path tempDir;
 
     @Test
+    void doesNotRequireUnusedRelationalEnvVarsForNonRelationalSelectedJob() throws IOException {
+        Path sourceConfig = tempDir.resolve("source-config.yaml");
+        Path targetConfig = tempDir.resolve("target-config.yaml");
+        Path processorConfig = tempDir.resolve("processor-config.yaml");
+        Path jobConfig = tempDir.resolve("job-config.yaml");
+
+        Files.writeString(sourceConfig, """
+                sources:
+                  - format: csv
+                    sourceName: Customers
+                    filePath: input/customers.csv
+                    delimiter: ","
+                    fields:
+                      - name: id
+                        type: int
+                      - name: name
+                        type: String
+                """);
+
+        Files.writeString(targetConfig, """
+                targets:
+                  - format: xml
+                    targetName: Customers
+                    filePath: output/customers.xml
+                    rootElement: Customers
+                    recordElement: Customer
+                    fields:
+                      - name: id
+                        type: int
+                      - name: name
+                        type: String
+                """);
+
+        Files.writeString(processorConfig, """
+                type: default
+                mappings:
+                  - source: Customers
+                    target: Customers
+                    fields:
+                      - from: id
+                        to: id
+                      - from: name
+                        to: name
+                """);
+
+        Files.writeString(jobConfig, """
+                name: non-relational-selected-job
+                sourceConfigPath: source-config.yaml
+                targetConfigPath: target-config.yaml
+                processorConfigPath: processor-config.yaml
+                steps:
+                  - name: customers-step
+                    source: Customers
+                    target: Customers
+                """);
+
+        EtlConfigProperties properties = new EtlConfigProperties();
+        properties.setJob(jobConfig.toString());
+        properties.setAllowDemoFallback(false);
+        EtlConfigProperties.Relational relational = new EtlConfigProperties.Relational();
+        RelationalConnectionConfig connection = new RelationalConnectionConfig();
+        connection.setVendor("sqlserver");
+        connection.setConnectionString("jdbc:sqlserver://localhost:1433;databaseName=etl_db;encrypt=true;trustServerCertificate=true");
+        connection.setUsernameEnvVar("SQLSERVER_USERNAME");
+        connection.setPasswordEnvVar("SQLSERVER_PASSWORD");
+        relational.setConnections(Map.of("sqlserver-main", connection));
+        properties.setRelational(relational);
+
+        ConfigLoader loader = new ConfigLoader(
+                properties,
+                new SourceValidationService(),
+                new ValidationRuleEvaluator(ProcessorExtensionDefaults.defaultValidationRules(new FileIngestionRuntimeSupport())),
+                new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms())
+        );
+
+        ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
+        assertTrue(exception.getMessage().contains("Source model class not found"));
+        assertTrue(!exception.getMessage().contains("usernameEnvVar 'SQLSERVER_USERNAME'"));
+    }
+
+    @Test
     void failsFastWhenSelectedJobRelationalConnectionRefIsMissingAtStartup() throws IOException {
         Path sourceConfig = tempDir.resolve("source-config.yaml");
         Path targetConfig = tempDir.resolve("target-config.yaml");
@@ -96,6 +177,89 @@ class ConfigLoaderRelationalConnectionRefTest {
         assertTrue(exception.getMessage().contains("Missing relational connectionRef 'sqlserver-main'"));
         assertTrue(exception.getMessage().contains("missing-connection-ref"));
         assertTrue(exception.getMessage().contains("CustomersSql"));
+    }
+
+    @Test
+    void failsFastWhenReferencedRelationalConnectionEnvVarIsMissing() throws IOException {
+        Path sourceConfig = tempDir.resolve("source-config.yaml");
+        Path targetConfig = tempDir.resolve("target-config.yaml");
+        Path processorConfig = tempDir.resolve("processor-config.yaml");
+        Path jobConfig = tempDir.resolve("job-config.yaml");
+
+        Files.writeString(sourceConfig, """
+                sources:
+                  - format: csv
+                    sourceName: Customers
+                    filePath: input/customers.csv
+                    delimiter: ","
+                    fields:
+                      - name: id
+                        type: int
+                      - name: name
+                        type: String
+                """);
+
+        Files.writeString(targetConfig, """
+                targets:
+                  - format: relational
+                    targetName: CustomersSql
+                    table: Customers
+                    writeMode: insert
+                    batchSize: 100
+                    connectionRef: sqlserver-main
+                    fields:
+                      - name: id
+                        type: int
+                      - name: name
+                        type: String
+                """);
+
+        Files.writeString(processorConfig, """
+                type: default
+                mappings:
+                  - source: Customers
+                    target: CustomersSql
+                    fields:
+                      - from: id
+                        to: id
+                      - from: name
+                        to: name
+                """);
+
+        Files.writeString(jobConfig, """
+                name: missing-connection-env-var
+                sourceConfigPath: source-config.yaml
+                targetConfigPath: target-config.yaml
+                processorConfigPath: processor-config.yaml
+                steps:
+                  - name: customers-step
+                    source: Customers
+                    target: CustomersSql
+                """);
+
+        EtlConfigProperties properties = new EtlConfigProperties();
+        properties.setJob(jobConfig.toString());
+        properties.setAllowDemoFallback(false);
+        EtlConfigProperties.Relational relational = new EtlConfigProperties.Relational();
+        RelationalConnectionConfig connection = new RelationalConnectionConfig();
+        connection.setVendor("sqlserver");
+        connection.setConnectionString("jdbc:sqlserver://localhost:1433;databaseName=etl_db;encrypt=true;trustServerCertificate=true");
+        connection.setUsernameEnvVar("etl.test.missing.username");
+        connection.setPasswordEnvVar("etl.test.missing.password");
+        relational.setConnections(Map.of("sqlserver-main", connection));
+        properties.setRelational(relational);
+
+        ConfigLoader loader = new ConfigLoader(
+                properties,
+                new SourceValidationService(),
+                new ValidationRuleEvaluator(ProcessorExtensionDefaults.defaultValidationRules(new FileIngestionRuntimeSupport())),
+                new TransformEvaluator(ProcessorExtensionDefaults.defaultTransforms())
+        );
+
+        ConfigException exception = assertThrows(ConfigException.class, loader::buildRunConfigurationMetadata);
+        assertTrue(exception.getMessage().contains("Invalid relational connectionRef 'sqlserver-main'"));
+        assertTrue(exception.getMessage().contains("usernameEnvVar 'etl.test.missing.username'"));
+        assertTrue(exception.getMessage().contains("missing-connection-env-var"));
     }
 
     @Test

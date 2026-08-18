@@ -82,19 +82,54 @@ public class InMemoryTriggerEventRegistry implements TriggerEventRegistry {
 	}
 
 	@Override
+	public List<TriggerEventView> listByJobKey(String jobKey, int offset, int limit) {
+		return listFromQueue(eventsByJobKey.get(normalize(jobKey)), offset, limit);
+	}
+
+	@Override
+	public long countByJobKey(String jobKey) {
+		return countQueue(eventsByJobKey.get(normalize(jobKey)));
+	}
+
+	@Override
 	public List<TriggerEventView> listByScheduleId(String scheduleId, int limit) {
 		return listFromQueue(eventsByScheduleId.get(normalize(scheduleId)), limit);
 	}
 
+	@Override
+	public List<TriggerEventView> listByScheduleId(String scheduleId, int offset, int limit) {
+		return listFromQueue(eventsByScheduleId.get(normalize(scheduleId)), offset, limit);
+	}
+
+	@Override
+	public long countByScheduleId(String scheduleId) {
+		return countQueue(eventsByScheduleId.get(normalize(scheduleId)));
+	}
+
 	private List<TriggerEventView> listFromQueue(Deque<TriggerEventView> queue, int limit) {
+		return listFromQueue(queue, 0, limit);
+	}
+
+	private List<TriggerEventView> listFromQueue(Deque<TriggerEventView> queue, int offset, int limit) {
 		if (queue == null || limit <= 0) {
 			return List.of();
 		}
+		int safeOffset = Math.max(0, offset);
 		synchronized (queue) {
 			return queue.stream()
 					.sorted(Comparator.comparing(TriggerEventView::requestedAt).reversed())
+					.skip(safeOffset)
 					.limit(limit)
 					.toList();
+		}
+	}
+
+	private long countQueue(Deque<TriggerEventView> queue) {
+		if (queue == null) {
+			return 0L;
+		}
+		synchronized (queue) {
+			return queue.size();
 		}
 	}
 

@@ -71,6 +71,37 @@ class ExistingProjectItem:
     body: str
 
 
+@dataclass(frozen=True)
+class GitHubGraphQLErrorDetails:
+    errors: tuple[dict[str, Any], ...]
+
+    def has_type(self, error_type: str) -> bool:
+        return any((error.get("type") or "").upper() == error_type.upper() for error in self.errors)
+
+
+class GitHubGraphQLRequestError(RuntimeError):
+    def __init__(self, message: str, details: GitHubGraphQLErrorDetails | None = None):
+        super().__init__(message)
+        self.details = details
+
+
+class GitHubGraphQLForbiddenError(GitHubGraphQLRequestError):
+    pass
+
+
+def is_graphql_forbidden_error(exc: BaseException) -> bool:
+    if isinstance(exc, GitHubGraphQLForbiddenError):
+        return True
+    if not isinstance(exc, GitHubGraphQLRequestError):
+        return False
+    if exc.details is not None and exc.details.has_type("FORBIDDEN"):
+        return True
+
+    # Defensive fallback: some API responses surface permission failures via message text only.
+    normalized = str(exc).lower()
+    return "resource not accessible by personal access token" in normalized
+
+
 @dataclass
 class FieldBinding:
     logical_name: str
@@ -482,7 +513,11 @@ class GitHubProjectClient:
 
         errors = filter_graphql_errors(parsed.get("errors") or [], tolerated_not_found_roots or set())
         if errors:
-            raise RuntimeError(f"GitHub GraphQL returned errors: {json.dumps(errors, indent=2)}")
+            details = GitHubGraphQLErrorDetails(tuple(errors))
+            message = f"GitHub GraphQL returned errors: {json.dumps(errors, indent=2)}"
+            if details.has_type("FORBIDDEN"):
+                raise GitHubGraphQLForbiddenError(message, details=details)
+            raise GitHubGraphQLRequestError(message, details=details)
 
         return parsed["data"]
 
@@ -815,7 +850,15 @@ def sync_items(
             actions += 1
             if dry_run:
                 continue
-            existing = client.create_draft_item(project_id, desired_title, desired_body)
+            try:
+                existing = client.create_draft_item(project_id, desired_title, desired_body)
+            except GitHubGraphQLRequestError as exc:
+                if not is_graphql_forbidden_error(exc):
+                    raise
+                print(
+                    f"WARN  {item.backlog_id}: skipping draft creation due to insufficient project-write permission ({exc})."
+                )
+                continue
         elif existing.content_type != "DraftIssue":
             print(
                 f"WARN  {item.backlog_id}: existing synced item is a {existing.content_type}; title/body sync is skipped."
@@ -824,14 +867,30 @@ def sync_items(
             print(f"UPDATE {item.backlog_id}: title/body")
             actions += 1
             if not dry_run:
-                client.update_draft_issue(existing.content_id, desired_title, desired_body)
+                try:
+                    client.update_draft_issue(existing.content_id, desired_title, desired_body)
+                except GitHubGraphQLRequestError as exc:
+                    if not is_graphql_forbidden_error(exc):
+                        raise
+                    print(
+                        f"WARN  {item.backlog_id}: skipping draft update due to insufficient project-write permission ({exc})."
+                    )
+                    continue
 
         for binding in field_bindings:
             field_value = binding.value_getter(item)
             print(f"FIELD {item.backlog_id}: {binding.resolved_name} = {field_value}")
             actions += 1
             if not dry_run and existing is not None:
-                client.update_field_value(project_id, existing.item_id, binding.field, field_value)
+                try:
+                    client.update_field_value(project_id, existing.item_id, binding.field, field_value)
+                except GitHubGraphQLRequestError as exc:
+                    if not is_graphql_forbidden_error(exc):
+                        raise
+                    print(
+                        f"WARN  {item.backlog_id}: skipping field sync for '{binding.resolved_name}' due to insufficient project-write permission ({exc})."
+                    )
+                    break
 
     stale_ids = sorted(set(existing_items) - synced_ids)
     for stale_id in stale_ids:

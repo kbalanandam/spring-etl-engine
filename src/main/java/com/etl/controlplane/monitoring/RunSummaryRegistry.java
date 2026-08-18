@@ -8,7 +8,22 @@ import java.util.Optional;
  */
 public interface RunSummaryRegistry {
 
+	record LogReadCheckpoint(String logPath, long offsetBytes, long fileSizeBytes, long fileLastModifiedMillis) {
+	}
+
 	void upsert(RunSummaryView runSummary);
+
+	default void upsertStepSnapshots(long jobExecutionId, java.util.Collection<? extends org.springframework.batch.core.StepExecution> stepExecutions) {
+		// Optional hook for registries that can persist step projections immediately at job completion.
+	}
+
+	default Optional<LogReadCheckpoint> findLogCheckpoint(String logPath) {
+		return Optional.empty();
+	}
+
+	default void upsertLogCheckpoint(String logPath, long offsetBytes, long fileSizeBytes, long fileLastModifiedMillis) {
+		// Optional hook for registries that can durably persist incremental log replay progress.
+	}
 
 	List<RunSummaryView> latestRuns(int limit);
 

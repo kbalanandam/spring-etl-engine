@@ -6,6 +6,33 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-07-24
+
+### Added
+- Added `scripts/generate-models-batch.ps1` to batch-generate XML model classes across discovered `job-config.yaml` bundles, with duplicate job-name detection, dry-run mode, optional private bundle scanning, and continue-on-error controls.
+- Added control-plane trigger-source catalog foundations (`TriggerSourceCatalog`, JDBC-backed `TriggerSourceCatalogService`, `TriggerSourceOptionView`, and `TriggerSourceListResponse`) for API/UI trigger-source filter option envelopes.
+- Added `SelectedJobLaunchService` to launch selected-job ETL workers as separate processes with structured `CONTROLPLANE_LAUNCH` start/finish evidence and guardrailed launch-skip messaging.
+- Added `docs/config/control-plane/application-controlplane-properties.md` as the canonical reference for active `application-controlplane.properties` keys, owners, and runtime behavior.
+- Added focused bootstrap-script regression coverage in `ControlPlaneBootstrapScriptsTest` for the current schema/seed-only control-plane bootstrap contract.
+
+### Changed
+- Extended schedule trigger-now handling and control-plane launch orchestration to return richer decision payloads (`triggerEventId`, launch-started context, duplicate suppression semantics), persist consistent schedule/trigger linkage, and emit launch lifecycle evidence for manual and scheduler-origin requests.
+- Extended `/api/v1/runs` and Operator Runs UX with trigger-source filtering, route/state persistence, filter-option catalog loading, and follow-up refresh hardening so schedule-origin runs surface more reliably after accepted triggers.
+- Updated local restart and verification tooling (`scripts/restart-controlplane.ps1`, `scripts/verify-recent-changes.ps1`, smoke tests, and `scripts/README.md`) to keep startup logs bounded to current session evidence and improve repeatable control-plane troubleshooting flows.
+- Expanded relational selected-job startup guardrails and coverage for source/target `connectionRef` compatibility by validating unsupported or unresolved references earlier in `ConfigLoader` with focused regression tests.
+- Updated control-plane architecture documentation (`docs/architecture/control-plane/*`, `docs/architecture/etl-core/relational-db-support.md`) to reflect trigger-source cataloging, launch evidence lineage, and relational connection reference contracts.
+- Hard-dropped the legacy `controlplane_trigger_event.schedule_id` bridge from active MySQL schema/bootstrap paths; schedule-origin trigger-event linkage and run-origin inference now rely on `schedule_pk` only.
+- Simplified trigger-event origin details by removing legacy `controlplane_trigger_event.watcher_id`; active EVENT origin fallback now relies on `external_origin_key` together with `trigger_source_pk`/`trigger_origin` semantics.
+- Reworked retained run-history projection identities and write semantics so active `run_summary`/run-detail lineage now anchors to control-plane PK authority instead of recycled `job_execution_id`-derived child identities, with current-write `created_at`/deterministic `created_by` behavior on active projection upserts.
+- Updated MySQL and SQL Server control-plane bootstrap scripts to the same schema/seed-only contract: no bootstrap-time legacy row repair, static `controlplane_pk_sequence` floors, and `controlplane_run_summary` shaped around `run_summary_pk` primary-key authority with `job_execution_id` retained as a unique bridge attribute.
+- Completed the bounded Operator UI schedule-workbench and trigger-origin visibility slice (`U5`), including explicit refresh-vs-force-replay semantics on `/api/v1/runs` and profile-driven force-replay enablement through `controlplane.runs.allow-force-refresh`.
+- Refreshed product planning/docs for the next product-grade lane so Epic R (`R2` -> `R5`) is now the active follow-on after the shipped scheduler/UI MVP foundations.
+- Trimmed redundant Spring keys from `application-controlplane.properties` now that equivalent defaults/annotations are enforced in the control-plane launcher code.
+
+### Fixed
+- Fixed `/api/v1/runs` trigger-source filtering behavior to avoid post-limit filtering gaps that could hide newly completed matching runs.
+- Fixed the control-plane launcher integration recovery assertion to match the shipped PK-anchored checkpoint identity contract (`ca-log-<runRecordPk>`).
+
 ## [1.9.1] - 2026-06-16
 
 ### Added

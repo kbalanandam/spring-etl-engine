@@ -3,6 +3,9 @@ package com.etl.job.listener;
 import com.etl.config.RunConfigurationMetadata;
 import com.etl.config.job.JobConfig;
 import com.etl.exception.EtlExceptionDetails;
+import com.etl.controlplane.monitoring.RunSummaryReadModelService;
+import com.etl.controlplane.monitoring.RunSummaryRegistry;
+import com.etl.controlplane.monitoring.RunSummaryView;
 import com.etl.logging.RunLoggingContext;
 import com.etl.runtime.job.JobHierarchyLoggingSupport;
 import com.etl.runtime.job.JobRunCountRollup;
@@ -14,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.batch.core.BatchStatus;
 import org.springframework.batch.core.JobExecution;
 import org.springframework.batch.core.JobExecutionListener;
@@ -40,22 +44,44 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 	private final JobRuntimeDescriptor jobRuntimeDescriptor;
 	private final RunConfigurationMetadata runConfigurationMetadata;
 	private final DynamicCustomStepFactory customStepFactory;
+	private final RunSummaryRegistry runSummaryRegistry;
+	private final RunSummaryReadModelService runSummaryReadModelService;
+	private final boolean syncJustFinishedRunFromLog;
 
 	public JobCompletionNotificationListener() {
-		this(null, null, null);
+		this(null, null, null, null, null, true);
 	}
 
 	public JobCompletionNotificationListener(@Nullable JobRuntimeDescriptor jobRuntimeDescriptor) {
-		this(jobRuntimeDescriptor, null, null);
+		this(jobRuntimeDescriptor, null, null, null, null, true);
+	}
+
+	public JobCompletionNotificationListener(@Nullable JobRuntimeDescriptor jobRuntimeDescriptor,
+	                                        @Nullable RunConfigurationMetadata runConfigurationMetadata,
+	                                        @Nullable DynamicCustomStepFactory customStepFactory) {
+		this(jobRuntimeDescriptor, runConfigurationMetadata, customStepFactory, null, null, true);
+	}
+
+	public JobCompletionNotificationListener(@Nullable JobRuntimeDescriptor jobRuntimeDescriptor,
+	                                        @Nullable RunConfigurationMetadata runConfigurationMetadata,
+	                                        @Nullable DynamicCustomStepFactory customStepFactory,
+	                                        @Nullable RunSummaryRegistry runSummaryRegistry) {
+		this(jobRuntimeDescriptor, runConfigurationMetadata, customStepFactory, runSummaryRegistry, null, true);
 	}
 
 	@Autowired
 	public JobCompletionNotificationListener(@Nullable JobRuntimeDescriptor jobRuntimeDescriptor,
 	                                        @Nullable RunConfigurationMetadata runConfigurationMetadata,
-	                                        @Nullable DynamicCustomStepFactory customStepFactory) {
+	                                        @Nullable DynamicCustomStepFactory customStepFactory,
+	                                        @Nullable RunSummaryRegistry runSummaryRegistry,
+	                                        @Nullable RunSummaryReadModelService runSummaryReadModelService,
+	                                        @Value("${controlplane.runs.sync-just-finished-job-from-log:true}") boolean syncJustFinishedRunFromLog) {
 		this.jobRuntimeDescriptor = jobRuntimeDescriptor;
 		this.runConfigurationMetadata = runConfigurationMetadata;
 		this.customStepFactory = customStepFactory;
+		this.runSummaryRegistry = runSummaryRegistry;
+		this.runSummaryReadModelService = runSummaryReadModelService;
+		this.syncJustFinishedRunFromLog = syncJustFinishedRunFromLog;
 	}
 
 	@Override
@@ -75,6 +101,7 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 		RunLoggingContext.put(RunLoggingContext.MAIN_FLOW, jobParameters.getString("mainFlow", ""));
 		RunLoggingContext.put(RunLoggingContext.SUB_FLOW, jobParameters.getString("subFlow", ""));
 		RunLoggingContext.put(RunLoggingContext.RECOVERY_POLICY, jobParameters.getString("recoveryPolicy", ""));
+		RunLoggingContext.put(RunLoggingContext.TRIGGER_EVENT_ID, jobParameters.getString("triggerEventId", ""));
 		RunLoggingContext.put(RunLoggingContext.JOB_NAME, jobExecution.getJobInstance().getJobName());
 		RunLoggingContext.put(RunLoggingContext.JOB_EXECUTION_ID, String.valueOf(jobExecution.getId()));
 
@@ -89,6 +116,7 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 				jobParameters.getString("runMode", ""),
 				jobParameters.getString("jobConfigPath", ""));
 		logJobHierarchyPlan(jobExecution, jobParameters);
+		persistRunSnapshot(jobExecution, "STARTED", null, null, null, null);
 	}
 
 	@Override
@@ -102,12 +130,21 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 					? Duration.between(startTime, endTime).getSeconds()
 					: null;
 			JobRunCountRollup countRollup = JobRunCountRollup.calculate(jobExecution, jobRuntimeDescriptor);
-			logger.info("RUN_SUMMARY event=run_summary scenario={} mainFlow={} subFlow={} runMode={} recoveryPolicy={} jobName={} jobExecutionId={} status={} startTime={} endTime={} durationSeconds={} sourceCount={} writtenCount={} rejectedCount={} handoffReadCount={} handoffWriteCount={} executedStepCount={} rollupMode={} failureCount={}",
+			persistRunSnapshot(
+					jobExecution,
+					jobExecution.getStatus() == null ? "UNKNOWN" : jobExecution.getStatus().name(),
+					durationSeconds,
+					countRollup.sourceCount(),
+					countRollup.writtenCount(),
+					countRollup.rejectedCount());
+			persistStepSnapshots(jobExecution);
+			logger.info("RUN_SUMMARY event=run_summary scenario={} mainFlow={} subFlow={} runMode={} recoveryPolicy={} triggerEventId={} jobName={} jobExecutionId={} status={} startTime={} endTime={} durationSeconds={} sourceCount={} writtenCount={} rejectedCount={} handoffReadCount={} handoffWriteCount={} executedStepCount={} rollupMode={} failureCount={}",
 					mdcValueOrDefault(RunLoggingContext.SCENARIO, "unknown-scenario"),
 					mdcValueOrDefault(RunLoggingContext.MAIN_FLOW, ""),
 					mdcValueOrDefault(RunLoggingContext.SUB_FLOW, ""),
 					mdcValueOrDefault(RunLoggingContext.RUN_MODE, ""),
 					mdcValueOrDefault(RunLoggingContext.RECOVERY_POLICY, ""),
+					mdcValueOrDefault(RunLoggingContext.TRIGGER_EVENT_ID, ""),
 					jobExecution.getJobInstance().getJobName(),
 					jobExecution.getId(),
 					jobExecution.getStatus(),
@@ -145,10 +182,87 @@ public class JobCompletionNotificationListener implements JobExecutionListener {
 			} else {
 				logger.info("Job finished with status {} after {} seconds.", jobExecution.getStatus(), durationSeconds == null ? "unknown" : durationSeconds);
 			}
+			syncJustFinishedRunFromLog(jobExecution);
 		} finally {
 			RunLoggingContext.clearJobScope();
 		}
 
+	}
+
+	private void persistRunSnapshot(JobExecution jobExecution,
+	                               String status,
+	                               Long durationSeconds,
+	                               Long sourceCount,
+	                               Long writtenCount,
+	                               Long rejectedCount) {
+		if (runSummaryRegistry == null || jobExecution == null || jobExecution.getId() == null) {
+			return;
+		}
+		JobParameters jobParameters = jobExecution.getJobParameters();
+		String scenario = RunLoggingContext.sanitizeScenarioName(jobParameters.getString("scenario", "unknown-scenario"));
+		LocalDate logDate = jobExecution.getStartTime() == null ? LocalDate.now() : jobExecution.getStartTime().toLocalDate();
+		String logPath = "logs/" + logDate + "/" + scenario + ".log";
+		try {
+			runSummaryRegistry.upsert(new RunSummaryView(
+					scenario,
+					jobExecution.getId(),
+					(status == null || status.isBlank()) ? "UNKNOWN" : status,
+					jobExecution.getStartTime(),
+					jobExecution.getEndTime(),
+					durationSeconds,
+					sourceCount,
+					writtenCount,
+					rejectedCount,
+					nullIfBlank(jobParameters.getString("runMode", "")),
+					nullIfBlank(jobParameters.getString("recoveryPolicy", "")),
+					nullIfBlank(jobParameters.getString("triggerEventId", "")),
+					null,
+					logPath
+			));
+		} catch (RuntimeException ex) {
+			logger.debug("RUN_EVENT event=direct_persistence_skipped reason={} jobExecutionId={}", ex.getMessage(), jobExecution.getId());
+		}
+	}
+
+	private String nullIfBlank(String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+		return value;
+	}
+
+	private void syncJustFinishedRunFromLog(JobExecution jobExecution) {
+		if (!syncJustFinishedRunFromLog || runSummaryReadModelService == null || jobExecution == null || jobExecution.getId() == null) {
+			return;
+		}
+		JobParameters jobParameters = jobExecution.getJobParameters();
+		String scenario = RunLoggingContext.sanitizeScenarioName(jobParameters.getString("scenario", "unknown-scenario"));
+		LocalDate logDate = jobExecution.getStartTime() == null ? LocalDate.now() : jobExecution.getStartTime().toLocalDate();
+		for (int attempt = 0; attempt < 3; attempt++) {
+			boolean synced = runSummaryReadModelService.syncRunFromScenarioLog(scenario, logDate, jobExecution.getId());
+			if (synced) {
+				return;
+			}
+			if (attempt < 2) {
+				try {
+					Thread.sleep(75L);
+				} catch (InterruptedException ex) {
+					Thread.currentThread().interrupt();
+					return;
+				}
+			}
+		}
+	}
+
+	private void persistStepSnapshots(JobExecution jobExecution) {
+		if (runSummaryRegistry == null || jobExecution == null || jobExecution.getId() == null) {
+			return;
+		}
+		try {
+			runSummaryRegistry.upsertStepSnapshots(jobExecution.getId(), jobExecution.getStepExecutions());
+		} catch (RuntimeException ex) {
+			logger.debug("RUN_EVENT event=direct_step_persistence_skipped reason={} jobExecutionId={}", ex.getMessage(), jobExecution.getId());
+		}
 	}
 
 	private void invokeCustomFailureFinalizers(JobExecution jobExecution) {

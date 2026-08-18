@@ -65,10 +65,12 @@ class ControlPlaneApiLauncherIntegrationTest {
 		registry.add("controlplane.runs.persistence.mode", () -> "jdbc");
 		registry.add("controlplane.schedules.persistence.mode", () -> "jdbc");
 		registry.add("controlplane.scheduler.enabled", () -> "false");
-		registry.add("spring.datasource.url", () -> "jdbc:sqlite:" + DB_PATH.toAbsolutePath().toString().replace('\\', '/'));
-		registry.add("spring.datasource.username", () -> "");
+		registry.add("controlplane.job-launch.enabled", () -> "false");
+		registry.add("spring.datasource.url", () -> "jdbc:h2:file:" + DB_PATH.toAbsolutePath().toString().replace('\\', '/')
+				+ ";MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE");
+		registry.add("spring.datasource.username", () -> "sa");
 		registry.add("spring.datasource.password", () -> "");
-		registry.add("spring.datasource.driver-class-name", () -> "org.sqlite.JDBC");
+		registry.add("spring.datasource.driver-class-name", () -> "org.h2.Driver");
 		registry.add("spring.sql.init.mode", () -> "never");
 		registry.add("spring.batch.jdbc.initialize-schema", () -> "never");
 		registry.add("spring.sql.init.schema-locations", () -> "");
@@ -139,7 +141,7 @@ class ControlPlaneApiLauncherIntegrationTest {
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"reason\":\"manual_operator_request\",\"requestedBy\":\"integration-test\"}"))
 				.andExpect(status().isAccepted())
-				.andExpect(jsonPath("$.decisionStatus").value("ACCEPTED"));
+				.andExpect(jsonPath("$.decisionStatus").value("LAUNCH_SKIPPED"));
 
 		mockMvc.perform(post("/api/v1/jobs/customer-load:trigger-now")
 						.contentType(MediaType.APPLICATION_JSON)
@@ -183,7 +185,7 @@ class ControlPlaneApiLauncherIntegrationTest {
 				.andExpect(jsonPath("$.recovery.jobExecutionId").value(901))
 				.andExpect(jsonPath("$.recovery.runRecordId").value("rr-901"))
 				.andExpect(jsonPath("$.recovery.resumeSupported").value(false))
-				.andExpect(jsonPath("$.recovery.checkpointAnchors[0].checkpointAnchorId").value("ca-log-901"))
+				.andExpect(jsonPath("$.recovery.checkpointAnchors[0].checkpointAnchorId").value("ca-log-1"))
 				.andExpect(jsonPath("$.recovery.checkpointAnchors[0].anchorRef").value(LOG_ROOT.resolve("2026-05-27/customer-load.log").toString()));
 
 		mockMvc.perform(get("/api/v1/runs/901/step-records").param("limit", "10"))

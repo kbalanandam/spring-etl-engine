@@ -793,11 +793,6 @@ public class ConfigLoader {
 			if (connection == null) {
 				throw new ConfigException("Invalid relational connection registry: connection '" + connectionName + "' is null.");
 			}
-			try {
-				connection.validate();
-			} catch (IllegalArgumentException e) {
-				throw new ConfigException("Invalid relational connection registry entry '" + connectionName + "': " + e.getMessage(), e);
-			}
 		}
 	}
 
@@ -884,6 +879,13 @@ public class ConfigLoader {
 		if (connection == null) {
 			throw new ConfigException("Missing relational connectionRef '" + connectionRef + "' for " + configType
 					+ " '" + configName + "' in scenario '" + defaultName(scenarioName) + "' (" + configLocation + ").");
+		}
+		try {
+			connection.validate();
+		} catch (IllegalArgumentException e) {
+			throw new ConfigException("Invalid relational connectionRef '" + connectionRef + "' for " + configType
+					+ " '" + configName + "' in scenario '" + defaultName(scenarioName) + "' (" + configLocation + "): "
+					+ e.getMessage(), e);
 		}
 		return connection;
 	}

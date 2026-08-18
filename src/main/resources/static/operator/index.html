@@ -8,23 +8,54 @@
 </head>
 <body>
 <header class="topbar">
-  <h1>Operator UI</h1>
-  <p class="subtitle">Monitoring-first read model (U1 slice)</p>
+  <div>
+    <h1>Operator UI</h1>
+    <p class="subtitle">Monitoring-first read model (U1 slice)</p>
+  </div>
+  <p id="topbar-runtime" class="topbar-runtime" aria-live="polite">Profile: loading... · DB: loading...</p>
 </header>
 
 <nav class="tabs">
-  <a href="#/jobs" id="tab-jobs">Jobs</a>
+  <a href="#/jobs" id="tab-jobs" class="active" aria-current="page">Jobs</a>
   <a href="#/schedules" id="tab-schedules">Schedules</a>
   <a href="#/runs" id="tab-runs">Runs</a>
-  <div class="tabs-timezone">
-    <label for="runs-timezone-select">Timezone</label>
-    <select id="runs-timezone-select"></select>
-  </div>
 </nav>
 
 <main class="content">
+  <div id="schedules-editor" class="detail-box" hidden>
+    <h3 id="schedules-editor-title">Create schedule</h3>
+    <p class="hint">MVP schedule editor using <code>POST /api/v1/schedules</code> and <code>PUT /api/v1/schedules/{scheduleId}</code>.</p>
+    <div class="control-row">
+      <label for="schedules-editor-key-input">Schedule key</label>
+      <input id="schedules-editor-key-input" type="text" placeholder="daily-customer-load">
+      <label for="schedules-editor-job-select">Job</label>
+      <select id="schedules-editor-job-select">
+        <option value="">Select job</option>
+      </select>
+    </div>
+    <div class="control-row">
+      <label for="schedules-editor-expression-input">Expression</label>
+      <input id="schedules-editor-expression-input" type="text" placeholder="0 0 * * *">
+      <label for="schedules-editor-timezone-input">Timezone</label>
+      <input id="schedules-editor-timezone-input" type="text" placeholder="UTC">
+    </div>
+    <div id="schedules-editor-expression-state" class="state" hidden></div>
+    <div class="control-row">
+      <label for="schedules-editor-description-input">Description</label>
+      <input id="schedules-editor-description-input" type="text" placeholder="Daily customer load">
+      <label for="schedules-editor-enabled-input">
+        <input id="schedules-editor-enabled-input" type="checkbox" checked>
+        Enabled
+      </label>
+    </div>
+    <div class="control-row">
+      <button id="schedules-editor-save-btn" type="button">Save</button>
+      <button id="schedules-editor-cancel-btn" type="button">Cancel</button>
+    </div>
+    <div id="schedules-editor-state" class="state"></div>
+  </div>
+
   <section id="view-jobs" class="panel" hidden>
-    <h2>Jobs</h2>
     <p class="hint">Known bundles from <code>/api/v1/jobs</code>.</p>
     <div class="control-row jobs-controls">
       <label for="jobs-filter-input">Filter</label>
@@ -87,6 +118,15 @@
     </div>
     <div id="job-detail-trigger-feedback" class="state" hidden></div>
 
+    <h3>Recent trigger events</h3>
+    <div id="job-detail-trigger-events-state" class="state">No recent trigger events loaded yet.</div>
+    <ul id="job-detail-trigger-events-list" class="detail-list" hidden></ul>
+    <div id="job-detail-trigger-events-pagination" class="control-row" hidden>
+      <button id="job-detail-trigger-events-prev-btn" type="button">Prev</button>
+      <span id="job-detail-trigger-events-page-status" class="jobs-page-status">Page 1 of 1</span>
+      <button id="job-detail-trigger-events-next-btn" type="button">Next</button>
+    </div>
+
     <h3>Native schedule</h3>
     <p class="hint">Native scheduler controls only. Direct selected-job execution remains valid with or without this schedule panel.</p>
     <div id="job-detail-schedule-state" class="state"></div>
@@ -125,12 +165,37 @@
   </section>
 
   <section id="view-schedules" class="panel" hidden>
-    <h2>Schedules</h2>
     <p class="hint">Native scheduler workbench from <code>/api/v1/schedules</code>.</p>
+    <div class="control-row schedules-controls">
+      <label for="schedules-filter-input">Filter</label>
+      <input id="schedules-filter-input" type="text" placeholder="schedule key or job">
+      <label for="schedules-sort-select">Sort</label>
+      <select id="schedules-sort-select">
+        <option value="scheduleKey">Schedule key</option>
+        <option value="selectedJobKey">Job</option>
+        <option value="status">Status</option>
+        <option value="nextDueAt">Next due</option>
+      </select>
+      <button id="schedules-sort-dir-btn" type="button">Asc</button>
+    </div>
+    <div class="control-row schedules-pagination">
+      <label for="schedules-page-size-select">Rows</label>
+      <select id="schedules-page-size-select">
+        <option value="8">8</option>
+        <option value="10">10</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+      </select>
+      <button id="schedules-page-prev-btn" type="button">Prev</button>
+      <span id="schedules-page-status" class="jobs-page-status">Page 1 of 1</span>
+      <button id="schedules-page-next-btn" type="button">Next</button>
+    </div>
     <div class="control-row">
+      <button id="schedules-new-btn" type="button">New schedule</button>
       <button id="schedules-refresh-btn" type="button">Refresh</button>
       <span class="boundary-note">Scheduler controls are control-plane behavior; selected-job execution remains available independently.</span>
     </div>
+    <p class="hint">Use explicit actions to open schedule history or jump to the related job context.</p>
     <div id="schedules-state" class="state"></div>
     <table id="schedules-table" hidden>
       <thead>
@@ -144,9 +209,6 @@
       </thead>
       <tbody id="schedules-body"></tbody>
     </table>
-
-    <h3>Schedule details</h3>
-    <p class="hint">Click a schedule row to open detail view with recent triggers.</p>
   </section>
 
   <section id="view-schedule-detail" class="panel" hidden>
@@ -160,23 +222,42 @@
       <p><strong>Status:</strong> <span id="schedule-detail-status"></span></p>
       <p><strong>Timezone:</strong> <span id="schedule-detail-timezone"></span></p>
       <p><strong>Expression:</strong> <span id="schedule-detail-expression"></span></p>
+      <p><strong>Description:</strong> <span id="schedule-detail-description"></span></p>
+      <p><strong>Last accepted due:</strong> <span id="schedule-detail-last-accepted-due"></span></p>
       <p><strong>Next due:</strong> <span id="schedule-detail-next-due"></span></p>
     </div>
 
-    <h3>Recent triggers</h3>
-    <div id="schedule-detail-triggers-state" class="state">Loading triggers...</div>
-    <ul id="schedule-detail-triggers-list" class="detail-list" hidden></ul>
+    <div class="schedule-row">
+      <button id="schedule-detail-edit-btn" type="button" disabled>Edit</button>
+      <button id="schedule-detail-enable-disable-btn" type="button" disabled>Disable</button>
+      <button id="schedule-detail-pause-resume-btn" type="button" disabled>Pause</button>
+    </div>
+    <div id="schedule-detail-action-state" class="state" hidden></div>
+
+    <button id="schedule-detail-triggers-toggle-btn" class="link-toggle-btn" type="button">Show recent triggers</button>
+    <div id="schedule-detail-triggers-panel" hidden>
+      <div id="schedule-detail-triggers-state" class="state">Loading triggers...</div>
+      <ul id="schedule-detail-triggers-list" class="detail-list" hidden></ul>
+      <div id="schedule-detail-triggers-pagination" class="control-row" hidden>
+        <button id="schedule-detail-triggers-prev-btn" type="button">Prev</button>
+        <span id="schedule-detail-triggers-page-status" class="jobs-page-status">Page 1 of 1</span>
+        <button id="schedule-detail-triggers-next-btn" type="button">Next</button>
+      </div>
+    </div>
 
     <p><a id="schedule-detail-back-link" href="#/schedules">Back to schedules</a></p>
   </section>
 
   <section id="view-runs" class="panel" hidden>
-    <h2>Runs</h2>
     <p class="hint">Run summaries from <code>/api/v1/runs</code> with optional date/job filters.</p>
     <div class="control-row runs-controls runs-primary-controls">
       <div class="control-field">
         <label for="runs-start-date-input">Start date</label>
         <input id="runs-start-date-input" type="date">
+      </div>
+      <div class="control-field">
+        <label for="runs-timezone-select">Timezone</label>
+        <select id="runs-timezone-select"></select>
       </div>
       <div class="control-field">
         <label for="runs-job-select">Job</label>
@@ -192,55 +273,75 @@
       </div>
     </div>
 
-    <div class="control-row runs-controls runs-secondary-controls">
-      <div class="control-field control-field-filter">
-        <label for="runs-filter-input">Filter</label>
-        <input id="runs-filter-input" type="text" placeholder="scenario or status">
-      </div>
-      <div class="control-field">
-        <label for="runs-run-mode-select">Run mode</label>
-        <select id="runs-run-mode-select">
-          <option value="">All modes</option>
-          <option value="explicit-job">explicit-job</option>
-          <option value="demo-fallback">demo-fallback</option>
-        </select>
-      </div>
-      <div class="control-field">
-        <label for="runs-recovery-policy-select">Recovery policy</label>
-        <select id="runs-recovery-policy-select">
-          <option value="">All policies</option>
-          <option value="rerun-from-start">rerun-from-start</option>
-          <option value="resume-from-checkpoint">resume-from-checkpoint</option>
-        </select>
-      </div>
-      <div class="control-field control-field-sort">
-        <label for="runs-sort-select">Sort</label>
-        <div class="control-field-row">
-          <select id="runs-sort-select">
-            <option value="startTime">Start time</option>
-            <option value="jobExecutionId">Job execution</option>
-            <option value="scenario">Scenario</option>
-            <option value="status">Status</option>
-            <option value="triggerOrigin">Trigger origin</option>
-            <option value="runMode">Run mode</option>
-            <option value="recoveryPolicy">Recovery policy</option>
+    <details class="runs-advanced-controls">
+      <summary>More filters and sorting</summary>
+      <div class="control-row runs-controls runs-secondary-controls">
+        <div class="control-field control-field-filter">
+          <label for="runs-filter-input">Filter</label>
+          <input id="runs-filter-input" type="text" placeholder="scenario or status">
+        </div>
+        <div class="control-field">
+          <label for="runs-run-mode-select">Run mode</label>
+          <select id="runs-run-mode-select">
+            <option value="">All modes</option>
+            <option value="explicit-job">explicit-job</option>
+            <option value="demo-fallback">demo-fallback</option>
           </select>
-          <button id="runs-sort-dir-btn" type="button">Desc</button>
+        </div>
+        <div class="control-field">
+          <label for="runs-recovery-policy-select">Recovery policy</label>
+          <select id="runs-recovery-policy-select">
+            <option value="">All policies</option>
+            <option value="rerun-from-start">rerun-from-start</option>
+            <option value="resume-from-checkpoint">resume-from-checkpoint</option>
+          </select>
+        </div>
+        <div class="control-field">
+          <label for="runs-trigger-source-select">Trigger source</label>
+          <select id="runs-trigger-source-select">
+            <option value="">All sources</option>
+          </select>
+        </div>
+        <div class="control-field control-field-sort">
+          <label for="runs-sort-select">Sort</label>
+          <div class="control-field-row">
+            <select id="runs-sort-select">
+              <option value="startTime">Start time</option>
+              <option value="jobExecutionId">Job execution</option>
+              <option value="scenario">Scenario</option>
+              <option value="status">Status</option>
+              <option value="triggerOrigin">Trigger origin</option>
+              <option value="runMode">Run mode</option>
+              <option value="recoveryPolicy">Recovery policy</option>
+            </select>
+            <button id="runs-sort-dir-btn" type="button">Desc</button>
+          </div>
         </div>
       </div>
+    </details>
+    <div class="control-row runs-pagination">
+      <label for="runs-page-size-select">Rows</label>
+      <select id="runs-page-size-select">
+        <option value="8">8</option>
+        <option value="10">10</option>
+        <option value="15">15</option>
+        <option value="20">20</option>
+      </select>
+      <button id="runs-refresh-btn" type="button">Refresh</button>
+      <button id="runs-page-prev-btn" type="button">Prev</button>
+      <span id="runs-page-status" class="jobs-page-status">Page 1 of 1</span>
+      <button id="runs-page-next-btn" type="button">Next</button>
     </div>
     <div id="runs-state" class="state"></div>
     <table id="runs-table" hidden>
       <thead>
       <tr>
-        <th>Scenario</th>
-        <th>Status</th>
-        <th>Trigger origin</th>
-        <th>Run mode</th>
-        <th>Recovery policy</th>
-        <th>Start time</th>
-        <th>Duration (s)</th>
-        <th>Job execution</th>
+        <th class="runs-col-run">Run</th>
+        <th class="runs-col-status">Status</th>
+        <th class="runs-col-trigger">Trigger origin</th>
+        <th class="runs-col-start">Start time</th>
+        <th class="runs-col-duration">Duration (s)</th>
+        <th class="runs-col-execution">Job execution</th>
       </tr>
       </thead>
       <tbody id="runs-body"></tbody>

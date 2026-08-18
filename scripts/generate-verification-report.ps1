@@ -57,20 +57,31 @@ function Invoke-MavenTestRun {
         [int]$TimeoutMinutes
     )
 
+    $effectiveCaptureFile = $CaptureFile
     if (Test-Path $CaptureFile) {
-        Remove-Item $CaptureFile -Force
+        try {
+            Remove-Item $CaptureFile -Force -ErrorAction Stop
+        }
+        catch {
+            $captureDir = [System.IO.Path]::GetDirectoryName($CaptureFile)
+            $captureBase = [System.IO.Path]::GetFileNameWithoutExtension($CaptureFile)
+            $captureExt = [System.IO.Path]::GetExtension($CaptureFile)
+            $fallbackName = '{0}-{1}-{2}{3}' -f $captureBase, (Get-Date -Format 'yyyyMMdd-HHmmss'), ([guid]::NewGuid().ToString('N').Substring(0, 8)), $captureExt
+            $effectiveCaptureFile = Join-Path $captureDir $fallbackName
+            Write-Warning "Unable to clear locked Maven capture log '$CaptureFile'. Using fallback log '$effectiveCaptureFile'."
+        }
     }
 
     Push-Location $WorkingDirectory
     try {
         $start = Get-Date
-        $escapedCaptureFile = $CaptureFile.Replace('"', '""')
+        $escapedCaptureFile = $effectiveCaptureFile.Replace('"', '""')
         $command = "mvn --no-transfer-progress test > `"$escapedCaptureFile`" 2>&1"
         $process = Start-Process -FilePath 'cmd.exe' -ArgumentList '/d', '/c', $command -PassThru -WindowStyle Hidden
         $timedOut = -not $process.WaitForExit($TimeoutMinutes * 60 * 1000)
         if ($timedOut) {
             Stop-ProcessTree -RootProcessId $process.Id
-            Add-Content -Path $CaptureFile -Value "`nTIMED_OUT: Maven test run exceeded timeout of $TimeoutMinutes minute(s)."
+            Add-Content -Path $effectiveCaptureFile -Value "`nTIMED_OUT: Maven test run exceeded timeout of $TimeoutMinutes minute(s)."
             $exitCode = 124
         }
         else {
@@ -89,7 +100,7 @@ function Invoke-MavenTestRun {
         StartTime = $start
         EndTime = $end
         Duration = ($end - $start)
-        LogPath = $CaptureFile
+        LogPath = $effectiveCaptureFile
     }
 }
 
@@ -543,7 +554,7 @@ function Invoke-SmokeVerification {
         $negativeContent = Get-Content -Path $negativeLog -Raw
         # The negative smoke proves the system now fails early for placeholder SQL
         # Server values instead of reaching a late JDBC writer failure.
-        $negativePassed = $negativeContent.Contains("Invalid relational target configuration for scenario 'csv-to-sqlserver'") -and
+        $negativePassed = $negativeContent.Contains("Invalid relational connectionRef 'sqlserver-main'") -and
             $negativeContent.Contains('placeholder value') -and
             $negativeContent.Contains('BUILD FAILURE')
     }
@@ -813,6 +824,30 @@ function New-VerificationReport {
     }
     if ($slowestCase) {
         $lines.Add("- Slowest testcase: **$(Format-MarkdownInlineText -Text $slowestCase.Test)** ($($slowestCase.TimeSeconds)s)") | Out-Null
+    }
+    $lines.Add('') | Out-Null
+    $lines.Add('## Handoff summary') | Out-Null
+    $lines.Add('') | Out-Null
+    $lines.Add("- Release readiness: **$($Evidence.ReleaseReadiness.Recommendation)**") | Out-Null
+    $lines.Add("- Full verification suite: **$buildStatusBadge** ($($Evidence.Regression.Tests) tests; failures=$($Evidence.Regression.Failures), errors=$($Evidence.Regression.Errors), skipped=$($Evidence.Regression.Skipped))") | Out-Null
+    if ($Evidence.Metadata.SmokeWasSkipped) {
+        $lines.Add('- Smoke verification: **[SKIPPED]** in this report run, so runtime evidence must be reviewed separately before handoff.') | Out-Null
+    }
+    else {
+        $lines.Add("- Smoke verification: **$smokeStatusBadge**") | Out-Null
+        $lines.Add("- Positive smoke (`customer-load`): **$(Get-StatusBadge -Status $Evidence.Runtime.PositiveStatus)**") | Out-Null
+        if ($Evidence.Runtime.NegativeStatus -eq 'PASS') {
+            $lines.Add("- Negative smoke (`csv-to-sqlserver`): **[PASS]** expected fail-fast behavior confirmed.") | Out-Null
+        }
+        else {
+            $lines.Add("- Negative smoke (`csv-to-sqlserver`): **$(Get-StatusBadge -Status $Evidence.Runtime.NegativeStatus)**") | Out-Null
+        }
+    }
+    if ($Evidence.ReleaseReadiness.Caveats.Count -eq 0) {
+        $lines.Add('- Reviewer note: no release-readiness caveats were detected in the currently collected evidence.') | Out-Null
+    }
+    else {
+        $lines.Add('- Reviewer note: release readiness still has caveats; see the `Release readiness` section for details.') | Out-Null
     }
     $lines.Add('') | Out-Null
     $lines.Add('## How to read this report') | Out-Null

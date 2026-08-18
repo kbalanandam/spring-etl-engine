@@ -14,7 +14,7 @@ This runbook defines how to clean existing duplicate step rows in the shared loc
 
 ## Why this exists
 
-Some historical runs can contain more than one persisted row for the same logical step name under the same `run_record_id`.
+Some historical runs can contain more than one persisted row for the same logical step name under the same `run_record_pk` lineage; the maintenance report still includes the projected `run_record_id` for operator-friendly evidence.
 
 The operator UI now deduplicates for display, but this script is the source-of-truth hygiene action that cleans retained history itself.
 

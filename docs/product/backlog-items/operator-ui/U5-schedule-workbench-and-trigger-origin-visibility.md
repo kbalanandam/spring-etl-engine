@@ -2,13 +2,13 @@
 
 ## Summary
 
-Add a dedicated Operator UI schedule workbench that lists existing schedules, shows recent schedule-trigger evidence, and surfaces one clear trigger-origin indicator on runs so operators can distinguish Manual vs Schedule now and Event in the next phase.
+Add a dedicated Operator UI schedule workbench that lists existing schedules, routes to schedule detail for recent trigger evidence, and surfaces one clear trigger-origin indicator on runs so operators can distinguish Manual vs Schedule now and Event in the next phase.
 
 ## Current board status
 
 - Epic: **[Epic U](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **Done**
 - Milestone: **M2**
 - Dependency: **U4, S2**
 
@@ -33,7 +33,7 @@ Ship a bounded schedule workbench and trigger-origin visibility slice that keeps
 ## Scope
 
 - new schedule-centric view in Operator UI listing existing schedules and state
-- bounded schedule actions in that view: open job detail, pause/resume, and guarded ad hoc trigger-now
+- bounded schedule actions in that view: open schedule detail, open job detail, and guarded ad hoc trigger-now
 - clear trigger-origin token rendered in Runs list and Run detail (`Manual`, `Schedule`; `Event` reserved)
 - read-model and persistence contract updates needed to carry explicit trigger origin into run projections
 - explicit wording that schedule controls remain bounded and selected-job boundaries stay intact
@@ -42,7 +42,7 @@ Ship a bounded schedule workbench and trigger-origin visibility slice that keeps
 
 - open **Schedules** view and find `customer-load-every-minute`
 - verify state (`Active`) and next due in UTC/local display
-- open recent schedule trigger evidence and confirm `origin=Schedule`
+- open schedule detail to review recent trigger evidence and confirm `origin=Schedule`
 - switch to **Runs** and confirm launched run shows `Trigger origin: Schedule`
 - trigger one ad hoc run from job detail and confirm the next run shows `Trigger origin: Manual`
 - in the next phase, file-watcher triggers surface as `Trigger origin: Event` without redefining the same run-view contract
@@ -55,7 +55,7 @@ Schedules
 Key                         Job            Status   Next due
 customer-load-every-minute  customer-load  Active   2026-06-08 10:31 local
 
-[Open job] [Pause] [Trigger now]
+[ⓘ] [↗] [▶] (hover tooltips: Details, Open job, Trigger now)
 
 Recent triggers (selected schedule)
 - 10:30:01  origin=Schedule  decision=ACCEPTED  triggerEventId=te-...
@@ -100,18 +100,19 @@ Runs
 
 ## Acceptance criteria
 
-- [ ] Operator UI has a schedule workbench listing existing schedules with state and next due
-- [ ] schedule workbench shows recent schedule trigger evidence and bounded actions
-- [ ] Runs list and Run detail show explicit trigger origin (`Manual`, `Schedule`)
-- [ ] trigger-origin contract reserves `Event` and does not require UI redesign when event triggers ship
-- [ ] persistence/read-model flow keeps run origin auditable from trigger event to run projection
-- [ ] selected-job and control-plane boundary wording remains explicit
+- [x] Operator UI has a schedule workbench listing existing schedules with state and next due
+- [x] schedule workbench keeps bounded actions with compact symbols (`ⓘ`, `↗`, `▶`) and hover labels (`Details`, `Open job`, `Trigger now`), while deferring state changes to schedule detail
+- [x] Runs list and Run detail show explicit trigger origin (`Manual`, `Schedule`)
+- [x] trigger-origin contract reserves `Event` and does not require UI redesign when event triggers ship
+- [x] persistence/read-model flow keeps run origin auditable from trigger event to run projection
+- [x] selected-job and control-plane boundary wording remains explicit
 
 ## Related docs
 
 - [`Product backlog`](../../product-backlog.md)
 - [`Epic U - Operator UI monitoring-first MVP`](../../epics/operator-ui/epic-u-operator-ui-monitoring-first-mvp.md)
 - [`U4 - schedule visibility and pause/resume controls`](./U4-schedule-visibility-and-pause-resume-controls.md)
+- [`U5 wireframe freeze`](./U5-wireframe-freeze.md)
 - [`S2 - Time-based schedule definitions with pause/resume controls`](../scheduler/S2-time-based-schedule-definitions-with-pause-resume.md)
 - [`Operator UI MVP API surface`](../../../architecture/control-plane/operator-ui-mvp-api-surface.md)
 
@@ -119,8 +120,10 @@ Runs
 
 Prefer stable origin tokens in persistence (`MANUAL`, `SCHEDULE`, `EVENT`) and map them to operator labels in UI, while keeping raw token visibility available for diagnostics.
 
+Implementation sequencing for this item follows the frozen low-fidelity contract in [`U5 wireframe freeze`](./U5-wireframe-freeze.md). Any structural UI change should update that note first in the same change.
+
 ## Status notes
 
-- Added as the next bounded Operator UI slice after `U4` to make schedule operations and run-trigger provenance operationally clear.
-- Event triggers remain explicitly next-phase, but this item locks the shared UI and persistence origin contract now.
+- Bounded Operator UI schedule workbench and run trigger-origin visibility are now shipped.
+- Event triggers remain explicitly next-phase, while this item closes the shared UI and persistence origin contract for current Manual/Schedule behavior.
 

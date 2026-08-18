@@ -11,7 +11,22 @@ test("operator app trigger-now flow includes in-flight and cooldown guards", asy
   assert.match(source, /TRIGGER_NOW_DUPLICATE_WINDOW_MS\s*=\s*5\s*\*\s*1000/);
   assert.match(source, /triggerNowRequestState\s*=\s*\{/);
   assert.match(source, /Trigger request already in progress\. Please wait for the current response\./);
-  assert.match(source, /Trigger already accepted recently\. Please wait a few seconds before retrying\./);
+  assert.match(source, /Trigger already accepted recently in this browser tab\. Please wait a few seconds before retrying\./);
   assert.match(source, /decisionStatus === "DUPLICATE_SUPPRESSED"/);
+  assert.match(source, /decisionStatus === "LAUNCH_SKIPPED"/);
+  assert.match(source, /function classifyTriggerAcceptance\(payload, options = \{\}\)/);
+  assert.match(source, /function buildTriggerAcceptanceFeedback\(payload, context = \{\}\)/);
+  assert.match(source, /if \(decisionStatus === "ACCEPTED" && !hasLaunchedRunId\)/);
+  assert.match(source, /accepted but worker launch was not confirmed/);
+  assert.match(source, /triggerFeedback\.className = feedback\.className/);
+  assert.match(source, /state\.className = feedback\.className/);
+  assert.match(source, /function invalidateRunsState\(\)/);
+  assert.match(source, /function refreshRunsAfterTriggerAccepted\(\)/);
+  assert.match(source, /function scheduleFollowUpRunsRefresh\(\)/);
+  assert.match(source, /await refreshJobDetailRecentRuns\(normalizedJobKey, currentRouteState\(\)\?\.query\);/);
+  assert.match(source, /await refreshRunsAfterTriggerAccepted\(\);/);
+  assert.match(source, /if \(currentRouteState\(\)\.key === "runs"\) \{\s*await loadRuns\(\);\s*\}/);
+  assert.match(source, /await loadRuns\(\{ forceRefresh: true \}\);/);
+  assert.match(source, /scheduleFollowUpRunsRefresh\(\);/);
 });
 

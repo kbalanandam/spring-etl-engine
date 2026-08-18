@@ -29,7 +29,8 @@ The active config documentation set is currently organized by runtime concern (n
 - [`source/`](source/) - source format contracts (CSV, XML, relational)
 - [`target/`](target/) - target format contracts (CSV, JSON, XML, relational)
 - [`processor/`](processor/) - processor mapping, transform, and validation contracts
-- [`control-plane-persistence-profiles.md`](control-plane-persistence-profiles.md) - deploy-time control-plane persistence mode/datasource/dialect contract (Epic R `R2`)
+- [`control-plane/control-plane-persistence-profiles.md`](control-plane/control-plane-persistence-profiles.md) - deploy-time control-plane persistence mode/datasource/dialect contract (Epic R `R2`)
+- [`control-plane/application-controlplane-properties.md`](control-plane/application-controlplane-properties.md) - canonical runtime property reference for `application-controlplane.properties`
 
 Category-split placeholders such as `config/core/` and `config/runtime/` are intentionally deferred for now while impact is evaluated.
 
@@ -321,7 +322,8 @@ This means the preserved SQL Server scenario bundles are safe to keep in the rep
 
 `R2` now maintains a dedicated config contract page for deploy-time datasource and dialect selection:
 
-- [`control-plane-persistence-profiles.md`](control-plane-persistence-profiles.md)
+- [`control-plane/control-plane-persistence-profiles.md`](control-plane/control-plane-persistence-profiles.md)
+- [`control-plane/application-controlplane-properties.md`](control-plane/application-controlplane-properties.md)
 
 Use that page for:
 

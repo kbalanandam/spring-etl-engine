@@ -105,7 +105,7 @@ These scaffolds are additive. Existing files stay in current paths for compatibi
 - [`architecture/etl-core/oneflow-runtime-fallback-reference.md`](architecture/etl-core/oneflow-runtime-fallback-reference.md) - consolidated matrix of shipped OneFlow fallback/default decisions for runtime and config behavior
 - [`architecture/control-plane/control-plane-worker-boundary.md`](architecture/control-plane/control-plane-worker-boundary.md) - future boundary between the mandatory ETL core worker and optional scheduler, watcher, persistence, and UI layers
 - [`architecture/control-plane/control-plane-operational-data-model.md`](architecture/control-plane/control-plane-operational-data-model.md) - conceptual retained data model for optional scheduler, watcher, trigger, run, step, artifact, and recovery-lineage history
-- [`architecture/control-plane/control-plane-local-relational-schema.md`](architecture/control-plane/control-plane-local-relational-schema.md) - SQLite-first local relational schema direction for optional control-plane history with later PostgreSQL or SQL Server portability
+- [`architecture/control-plane/control-plane-local-relational-schema.md`](architecture/control-plane/control-plane-local-relational-schema.md) - MySQL-default local relational schema direction for optional control-plane history with SQL Server and later vendor portability
 - [`architecture/control-plane/scheduler-architecture-direction.md`](architecture/control-plane/scheduler-architecture-direction.md) - first scheduler-specific architecture direction under the optional control-plane layer
 - [`architecture/control-plane/operator-ui-mvp-api-surface.md`](architecture/control-plane/operator-ui-mvp-api-surface.md) - first control-plane API surface for Angular MVP Jobs, Runs, Run detail, Schedules, and System screens
 - [`architecture/control-plane/operator-ui-mvp-openapi.yaml`](architecture/control-plane/operator-ui-mvp-openapi.yaml) - machine-readable OpenAPI 3.1 draft of the same MVP control-plane API surface
@@ -162,7 +162,7 @@ These scaffolds are additive. Existing files stay in current paths for compatibi
 ### Configuration references
 - [`config/README.md`](config/README.md) - config documentation strategy, support matrix, and scenario usage
 - [`config/job-config.md`](config/job-config.md) - selected-job entry contract and ordered `steps` orchestration
-- [`config/control-plane-persistence-profiles.md`](config/control-plane-persistence-profiles.md) - deploy-time control-plane persistence mode, datasource, and dialect contract for Epic R `R2`
+- [`config/control-plane/control-plane-persistence-profiles.md`](config/control-plane/control-plane-persistence-profiles.md) - deploy-time control-plane persistence mode, datasource, and dialect contract for Epic R `R2`
 - [`config/source/csv-source.md`](config/source/csv-source.md) - CSV source fields supported today
 - [`config/source/xml-source.md`](config/source/xml-source.md) - XML source fields supported today
 - [`config/source/relational-source.md`](config/source/relational-source.md) - relational source fields and current phase-1 limitations

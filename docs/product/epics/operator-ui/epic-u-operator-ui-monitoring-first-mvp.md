@@ -39,4 +39,6 @@ This epic is **not** the place to make UI a runtime prerequisite or to redesign 
 
 Use [`../../product-backlog.md`](../../product-backlog.md) for live item-level board fields. Use this page for the shared Epic U boundary and cross-item intent.
 
+Current checkpoint: `U1` -> `U5` are now shipped as the bounded monitoring-first Operator UI MVP. Future UI work should stay tied to the product-grade persistence/governance lane rather than reopening MVP route/control scope.
+
 

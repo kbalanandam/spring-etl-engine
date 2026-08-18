@@ -8,7 +8,7 @@ Define one deploy-time configuration contract for selecting control-plane dataso
 
 - Epic: **[Epic R](../../epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **In Progress**
 - Milestone: **M3**
 - Dependency: **R1**
 
@@ -41,7 +41,7 @@ Make database selection a deployment concern with explicit profile contracts and
 
 Publish one configuration matrix in docs and properties guidance that is environment-driven, profile-safe, and explicit about optional control-plane behavior.
 
-The active contract anchor is [`docs/config/control-plane-persistence-profiles.md`](../../../config/control-plane-persistence-profiles.md).
+The active contract anchor is [`docs/config/control-plane/control-plane-persistence-profiles.md`](../../../config/control-plane/control-plane-persistence-profiles.md).
 
 ## Operator / runtime impact
 
@@ -79,8 +79,8 @@ The active contract anchor is [`docs/config/control-plane-persistence-profiles.m
 
 - [x] define one properties-by-profile matrix for SQLite, PostgreSQL, MySQL, SQL Server, and Oracle
 - [x] keep `persistence.mode` contract explicit (`memory` or `jdbc`)
-- [ ] map final property keys to `application-controlplane.properties` defaults
-- [ ] confirm profile-token naming is consistent across docs and runtime config validation
+- [x] map final property keys to `application-controlplane.properties` defaults
+- [x] confirm profile-token naming is consistent across docs and runtime config validation
 
 ### Startup validation test matrix (planned)
 
@@ -117,7 +117,7 @@ The active contract anchor is [`docs/config/control-plane-persistence-profiles.m
 - [`Product backlog`](../../product-backlog.md)
 - [`Epic R`](../../epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)
 - [`docs/config/README.md`](../../../config/README.md)
-- [`docs/config/control-plane-persistence-profiles.md`](../../../config/control-plane-persistence-profiles.md)
+- [`docs/config/control-plane/control-plane-persistence-profiles.md`](../../../config/control-plane/control-plane-persistence-profiles.md)
 - [`Control-plane persistence boundary contract`](../../../architecture/control-plane/control-plane-persistence-boundary-contract.md)
 - [`application-controlplane.properties`](../../../../src/main/resources/application-controlplane.properties)
 
@@ -127,9 +127,9 @@ Prefer minimal property surface area and explicit defaults. Avoid vendor-specifi
 
 ## Status notes
 
-Kickoff started after R1 boundary freeze; deploy-time datasource/dialect contract is now documented in the config reference set.
+Kickoff moved into active implementation support after R1 boundary freeze; deploy-time datasource/dialect contract is now documented in the config reference set and aligned with the active control-plane profile/property surface.
 
-Validation do-ahead planning is merged into this page under `R2 validation checklist`.
+Validation do-ahead planning remains merged into this page under `R2 validation checklist`, with the next gate focused on matrix proof plus control-plane-disabled fallback evidence before `R3` opens.
 
-Execution sequencing update: keep `R2` in docs-ready/parked state while `Epic F` (`F1`) remains the active near-term delivery lane.
+Execution sequencing update: `R2` is now the active entry gate into the product-grade persistence lane, ahead of `R3`/`R4`/`R5`.
 

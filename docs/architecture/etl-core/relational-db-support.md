@@ -32,6 +32,7 @@ The current phase-1 implementation now includes:
 - optional credential indirection through `usernameEnvVar` / `passwordEnvVar`, resolved from environment variables (with JVM system-property fallback for local/test runs)
 - `connection.connectionString` alias support for JDBC URL authoring, including SQL Server single-string credentials (`;user=...;password=...`) when teams prefer one connection field
 - named relational connection registry via startup properties (`etl.config.relational.connections.<name>.*`) with source/target `connectionRef` resolution and fail-fast missing-reference validation
+- selected-job `connectionRef` resolution validates referenced registry credentials/env vars at use time, so unrelated non-relational selected jobs are not blocked by unused relational entries
 - record-count behavior that uses `countQuery` when provided, returns `-1` for query-based relational sources, and therefore falls back to chunk mode when count is unknown
 
 Current support remains intentionally narrow:

@@ -1,0 +1,173 @@
+package com.etl.controlplane.jobs;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+
+/**
+ * Launches selected-job ETL runs as a separate worker process.
+ */
+@Service
+public class SelectedJobLaunchService {
+
+	private static final Logger log = LoggerFactory.getLogger(SelectedJobLaunchService.class);
+
+	private final JobBundleReadModelService jobBundleReadModelService;
+	private final boolean launchEnabled;
+	private final String workerDatasourceUrl;
+	private final String workerDatasourceUsername;
+	private final String workerDatasourcePassword;
+	private final String workerDatasourceDriverClassName;
+	private final String workerConnectionInitSql;
+
+	@Autowired
+	public SelectedJobLaunchService(JobBundleReadModelService jobBundleReadModelService,
+	                                @Value("${controlplane.job-launch.enabled:false}") boolean launchEnabled,
+	                                @Value("${controlplane.job-launch.worker.datasource.url:}") String workerDatasourceUrl,
+	                                @Value("${controlplane.job-launch.worker.datasource.username:}") String workerDatasourceUsername,
+	                                @Value("${controlplane.job-launch.worker.datasource.password:}") String workerDatasourcePassword,
+	                                @Value("${controlplane.job-launch.worker.datasource.driver-class-name:}") String workerDatasourceDriverClassName,
+	                                @Value("${controlplane.job-launch.worker.connection-init-sql:}") String workerConnectionInitSql) {
+		this.jobBundleReadModelService = jobBundleReadModelService;
+		this.launchEnabled = launchEnabled;
+		this.workerDatasourceUrl = normalize(workerDatasourceUrl);
+		this.workerDatasourceUsername = normalize(workerDatasourceUsername);
+		this.workerDatasourcePassword = normalize(workerDatasourcePassword);
+		this.workerDatasourceDriverClassName = normalize(workerDatasourceDriverClassName);
+		this.workerConnectionInitSql = normalize(workerConnectionInitSql);
+	}
+
+	public LaunchResult launchSelectedJob(String selectedJobKey, String triggerOrigin, String scheduleId) {
+		return launchSelectedJob(selectedJobKey, triggerOrigin, scheduleId, null);
+	}
+
+	public LaunchResult launchSelectedJob(String selectedJobKey, String triggerOrigin, String scheduleId, String triggerEventId) {
+		if (!launchEnabled) {
+			return LaunchResult.skipped("Worker launch is disabled by controlplane.job-launch.enabled=false.");
+		}
+
+		String normalizedJobKey = normalize(selectedJobKey);
+		if (normalizedJobKey.isBlank()) {
+			return LaunchResult.skipped("Selected job key is blank.");
+		}
+
+		var bundle = jobBundleReadModelService.findBundle(normalizedJobKey);
+		if (bundle.isEmpty()) {
+			return LaunchResult.skipped("Selected job bundle was not found.");
+		}
+
+		Path jobConfigPath = Path.of(bundle.get().jobConfigPath()).normalize();
+		if (!Files.isRegularFile(jobConfigPath)) {
+			return LaunchResult.skipped("Selected job-config.yaml is missing at " + jobConfigPath + ".");
+		}
+
+		String javaExecutable = Path.of(System.getProperty("java.home"), "bin", "java").toString();
+		String classPath = normalize(System.getProperty("java.class.path"));
+		if (classPath.isBlank()) {
+			return LaunchResult.skipped("Classpath is unavailable for worker process launch.");
+		}
+
+		java.util.List<String> command = new java.util.ArrayList<>();
+		command.add(javaExecutable);
+		command.add("-Detl.config.job=" + jobConfigPath);
+		command.add("-Detl.config.allow-demo-fallback=false");
+		if (!workerDatasourceUrl.isBlank()) {
+			command.add("-Dspring.datasource.url=" + workerDatasourceUrl);
+		}
+		if (!workerDatasourceUsername.isBlank()) {
+			command.add("-Dspring.datasource.username=" + workerDatasourceUsername);
+		}
+		if (!workerDatasourcePassword.isBlank()) {
+			command.add("-Dspring.datasource.password=" + workerDatasourcePassword);
+		}
+		if (!workerDatasourceDriverClassName.isBlank()) {
+			command.add("-Dspring.datasource.driver-class-name=" + workerDatasourceDriverClassName);
+		}
+		if (!workerConnectionInitSql.isBlank()) {
+			command.add("-Dspring.datasource.hikari.connection-init-sql=" + workerConnectionInitSql);
+		}
+		String normalizedTriggerEventId = normalize(triggerEventId);
+		if (!normalizedTriggerEventId.isBlank()) {
+			command.add("-Dcontrolplane.trigger-event-id=" + normalizedTriggerEventId);
+		}
+		command.add("-cp");
+		command.add(classPath);
+		command.add("com.etl.ETLEngineApplication");
+
+		ProcessBuilder processBuilder = new ProcessBuilder(command);
+		processBuilder.redirectErrorStream(true);
+		processBuilder.inheritIO();
+
+		String normalizedOrigin = normalize(triggerOrigin).toUpperCase();
+		String normalizedScheduleId = normalize(scheduleId);
+		try {
+			Process process = processBuilder.start();
+			long pid = process.pid();
+			log.info("CONTROLPLANE_LAUNCH event=launch_started triggerOrigin={} scheduleId={} triggerEventId={} selectedJobKey={} pid={} jobConfigPath={}",
+					normalizedOrigin,
+					normalizedScheduleId,
+					normalizedTriggerEventId,
+					normalizedJobKey,
+					pid,
+					jobConfigPath);
+			Thread completionWatcher = new Thread(
+					() -> waitForLaunchCompletion(process, normalizedJobKey, normalizedOrigin, normalizedScheduleId),
+					"controlplane-launch-wait-" + normalizedJobKey.replaceAll("[^a-zA-Z0-9_-]", "-"));
+			completionWatcher.setDaemon(true);
+			completionWatcher.start();
+			return LaunchResult.started(pid, jobConfigPath.toString());
+		} catch (IOException ex) {
+			log.error("CONTROLPLANE_LAUNCH event=launch_failed triggerOrigin={} scheduleId={} triggerEventId={} selectedJobKey={} reason=process_start_failed message={}",
+					normalizedOrigin,
+					normalizedScheduleId,
+					normalizedTriggerEventId,
+					normalizedJobKey,
+					ex.getMessage(),
+					ex);
+			return LaunchResult.skipped("Worker process start failed: " + ex.getMessage());
+		}
+	}
+
+	private void waitForLaunchCompletion(Process process,
+	                                     String selectedJobKey,
+	                                     String triggerOrigin,
+	                                     String scheduleId) {
+		try {
+			int exitCode = process.waitFor();
+			log.info("CONTROLPLANE_LAUNCH event=launch_finished triggerOrigin={} scheduleId={} selectedJobKey={} pid={} exitCode={}",
+					triggerOrigin,
+					scheduleId,
+					selectedJobKey,
+					process.pid(),
+					exitCode);
+		} catch (InterruptedException ex) {
+			Thread.currentThread().interrupt();
+			log.warn("CONTROLPLANE_LAUNCH event=launch_wait_interrupted triggerOrigin={} scheduleId={} selectedJobKey={} pid={}",
+					triggerOrigin,
+					scheduleId,
+					selectedJobKey,
+					process.pid());
+		}
+	}
+
+	private String normalize(String value) {
+		return value == null ? "" : value.trim();
+	}
+
+	public record LaunchResult(boolean started, String message) {
+		static LaunchResult started(long pid, String jobConfigPath) {
+			return new LaunchResult(true, "Worker launch started [pid=" + pid + "] jobConfigPath='" + jobConfigPath + "'.");
+		}
+
+		static LaunchResult skipped(String message) {
+			return new LaunchResult(false, message == null ? "Worker launch skipped." : message.trim());
+		}
+	}
+}
+

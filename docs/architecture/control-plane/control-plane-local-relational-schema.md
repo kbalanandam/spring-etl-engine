@@ -2,15 +2,20 @@
 
 ## Purpose
 
-This document defines the first local relational schema direction for the future optional OneFlow control plane.
+This document defines the active local relational schema direction for the optional OneFlow control plane.
 
-It exists to translate the conceptual retained operational data model into a practical SQLite-first persistence shape for developer-laptop and single-node use, while preserving later portability to stronger relational databases and keeping the ETL core independently runnable without any control-plane database.
+It translates the conceptual retained operational data model into a practical MySQL-default persistence shape for developer and CI use, while preserving portability to stronger relational databases and keeping the ETL core independently runnable without any control-plane database.
 
 ## Status
 
-- Classification: **Future direction**
-- The Mermaid diagrams in this document describe the preferred future direction; trigger-event persistence, run-summary persistence, internal schedule/trigger/run surrogate-key foundations, and initial run-record linkage are now shipped behind the optional control-plane API when JDBC mode is enabled.
-- The shipped `controlplane` profile now defaults to the shared SQLite file under `.etl-dev/etl-dev.db` so control-plane retained-history tables and Spring Batch metadata can coexist in one local developer/single-node database file, while stronger relational targets remain open for later deployment profiles.
+- Classification: **Shipped baseline + future direction**
+- The ER section below is refreshed to match the shipped JDBC schema used by the optional control-plane API when JDBC mode is enabled.
+- Sections outside the ER artifact may still include forward-looking design guidance for later extensions.
+- The shipped `controlplane` profile now defaults to MySQL datasource properties (env-overridable), and worker launches in this profile are aligned to the same MySQL URL/credentials so trigger, run, and batch metadata stay linkable in one relational database.
+- The `controlplane` profile now exposes a canonical vendor token contract (`controlplane.db.vendor=${CONTROLPLANE_DB_VENDOR:mysql}`) with vendor-neutral datasource keys (`controlplane.db.url|username|password|driver-class-name`), so MySQL and SQL Server lanes can be selected without rewriting property names.
+- The repo-owned MySQL bootstrap path now provisions both retained `controlplane_*` tables and Spring Batch `BATCH_*` metadata tables into one selected database so control-plane step/artifact projections can read worker batch metadata without cross-database assumptions.
+- Bootstrap scripts are schema-first and seed-first only: they create/align baseline tables, indexes, and sequence floors, but they do not run legacy row repair or `COALESCE`/`ISNULL(MAX(...))` data patching during initial bootstrap.
+- SQLite compatibility paths remain available as bridge logic for legacy local data and migration recovery, while active control-plane startup defaults and CI direction target MySQL first.
 - Persisted `attempt_link` and `checkpoint_anchor` records are currently advisory recovery lineage only; they support operator evidence and correlation while F1 still keeps resume execution unsupported. They also do not change the current D3 rerun boundary: the shipped relational target baseline is not treated as idempotent by default, so retained checkpoint lineage must not be read as safe database resume capability.
 
 ## Scope
@@ -19,7 +24,7 @@ This document covers:
 
 - a first relational table direction for the optional control-plane operational model
 - how the main retained entities map into a local relational shape
-- SQLite-first choices that help early local development
+- MySQL-default choices for local developer and CI control-plane persistence
 - portability guardrails for later PostgreSQL, SQL Server, or MySQL deployment targets
 - the boundary rule that keeps control-plane persistence optional to the ETL worker
 
@@ -53,27 +58,28 @@ That direction must still preserve the boundary frozen in [`ADR-0008`](../../adr
 - the ETL core remains independently runnable
 - control-plane persistence is optional
 - external schedulers and orchestrators remain first-class launchers of the same selected-job contract
-- SQLite is acceptable early, while stronger relational targets remain open later
+- MySQL is the default active control-plane relational lane, while SQL Server and other relational targets remain open for later extension
 
 ## Flow
 
-Future-only, not shipped today: this diagram shows the intended target shape.
+This diagram reflects the shipped retained-history flow for JDBC mode plus near-term extension seams.
 
 ```mermaid
 flowchart LR
-    TriggerSources[Schedule / Watcher / Manual / External Trigger] --> TriggerEventTable[(trigger_event)]
-    TriggerEventTable --> RunRecordTable[(run_record)]
-    RunRecordTable --> StepRecordTable[(step_record)]
-    RunRecordTable --> ArtifactRecordTable[(artifact_record)]
+    TriggerSources[Schedule / Manual / External Trigger] --> TriggerEventTable[(controlplane_trigger_event)]
+    TriggerEventTable --> RunRecordTable[(controlplane_run_record)]
+    RunRecordTable --> RunSummaryTable[(controlplane_run_summary)]
+    RunRecordTable --> StepRecordTable[(controlplane_step_record)]
+    RunRecordTable --> ArtifactRecordTable[(controlplane_artifact_record)]
     StepRecordTable --> ArtifactRecordTable
-    RunRecordTable --> AttemptLinkTable[(attempt_link)]
-    AttemptLinkTable --> CheckpointAnchorTable[(checkpoint_anchor)]
+    RunRecordTable --> AttemptLinkTable[(controlplane_attempt_link)]
+    RunRecordTable --> CheckpointAnchorTable[(controlplane_checkpoint_anchor)]
 
-    subgraph LocalFirst[SQLite-first local control-plane persistence]
-        ScheduleTable[(schedule)]
-        WatcherTable[(watcher)]
+    subgraph LocalFirst[MySQL-default local control-plane persistence]
+        ScheduleTable[(controlplane_schedule)]
         TriggerEventTable
         RunRecordTable
+        RunSummaryTable
         StepRecordTable
         ArtifactRecordTable
         AttemptLinkTable
@@ -84,21 +90,47 @@ flowchart LR
 Read this schema direction in three rules:
 
 1. local control-plane persistence is useful, but optional
-2. the first local relational shape should stay simple enough for SQLite
-3. later PostgreSQL, SQL Server, or MySQL support should be enabled by disciplined portable modeling, not by a SQLite-only design
+2. the shipped MySQL-default relational shape is the baseline for active control-plane history
+3. SQL Server and later vendor targets should be enabled by disciplined portable modeling, not by one vendor-only design
 
 ## Scheduler ER model artifact
 
 This ER view is the lightweight scheduler-facing artifact for storage-alignment across backend, operator UI, and docs.
 
-- It reflects what is shipped now in JDBC mode (`controlplane_schedule`, `controlplane_trigger_event`) plus the immediate retained-history direction.
+- It reflects what is shipped now in JDBC mode (`controlplane_schedule`, `controlplane_trigger_event`, `controlplane_run_summary`, `controlplane_run_record`, `controlplane_step_record`, `controlplane_artifact_record`, `controlplane_attempt_link`, `controlplane_checkpoint_anchor`).
+- Trigger origins are now standardized through a master catalog table (`controlplane_trigger_source`) with stable `source_code` values used by UI filters and trigger-event linkage.
 - Update this section when scheduler entity boundaries or relationships change; avoid editing it for non-schema code-only refactors.
 - Internal numeric surrogate keys are now active for relational efficiency (`schedule_pk`, `trigger_event_pk`, `run_record_pk`) while stable external identities (`schedule_id`, `trigger_event_id`, `run_record_id`) remain unique operator/API-facing keys.
-- The current linkage contract is intentionally additive: new `controlplane_run_record.trigger_event_id` writes are populated only from exact `controlplane_trigger_event.launched_run_id` matches, while a conservative single-candidate time-window fallback is limited to startup backfill for legacy mixed data.
+- Trigger-event schedule linkage is now hard-aligned to `controlplane_trigger_event.schedule_pk`; the legacy `controlplane_trigger_event.schedule_id` bridge column is no longer part of the active schema contract.
+- Trigger-source categorization now lives on `controlplane_trigger_event.trigger_source_pk`; when EVENT-style sources need per-origin detail, the active schema carries that through `external_origin_key` instead of dedicated per-source columns.
+- The active relational authority remains PK-first: `controlplane_run_record.trigger_event_pk` is the canonical trigger-to-run linkage, and downstream retained-history rows continue to attach through `controlplane_run_record.run_record_pk`.
+- `controlplane_trigger_event.trigger_event_id` (UUID-style external identity) remains valuable for API/UI/log correlation, but should not compete with PK linkage when `trigger_event_pk` is available.
+- Forward projection and startup/restart backfill should apply one shared reconciliation contract: fill missing linkage sides deterministically, and treat conflicting `trigger_event_pk`/`trigger_event_id` pairs as explicit integrity conflicts (warn/quarantine/fail-fast by policy) rather than silent overwrite.
+- `controlplane_run_summary` now follows the same additive surrogate direction as the rest of retained history: `run_summary_pk` is the control-plane row identity, `run_record_pk` is the preferred internal link to the parent run row, and `job_execution_id` remains a Spring Batch bridge attribute for audit correlation.
 - `controlplane_run_record.selected_job_key` is treated as an active relational key: new writes populate it from run context, legacy null/blank rows are backfilled at startup, and lookup-oriented indexes (`selected_job_key`, `run_status`, `started_at`, `trigger_event_id`) are part of the current local-read scaling baseline.
 - Internal numeric surrogates now follow one phased pattern across retained scheduler history: active control-plane surrogate/linkage `*_pk` columns (`schedule_pk`, `trigger_event_pk`, `launched_run_pk`, `run_record_pk`) are now provisioned as `bigint` for relational joins and future foreign-key hardening. PK-constraint cutover is now active across schedule, trigger-event, and run-record tables (`schedule_pk`, `trigger_event_pk`, `run_record_pk` as relational primary keys) while external `*_id` fields remain stable unique operator/API identities.
 - Current linkage resolution now prefers PK-based joins (`launched_run_pk` / `trigger_event_pk`) before legacy string-ID fallback (`launched_run_id` / `trigger_event_id`) so mixed historical data can migrate without changing external API identifiers.
-- Artifact ownership should be explicit and non-ambiguous: one `artifact_record` row is either run-level (`run_record_id` set, `step_record_id` null) or step-level (`step_record_id` set with consistent `run_record_id` lineage), never an unowned or contradictory combination.
+- Child retained-history tables now depend on `controlplane_run_record.run_record_pk` for relational linkage (`controlplane_step_record.run_record_pk`, `controlplane_artifact_record.run_record_pk`, `controlplane_attempt_link.run_record_pk|prior_run_record_pk`, `controlplane_checkpoint_anchor.run_record_pk`) while `run_record_id` remains a projected operator/API-facing identity from the parent run row.
+- `controlplane_checkpoint_anchor.step_record_pk` is the active step-level relational linkage key; `step_record_id` remains a projected compatibility identity for operator/API readability.
+- Artifact ownership should be explicit and non-ambiguous: one `artifact_record` row is either run-level (`run_record_pk` set, `step_record_id` null) or step-level (`step_record_id` set with consistent `run_record_pk` lineage), never an unowned or contradictory combination.
+- Artifact and step identities are deterministic for the active projection and now anchor to control-plane run identity (`ar-log-<runRecordPk>`, `sr-<runRecordPk>-*`, `ar-step-*`) so repeat writes do not collide with older job-execution-keyed rows.
+- Attempt/checkpoint retained-history identities now anchor to control-plane run identity (`al-<runRecordPk>`, `ca-log-<runRecordPk>`) instead of job-execution-derived IDs, so fresh run projections do not accidentally reuse legacy `created_at` evidence when Spring Batch execution IDs are recycled.
+- Current write semantics stamp `created_at` with the current system timestamp on upsert updates for run/step/artifact/attempt/checkpoint retained-history rows, so operators can treat `created_at` as latest-write evidence on active projections.
+- Control-plane retained-history tables now carry nullable audit actor fields (`created_by`, `updated_by`) populated from the application process identity (`spring.application.name`) on new writes; historical rows are not backfilled by default.
+- Current non-SQLite portability is partial-but-testable: normal registry startup and update/insert write paths are now exercised without SQLite-only SQL, and active child retained-history writes now assume the PK-only linkage contract rather than backfilling legacy child `run_record_id` columns at runtime.
+
+### Transition notes (shipped vs target)
+
+Use this short table to avoid confusion while compatibility logic and long-run identity direction coexist.
+
+| Area | Current shipped compatibility behavior | Target long-run behavior |
+| --- | --- | --- |
+| Trigger-to-run linkage authority | Mixed historical data may include both PK and string-ID clues; reconciliation prefers PK when available and backfills missing linkage sides. | PK-first authority only: `controlplane_run_record.trigger_event_pk` is canonical, with conflict handling instead of silent overwrite. |
+| `trigger_event_id` usage | UUID-style external identity is retained for API/UI/log correlation and legacy compatibility reads. | Remains external correlation identity only; does not compete with PK authority when PK is present. |
+| `job_execution_id` usage | Required for current run-summary projection, Spring Batch linkage, and compatibility bridge/backfill paths. | Treated primarily as Spring Batch bridge/audit attribute, not sole control-plane linkage authority. |
+| Forward write vs startup backfill | Both paths reconcile legacy gaps; behavior may still include compatibility branches while old rows exist. | One shared reconciliation order and one conflict policy across forward writes and startup/restart replay. |
+
+During transition, any contradictory `trigger_event_pk`/`trigger_event_id` pair should be surfaced as an explicit integrity issue (warn/quarantine/fail-fast by policy) instead of being silently accepted.
 
 ```mermaid
 erDiagram
@@ -116,13 +148,21 @@ erDiagram
         timestamp updated_at
     }
 
+    TRIGGER_SOURCE {
+        bigint trigger_source_pk PK
+        string source_code UK
+        string display_name
+        string description
+        boolean is_active
+    }
+
     TRIGGER_EVENT {
         bigint trigger_event_pk PK
+        bigint trigger_source_pk FK
         string trigger_event_id UK
         string job_key
         string trigger_origin
         bigint schedule_pk FK
-        string schedule_id
         string decision_status
         string reason
         timestamp requested_at
@@ -139,26 +179,65 @@ erDiagram
         timestamp finished_at
     }
 
+    RUN_SUMMARY {
+        bigint run_summary_pk PK
+        bigint run_record_pk FK
+        bigint job_execution_id
+        string scenario
+        string status
+        timestamp start_time
+        timestamp end_time
+        string run_mode
+        string recovery_policy
+        string log_path
+    }
+
     STEP_RECORD {
-        string step_record_id PK
-        string run_record_id FK
+        bigint step_record_pk PK
+        string step_record_id UK
+        bigint run_record_pk FK
         string step_name
         string step_status
     }
 
     ARTIFACT_RECORD {
-        string artifact_record_id PK
-        string run_record_id FK
+        bigint artifact_record_pk PK
+        string artifact_record_id UK
+        bigint run_record_pk FK
         string step_record_id FK
         string artifact_role
         string artifact_path
     }
 
+    ATTEMPT_LINK {
+        bigint attempt_link_pk PK
+        string attempt_link_id UK
+        bigint run_record_pk FK
+        bigint prior_run_record_pk FK
+        string link_kind
+    }
+
+    CHECKPOINT_ANCHOR {
+        bigint checkpoint_anchor_pk PK
+        string checkpoint_anchor_id UK
+        bigint run_record_pk FK
+        bigint step_record_pk FK
+        string step_record_id
+        string anchor_kind
+        string anchor_ref
+        string anchor_status
+    }
+
     SCHEDULE ||--o{ TRIGGER_EVENT : "records schedule-origin events"
+    TRIGGER_SOURCE ||--o{ TRIGGER_EVENT : "standardized trigger source"
     TRIGGER_EVENT ||--o{ RUN_RECORD : "launch context"
+    RUN_RECORD ||--|| RUN_SUMMARY : "run_record_pk linkage"
     RUN_RECORD ||--o{ STEP_RECORD : "contains ordered steps"
     RUN_RECORD ||--o{ ARTIFACT_RECORD : "run-level artifacts"
     STEP_RECORD ||--o{ ARTIFACT_RECORD : "step-level artifacts"
+    RUN_RECORD ||--o{ ATTEMPT_LINK : "attempt lineage"
+    RUN_RECORD ||--o{ CHECKPOINT_ANCHOR : "recovery anchors"
+    STEP_RECORD ||--o{ CHECKPOINT_ANCHOR : "step-level recovery anchors"
 ```
 
 ## Key Components / Classes
@@ -182,7 +261,7 @@ Architecture anchors this schema direction must remain compatible with:
 - [`relational-db-support.md`](../etl-core/relational-db-support.md)
 - [`ADR-0008`](../../adr/control-plane/0008-formalize-control-plane-and-etl-worker-boundary.md)
 
-This SQLite-first local persistence direction is formalized as an accepted decision in [`ADR-0009`](../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md).
+The earlier SQLite-first local persistence direction remains documented in [`ADR-0009`](../../adr/control-plane/0009-formalize-sqlite-first-local-control-plane-persistence.md) as historical context.
 
 ## First table direction
 
@@ -221,7 +300,7 @@ Represents one normalized trigger decision or launch attempt.
 Suggested column families:
 
 - identity: `trigger_event_id`, `trigger_correlation_id`
-- origin: `trigger_origin`, `schedule_id`, `watcher_id`, `external_origin_key`
+- origin: `trigger_origin`, `schedule_pk`, `external_origin_key`
 - selected-job binding: `job_config_path`, `job_name`, `selected_job_key`
 - decision: `decision_status`, `decision_reason`, `decision_message`
 - request context: `requested_at`, `requested_by`, `external_request_id`
@@ -233,7 +312,7 @@ Represents one retained run ledger entry.
 
 Suggested column families:
 
-- identity: `run_record_id`, `run_correlation_id`, `job_execution_id`
+- identity: `run_record_pk`, `run_record_id`, `run_correlation_id`, `job_execution_id`
 - linkage: `trigger_event_id`
 - selected-job context: `job_config_path`, `job_name`, `selected_job_key`, `config_identity`
 - outcome: `run_status`, `failure_category`, `failure_summary`
@@ -248,7 +327,7 @@ Represents one retained step ledger entry under a run.
 Suggested column families:
 
 - identity: `step_record_id`, `step_execution_id`
-- linkage: `run_record_id`
+- linkage: `run_record_pk`
 - step meaning: `step_name`, `step_order`, `source_name`, `target_name`
 - outcome: `step_status`, `failure_category`, `failure_summary`
 - timing: `started_at`, `finished_at`, `duration_ms`
@@ -262,7 +341,7 @@ Represents retained artifact lineage for a run or step.
 Suggested column families:
 
 - identity: `artifact_record_id`
-- ownership: `run_record_id`, `step_record_id`
+- ownership: `run_record_pk`, `step_record_id`
 - artifact role: `artifact_role`, `artifact_type`
 - location: `artifact_path`, `artifact_uri`
 - integrity/summary: `record_count`, `checksum`, `size_bytes`
@@ -272,7 +351,7 @@ Suggested column families:
 Ownership invariant for future implementation:
 
 - enforce one clear owner per row: run-level artifact or step-level artifact
-- when `step_record_id` is populated, its parent run identity must match `run_record_id`
+- when `step_record_id` is populated, its parent run identity must match `run_record_pk`
 - avoid nullable combinations that allow ambiguous ownership
 
 ### 7. `attempt_link`
@@ -282,7 +361,7 @@ Represents lineage between current and prior attempts.
 Suggested column families:
 
 - identity: `attempt_link_id`
-- lineage: `current_run_record_id`, `prior_run_record_id`
+- lineage: `run_record_pk`, `prior_run_record_pk`
 - relationship: `attempt_relationship_type`
 - context: `relationship_reason`, `linked_at`, `linked_by`
 
@@ -293,25 +372,47 @@ Represents a retained checkpoint or resume anchor.
 Suggested column families:
 
 - identity: `checkpoint_anchor_id`, `checkpoint_key`
-- linkage: `run_record_id`, `step_record_id`, `attempt_link_id`
+- linkage: `run_record_pk`, `step_record_pk`, `step_record_id` (compatibility projection), `attempt_link_id`
 - checkpoint meaning: `checkpoint_type`, `checkpoint_status`
 - state reference: `checkpoint_ref`, `checkpoint_summary`
 - validity: `created_at`, `expires_at`, `compatibility_marker`
 
-## SQLite-first modeling rules
+## MySQL-default modeling rules
 
-For the first local control-plane implementation, prefer these SQLite-friendly rules:
+For the active control-plane implementation, prefer these MySQL-default rules:
 
 - use simple scalar columns before JSON-heavy modeling becomes necessary
-- prefer text-friendly identifiers such as UUID strings or stable keys over database-specific generated-key assumptions
-- keep indexes focused on lookup and audit paths such as `trigger_origin`, `job_name`, `job_config_path`, `run_status`, and timestamp fields
-- avoid relying on vendor-specific enum types; store portable text values with application-side validation
-- avoid vendor-specific partial-index or computed-column assumptions in the first schema direction unless a portable fallback is clear
+- prefer stable text identifiers (`*_id`) for API-facing identities and bigint surrogate keys (`*_pk`) for relational joins
+- keep indexes focused on lookup and audit paths such as `trigger_origin`, `selected_job_key`, `run_status`, and timestamp fields
+- avoid relying on vendor-only features in shared read/write contracts unless an explicit vendor-specific script path exists
 - treat large payloads such as raw logs or binary artifacts as external references rather than in-row blobs
 
-SQLite is the first convenience target, not the permanent product-wide storage commitment.
+SQLite compatibility remains bridge-only and should not be treated as the active default persistence lane.
 
-For the shipped local control-plane profile today, SQLite should be treated as a single-node operational store: keep one control-plane JVM per SQLite file path, and move to a stronger relational target when multi-user or broader concurrent-control-plane access becomes a real requirement.
+## ID and FK policy (active + planned)
+
+The active direction is now explicit:
+
+- string `*_id` columns remain stable operator/API-facing identities
+- bigint `*_pk` columns are the relational join and FK contract
+- new FK additions should target parent `*_pk` columns, not parent `*_id` unique keys
+
+Current shipped examples:
+
+- `controlplane_step_record.run_record_pk -> controlplane_run_record.run_record_pk`
+- `controlplane_artifact_record.run_record_pk -> controlplane_run_record.run_record_pk`
+- `controlplane_attempt_link.run_record_pk|prior_run_record_pk -> controlplane_run_record.run_record_pk`
+- `controlplane_checkpoint_anchor.run_record_pk -> controlplane_run_record.run_record_pk`
+- `controlplane_checkpoint_anchor.step_record_pk -> controlplane_step_record.step_record_pk`
+- `controlplane_run_summary.run_record_pk -> controlplane_run_record.run_record_pk`
+
+Planned compatibility pattern for legacy string-linkage tables:
+
+1. add nullable `*_pk` linkage column
+2. backfill `*_pk` from existing `*_id` linkage
+3. dual-read and dual-write during compatibility window
+4. switch primary relational joins/indexes to `*_pk`
+5. keep string `*_id` as external identity projection
 
 ## Portability guardrails for PostgreSQL, SQL Server, and MySQL
 
@@ -324,22 +425,25 @@ To preserve later portability, the first schema direction should also follow the
 - treat indexes, paging, retention cleanup, and concurrency handling as later vendor-tuned concerns rather than first-schema identity concerns
 - preserve a clean separation between logical entity names and vendor-specific physical tuning decisions
 
-The likely later direction is:
+The likely near-term direction is:
 
-- SQLite for local development and single-node control-plane trials
-- PostgreSQL as a strong default retained-history deployment target when multi-user control-plane history grows
+- MySQL as the default local/CI control-plane retained-history target
 - SQL Server as an enterprise-aligned option where deployment environments already standardize on it
-- MySQL as an additional relational deployment option where teams prefer MySQL-aligned operations
+- PostgreSQL or Oracle as later extension targets when needed
 
 ## Decisions
 
-- The first control-plane relational schema direction should be SQLite-first for local contributor and single-node use.
+- The active control-plane relational schema direction is MySQL-default for local contributor and CI use.
 - The logical schema should remain portable enough that PostgreSQL, SQL Server, or MySQL can adopt the same core entity model later.
 - The first schema should model retained history explicitly through relational tables rather than hiding most meaning inside opaque blobs.
 - Artifact and checkpoint storage should be reference-oriented rather than large-payload-oriented in the first slice.
 - The schema direction must remain optional from the ETL worker point of view; direct `etl.config.job` execution cannot depend on this database.
+- Initial bootstrap must stay non-migrating for retained-history rows: in-development legacy data cleanup is handled by explicit operator actions (for example truncate/reload), not implicit bootstrap patch scripts.
 - Trigger-event persistence fallback must be explicit: switching `controlplane.triggers.persistence.mode` between `jdbc` and `memory` across restarts is treated as a continuity break unless intentionally acknowledged.
 - Run-record linkage to trigger events must remain best-effort and non-blocking: unresolved links should stay nullable rather than blocking `RUN_SUMMARY` projection updates.
+- Identity authority direction is explicit: PK-chain joins (`trigger_event_pk -> run_record_pk -> child retained-history PK links`) define relational truth, while UUID-style `*_id` values remain external correlation identities.
+- Run-summary identity direction is additive but explicit: `run_summary_pk` owns the summary row, `run_record_pk` is the preferred internal control-plane join, and `job_execution_id` remains the Spring Batch audit/reference column.
+- Forward writes and startup backfill/replay must remain behaviorally coherent by sharing one linkage-reconciliation order and one conflict policy.
 
 ### Trigger-event fallback safety
 
@@ -354,13 +458,13 @@ The likely later direction is:
 ### Benefits
 
 - gives contributors a practical first persistence shape for scheduler and watcher work
-- keeps laptop and single-node development simple through SQLite
+- keeps local developer and CI workflows aligned to one relational default (MySQL)
 - reduces the risk that each control-plane feature invents a different retained-history structure
 - preserves a path to stronger relational databases later without a full conceptual redesign
 
 ### Costs
 
-- a SQLite-friendly first shape may under-specify later concurrency or scale concerns
+- a MySQL-default active shape still requires explicit SQL Server parity validation and script governance
 - some future production-specific optimizations will still need vendor-specific tuning
 - first-schema simplicity may defer some richer query or retention features until later phases
 
@@ -369,8 +473,8 @@ The likely later direction is:
 #### Alternative: wait for PostgreSQL, SQL Server, or MySQL before defining any schema direction
 Rejected because that would slow local iteration and postpone useful architecture discipline for scheduler and watcher history.
 
-#### Alternative: design the first schema specifically around one enterprise database
-Rejected because early control-plane work should stay accessible on a personal laptop and avoid unnecessary infrastructure requirements.
+#### Alternative: keep SQLite as the active default and defer MySQL-first alignment
+Rejected because current developer and CI environments are now standardized on MySQL for control-plane persistence.
 
 #### Alternative: store most control-plane history in generic JSON blobs
 Rejected because core trigger, run, step, and artifact relationships should remain queryable, auditable, and portable across relational targets.
@@ -391,8 +495,11 @@ It affects future work by:
 Future work that implements this schema direction should validate at least these points:
 
 - ETL-core runs still launch and complete when no control-plane database exists
-- SQLite-backed local control-plane persistence can record schedules, watchers, trigger events, runs, steps, and artifact references coherently
+- MySQL-backed local/CI control-plane persistence can record schedules, watchers, trigger events, runs, steps, and artifact references coherently
+- MySQL-backed local/CI control-plane persistence should prove that `BATCH_*` metadata and `controlplane_*` retained-history rows land in the same selected database for trigger-to-run correlation
+- bootstrap scripts should be verifiably schema-only (no implicit legacy row repair) while sequence initialization remains deterministic and portable across MySQL/SQL Server lanes
 - retained counts and statuses align with the meanings already defined in runtime evidence docs
+- forward write paths and startup/restart backfill use one consistent linkage-reconciliation contract with no contradictory match precedence
 - the logical schema can be mapped to later PostgreSQL, SQL Server, or MySQL targets without redefining the core entity relationships
 - schema choices do not force external schedulers or orchestrators into a OneFlow-native-only launch identity
 
@@ -400,7 +507,7 @@ Future work that implements this schema direction should validate at least these
 
 Follow-on work that should build from this schema direction includes:
 
-- a first migration set for SQLite-backed local control-plane persistence
+- a first vendor-script baseline for MySQL and SQL Server with property-driven selection
 - a repository or service layer for writing `trigger_event`, `run_record`, and `step_record` history
 - retention and cleanup rules for retained control-plane history
 - vendor-tuned indexing and concurrency guidance for PostgreSQL, SQL Server, or MySQL deployments
