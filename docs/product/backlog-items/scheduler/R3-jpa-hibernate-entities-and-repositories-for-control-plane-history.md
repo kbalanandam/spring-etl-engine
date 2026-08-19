@@ -84,3 +84,5 @@ Direct ETL-runtime boundary proof is now test-covered through `EtlWorkerControlP
 
 Current open follow-on is parity enrichment for the remaining control-plane history edge cases plus broader vendor evidence before handing off to `R4`/`R5`.
 
+No-server parity evidence now includes `JpaRunSummaryRegistryMysqlModeIntegrationTest` and `JpaRunSummaryRegistryMssqlModeIntegrationTest`, which exercise JPA run summary + recovery read/write behavior in H2 MySQL/SQL Server compatibility modes.
+
