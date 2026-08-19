@@ -86,3 +86,5 @@ Current open follow-on is parity enrichment for the remaining control-plane hist
 
 No-server parity evidence now includes `JpaRunSummaryRegistryMysqlModeIntegrationTest` and `JpaRunSummaryRegistryMssqlModeIntegrationTest`, which exercise JPA run summary + recovery read/write behavior and step/artifact lookup parity in H2 MySQL/SQL Server compatibility modes.
 
+API/read-model parity evidence now includes `RunSummaryApiJpaParityIntegrationTest`, which verifies `/api/v1/runs/{jobExecutionId}/step-records` and `/api/v1/runs/{jobExecutionId}/artifact-records` response-shape parity on the JPA-backed path.
+
