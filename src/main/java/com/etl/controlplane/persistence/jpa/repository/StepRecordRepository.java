@@ -4,9 +4,12 @@ import com.etl.controlplane.persistence.jpa.entity.StepRecord;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface StepRecordRepository extends JpaRepository<StepRecord, Long> {
 
 	List<StepRecord> findByRunRecordPkOrderByStartedAtAscStepRecordIdAsc(Long runRecordPk);
+
+	Optional<StepRecord> findByStepRecordId(String stepRecordId);
 }
 

@@ -146,7 +146,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 					       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
 					from controlplane_trigger_event
 					where job_key = ?
-					order by requested_at desc, trigger_event_id desc
+					order by trigger_event_pk desc
 					offset ? rows fetch next ? rows only
 					""",
 					(rs, rowNum) -> toView(rs),
@@ -161,7 +161,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
 				from controlplane_trigger_event
 				where job_key = ?
-				order by requested_at desc, trigger_event_id desc
+				order by trigger_event_pk desc
 				limit ? offset ?
 				""",
 				(rs, rowNum) -> toView(rs),
@@ -207,7 +207,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 					       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
 					from controlplane_trigger_event
 					where schedule_pk = ?
-					order by requested_at desc, trigger_event_id desc
+					order by trigger_event_pk desc
 					offset ? rows fetch next ? rows only
 					""",
 					(rs, rowNum) -> toView(rs),
@@ -222,7 +222,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 						       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
 						from controlplane_trigger_event
 						where schedule_pk = ?
-						order by requested_at desc, trigger_event_id desc
+						order by trigger_event_pk desc
 						limit ? offset ?
 						""",
 						(rs, rowNum) -> toView(rs),
@@ -351,7 +351,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				select trigger_event_id
 				from controlplane_trigger_event
 				where job_key = ?
-				order by requested_at desc, trigger_event_id desc
+				order by trigger_event_pk desc
 				""", String.class, jobKey);
 		if (ids.size() <= retentionPerJob) {
 			return;

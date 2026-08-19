@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 
 import java.time.Instant;
 import java.util.ArrayDeque;
-import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -117,7 +116,6 @@ public class InMemoryTriggerEventRegistry implements TriggerEventRegistry {
 		int safeOffset = Math.max(0, offset);
 		synchronized (queue) {
 			return queue.stream()
-					.sorted(Comparator.comparing(TriggerEventView::requestedAt).reversed())
 					.skip(safeOffset)
 					.limit(limit)
 					.toList();

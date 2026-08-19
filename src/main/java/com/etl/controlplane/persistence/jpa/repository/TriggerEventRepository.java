@@ -10,10 +10,15 @@ public interface TriggerEventRepository extends JpaRepository<TriggerEvent, Long
 
 	Optional<TriggerEvent> findByTriggerEventId(String triggerEventId);
 
-	List<TriggerEvent> findByJobKeyOrderByRequestedAtDescTriggerEventIdDesc(String jobKey);
+	List<TriggerEvent> findByJobKeyOrderByTriggerEventPkDesc(String jobKey);
 
 	long countByJobKey(String jobKey);
 
-	List<TriggerEvent> findBySchedulePkOrderByRequestedAtDescTriggerEventIdDesc(Long schedulePk);
+	List<TriggerEvent> findBySchedulePkOrderByTriggerEventPkDesc(Long schedulePk);
+
+	long countBySchedulePk(Long schedulePk);
 }
+
+
+
 

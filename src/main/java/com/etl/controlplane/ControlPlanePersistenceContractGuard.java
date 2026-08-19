@@ -16,8 +16,8 @@ class ControlPlanePersistenceContractGuard {
     // Startup guard for the optional control-plane persistence contract.
     // Keeps mode/vendor wiring explicit and fail-fast before registries initialize.
 
-    private static final Set<String> SUPPORTED_MODES = Set.of("memory", "jdbc");
-    private static final Set<String> SUPPORTED_VENDORS = Set.of("sqlite", "postgresql", "mysql", "mssql", "oracle");
+    private static final Set<String> SUPPORTED_MODES = Set.of("memory", "jdbc", "jpa");
+    private static final Set<String> SUPPORTED_VENDORS = Set.of("postgresql", "mysql", "mssql", "oracle");
 
     private final String triggerMode;
     private final String runMode;
@@ -55,14 +55,14 @@ class ControlPlanePersistenceContractGuard {
         }
 
         // Memory mode intentionally avoids datasource requirements.
-        if (!"jdbc".equals(triggerMode)) {
+        if ("memory".equals(triggerMode)) {
             return;
         }
 
         // JDBC mode requires a recognized vendor plus URL/driver shape aligned to that vendor.
         if (!SUPPORTED_VENDORS.contains(dbVendor)) {
             throw new IllegalStateException("Unsupported controlplane.db.vendor='" + dbVendor + "'."
-                    + " Supported values: sqlite, postgresql, mysql, mssql, oracle.");
+                    + " Supported values: postgresql, mysql, mssql, oracle.");
         }
         if (dbUrl.isBlank()) {
             throw new IllegalStateException("JDBC persistence mode requires non-empty controlplane.db.url.");
@@ -86,7 +86,7 @@ class ControlPlanePersistenceContractGuard {
 
     private void validateMode(String property, String mode) {
         if (!SUPPORTED_MODES.contains(mode)) {
-            throw new IllegalStateException("Unsupported " + property + "='" + mode + "'. Supported values: memory, jdbc.");
+            throw new IllegalStateException("Unsupported " + property + "='" + mode + "'. Supported values: memory, jdbc, jpa.");
         }
     }
 
@@ -109,7 +109,6 @@ class ControlPlanePersistenceContractGuard {
 
     private String expectedJdbcUrlPrefix(String vendor) {
         return Map.of(
-                "sqlite", "jdbc:sqlite:",
                 "postgresql", "jdbc:postgresql:",
                 "mysql", "jdbc:mysql:",
                 "mssql", "jdbc:sqlserver:",
@@ -119,7 +118,6 @@ class ControlPlanePersistenceContractGuard {
 
     private String expectedDriverToken(String vendor) {
         return Map.of(
-                "sqlite", "sqlite",
                 "postgresql", "postgresql",
                 "mysql", "mysql",
                 "mssql", "sqlserver",

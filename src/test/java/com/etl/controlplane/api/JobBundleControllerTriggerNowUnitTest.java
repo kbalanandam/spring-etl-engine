@@ -20,6 +20,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -125,6 +126,57 @@ class JobBundleControllerTriggerNowUnitTest {
         assertNotNull(body);
         assertEquals("ACCEPTED", body.decisionStatus());
         assertEquals("te-new", body.triggerEventId());
+        verify(triggerEventRegistry).recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator-ui"), anyString());
+        verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null), eq("te-new"));
+    }
+
+    @Test
+    void acceptsTriggerWhenMostRecentEventIsFutureDated() {
+        Instant now = Instant.parse("2026-06-24T09:15:00Z");
+        Clock fixedClock = Clock.fixed(now, ZoneOffset.UTC);
+        JobBundleController controller = new JobBundleController(
+                jobBundleReadModelService,
+                runSummaryReadModelService,
+                triggerEventRegistry,
+                selectedJobLaunchService,
+                fixedClock
+        );
+
+        when(jobBundleReadModelService.findBundle(eq("customer-load"))).thenReturn(Optional.of(sampleBundle()));
+        when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(5))).thenReturn(List.of(
+                new TriggerEventView(
+                        "te-future",
+                        "customer-load",
+                        "ACCEPTED",
+                        "manual_operator_request",
+                        "operator-ui",
+                        now.plusSeconds(10),
+                        null,
+                        "accepted"
+                )
+        ));
+        when(triggerEventRegistry.recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator-ui"), anyString()))
+                .thenReturn(new TriggerEventView(
+                        "te-new",
+                        "customer-load",
+                        "ACCEPTED",
+                        "manual_operator_request",
+                        "operator-ui",
+                        now,
+                        null,
+                        "accepted"
+                ));
+        when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null), eq("te-new")))
+                .thenReturn(new SelectedJobLaunchService.LaunchResult(true, "Worker launch started [pid=5555]."));
+
+        var response = controller.triggerNow("customer-load", new TriggerNowRequest("manual_operator_request", "operator-ui"));
+
+        assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
+        TriggerNowDecisionResponse body = response.getBody();
+        assertNotNull(body);
+        assertEquals("ACCEPTED", body.decisionStatus());
+        assertEquals("te-new", body.triggerEventId());
+        assertTrue(body.message().contains("future requestedAt timestamp"));
         verify(triggerEventRegistry).recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator-ui"), anyString());
         verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("MANUAL"), eq(null), eq("te-new"));
     }

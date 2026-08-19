@@ -274,6 +274,40 @@ class JdbcTriggerEventRegistryTest {
 	}
 
 	@Test
+	void listByScheduleIdKeepsNewestRecordedEventFirstWhenOlderTimestampIsFutureDated() {
+		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
+		JdbcScheduleRegistry scheduleRegistry = new JdbcScheduleRegistry(jdbcTemplate);
+		scheduleRegistry.upsert(new ScheduleView(
+				"sch-order",
+				"daily-order",
+				"customer-load",
+				"0 0 * * *",
+				"UTC",
+				true,
+				false,
+				"desc",
+				LocalDateTime.parse("2026-05-28T09:00:00"),
+				LocalDateTime.parse("2026-05-28T10:00:00"),
+				null,
+				null
+		));
+		JdbcTriggerEventRegistry registry = new JdbcTriggerEventRegistry(jdbcTemplate, 10);
+		TriggerEventView first = registry.recordAcceptedForSchedule("sch-order", "customer-load", "schedule_tick", "scheduler", "first");
+		jdbcTemplate.update(
+				"update controlplane_trigger_event set requested_at = ? where trigger_event_id = ?",
+				java.sql.Timestamp.valueOf("2026-12-31 23:59:59"),
+				first.triggerEventId()
+		);
+		TriggerEventView second = registry.recordAcceptedForSchedule("sch-order", "customer-load", "schedule_tick", "scheduler", "second");
+
+		List<TriggerEventView> events = registry.listByScheduleId("sch-order", 10);
+
+		assertEquals(2, events.size());
+		assertEquals(second.triggerEventId(), events.get(0).triggerEventId());
+		assertEquals(first.triggerEventId(), events.get(1).triggerEventId());
+	}
+
+	@Test
 	void derivesLaunchedRunIdFromLinkedRunRecordForScheduleListings() {
 		JdbcTemplate jdbcTemplate = new JdbcTemplate(inMemoryDataSource());
 		JdbcScheduleRegistry scheduleRegistry = new JdbcScheduleRegistry(jdbcTemplate);

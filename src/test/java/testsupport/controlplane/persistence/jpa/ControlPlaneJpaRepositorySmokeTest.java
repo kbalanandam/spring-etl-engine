@@ -1,4 +1,4 @@
-package com.etl.controlplane.persistence.jpa;
+package testsupport.controlplane.persistence.jpa;
 
 import com.etl.controlplane.persistence.jpa.entity.ArtifactRecord;
 import com.etl.controlplane.persistence.jpa.entity.AttemptLink;
@@ -18,10 +18,12 @@ import com.etl.controlplane.persistence.jpa.repository.TriggerEventRepository;
 import com.etl.controlplane.persistence.jpa.repository.TriggerSourceRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.SpringBootConfiguration;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.TestPropertySource;
 
 import java.time.LocalDateTime;
@@ -30,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
+@ContextConfiguration(classes = ControlPlaneJpaRepositorySmokeTest.TestConfig.class)
 @TestPropertySource(properties = "spring.jpa.hibernate.ddl-auto=create-drop")
 class ControlPlaneJpaRepositorySmokeTest {
 
@@ -161,11 +164,11 @@ class ControlPlaneJpaRepositorySmokeTest {
 		assertEquals("customer-load", runSummaryRepository.findByJobExecutionId(1001L).orElseThrow().getScenario());
 	}
 
-	@Configuration
+	@SpringBootConfiguration
+	@EnableAutoConfiguration
 	@EntityScan(basePackages = "com.etl.controlplane.persistence.jpa.entity")
 	@EnableJpaRepositories(basePackages = "com.etl.controlplane.persistence.jpa.repository")
 	static class TestConfig {
 	}
 }
-
 

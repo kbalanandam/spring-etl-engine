@@ -36,6 +36,20 @@ class ControlPlanePersistenceContractGuardTest {
         assertDoesNotThrow(guard::validateContract);
     }
 
+  @Test
+  void allowsJpaMysqlContract() {
+    ControlPlanePersistenceContractGuard guard = new ControlPlanePersistenceContractGuard(
+        "jpa",
+        "jpa",
+        "jpa",
+        "mysql",
+        "jdbc:mysql://localhost:3306/etl_controlplane",
+        "com.mysql.cj.jdbc.Driver"
+    );
+
+    assertDoesNotThrow(guard::validateContract);
+  }
+
     @Test
     void allowsJdbcSqlServerContract() {
         ControlPlanePersistenceContractGuard guard = new ControlPlanePersistenceContractGuard(
@@ -79,7 +93,7 @@ class ControlPlanePersistenceContractGuardTest {
     }
 
     @Test
-    void allowsJdbcSqliteContract() {
+    void rejectsJdbcSqliteContract() {
         ControlPlanePersistenceContractGuard guard = new ControlPlanePersistenceContractGuard(
                 "jdbc",
                 "jdbc",
@@ -89,7 +103,8 @@ class ControlPlanePersistenceContractGuardTest {
                 "org.sqlite.JDBC"
         );
 
-        assertDoesNotThrow(guard::validateContract);
+        IllegalStateException ex = assertThrows(IllegalStateException.class, guard::validateContract);
+        assertTrue(ex.getMessage().contains("Unsupported controlplane.db.vendor"));
     }
 
     @Test
