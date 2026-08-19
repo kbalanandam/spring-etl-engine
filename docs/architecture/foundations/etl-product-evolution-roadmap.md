@@ -76,8 +76,8 @@ For the first architecture notes that split future scheduler/backend concerns fr
 
 - stay Java-first for the ETL core and the first scheduler/control-plane/backend slices
 - prefer Spring-based implementation for the optional control plane so configuration, runtime metadata, and operational APIs stay close to the current stack
-- allow lightweight local relational persistence such as SQLite for early developer-laptop control-plane work
-- move to stronger relational deployment targets later when retained OneFlow operational data, control-plane concurrency, and UI-backed history become broader operational requirements
+- use supported relational engines for local and shared control-plane persistence lanes
+- keep migration/versioning governance explicit as retained OneFlow operational data and control-plane concurrency grow
 - keep transformation capability as a first-class roadmap track alongside control-plane maturity rather than letting scheduling/operations work dominate product identity
 - preserve a stable explicit-job launch contract so native and external orchestration can target the same ETL runtime boundary
 

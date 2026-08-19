@@ -327,10 +327,10 @@ This means the preserved SQL Server scenario bundles are safe to keep in the rep
 
 Use that page for:
 
-- supported target lanes (SQLite, PostgreSQL, MySQL, SQL Server, Oracle)
+- supported target lanes (PostgreSQL, MySQL, SQL Server, Oracle)
 - mode and dialect pairing rules
 - fail-fast validation expectations
-- non-SQLite deployment example shape
+- relational deployment example shape
 
 ## Documentation rule
 

@@ -2,7 +2,7 @@
 
 ## Summary
 
-Epic R defines how OneFlow control-plane persistence moves from SQLite-oriented JDBC SQL to a deploy-time configurable JPA/Hibernate model that can support major relational databases without changing the selected-job ETL runtime contract.
+Epic R defines how OneFlow control-plane persistence moved from earlier SQLite-oriented JDBC SQL (historical context) to a deploy-time configurable JPA/Hibernate model that supports major relational databases without changing the selected-job ETL runtime contract.
 
 ## Scope
 

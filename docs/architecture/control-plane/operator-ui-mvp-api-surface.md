@@ -62,7 +62,7 @@ Use these principles for the MVP API surface:
 - **Boundary-first** - APIs trigger or observe runs, but do not bypass worker launch validation
 - **View-model aligned** - responses project from `JobBundleSummaryView`, `RunRecordView`, `RunDetailView`, `ScheduleView`, and `TriggerEventView`
 - **Read-first** - prioritize reliable read models before complex operator mutation flows
-- **Portable semantics** - keep payload semantics stable across local SQLite-first and later relational targets
+- **Portable semantics** - keep payload semantics stable across supported relational targets
 - **Optional control plane** - API availability augments operations; it is not a worker prerequisite
 
 ## Versioning and base path
@@ -281,6 +281,11 @@ Response body shape:
   "totalItems": 1
 }
 ```
+
+Current behavior:
+
+- items are returned newest recorded first using the trigger registry's persisted insertion order
+- displayed `requestedAt` timestamps remain the recorded event timestamps, so a future-dated row can still display a later time than newer rows if clocks were skewed when it was captured
 
 ## Runs endpoints
 
@@ -623,7 +628,11 @@ Response body shape:
 }
 ```
 
-Current behavior: trigger history is retrieved by `scheduleId` from the shared trigger-event registry, so multiple schedules targeting the same job stay isolated in drill-down views.
+Current behavior:
+
+- trigger history is retrieved by `scheduleId` from the shared trigger-event registry, so multiple schedules targeting the same job stay isolated in drill-down views
+- items are returned newest recorded first using the trigger registry's persisted insertion order
+- displayed `requestedAt` timestamps remain the recorded event timestamps, so a future-dated row can still display a later time than newer rows if clocks were skewed when it was captured
 
 When scheduler tick mode is enabled, the same history can include records with `reason=schedule_tick` and `requestedBy=scheduler`.
 

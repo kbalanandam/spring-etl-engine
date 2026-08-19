@@ -29,7 +29,7 @@ Adopt deterministic migration/versioning behavior for schema changes across supp
 - choose and apply one migration governance approach
 - define baseline schema migrations for control-plane persistence
 - isolate vendor-specific SQL to explicit per-engine migrations only when required
-- define upgrade guidance from existing SQLite-first states
+- define upgrade guidance for supported relational vendors
 
 ## Out of scope
 
@@ -60,10 +60,10 @@ Use versioned migrations with portable core DDL first, then explicit vendor-spec
 
 ## Acceptance criteria
 
-- [ ] baseline migration history exists for retained control-plane schema
-- [ ] vendor-specific deltas are isolated and documented
-- [ ] startup no longer depends on broad runtime schema mutation for migrated environments
-- [ ] upgrade path from existing SQLite-first deployments is documented
+- [x] baseline migration history exists for retained control-plane schema
+- [x] vendor-specific deltas are isolated and documented
+- [x] startup no longer depends on broad runtime schema mutation for migrated environments
+- [x] migration baseline and startup migration wiring are documented for supported vendors
 
 ## Related docs
 
@@ -78,5 +78,5 @@ Keep migration naming/versioning deterministic and CI-friendly. Avoid hidden sch
 
 ## Status notes
 
-Pending R2/R3 completion.
+Baseline implemented for MySQL + SQL Server through vendor-scoped Flyway migrations (`src/main/resources/db/migration/controlplane/*`) with control-plane profile wiring in `application-controlplane.properties`.
 

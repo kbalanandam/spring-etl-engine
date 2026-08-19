@@ -18,7 +18,7 @@ Use the linked `Epic` entry above to navigate to the shared epic-level product c
 
 ## Problem
 
-Current persistence configuration is optimized for local SQLite-oriented behavior and does not yet provide one clear, documented deployment matrix for major RDBMS engines.
+Current persistence configuration must remain explicit and portable across supported relational engines without reviving SQLite-only historical assumptions.
 
 ## Goal
 
@@ -26,7 +26,7 @@ Make database selection a deployment concern with explicit profile contracts and
 
 ## Scope
 
-- define supported first-class targets: SQLite (local/dev), PostgreSQL, SQL Server, MySQL, Oracle
+- define supported first-class targets: PostgreSQL, SQL Server, MySQL, Oracle
 - define required datasource and dialect properties per target
 - define supported `persistence.mode` choices and fallback behavior
 - document baseline connection/transaction expectations for control-plane persistence
@@ -62,10 +62,10 @@ The active contract anchor is [`docs/config/control-plane/control-plane-persiste
 
 ## Acceptance criteria
 
-- [x] documented profile matrix covers SQLite, PostgreSQL, SQL Server, MySQL, and Oracle
+- [x] documented profile matrix covers PostgreSQL, SQL Server, MySQL, and Oracle
 - [x] property contract clearly separates optional control-plane persistence from ETL worker launch
 - [x] invalid profile/dialect combinations fail fast with operator-friendly messages
-- [x] at least one preserved deployment example is documented for non-SQLite mode
+- [x] at least one preserved deployment example is documented for supported relational modes
 
 ## R2 validation checklist
 
@@ -77,7 +77,7 @@ The active contract anchor is [`docs/config/control-plane/control-plane-persiste
 
 ### Property-surface freeze
 
-- [x] define one properties-by-profile matrix for SQLite, PostgreSQL, MySQL, SQL Server, and Oracle
+- [x] define one properties-by-profile matrix for PostgreSQL, MySQL, SQL Server, and Oracle
 - [x] keep `persistence.mode` contract explicit (`memory` or `jdbc`)
 - [x] map final property keys to `application-controlplane.properties` defaults
 - [x] confirm profile-token naming is consistent across docs and runtime config validation
@@ -87,7 +87,6 @@ The active contract anchor is [`docs/config/control-plane/control-plane-persiste
 #### Valid combinations
 
 - [x] `memory` mode starts without JDBC datasource settings
-- [x] `jdbc + sqlite` starts with SQLite datasource + dialect pairing
 - [x] `jdbc + postgresql` starts with PostgreSQL datasource + dialect pairing
 - [x] `jdbc + mysql` starts with MySQL datasource + dialect pairing
 - [x] `jdbc + sqlserver` starts with SQL Server datasource + dialect pairing
@@ -109,7 +108,7 @@ The active contract anchor is [`docs/config/control-plane/control-plane-persiste
 ### Evidence and rollout handoff
 
 - [x] link focused validation tests to `R2` and `R5` execution notes
-- [x] add one short runbook note for non-SQLite environment bring-up
+- [x] add one short runbook note for supported relational environment bring-up
 - [x] confirm docs and backlog status updates before opening `R3`
 
 ### Evidence snapshot (2026-08-18)

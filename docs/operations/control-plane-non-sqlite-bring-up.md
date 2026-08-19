@@ -1,8 +1,8 @@
-# Control-plane non-SQLite bring-up (quick runbook)
+# Control-plane relational bring-up (quick runbook)
 
 ## Purpose
 
-Provide a short operational sequence for bringing up the optional control-plane runtime against non-SQLite relational engines while keeping direct selected-job ETL execution unchanged.
+Provide a short operational sequence for bringing up the optional control-plane runtime against supported relational engines while keeping direct selected-job ETL execution unchanged.
 
 ## Preconditions
 

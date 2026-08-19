@@ -9,8 +9,9 @@ and this project adheres to **Semantic Versioning**.
 ### Added
 - Added `docs/product/release-1.11.0-r2-kickoff-checklist.md` to track `1.11.0` `R2` entry/exit gates and PR-stack kickoff execution.
 - Added `docs/operations/control-plane-non-sqlite-bring-up.md` with quick MySQL/SQL Server bring-up steps for optional control-plane persistence.
-- Added `ControlPlanePersistenceContractGuard` to enforce one-mode selection (`memory` or `jdbc`) across trigger/run/schedule persistence, plus JDBC vendor/url/driver contract fail-fast checks for `sqlite`, `postgresql`, `mysql`, `mssql`, and `oracle`.
+- Added `ControlPlanePersistenceContractGuard` to enforce one-mode selection (`memory`, `jdbc`, or `jpa`) across trigger/run/schedule persistence, plus relational vendor/url/driver contract fail-fast checks for `postgresql`, `mysql`, `mssql`, and `oracle`.
 - Started `R3` first implementation slice for portable control-plane history persistence while preserving current read-model/API compatibility.
+- Added JPA/Hibernate entity and repository coverage for retained control-plane history tables together with a shared `JpaControlPlanePkAllocator` for stable control-plane surrogate key allocation.
 - [Planned `1.11.0`] Start `R4` cross-RDBMS migration/versioning baseline separated from bootstrap repair behavior.
 - [Planned `1.11.0`] Start `R5` parity-evidence scaffolding for MySQL/SQL Server plus control-plane-disabled fallback proof.
 
@@ -18,10 +19,13 @@ and this project adheres to **Semantic Versioning**.
 - Captured `R2` evidence-closure progress with targeted config/persistence tests and smoke fallback verification (`target/tmp-r2-targeted-tests.log`, `target/tmp-r2-profile-tests.log`, `target/tmp-r2-verify-recent.log`), and synced release/backlog trackers with remaining matrix-proof gates.
 - Updated `POST /api/v1/jobs/{jobKey}:trigger-now` to continue manual worker launch when optional trigger-event persistence is temporarily unavailable, returning accepted/launch-skipped decisions without blocking ETL launch.
 - Closed `R2` acceptance scope by adding explicit unavailable-control-plane persistence proof (`target/tmp-r2-verify-recent-unavailable-controlplane.log`) and syncing release/backlog checklists to `R2=Done`.
+- Expanded `jpa` control-plane mode from entity-only scaffolding into direct repository-backed trigger, schedule, run-summary, step-snapshot, advisory recovery, and log-checkpoint slices while preserving stable external IDs and one aligned persistence mode per process start.
+- Retired SQLite-only control-plane maintenance helpers and runbook artifacts from active operations guidance (`scripts/cleanup-controlplane-duplicate-steps.ps1`, `scripts/migrate-controlplane-sqlite-to-shared.ps1`, `docs/operations/control-plane-sqlite-duplicate-step-maintenance.md`).
 - [Planned `1.11.0`] Deliver bounded `S3` governance follow-on and bounded `F1` advisory recovery/read-model hardening without expanding unsupported resume execution.
 
 ### Fixed
 - [Planned `1.10.1`] Apply targeted fixes discovered during the `R2`-`R5` persistence lane rollout and verification hardening.
+- Fixed JPA-backed trigger history so accepted job/schedule trigger events deterministically sort newest-first and surface `launchedRunId` after the matching run projection is recorded.
 
 ### Security
 - [Planned `1.10.1`] Continue dependency/CVE remediations on the patch lane without expanding runtime scope.

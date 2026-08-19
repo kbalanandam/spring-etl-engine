@@ -60,9 +60,9 @@ Add a phased JPA-backed registry path behind existing interfaces, keep behavior 
 
 ## Acceptance criteria
 
-- [ ] JPA entities/repositories cover retained control-plane history needed by existing read-model APIs
-- [ ] stable external IDs and current response shapes are preserved
-- [ ] behavior parity tests pass for run summary, step/artifact, and recovery lookup paths
+- [x] JPA entities/repositories cover retained control-plane history needed by existing read-model APIs
+- [x] stable external IDs and current response shapes are preserved
+- [ ] behavior parity tests pass for run summary, step/artifact, and recovery lookup paths (current JPA-focused parity slices and targeted tests are in place; broader vendor evidence remains open)
 - [ ] ETL worker direct execution remains independent from control-plane persistence
 
 ## Related docs
@@ -78,5 +78,7 @@ Treat this as an internal persistence swap with parity gates. Avoid widening fea
 
 ## Status notes
 
-R1/R2 gates are complete; R3 kickoff is now active as the next 1.11.0 persistence-lane slice.
+R1/R2 gates are complete; R3 now has direct repository-backed slices for `JpaTriggerEventRegistry`, `JpaScheduleRegistry`, and `JpaRunSummaryRegistry`, including step snapshots, advisory recovery anchors, and log checkpoints while keeping one aligned persistence mode per run.
+
+Current open follow-on is parity enrichment for the remaining control-plane history edge cases plus broader vendor evidence before handing off to `R4`/`R5`.
 

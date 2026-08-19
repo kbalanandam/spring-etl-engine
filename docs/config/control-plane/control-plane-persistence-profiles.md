@@ -18,7 +18,6 @@ See [`../../architecture/control-plane/control-plane-persistence-boundary-contra
 
 | Target DB | Intended lane | Contract level | Notes |
 |---|---|---|---|
-| SQLite | legacy compatibility lane | bridge-only | Keep for legacy data recovery and compatibility scripts; not the default dev/control-plane path. |
 | PostgreSQL | enterprise shared-db lane | first-class target | Primary portability parity target. |
 | MySQL | enterprise shared-db lane | default active lane | Default `controlplane` profile datasource for dev/CI with aligned worker datasource settings. |
 | SQL Server | enterprise integration lane | first-class target | Validate in CI or scheduled integration lanes. |
@@ -30,13 +29,15 @@ Use configuration to choose persistence behavior at deploy time.
 
 - `memory`: in-memory retained history path for control-plane runtime.
 - `jdbc`: relational persistence path driven by configured datasource and dialect.
+- `jpa`: ORM-selected relational path used during the R3 migration bridge, with repository-backed slices incrementally replacing vendor-specific JDBC internals while preserving existing read-model semantics.
 
 Contract rules:
 
 1. Persistence mode selection must be explicit and environment-driven.
-2. `jdbc` mode requires a complete datasource + dialect pairing.
+2. `jdbc` and `jpa` modes require a complete datasource + dialect pairing.
 3. Invalid mode/dialect combinations fail fast with operator-friendly startup errors.
 4. Missing or unavailable control-plane persistence must not break direct ETL execution semantics.
+5. Trigger/run/schedule persistence must align to one shared mode per process start; do not mix `jdbc` and `jpa` inside the same runtime instance.
 
 ## Properties by profile
 
@@ -45,16 +46,15 @@ Use this as the `R2` implementation-ready matrix for deploy-time configuration s
 | Profile intent | `controlplane.persistence.mode` | Required datasource shape | Dialect intent |
 |---|---|---|---|
 | Memory baseline | `memory` | none | none |
-| SQLite JDBC | `jdbc` | SQLite URL + credentials where required by environment | SQLite dialect |
-| PostgreSQL JDBC | `jdbc` | PostgreSQL URL + username + password | PostgreSQL dialect |
-| MySQL JDBC | `jdbc` | MySQL URL + username + password | MySQL dialect |
-| SQL Server JDBC | `jdbc` | SQL Server URL + username + password | SQL Server dialect |
-| Oracle JDBC | `jdbc` | Oracle URL + username + password | Oracle dialect |
+| PostgreSQL relational | `jdbc` or `jpa` | PostgreSQL URL + username + password | PostgreSQL dialect |
+| MySQL relational | `jdbc` or `jpa` | MySQL URL + username + password | MySQL dialect |
+| SQL Server relational | `jdbc` or `jpa` | SQL Server URL + username + password | SQL Server dialect |
+| Oracle relational | `jdbc` or `jpa` | Oracle URL + username + password | Oracle dialect |
 
 Validation expectations:
 
 - `memory` mode must not require JDBC datasource properties
-- `jdbc` mode must require datasource + dialect pairing
+- `jdbc`/`jpa` mode must require datasource + dialect pairing
 - vendor and dialect intent must match
 
 ## Datasource and dialect matrix
@@ -63,7 +63,6 @@ Use one of these vendor-intent pairings when `jdbc` mode is selected.
 
 | Vendor intent | Datasource family | Dialect intent |
 |---|---|---|
-| SQLite | SQLite datasource | SQLite dialect |
 | PostgreSQL | PostgreSQL datasource | PostgreSQL dialect |
 | MySQL | MySQL datasource | MySQL dialect |
 | SQL Server | SQL Server datasource | SQL Server dialect |
@@ -83,9 +82,9 @@ At startup, fail fast when:
 - dialect intent does not match configured vendor lane
 - an unsupported vendor token is configured
 - configuration requests a mixed or ambiguous mode contract
-- trigger/run/schedule persistence modes are not aligned to one shared mode (`memory` or `jdbc`)
+- trigger/run/schedule persistence modes are not aligned to one shared mode (`memory`, `jdbc`, or `jpa`)
 
-## Non-SQLite example lane
+## Relational example lane
 
 PostgreSQL example (illustrative contract shape):
 
@@ -101,7 +100,7 @@ Use environment-specific secret management for credentials; do not commit real v
 
 Current implementation note:
 
-- The shipped control-plane path is JDBC-first (no JPA requirement) and now uses one canonical vendor token plus vendor-neutral datasource properties in the `controlplane` profile:
+- The shipped control-plane path remains JDBC-first by default, but `jpa` is now selectable on the same aligned datasource contract for side-by-side rollout and benchmarking across separate runs (not simultaneous writes in one process). Both paths use one canonical vendor token plus vendor-neutral datasource properties in the `controlplane` profile:
 
 ```properties
 controlplane.db.vendor=${CONTROLPLANE_DB_VENDOR:mysql}
@@ -112,6 +111,16 @@ controlplane.db.driver-class-name=${CONTROLPLANE_DB_DRIVER_CLASS_NAME:...}
 ```
 
 - `spring.datasource.*` and `controlplane.job-launch.worker.datasource.*` are wired from these canonical properties unless explicitly overridden by worker-specific env vars.
+- Control-plane schema migration/versioning is now startup-managed by Flyway in this profile:
+
+```properties
+spring.flyway.enabled=${CONTROLPLANE_DB_MIGRATION_ENABLED:true}
+spring.flyway.locations=classpath:db/migration/controlplane/${controlplane.db.vendor}
+spring.flyway.baseline-on-migrate=true
+spring.flyway.baseline-version=1
+```
+
+- Existing non-empty MySQL/SQL Server schemas without Flyway history are baselined at version `1` on first startup; new empty schemas run baseline scripts directly from the vendor-scoped migration path.
 - Use one simplified script surface for local control-plane work: `scripts/setup-controlplane.ps1` for database bootstrap and `scripts/restart-controlplane.ps1` for start/restart/status/stop.
 - Bootstrap safety note: `scripts/setup-controlplane.ps1` is rerun-safe and non-destructive for existing run history. It does not drop databases/tables or truncate/delete existing run data. It creates missing database objects, ensures indexes, seeds `controlplane_pk_sequence` floors, and upserts `controlplane_trigger_source` seed rows. It does not run legacy row/column repair patches during bootstrap.
 
@@ -146,9 +155,9 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 
 - Bootstrap both `controlplane_*` and `BATCH_*` tables into the same selected database with `scripts/setup-controlplane.ps1` before starting the control-plane profile.
 - MySQL optional grants (`-ApplyGrants`) can create/update the app user grant statements but still do not delete control-plane run history data.
 - After startup, confirm the active runtime lane in the Operator UI header or via `GET /api/v1/system/info`, which now reports both `profile` and the active database fields `databaseVendor` / `databaseDisplayName`.
-- Ensure `controlplane.job-launch.worker.connection-init-sql` is blank (or vendor-valid) so SQLite-only `PRAGMA` statements are not passed to MySQL/SQL Server workers.
+- Ensure `controlplane.job-launch.worker.connection-init-sql` is blank (or vendor-valid) so worker startup SQL remains valid for the selected vendor.
 - Active trigger/run JDBC read paths now use vendor-aware paging clauses (`LIMIT/OFFSET` for MySQL, `OFFSET ... FETCH NEXT` for SQL Server) to keep control-plane list/detail endpoints runnable across both lanes.
-- The currently verified no-server portability scope is registry startup plus update/insert write paths without SQLite-only `on conflict ... excluded`, string-concatenation, or `cast(... as text)` SQL. Legacy SQLite bridge migrations (`pragma_table_info`, `rowid`, SQLite trigger DDL) remain isolated to SQLite-gated paths and still need real MySQL-lane validation before MySQL can be treated as full parity.
+- The currently verified no-server portability scope is registry startup plus update/insert write paths without vendor-locked SQL fragments in shared paths.
 
 ## Related docs
 

@@ -13,9 +13,10 @@ It translates the conceptual retained operational data model into a practical My
 - Sections outside the ER artifact may still include forward-looking design guidance for later extensions.
 - The shipped `controlplane` profile now defaults to MySQL datasource properties (env-overridable), and worker launches in this profile are aligned to the same MySQL URL/credentials so trigger, run, and batch metadata stay linkable in one relational database.
 - The `controlplane` profile now exposes a canonical vendor token contract (`controlplane.db.vendor=${CONTROLPLANE_DB_VENDOR:mysql}`) with vendor-neutral datasource keys (`controlplane.db.url|username|password|driver-class-name`), so MySQL and SQL Server lanes can be selected without rewriting property names.
+- The `controlplane` profile now enables Flyway migration/versioning with vendor-scoped paths (`src/main/resources/db/migration/controlplane/mysql|mssql`) and `baselineOnMigrate=true` so existing non-empty schemas can adopt deterministic migration history without implicit runtime schema rewrites.
 - The repo-owned MySQL bootstrap path now provisions both retained `controlplane_*` tables and Spring Batch `BATCH_*` metadata tables into one selected database so control-plane step/artifact projections can read worker batch metadata without cross-database assumptions.
 - Bootstrap scripts are schema-first and seed-first only: they create/align baseline tables, indexes, and sequence floors, but they do not run legacy row repair or `COALESCE`/`ISNULL(MAX(...))` data patching during initial bootstrap.
-- SQLite compatibility paths remain available as bridge logic for legacy local data and migration recovery, while active control-plane startup defaults and CI direction target MySQL first.
+- SQLite-first contracts are now historical-only context; active control-plane startup defaults and CI direction target supported relational lanes.
 - Persisted `attempt_link` and `checkpoint_anchor` records are currently advisory recovery lineage only; they support operator evidence and correlation while F1 still keeps resume execution unsupported. They also do not change the current D3 rerun boundary: the shipped relational target baseline is not treated as idempotent by default, so retained checkpoint lineage must not be read as safe database resume capability.
 
 ## Scope
@@ -117,7 +118,7 @@ This ER view is the lightweight scheduler-facing artifact for storage-alignment 
 - Attempt/checkpoint retained-history identities now anchor to control-plane run identity (`al-<runRecordPk>`, `ca-log-<runRecordPk>`) instead of job-execution-derived IDs, so fresh run projections do not accidentally reuse legacy `created_at` evidence when Spring Batch execution IDs are recycled.
 - Current write semantics stamp `created_at` with the current system timestamp on upsert updates for run/step/artifact/attempt/checkpoint retained-history rows, so operators can treat `created_at` as latest-write evidence on active projections.
 - Control-plane retained-history tables now carry nullable audit actor fields (`created_by`, `updated_by`) populated from the application process identity (`spring.application.name`) on new writes; historical rows are not backfilled by default.
-- Current non-SQLite portability is partial-but-testable: normal registry startup and update/insert write paths are now exercised without SQLite-only SQL, and active child retained-history writes now assume the PK-only linkage contract rather than backfilling legacy child `run_record_id` columns at runtime.
+- Current relational portability is partial-but-testable: normal registry startup and update/insert write paths are now exercised without vendor-locked SQL in shared paths, and active child retained-history writes now assume the PK-only linkage contract rather than backfilling legacy child `run_record_id` columns at runtime.
 
 ### Transition notes (shipped vs target)
 
@@ -387,7 +388,7 @@ For the active control-plane implementation, prefer these MySQL-default rules:
 - avoid relying on vendor-only features in shared read/write contracts unless an explicit vendor-specific script path exists
 - treat large payloads such as raw logs or binary artifacts as external references rather than in-row blobs
 
-SQLite compatibility remains bridge-only and should not be treated as the active default persistence lane.
+SQLite is not part of the active supported control-plane persistence lanes.
 
 ## ID and FK policy (active + planned)
 
@@ -418,7 +419,7 @@ Planned compatibility pattern for legacy string-linkage tables:
 
 To preserve later portability, the first schema direction should also follow these rules:
 
-- avoid SQLite-only SQL features as a baseline dependency for the logical model
+- avoid vendor-locked SQL features as a baseline dependency for the logical model
 - normalize one-to-many relationships explicitly instead of hiding them inside vendor-specific document columns too early
 - keep timestamp semantics explicit and UTC-oriented so later database differences do not distort operator timelines
 - keep text column meanings stable so application-level enums or status values can map cleanly across vendors
@@ -507,7 +508,7 @@ Future work that implements this schema direction should validate at least these
 
 Follow-on work that should build from this schema direction includes:
 
-- a first vendor-script baseline for MySQL and SQL Server with property-driven selection
+- incremental Flyway `V2+` migrations for relational schema evolution, with vendor-specific deltas isolated to explicit per-engine paths
 - a repository or service layer for writing `trigger_event`, `run_record`, and `step_record` history
 - retention and cleanup rules for retained control-plane history
 - vendor-tuned indexing and concurrency guidance for PostgreSQL, SQL Server, or MySQL deployments

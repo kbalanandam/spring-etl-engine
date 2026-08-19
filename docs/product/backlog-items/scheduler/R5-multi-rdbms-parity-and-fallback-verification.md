@@ -45,9 +45,8 @@ Build an incremental integration-test matrix (PR or scheduled lanes) and pair it
 
 | Engine | Lane target | Minimum checks | Evidence expectation |
 |---|---|---|---|
-| SQLite | PR lane | run summary + recovery + step/artifact read-model checks | automated test logs + verification summary |
-| PostgreSQL | PR or near-PR lane | same parity checks as SQLite | automated test logs + verification summary |
-| MySQL | PR or near-PR lane | same parity checks as SQLite | automated test logs + verification summary |
+| PostgreSQL | PR or near-PR lane | run summary + recovery + step/artifact read-model checks | automated test logs + verification summary |
+| MySQL | PR or near-PR lane | same parity checks as PostgreSQL | automated test logs + verification summary |
 | SQL Server | scheduled or manual lane | parity checks + fallback check | signed validation note + verification summary |
 | Oracle | scheduled or manual lane | parity checks + fallback check | signed validation note + verification summary |
 
@@ -74,7 +73,7 @@ For each release-candidate cycle, run one explicit lane with control-plane persi
 
 ## Acceptance criteria
 
-- [ ] parity matrix includes at least SQLite, PostgreSQL, and MySQL in automated lanes
+- [ ] parity matrix includes at least PostgreSQL and MySQL in automated lanes
 - [ ] documented plan exists for SQL Server and Oracle validation lanes
 - [ ] control-plane-disabled fallback path is verified for direct selected-job ETL execution
 - [ ] release-facing verification evidence references portability results explicitly
