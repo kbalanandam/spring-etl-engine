@@ -1,6 +1,12 @@
 package com.etl.controlplane.monitoring;
 
 import com.etl.controlplane.ControlPlaneApiApplication;
+import com.etl.controlplane.persistence.jpa.entity.ArtifactRecord;
+import com.etl.controlplane.persistence.jpa.entity.RunRecord;
+import com.etl.controlplane.persistence.jpa.entity.StepRecord;
+import com.etl.controlplane.persistence.jpa.repository.ArtifactRecordRepository;
+import com.etl.controlplane.persistence.jpa.repository.RunRecordRepository;
+import com.etl.controlplane.persistence.jpa.repository.StepRecordRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -35,6 +41,15 @@ class JpaRunSummaryRegistryMysqlModeIntegrationTest {
     @Autowired
     private RunSummaryRegistry runSummaryRegistry;
 
+    @Autowired
+    private RunRecordRepository runRecordRepository;
+
+    @Autowired
+    private StepRecordRepository stepRecordRepository;
+
+    @Autowired
+    private ArtifactRecordRepository artifactRecordRepository;
+
     @Test
     void persistsAndReadsRunSummaryAndRecoveryInMysqlCompatibilityMode() {
         long jobExecutionId = 501L;
@@ -66,6 +81,62 @@ class JpaRunSummaryRegistryMysqlModeIntegrationTest {
         RunRecoveryView recovery = runSummaryRegistry.findRecoveryByJobExecutionId(jobExecutionId).orElseThrow();
         assertEquals("rr-" + jobExecutionId, recovery.runRecordId());
         assertFalse(recovery.checkpointAnchors().isEmpty());
+
+        RunRecord runRecord = runRecordRepository.findFirstByJobExecutionIdOrderByStartedAtDescRunRecordPkDesc(jobExecutionId).orElseThrow();
+        seedStepAndArtifact(runRecord, "mysql");
+
+        List<RunStepRecordView> stepRecords = runSummaryRegistry.listStepRecordsByJobExecutionId(jobExecutionId, 10);
+        assertEquals(1, stepRecords.size());
+        assertEquals("extract-orders-mysql", stepRecords.get(0).stepName());
+        assertEquals("rr-" + jobExecutionId, stepRecords.get(0).runRecordId());
+
+        List<RunArtifactRecordView> artifactsByRun = runSummaryRegistry.listArtifactRecordsByJobExecutionId(jobExecutionId, 10);
+        assertEquals(1, artifactsByRun.size());
+        assertEquals("STEP_REJECT_OUTPUT", artifactsByRun.get(0).artifactRole());
+        assertEquals("rr-" + jobExecutionId, artifactsByRun.get(0).runRecordId());
+
+        List<RunArtifactRecordView> artifactsByStep = runSummaryRegistry.listArtifactRecordsByStepRecordId("sr-" + runRecord.getRunRecordPk() + "-mysql", 10);
+        assertEquals(1, artifactsByStep.size());
+        assertEquals("STEP_REJECT_OUTPUT", artifactsByStep.get(0).artifactRole());
+    }
+
+    private void seedStepAndArtifact(RunRecord runRecord, String suffix) {
+        LocalDateTime now = LocalDateTime.of(2026, 8, 19, 10, 2);
+
+        StepRecord stepRecord = new StepRecord();
+        stepRecord.setStepRecordPk(9100L + runRecord.getRunRecordPk());
+        stepRecord.setStepRecordId("sr-" + runRecord.getRunRecordPk() + "-" + suffix);
+        stepRecord.setRunRecordPk(runRecord.getRunRecordPk());
+        stepRecord.setStepName("extract-orders-" + suffix);
+        stepRecord.setStepStatus("COMPLETED");
+        stepRecord.setStartedAt(now.minusMinutes(1));
+        stepRecord.setFinishedAt(now);
+        stepRecord.setDurationSeconds(60L);
+        stepRecord.setReadCount(10L);
+        stepRecord.setWriteCount(10L);
+        stepRecord.setFilterCount(0L);
+        stepRecord.setSkipCount(0L);
+        stepRecord.setRollbackCount(0L);
+        stepRecord.setRejectedCount(0L);
+        stepRecord.setCreatedAt(now);
+        stepRecord.setUpdatedAt(now);
+        stepRecord.setCreatedBy("test");
+        stepRecord.setUpdatedBy("test");
+        stepRecordRepository.save(stepRecord);
+
+        ArtifactRecord artifactRecord = new ArtifactRecord();
+        artifactRecord.setArtifactRecordPk(9200L + runRecord.getRunRecordPk());
+        artifactRecord.setArtifactRecordId("ar-" + runRecord.getRunRecordPk() + "-" + suffix);
+        artifactRecord.setRunRecordPk(runRecord.getRunRecordPk());
+        artifactRecord.setStepRecordId(stepRecord.getStepRecordId());
+        artifactRecord.setArtifactRole("STEP_REJECT_OUTPUT");
+        artifactRecord.setArtifactPath("C:/output/rejects/orders-" + suffix + ".csv");
+        artifactRecord.setCreatedAt(now);
+        artifactRecord.setUpdatedAt(now);
+        artifactRecord.setCreatedBy("test");
+        artifactRecord.setUpdatedBy("test");
+        artifactRecordRepository.save(artifactRecord);
     }
 }
+
 
