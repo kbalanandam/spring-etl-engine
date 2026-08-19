@@ -8,7 +8,7 @@ Implement a JPA/Hibernate persistence path for retained control-plane history (t
 
 - Epic: **[Epic R](../../epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **In Progress**
 - Milestone: **M3**
 - Dependency: **R1, R2, S4**
 
@@ -78,5 +78,5 @@ Treat this as an internal persistence swap with parity gates. Avoid widening fea
 
 ## Status notes
 
-Pending R1/R2 completion.
+R1/R2 gates are complete; R3 kickoff is now active as the next 1.11.0 persistence-lane slice.
 

@@ -154,5 +154,5 @@ Kickoff moved into active implementation support after R1 boundary freeze; deplo
 
 Validation do-ahead planning merged into this page is now closed for `R2`, including matrix proof, control-plane-disabled fallback, and control-plane-persistence-unavailable fallback evidence.
 
-Execution sequencing update: `R2` is now the active entry gate into the product-grade persistence lane, ahead of `R3`/`R4`/`R5`.
+Execution sequencing update: `R2` closure is complete and the persistence lane handoff now proceeds into active `R3`, followed by `R4`/`R5`.
 

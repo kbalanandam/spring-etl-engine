@@ -10,7 +10,7 @@ and this project adheres to **Semantic Versioning**.
 - Added `docs/product/release-1.11.0-r2-kickoff-checklist.md` to track `1.11.0` `R2` entry/exit gates and PR-stack kickoff execution.
 - Added `docs/operations/control-plane-non-sqlite-bring-up.md` with quick MySQL/SQL Server bring-up steps for optional control-plane persistence.
 - Added `ControlPlanePersistenceContractGuard` to enforce one-mode selection (`memory` or `jdbc`) across trigger/run/schedule persistence, plus JDBC vendor/url/driver contract fail-fast checks for `sqlite`, `postgresql`, `mysql`, `mssql`, and `oracle`.
-- [Planned `1.11.0`] Start `R3` first implementation slice for portable control-plane history persistence while preserving current read-model/API compatibility.
+- Started `R3` first implementation slice for portable control-plane history persistence while preserving current read-model/API compatibility.
 - [Planned `1.11.0`] Start `R4` cross-RDBMS migration/versioning baseline separated from bootstrap repair behavior.
 - [Planned `1.11.0`] Start `R5` parity-evidence scaffolding for MySQL/SQL Server plus control-plane-disabled fallback proof.
 
