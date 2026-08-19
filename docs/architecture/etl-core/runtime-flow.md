@@ -190,6 +190,7 @@ For local ETL development under the default `dev` profile:
 
 - Spring Batch metadata and optional control-plane persistence now default to MySQL datasource properties in local dev and CI profiles.
 - The optional `controlplane` profile aligns worker and control-plane datasource settings so retained-history tables and launched-run metadata stay linkable in one relational database.
+- Flyway migration execution is scoped to the `controlplane` profile; the ETL worker runtime keeps `spring.flyway.enabled=false` by default.
 - SQLite is no longer a supported control-plane persistence lane in active runtime guidance.
 - Ordered duplicate winner selection remains intentionally H2-backed through `EmbeddedDbDuplicateResolver` as a separate step-local engine path.
 - This split keeps duplicate-resolution behavior stable while aligning the primary Batch metadata path with the active MySQL-default persistence direction.
