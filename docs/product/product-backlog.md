@@ -617,11 +617,17 @@ These items move the product from "reliable ETL engine" to "enterprise-grade ETL
 Support deploy-time selectable relational persistence for optional control-plane history across major RDBMS engines while preserving the independently runnable selected-job ETL runtime contract.
 
 ### Backlog
-- [ ] Freeze the JPA/Hibernate control-plane persistence boundary and non-goals before implementation expands
-- [ ] Define one deploy-time datasource/dialect profile contract for PostgreSQL, SQL Server, MySQL, and Oracle
-- [ ] Implement JPA/Hibernate entity and repository mappings for retained scheduler/trigger/run/step/artifact history
-- [ ] Introduce schema migration/versioning rules that are portable-first with isolated vendor deltas where needed
-- [ ] Prove behavior parity and fallback across supported engines without making control-plane persistence mandatory for direct ETL runs
+- [x] `R1` Freeze the JPA/Hibernate control-plane persistence boundary and non-goals before implementation expands
+- [x] `R2` Define one deploy-time datasource/dialect profile contract for PostgreSQL, SQL Server, MySQL, and Oracle
+- [ ] `R3` Implement JPA/Hibernate entity and repository mappings for retained scheduler/trigger/run/step/artifact history (`In Progress`; parity/vendor evidence closure remains)
+- [ ] `R4` Introduce schema migration/versioning rules that are portable-first with isolated vendor deltas where needed (`Ready`; baseline migrations and profile wiring are implemented, final board sync pending)
+- [ ] `R5` Prove behavior parity and fallback across supported engines without making control-plane persistence mandatory for direct ETL runs (`Ready`)
+
+### Remaining Epic R execution checklist
+- [ ] Close `R3` acceptance gaps: broader parity evidence for run summary + step/artifact + recovery and explicit proof that direct ETL worker execution remains independent when control-plane persistence is unavailable.
+- [ ] Finalize `R4` rollout evidence/handoff across supported lanes (migration governance plus upgrade/operational guidance alignment).
+- [ ] Execute `R5` parity matrix lanes (automated PostgreSQL/MySQL, defined SQL Server/Oracle validation lanes, and control-plane-disabled fallback verification evidence).
+- [ ] Publish release-facing portability evidence references in verification artifacts and product-tracking docs.
 
 ### Done criteria
 - direct selected-job ETL runs remain valid when control-plane persistence is absent or disabled
