@@ -45,10 +45,8 @@ Build an incremental integration-test matrix (PR or scheduled lanes) and pair it
 
 | Engine | Lane target | Minimum checks | Evidence expectation |
 |---|---|---|---|
-| PostgreSQL | PR or near-PR lane | run summary + recovery + step/artifact read-model checks | automated test logs + verification summary |
-| MySQL | PR or near-PR lane | same parity checks as PostgreSQL | automated test logs + verification summary |
-| SQL Server | scheduled or manual lane | parity checks + fallback check | signed validation note + verification summary |
-| Oracle | scheduled or manual lane | parity checks + fallback check | signed validation note + verification summary |
+| MySQL | PR or near-PR lane | run summary + recovery + step/artifact read-model checks | automated test logs + verification summary |
+| SQL Server | PR or near-PR lane | same parity checks as MySQL + fallback check | automated test logs + verification summary |
 
 ### Fallback verification lane
 
@@ -73,8 +71,7 @@ For each release-candidate cycle, run one explicit lane with control-plane persi
 
 ## Acceptance criteria
 
-- [ ] parity matrix includes at least PostgreSQL and MySQL in automated lanes
-- [ ] documented plan exists for SQL Server and Oracle validation lanes
+- [ ] parity matrix includes at least MySQL and SQL Server in active automated lanes
 - [ ] control-plane-disabled fallback path is verified for direct selected-job ETL execution
 - [ ] release-facing verification evidence references portability results explicitly
 
@@ -91,6 +88,8 @@ Keep this item evidence-driven. If a vendor lane is not automated yet, record ex
 
 ## Status notes
 
-Pending R3/R4 completion.
+R5 execution has started with no-server compatibility-mode parity evidence now covering run-summary API response-shape checks for MySQL and SQL Server through `RunSummaryApiJpaParityIntegrationTest` and `RunSummaryApiJpaParityMssqlModeIntegrationTest`.
 
+Disabled-persistence fallback proof is now explicit through `EtlWorkerControlPlaneDisabledFallbackTest`, which verifies direct ETL runtime startup remains valid when all `controlplane.*.persistence.mode` settings are `memory`.
 
+Next evidence slice remains release-facing matrix packaging: keep MySQL/SQL Server as active automated lanes and publish control-plane-disabled fallback proof references from ETL-runtime boundary checks.

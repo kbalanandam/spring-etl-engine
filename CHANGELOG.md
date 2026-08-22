@@ -13,7 +13,7 @@ and this project adheres to **Semantic Versioning**.
 - Started `R3` first implementation slice for portable control-plane history persistence while preserving current read-model/API compatibility.
 - Added JPA/Hibernate entity and repository coverage for retained control-plane history tables together with a shared `JpaControlPlanePkAllocator` for stable control-plane surrogate key allocation.
 - [Planned `1.11.0`] Start `R4` cross-RDBMS migration/versioning baseline separated from bootstrap repair behavior.
-- [Planned `1.11.0`] Start `R5` parity-evidence scaffolding for MySQL/SQL Server plus control-plane-disabled fallback proof.
+- Added `RunSummaryApiJpaParityMssqlModeIntegrationTest` and `EtlWorkerControlPlaneDisabledFallbackTest` to formalize `R5` SQL Server parity and control-plane-disabled fallback proof lanes.
 
 ### Changed
 - Captured `R2` evidence-closure progress with targeted config/persistence tests and smoke fallback verification (`target/tmp-r2-targeted-tests.log`, `target/tmp-r2-profile-tests.log`, `target/tmp-r2-verify-recent.log`), and synced release/backlog trackers with remaining matrix-proof gates.
@@ -21,11 +21,18 @@ and this project adheres to **Semantic Versioning**.
 - Closed `R2` acceptance scope by adding explicit unavailable-control-plane persistence proof (`target/tmp-r2-verify-recent-unavailable-controlplane.log`) and syncing release/backlog checklists to `R2=Done`.
 - Expanded `jpa` control-plane mode from entity-only scaffolding into direct repository-backed trigger, schedule, run-summary, step-snapshot, advisory recovery, and log-checkpoint slices while preserving stable external IDs and one aligned persistence mode per process start.
 - Retired SQLite-only control-plane maintenance helpers and runbook artifacts from active operations guidance (`scripts/cleanup-controlplane-duplicate-steps.ps1`, `scripts/migrate-controlplane-sqlite-to-shared.ps1`, `docs/operations/control-plane-sqlite-duplicate-step-maintenance.md`).
+- Expanded verification automation/reporting to include dedicated `R5` MySQL parity, SQL Server parity, and control-plane-disabled fallback lanes (`target/verify-r5-parity-mysql.log`, `target/verify-r5-parity-mssql.log`, `target/verify-r5-fallback-memory.log`) in smoke status and readiness output.
+- Expanded `scripts/verify-recent-changes.ps1` from a 3-check smoke path to a 6-check lane that now runs trigger evidence, MySQL parity, SQL Server parity, and control-plane-disabled fallback proofs in one pass.
+- Updated `R3`/`R5` scheduler backlog docs to align active vendor parity coverage and fallback evidence with the current JPA/API test matrix.
+- Aligned JPA API parity integration bootstrapping to explicit servlet-mode test contexts so `MockMvc` parity lanes remain stable across vendor compatibility modes.
 - [Planned `1.11.0`] Deliver bounded `S3` governance follow-on and bounded `F1` advisory recovery/read-model hardening without expanding unsupported resume execution.
+- Documented control-plane JDBC duplicate-index startup tolerance behavior in the release notes for operational traceability.
 
 ### Fixed
 - [Planned `1.10.1`] Apply targeted fixes discovered during the `R2`-`R5` persistence lane rollout and verification hardening.
 - Fixed JPA-backed trigger history so accepted job/schedule trigger events deterministically sort newest-first and surface `launchedRunId` after the matching run projection is recorded.
+- Fixed control-plane JDBC startup idempotency by tolerating duplicate-index creation races in `JdbcScheduleRegistry`, `JdbcTriggerEventRegistry`, and `JdbcRunSummaryRegistry` when indexes already exist.
+- Fixed JPA run-summary API parity assertions to validate the shipped `stepStatus` response field contract on `/api/v1/runs/{jobExecutionId}/step-records`.
 
 ### Security
 - [Planned `1.10.1`] Continue dependency/CVE remediations on the patch lane without expanding runtime scope.
@@ -333,7 +340,7 @@ and this project adheres to **Semantic Versioning**.
 - Explicit job-config startup now honors an optional top-level `job-config.yaml -> isActive` flag and fails fast before downstream config resolution when the selected job is inactive.
 - Source and target `packageName` values can now be omitted across the active config-loading path, with job-scoped defaults still derived from the selected job identity for compatibility.
 - Explicit `job-config.yaml` runs now require a non-blank `name` on the active generated-model naming path; folder-name fallback is no longer used for runtime/build-time package derivation.
-- Explicit job runtime loading and build-time generation now also fail fast on generated-name collisions after logical-name normalization and on cross-step handoff names consumed before an earlier step produces them.
+- Explicit job runtime loading and build-time generation now fail fast on generated-name collisions after logical-name normalization and on cross-step handoff names consumed before an earlier step produces them.
 - Explicit job runtime loading and build-time generation now also warn when deprecated authored `com.etl.generated.job...` packageName bridge values drift from the package derived from the selected `job-config.yaml` name, while still honoring the authored value for compatibility.
 - CSV targets now default `delimiter` to `,` when omitted or blank, while still honoring user-provided alternate separators at runtime.
 - Architecture, config, README, and product-tracking docs now describe the shipped optional-`packageName` bridge baseline and the current JSON/CSV target behavior more consistently.
@@ -563,4 +570,3 @@ and this project adheres to **Semantic Versioning**.
 - Config-driven Source, Target, and Processor definitions.
 - Job, Step, Reader, Processor, Writer bootstrapping.
 
----

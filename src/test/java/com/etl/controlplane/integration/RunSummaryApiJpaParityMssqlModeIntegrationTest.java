@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
                 "controlplane.triggers.persistence.mode=jpa",
                 "controlplane.runs.persistence.mode=jpa",
                 "controlplane.schedules.persistence.mode=jpa",
-                "spring.datasource.url=jdbc:h2:mem:run-summary-api-jpa-parity;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
+                "spring.datasource.url=jdbc:h2:mem:run-summary-api-jpa-parity-mssql;MODE=MSSQLServer;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE",
                 "spring.datasource.username=sa",
                 "spring.datasource.password=",
                 "spring.datasource.driver-class-name=org.h2.Driver",
@@ -40,7 +40,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         }
 )
 @AutoConfigureMockMvc
-class RunSummaryApiJpaParityIntegrationTest {
+class RunSummaryApiJpaParityMssqlModeIntegrationTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -58,17 +58,17 @@ class RunSummaryApiJpaParityIntegrationTest {
     private ArtifactRecordRepository artifactRecordRepository;
 
     @Test
-    void stepAndArtifactEndpointsReturnJpaBackedParityShape() throws Exception {
-        long jobExecutionId = 701L;
+    void stepAndArtifactEndpointsReturnJpaBackedParityShapeInMssqlMode() throws Exception {
+        long jobExecutionId = 901L;
         runSummaryRegistry.upsert(new RunSummaryView(
                 "customer-load",
                 jobExecutionId,
                 "COMPLETED",
-                LocalDateTime.of(2026, 8, 19, 12, 0),
-                LocalDateTime.of(2026, 8, 19, 12, 2),
+                LocalDateTime.of(2026, 8, 19, 16, 0),
+                LocalDateTime.of(2026, 8, 19, 16, 2),
                 120L,
-                30L,
-                29L,
+                40L,
+                39L,
                 1L,
                 "explicit-job",
                 "rerun-from-start",
@@ -80,35 +80,35 @@ class RunSummaryApiJpaParityIntegrationTest {
                 .orElseThrow();
 
         StepRecord stepRecord = new StepRecord();
-        stepRecord.setStepRecordPk(12001L);
-        stepRecord.setStepRecordId("sr-" + runRecord.getRunRecordPk() + "-api");
+        stepRecord.setStepRecordPk(16001L);
+        stepRecord.setStepRecordId("sr-" + runRecord.getRunRecordPk() + "-api-mssql");
         stepRecord.setRunRecordPk(runRecord.getRunRecordPk());
         stepRecord.setStepName("load-customers");
         stepRecord.setStepStatus("COMPLETED");
-        stepRecord.setStartedAt(LocalDateTime.of(2026, 8, 19, 12, 0, 10));
-        stepRecord.setFinishedAt(LocalDateTime.of(2026, 8, 19, 12, 1, 40));
+        stepRecord.setStartedAt(LocalDateTime.of(2026, 8, 19, 16, 0, 10));
+        stepRecord.setFinishedAt(LocalDateTime.of(2026, 8, 19, 16, 1, 40));
         stepRecord.setDurationSeconds(90L);
-        stepRecord.setReadCount(30L);
-        stepRecord.setWriteCount(29L);
+        stepRecord.setReadCount(40L);
+        stepRecord.setWriteCount(39L);
         stepRecord.setFilterCount(1L);
         stepRecord.setSkipCount(0L);
         stepRecord.setRollbackCount(0L);
         stepRecord.setRejectedCount(1L);
-        stepRecord.setCreatedAt(LocalDateTime.of(2026, 8, 19, 12, 2));
-        stepRecord.setUpdatedAt(LocalDateTime.of(2026, 8, 19, 12, 2));
+        stepRecord.setCreatedAt(LocalDateTime.of(2026, 8, 19, 16, 2));
+        stepRecord.setUpdatedAt(LocalDateTime.of(2026, 8, 19, 16, 2));
         stepRecord.setCreatedBy("test");
         stepRecord.setUpdatedBy("test");
         stepRecordRepository.save(stepRecord);
 
         ArtifactRecord artifactRecord = new ArtifactRecord();
-        artifactRecord.setArtifactRecordPk(13001L);
-        artifactRecord.setArtifactRecordId("ar-" + runRecord.getRunRecordPk() + "-api");
+        artifactRecord.setArtifactRecordPk(17001L);
+        artifactRecord.setArtifactRecordId("ar-" + runRecord.getRunRecordPk() + "-api-mssql");
         artifactRecord.setRunRecordPk(runRecord.getRunRecordPk());
         artifactRecord.setStepRecordId(stepRecord.getStepRecordId());
         artifactRecord.setArtifactRole("STEP_REJECT_OUTPUT");
-        artifactRecord.setArtifactPath("C:/output/rejects/customer-load.csv");
-        artifactRecord.setCreatedAt(LocalDateTime.of(2026, 8, 19, 12, 2));
-        artifactRecord.setUpdatedAt(LocalDateTime.of(2026, 8, 19, 12, 2));
+        artifactRecord.setArtifactPath("C:/output/rejects/customer-load-mssql.csv");
+        artifactRecord.setCreatedAt(LocalDateTime.of(2026, 8, 19, 16, 2));
+        artifactRecord.setUpdatedAt(LocalDateTime.of(2026, 8, 19, 16, 2));
         artifactRecord.setCreatedBy("test");
         artifactRecord.setUpdatedBy("test");
         artifactRecordRepository.save(artifactRecord);
@@ -122,7 +122,7 @@ class RunSummaryApiJpaParityIntegrationTest {
                 .andExpect(jsonPath("$.items[0].runRecordId").value("rr-" + jobExecutionId))
                 .andExpect(jsonPath("$.items[0].stepName").value("load-customers"))
                 .andExpect(jsonPath("$.items[0].stepStatus").value("COMPLETED"))
-                .andExpect(jsonPath("$.items[0].readCount").value(30))
+                .andExpect(jsonPath("$.items[0].readCount").value(40))
                 .andExpect(jsonPath("$.items[0].rejectedCount").value(1));
 
         mockMvc.perform(get("/api/v1/runs/{jobExecutionId}/artifact-records", jobExecutionId)
@@ -134,9 +134,7 @@ class RunSummaryApiJpaParityIntegrationTest {
                 .andExpect(jsonPath("$.items[0].runRecordId").value("rr-" + jobExecutionId))
                 .andExpect(jsonPath("$.items[0].stepRecordId").value(stepRecord.getStepRecordId()))
                 .andExpect(jsonPath("$.items[0].artifactRole").value("STEP_REJECT_OUTPUT"))
-                .andExpect(jsonPath("$.items[0].artifactPath").value("C:/output/rejects/customer-load.csv"));
+                .andExpect(jsonPath("$.items[0].artifactPath").value("C:/output/rejects/customer-load-mssql.csv"));
     }
 }
-
-
 

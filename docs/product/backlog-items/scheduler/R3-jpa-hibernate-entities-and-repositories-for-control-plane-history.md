@@ -84,7 +84,7 @@ Direct ETL-runtime boundary proof is now test-covered through `EtlWorkerControlP
 
 Current open follow-on is parity enrichment for the remaining control-plane history edge cases plus broader vendor evidence before handing off to `R4`/`R5`.
 
-No-server parity evidence now includes `JpaRunSummaryRegistryMysqlModeIntegrationTest` and `JpaRunSummaryRegistryMssqlModeIntegrationTest`, which exercise JPA run summary + recovery read/write behavior and step/artifact lookup parity in H2 MySQL/SQL Server compatibility modes.
+No-server parity evidence now includes `JpaRunSummaryRegistryMysqlModeIntegrationTest`, `JpaRunSummaryRegistryMssqlModeIntegrationTest`, and `JpaRunSummaryRegistryPostgresModeIntegrationTest`, which exercise JPA run summary + recovery read/write behavior and step/artifact lookup parity in H2 MySQL/SQL Server/PostgreSQL compatibility modes.
 
-API/read-model parity evidence now includes `RunSummaryApiJpaParityIntegrationTest`, which verifies `/api/v1/runs/{jobExecutionId}/step-records` and `/api/v1/runs/{jobExecutionId}/artifact-records` response-shape parity on the JPA-backed path.
+API/read-model parity evidence now includes `RunSummaryApiJpaParityIntegrationTest` and `RunSummaryApiJpaParityPostgresModeIntegrationTest`, which verify `/api/v1/runs/{jobExecutionId}/step-records` and `/api/v1/runs/{jobExecutionId}/artifact-records` response-shape parity on the JPA-backed path across MySQL and PostgreSQL compatibility modes.
 

@@ -3,6 +3,7 @@ package com.etl.controlplane.schedules;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -221,8 +222,35 @@ public class JdbcScheduleRegistry implements ScheduleRegistry {
 			}
 		});
 		if (!Boolean.TRUE.equals(exists)) {
-			jdbcTemplate.execute(createIndexSql);
+			try {
+				jdbcTemplate.execute(createIndexSql);
+			} catch (DataAccessException exception) {
+				if (!isExistingIndexCreationFailure(exception, indexName)) {
+					throw exception;
+				}
+			}
 		}
+	}
+
+	private boolean isExistingIndexCreationFailure(DataAccessException exception, String indexName) {
+		Throwable current = exception;
+		while (current != null) {
+			if (current instanceof java.sql.SQLException sqlException) {
+				String sqlState = sqlException.getSQLState();
+				int errorCode = sqlException.getErrorCode();
+				String message = sqlException.getMessage();
+				if ("42S11".equals(sqlState)
+						|| "42710".equals(sqlState)
+						|| errorCode == 42111
+						|| (message != null
+						&& message.toLowerCase(Locale.ROOT).contains("already exists")
+						&& message.toLowerCase(Locale.ROOT).contains(indexName.toLowerCase(Locale.ROOT)))) {
+					return true;
+				}
+			}
+			current = current.getCause();
+		}
+		return false;
 	}
 
 	private void createTableIfMissing(String tableName, String createTableSql) {

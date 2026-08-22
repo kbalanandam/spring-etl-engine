@@ -7,12 +7,18 @@
        right operational reason and emits failure evidence in logs.
     3. Trigger-now controller paths emit structured `CONTROLPLANE_TRIGGER`
        evidence logs for requested/accepted/duplicate decisions.
+    4. MySQL compatibility-mode control-plane parity test lane passes.
+    5. MSSQL compatibility-mode control-plane parity test lane passes.
+    6. Control-plane-disabled ETL fallback test lane passes.
 
     Main artifacts:
     - target/verify-customer-load.log
     - target/verify-csv-to-sqlserver.log
     - target/verify-trigger-now.log
     - src/main/resources/config-jobs/customer-load/output/customers.xml
+    - target/verify-r5-parity-mysql.log
+    - target/verify-r5-parity-mssql.log
+    - target/verify-r5-fallback-memory.log
 
     Important behavior:
     - The second scenario is expected to fail.
@@ -286,6 +292,9 @@ function Invoke-H2Bootstrap {
 $positiveCapture = Join-Path $RepoRoot 'target\verify-customer-load.log'
 $negativeCapture = Join-Path $RepoRoot 'target\verify-csv-to-sqlserver.log'
 $triggerCapture = Join-Path $RepoRoot 'target\verify-trigger-now.log'
+$mysqlParityCapture = Join-Path $RepoRoot 'target\verify-r5-parity-mysql.log'
+$mssqlParityCapture = Join-Path $RepoRoot 'target\verify-r5-parity-mssql.log'
+$fallbackCapture = Join-Path $RepoRoot 'target\verify-r5-fallback-memory.log'
 $customerOutputRoot = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output'
 $customerOutput = Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output\customers.xml'
 $smokeDbDir = Join-Path $RepoRoot 'target\verify-smoke'
@@ -358,7 +367,7 @@ try {
             }
         }
 
-    @($positiveCapture, $negativeCapture) | ForEach-Object {
+    @($positiveCapture, $negativeCapture, $triggerCapture, $mysqlParityCapture, $mssqlParityCapture, $fallbackCapture) | ForEach-Object {
         if (Test-Path $_) {
             Remove-Item $_ -Force -ErrorAction SilentlyContinue
         }
@@ -367,7 +376,7 @@ try {
     Invoke-H2Bootstrap -JdbcUrl $customerSmokeDbJdbcUrl -ScriptPath $batchMetadataScriptPath -CaptureFile $positiveCapture -OperationLabel 'customer-load'
     Invoke-H2Bootstrap -JdbcUrl $negativeSmokeDbJdbcUrl -ScriptPath $batchMetadataScriptPath -CaptureFile $negativeCapture -OperationLabel 'csv-to-sqlserver'
 
-    Write-Host "[1/3] Verifying positive smoke run: customer-load"
+    Write-Host "[1/6] Verifying positive smoke run: customer-load"
     if (Test-Path (Join-Path $RepoRoot 'targetcustomers.xml')) {
         Remove-Item (Join-Path $RepoRoot 'targetcustomers.xml') -Force
     }
@@ -389,7 +398,7 @@ try {
     Assert-FileContainsAll -Path $positiveCapture -ExpectedTexts @('STEP_EVENT event=step_finished', 'stepName=customers-step') -Message 'customer-load did not finish the explicit step.'
     Assert-FileContains -Path $customerOutput -ExpectedText '<Customers>' -Message 'customer-load did not produce expected XML output.'
 
-    Write-Host "[2/3] Verifying negative smoke run: csv-to-sqlserver operational failure evidence"
+    Write-Host "[2/6] Verifying negative smoke run: csv-to-sqlserver operational failure evidence"
     # Negative smoke: prove that the preserved SQL Server scenario still fails and
     # emits explicit failure evidence for operators.
     Invoke-MavenScenario -ScenarioName 'csv-to-sqlserver' -JobConfigPath 'src/main/resources/config-jobs/csv-to-sqlserver/job-config.yaml' -CaptureFile $negativeCapture -ExpectSuccess $false -AllowZeroExitOnExpectedFailure $true -AdditionalJvmArguments $negativeSmokeJvmArgs | Out-Null
@@ -397,7 +406,7 @@ try {
     Assert-FileContains -Path $negativeCapture -ExpectedText 'placeholder value' -Message 'csv-to-sqlserver did not fail fast on placeholder SQL Server values.'
     Assert-FileContains -Path $negativeCapture -ExpectedText 'BUILD FAILURE' -Message 'csv-to-sqlserver did not terminate with the expected startup failure.'
 
-    Write-Host "[3/3] Verifying trigger-now log evidence from controller tests"
+    Write-Host "[3/6] Verifying trigger-now log evidence from controller tests"
     $triggerArgs = @(
         '--no-transfer-progress'
         '-Dtest=JobBundleControllerTriggerNowUnitTest,ScheduleControllerTest'
@@ -414,11 +423,53 @@ try {
     Assert-FileContains -Path $triggerCapture -ExpectedText 'CONTROLPLANE_TRIGGER event=trigger_now_accepted scope=SCHEDULE' -Message 'Missing schedule trigger-now accepted evidence.'
     Assert-FileContains -Path $triggerCapture -ExpectedText 'CONTROLPLANE_TRIGGER event=trigger_now_duplicate_suppressed scope=SCHEDULE' -Message 'Missing schedule trigger-now duplicate-suppressed evidence.'
 
+    Write-Host "[4/6] Verifying MySQL parity lane evidence"
+    $mysqlParityArgs = @(
+        '--no-transfer-progress'
+        '-Dtest=RunSummaryApiJpaParityIntegrationTest'
+        'test'
+    )
+    $mysqlParityExitCode = Invoke-MavenWithTimeout -CaptureFile $mysqlParityCapture -Arguments $mysqlParityArgs -TimeoutMinutes $ScenarioTimeoutMinutes -OperationLabel 'R5 MySQL parity lane'
+    if ($mysqlParityExitCode -ne 0) {
+        throw "R5 MySQL parity lane failed unexpectedly. See $mysqlParityCapture"
+    }
+    Assert-FileContains -Path $mysqlParityCapture -ExpectedText 'RunSummaryApiJpaParityIntegrationTest' -Message 'MySQL parity lane did not run the expected test class.'
+    Assert-FileContains -Path $mysqlParityCapture -ExpectedText 'BUILD SUCCESS' -Message 'MySQL parity lane did not complete successfully.'
+
+    Write-Host "[5/6] Verifying MSSQL parity lane evidence"
+    $mssqlParityArgs = @(
+        '--no-transfer-progress'
+        '-Dtest=RunSummaryApiJpaParityMssqlModeIntegrationTest'
+        'test'
+    )
+    $mssqlParityExitCode = Invoke-MavenWithTimeout -CaptureFile $mssqlParityCapture -Arguments $mssqlParityArgs -TimeoutMinutes $ScenarioTimeoutMinutes -OperationLabel 'R5 MSSQL parity lane'
+    if ($mssqlParityExitCode -ne 0) {
+        throw "R5 MSSQL parity lane failed unexpectedly. See $mssqlParityCapture"
+    }
+    Assert-FileContains -Path $mssqlParityCapture -ExpectedText 'RunSummaryApiJpaParityMssqlModeIntegrationTest' -Message 'MSSQL parity lane did not run the expected test class.'
+    Assert-FileContains -Path $mssqlParityCapture -ExpectedText 'BUILD SUCCESS' -Message 'MSSQL parity lane did not complete successfully.'
+
+    Write-Host "[6/6] Verifying control-plane-disabled fallback lane evidence"
+    $fallbackArgs = @(
+        '--no-transfer-progress'
+        '-Dtest=EtlWorkerControlPlaneDisabledFallbackTest'
+        'test'
+    )
+    $fallbackExitCode = Invoke-MavenWithTimeout -CaptureFile $fallbackCapture -Arguments $fallbackArgs -TimeoutMinutes $ScenarioTimeoutMinutes -OperationLabel 'R5 fallback lane'
+    if ($fallbackExitCode -ne 0) {
+        throw "R5 fallback lane failed unexpectedly. See $fallbackCapture"
+    }
+    Assert-FileContains -Path $fallbackCapture -ExpectedText 'EtlWorkerControlPlaneDisabledFallbackTest' -Message 'Fallback lane did not run the expected test class.'
+    Assert-FileContains -Path $fallbackCapture -ExpectedText 'BUILD SUCCESS' -Message 'Fallback lane did not complete successfully.'
+
     Write-Host ''
     Write-Host 'Verification PASSED' -ForegroundColor Green
     Write-Host "- Positive run log: $positiveCapture"
     Write-Host "- Negative run log: $negativeCapture"
     Write-Host "- Trigger evidence log: $triggerCapture"
+    Write-Host "- MySQL parity log: $mysqlParityCapture"
+    Write-Host "- MSSQL parity log: $mssqlParityCapture"
+    Write-Host "- Fallback parity log: $fallbackCapture"
     Write-Host "- Positive output: $customerOutput"
 
     # Reset the process exit code to success because the negative scenario already failed
