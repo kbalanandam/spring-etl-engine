@@ -38,9 +38,9 @@ Goal: ship the first **product-grade optional control-plane persistence lane** a
 Planned scope:
 
 - `R2` acceptance closure (profile/property matrix, vendor-token validation, fallback proof, runbook updates)
-- `R3` first implementation slice for portable control-plane history persistence without breaking current read-model/API contracts
+- `R3` portable control-plane history persistence without breaking current read-model/API contracts
 - `R4` migration/versioning baseline that stays separate from bootstrap repair behavior
-- `R5` first parity evidence for MySQL/SQL Server plus control-plane-disabled fallback proof
+- `R5` release-facing parity evidence for MySQL/MSSQL/PostgreSQL plus control-plane-disabled fallback proof
 - `S3` follow-on scheduler governance hardening once the persistence lane is stable enough to support run-state-aware overlap/audit behavior
 - `F1` implementation-oriented recovery/read-model hardening that keeps advisory recovery shipped while deferring unsupported resume execution
 
@@ -150,8 +150,8 @@ Use this compact template for each new target version:
 
 ## Immediate next step
 
-`1.11.0` lane should now start with `R2` closure and then move directly into `R3` / `R4` / `R5`, with `S3`, `F1`, `G1`, and `V4` treated as bounded product-grade follow-ons rather than reopening MVP scheduler/UI scope.
+`1.11.0` lane now has `R2` -> `R5` closed for the product-grade optional control-plane persistence slice; the active follow-on scope is `S3`, `F1`, `G1`, and `V4` without reopening MVP scheduler/UI scope or making control-plane persistence mandatory for direct ETL runs.
 
-Use [`release-1.11.0-r2-kickoff-checklist.md`](release-1.11.0-r2-kickoff-checklist.md) as the active execution tracker for `R2` entry/exit gates and PR-stack progress.
+Use [`product-backlog.md`](product-backlog.md) plus the Epic/detail pages for `S3`, `F1`, `G1`, and `V4` as the active execution trackers for the next `1.11.0` follow-on slices.
 
 

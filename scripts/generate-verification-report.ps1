@@ -537,6 +537,7 @@ function Invoke-SmokeVerification {
     $negativeLog = Join-Path $WorkingDirectory 'target\verify-csv-to-sqlserver.log'
     $mysqlParityLog = Join-Path $WorkingDirectory 'target\verify-r5-parity-mysql.log'
     $mssqlParityLog = Join-Path $WorkingDirectory 'target\verify-r5-parity-mssql.log'
+    $postgresParityLog = Join-Path $WorkingDirectory 'target\verify-r5-parity-postgres.log'
     $fallbackLog = Join-Path $WorkingDirectory 'target\verify-r5-fallback-memory.log'
     $positiveOutput = Join-Path $WorkingDirectory 'src\main\resources\config-jobs\customer-load\output\customers.xml'
 
@@ -576,6 +577,13 @@ function Invoke-SmokeVerification {
             $mssqlParityContent.Contains('BUILD SUCCESS')
     }
 
+    $postgresParityPassed = (Test-Path $postgresParityLog)
+    if ($postgresParityPassed) {
+        $postgresParityContent = Get-Content -Path $postgresParityLog -Raw
+        $postgresParityPassed = $postgresParityContent.Contains('RunSummaryApiJpaParityPostgresModeIntegrationTest') -and
+            $postgresParityContent.Contains('BUILD SUCCESS')
+    }
+
     $fallbackPassed = (Test-Path $fallbackLog)
     if ($fallbackPassed) {
         $fallbackContent = Get-Content -Path $fallbackLog -Raw
@@ -587,17 +595,19 @@ function Invoke-SmokeVerification {
         ExitCode = $exitCode
         TimedOut = $timedOut
         TimeoutMinutes = $ScenarioTimeoutMinutes
-        Passed = ($exitCode -eq 0 -and $positivePassed -and $negativePassed -and $mysqlParityPassed -and $mssqlParityPassed -and $fallbackPassed)
+        Passed = ($exitCode -eq 0 -and $positivePassed -and $negativePassed -and $mysqlParityPassed -and $mssqlParityPassed -and $postgresParityPassed -and $fallbackPassed)
         PositivePassed = $positivePassed
         NegativePassed = $negativePassed
         MySqlParityPassed = $mysqlParityPassed
         MssqlParityPassed = $mssqlParityPassed
+        PostgresParityPassed = $postgresParityPassed
         FallbackPassed = $fallbackPassed
         CaptureFile = $CaptureFile
         PositiveLog = $positiveLog
         NegativeLog = $negativeLog
         MySqlParityLog = $mysqlParityLog
         MssqlParityLog = $mssqlParityLog
+        PostgresParityLog = $postgresParityLog
         FallbackLog = $fallbackLog
         PositiveOutput = $positiveOutput
     }
@@ -621,6 +631,7 @@ function New-VerificationEvidence {
     $negativeSmokeStatus = if ($SmokeWasSkipped) { 'SKIPPED' } elseif ($SmokeSummary -and $SmokeSummary.TimedOut) { 'TIMEOUT' } elseif ($SmokeSummary -and $SmokeSummary.NegativePassed) { 'PASS' } else { 'FAIL' }
     $mysqlParityStatus = if ($SmokeWasSkipped) { 'SKIPPED' } elseif ($SmokeSummary -and $SmokeSummary.TimedOut) { 'TIMEOUT' } elseif ($SmokeSummary -and $SmokeSummary.MySqlParityPassed) { 'PASS' } else { 'FAIL' }
     $mssqlParityStatus = if ($SmokeWasSkipped) { 'SKIPPED' } elseif ($SmokeSummary -and $SmokeSummary.TimedOut) { 'TIMEOUT' } elseif ($SmokeSummary -and $SmokeSummary.MssqlParityPassed) { 'PASS' } else { 'FAIL' }
+    $postgresParityStatus = if ($SmokeWasSkipped) { 'SKIPPED' } elseif ($SmokeSummary -and $SmokeSummary.TimedOut) { 'TIMEOUT' } elseif ($SmokeSummary -and $SmokeSummary.PostgresParityPassed) { 'PASS' } else { 'FAIL' }
     $fallbackStatus = if ($SmokeWasSkipped) { 'SKIPPED' } elseif ($SmokeSummary -and $SmokeSummary.TimedOut) { 'TIMEOUT' } elseif ($SmokeSummary -and $SmokeSummary.FallbackPassed) { 'PASS' } else { 'FAIL' }
     $overallReady = ($MavenRun.ExitCode -eq 0) -and ($SmokeWasSkipped -or ($SmokeSummary -and $SmokeSummary.Passed))
     $overallStatus = if ($overallReady) { 'READY' } else { 'NOT READY' }
@@ -803,12 +814,14 @@ function New-VerificationEvidence {
             NegativeStatus = $negativeSmokeStatus
             MySqlParityStatus = $mysqlParityStatus
             MssqlParityStatus = $mssqlParityStatus
+            PostgresParityStatus = $postgresParityStatus
             FallbackStatus = $fallbackStatus
             CaptureFile = if ($SmokeSummary) { $SmokeSummary.CaptureFile } else { $null }
             PositiveLog = if ($SmokeSummary) { $SmokeSummary.PositiveLog } else { $null }
             NegativeLog = if ($SmokeSummary) { $SmokeSummary.NegativeLog } else { $null }
             MySqlParityLog = if ($SmokeSummary) { $SmokeSummary.MySqlParityLog } else { $null }
             MssqlParityLog = if ($SmokeSummary) { $SmokeSummary.MssqlParityLog } else { $null }
+            PostgresParityLog = if ($SmokeSummary) { $SmokeSummary.PostgresParityLog } else { $null }
             FallbackLog = if ($SmokeSummary) { $SmokeSummary.FallbackLog } else { $null }
             PositiveOutput = if ($SmokeSummary) { $SmokeSummary.PositiveOutput } else { $null }
         }
@@ -883,6 +896,7 @@ function New-VerificationReport {
         }
         $lines.Add("- Parity lane (`RunSummaryApiJpaParityIntegrationTest`, MySQL mode): **$(Get-StatusBadge -Status $Evidence.Runtime.MySqlParityStatus)**") | Out-Null
         $lines.Add("- Parity lane (`RunSummaryApiJpaParityMssqlModeIntegrationTest`, MSSQL mode): **$(Get-StatusBadge -Status $Evidence.Runtime.MssqlParityStatus)**") | Out-Null
+        $lines.Add("- Parity lane (`RunSummaryApiJpaParityPostgresModeIntegrationTest`, PostgreSQL mode): **$(Get-StatusBadge -Status $Evidence.Runtime.PostgresParityStatus)**") | Out-Null
         $lines.Add("- Fallback lane (`EtlWorkerControlPlaneDisabledFallbackTest`): **$(Get-StatusBadge -Status $Evidence.Runtime.FallbackStatus)**") | Out-Null
     }
     if ($Evidence.ReleaseReadiness.Caveats.Count -eq 0) {
@@ -1085,6 +1099,7 @@ function New-VerificationReport {
         $lines.Add("- Negative smoke (csv-to-sqlserver fail-fast): **$($Evidence.Runtime.NegativeStatus)**") | Out-Null
         $lines.Add("- Parity lane (MySQL mode): **$($Evidence.Runtime.MySqlParityStatus)**") | Out-Null
         $lines.Add("- Parity lane (MSSQL mode): **$($Evidence.Runtime.MssqlParityStatus)**") | Out-Null
+        $lines.Add("- Parity lane (PostgreSQL mode): **$($Evidence.Runtime.PostgresParityStatus)**") | Out-Null
         $lines.Add("- Fallback lane (control-plane disabled): **$($Evidence.Runtime.FallbackStatus)**") | Out-Null
         $lines.Add('- Runtime evidence captured from:') | Out-Null
         $lines.Add("  - Smoke capture: $($Evidence.Runtime.CaptureFile)") | Out-Null
@@ -1092,6 +1107,7 @@ function New-VerificationReport {
         $lines.Add("  - Negative log: $($Evidence.Runtime.NegativeLog)") | Out-Null
         $lines.Add("  - MySQL parity log: $($Evidence.Runtime.MySqlParityLog)") | Out-Null
         $lines.Add("  - MSSQL parity log: $($Evidence.Runtime.MssqlParityLog)") | Out-Null
+        $lines.Add("  - PostgreSQL parity log: $($Evidence.Runtime.PostgresParityLog)") | Out-Null
         $lines.Add("  - Fallback log: $($Evidence.Runtime.FallbackLog)") | Out-Null
         $lines.Add("  - Positive output: $($Evidence.Runtime.PositiveOutput)") | Out-Null
     }
@@ -2038,12 +2054,14 @@ if (-not $SkipSmoke) {
             NegativePassed = $false
             MySqlParityPassed = $false
             MssqlParityPassed = $false
+            PostgresParityPassed = $false
             FallbackPassed = $false
             CaptureFile = $smokeCapture
             PositiveLog = (Join-Path $RepoRoot 'target\verify-customer-load.log')
             NegativeLog = (Join-Path $RepoRoot 'target\verify-csv-to-sqlserver.log')
             MySqlParityLog = (Join-Path $RepoRoot 'target\verify-r5-parity-mysql.log')
             MssqlParityLog = (Join-Path $RepoRoot 'target\verify-r5-parity-mssql.log')
+            PostgresParityLog = (Join-Path $RepoRoot 'target\verify-r5-parity-postgres.log')
             FallbackLog = (Join-Path $RepoRoot 'target\verify-r5-fallback-memory.log')
             PositiveOutput = (Join-Path $RepoRoot 'src\main\resources\config-jobs\customer-load\output\customers.xml')
         }

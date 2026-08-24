@@ -8,7 +8,7 @@ Introduce one schema migration/versioning baseline for control-plane persistence
 
 - Epic: **[Epic R](../../epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)**
 - Priority: **P1**
-- Status: **Ready**
+- Status: **Done**
 - Milestone: **M3**
 - Dependency: **R2, R3**
 
@@ -78,5 +78,5 @@ Keep migration naming/versioning deterministic and CI-friendly. Avoid hidden sch
 
 ## Status notes
 
-Baseline implemented for MySQL + SQL Server through vendor-scoped Flyway migrations (`src/main/resources/db/migration/controlplane/*`) with control-plane profile wiring in `application-controlplane.properties`.
+Baseline is implemented through vendor-scoped Flyway migrations (`src/main/resources/db/migration/controlplane/*`) with control-plane profile wiring in `application-controlplane.properties`; release-facing migration/versioning hardening and handoff guidance are now aligned for the supported persistence lanes.
 

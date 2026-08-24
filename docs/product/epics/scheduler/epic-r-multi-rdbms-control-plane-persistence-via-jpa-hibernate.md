@@ -40,5 +40,5 @@ This epic is **not** the place to make control-plane persistence mandatory for E
 
 Use [`../../product-backlog.md`](../../product-backlog.md) for live item-level board fields. Use this page for the shared Epic R boundary and phased multi-RDBMS persistence intent.
 
-Near-term sequencing: Epic R is now the active next-phase lane. `R1` is closed, `R2` is the live gate for profile/property/matrix validation, and `R3` -> `R5` are the immediate product-grade persistence follow-ons once that gate is green.
+Near-term sequencing: Epic R (`R1` -> `R5`) is now closed for the current product-grade persistence lane. The active follow-on scope moves to `S3`, `F1`, `G1`, and `V4` while preserving the shipped optional-control-plane boundary and current parity baseline.
 

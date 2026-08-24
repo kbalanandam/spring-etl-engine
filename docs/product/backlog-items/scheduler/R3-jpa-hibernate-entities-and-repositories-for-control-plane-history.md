@@ -8,7 +8,7 @@ Implement a JPA/Hibernate persistence path for retained control-plane history (t
 
 - Epic: **[Epic R](../../epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)**
 - Priority: **P1**
-- Status: **In Progress**
+- Status: **Done**
 - Milestone: **M3**
 - Dependency: **R1, R2, S4**
 
@@ -62,7 +62,7 @@ Add a phased JPA-backed registry path behind existing interfaces, keep behavior 
 
 - [x] JPA entities/repositories cover retained control-plane history needed by existing read-model APIs
 - [x] stable external IDs and current response shapes are preserved
-- [ ] behavior parity tests pass for run summary, step/artifact, and recovery lookup paths (current JPA-focused parity slices and targeted tests are in place; broader vendor evidence remains open)
+- [x] behavior parity tests pass for run summary, step/artifact, and recovery lookup paths (MySQL/MSSQL/PostgreSQL compatibility-mode parity slices now pass for JPA registry and API/read-model coverage)
 - [x] ETL worker direct execution remains independent from control-plane persistence
 
 ## Related docs
@@ -82,9 +82,9 @@ R1/R2 gates are complete; R3 now has direct repository-backed slices for `JpaTri
 
 Direct ETL-runtime boundary proof is now test-covered through `EtlWorkerControlPlaneIndependenceTest`, which verifies ETL runtime startup excludes control-plane API beans even when `controlplane.*` persistence properties are set to an unavailable relational endpoint.
 
-Current open follow-on is parity enrichment for the remaining control-plane history edge cases plus broader vendor evidence before handing off to `R4`/`R5`.
+The planned parity-enrichment follow-on for this slice is closed for the shipped MySQL/MSSQL/PostgreSQL compatibility-mode matrix, enabling `R4`/`R5` closure without widening the runtime contract.
 
 No-server parity evidence now includes `JpaRunSummaryRegistryMysqlModeIntegrationTest`, `JpaRunSummaryRegistryMssqlModeIntegrationTest`, and `JpaRunSummaryRegistryPostgresModeIntegrationTest`, which exercise JPA run summary + recovery read/write behavior and step/artifact lookup parity in H2 MySQL/SQL Server/PostgreSQL compatibility modes.
 
-API/read-model parity evidence now includes `RunSummaryApiJpaParityIntegrationTest` and `RunSummaryApiJpaParityPostgresModeIntegrationTest`, which verify `/api/v1/runs/{jobExecutionId}/step-records` and `/api/v1/runs/{jobExecutionId}/artifact-records` response-shape parity on the JPA-backed path across MySQL and PostgreSQL compatibility modes.
+API/read-model parity evidence now includes `RunSummaryApiJpaParityIntegrationTest`, `RunSummaryApiJpaParityMssqlModeIntegrationTest`, and `RunSummaryApiJpaParityPostgresModeIntegrationTest`, which verify `/api/v1/runs/{jobExecutionId}/step-records` and `/api/v1/runs/{jobExecutionId}/artifact-records` response-shape parity on the JPA-backed path across MySQL, SQL Server, and PostgreSQL compatibility modes.
 

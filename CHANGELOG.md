@@ -12,8 +12,8 @@ and this project adheres to **Semantic Versioning**.
 - Added `ControlPlanePersistenceContractGuard` to enforce one-mode selection (`memory`, `jdbc`, or `jpa`) across trigger/run/schedule persistence, plus relational vendor/url/driver contract fail-fast checks for `postgresql`, `mysql`, `mssql`, and `oracle`.
 - Started `R3` first implementation slice for portable control-plane history persistence while preserving current read-model/API compatibility.
 - Added JPA/Hibernate entity and repository coverage for retained control-plane history tables together with a shared `JpaControlPlanePkAllocator` for stable control-plane surrogate key allocation.
-- [Planned `1.11.0`] Start `R4` cross-RDBMS migration/versioning baseline separated from bootstrap repair behavior.
-- Added `RunSummaryApiJpaParityMssqlModeIntegrationTest` and `EtlWorkerControlPlaneDisabledFallbackTest` to formalize `R5` SQL Server parity and control-plane-disabled fallback proof lanes.
+- Started `R4` cross-RDBMS migration/versioning baseline execution tracking for `1.11.0` release hardening.
+- Added `RunSummaryApiJpaParityPostgresModeIntegrationTest` and `JpaRunSummaryRegistryPostgresModeIntegrationTest` to extend `R5` parity coverage into PostgreSQL compatibility mode alongside existing MySQL/SQL Server/fallback lanes.
 
 ### Changed
 - Captured `R2` evidence-closure progress with targeted config/persistence tests and smoke fallback verification (`target/tmp-r2-targeted-tests.log`, `target/tmp-r2-profile-tests.log`, `target/tmp-r2-verify-recent.log`), and synced release/backlog trackers with remaining matrix-proof gates.
@@ -21,9 +21,11 @@ and this project adheres to **Semantic Versioning**.
 - Closed `R2` acceptance scope by adding explicit unavailable-control-plane persistence proof (`target/tmp-r2-verify-recent-unavailable-controlplane.log`) and syncing release/backlog checklists to `R2=Done`.
 - Expanded `jpa` control-plane mode from entity-only scaffolding into direct repository-backed trigger, schedule, run-summary, step-snapshot, advisory recovery, and log-checkpoint slices while preserving stable external IDs and one aligned persistence mode per process start.
 - Retired SQLite-only control-plane maintenance helpers and runbook artifacts from active operations guidance (`scripts/cleanup-controlplane-duplicate-steps.ps1`, `scripts/migrate-controlplane-sqlite-to-shared.ps1`, `docs/operations/control-plane-sqlite-duplicate-step-maintenance.md`).
-- Expanded verification automation/reporting to include dedicated `R5` MySQL parity, SQL Server parity, and control-plane-disabled fallback lanes (`target/verify-r5-parity-mysql.log`, `target/verify-r5-parity-mssql.log`, `target/verify-r5-fallback-memory.log`) in smoke status and readiness output.
-- Expanded `scripts/verify-recent-changes.ps1` from a 3-check smoke path to a 6-check lane that now runs trigger evidence, MySQL parity, SQL Server parity, and control-plane-disabled fallback proofs in one pass.
+- Expanded verification automation/reporting to include dedicated `R5` MySQL parity, SQL Server parity, PostgreSQL parity, and control-plane-disabled fallback lanes (`target/verify-r5-parity-mysql.log`, `target/verify-r5-parity-mssql.log`, `target/verify-r5-parity-postgres.log`, `target/verify-r5-fallback-memory.log`) in smoke status and readiness output.
+- Regenerated verification artifacts with all R5 vendor/fallback lanes passing in one run (`target/verification-report.md`, `target/verification-report-20260824-113134.md`).
+- Expanded `scripts/verify-recent-changes.ps1` from a 3-check smoke path to a 7-check lane that now runs trigger evidence, MySQL parity, SQL Server parity, PostgreSQL parity, and control-plane-disabled fallback proofs in one pass.
 - Updated `R3`/`R5` scheduler backlog docs to align active vendor parity coverage and fallback evidence with the current JPA/API test matrix.
+- Closed `R3`, `R4`, and `R5` product/backlog/release-scope trackers now that parity, migration-baseline, and control-plane-disabled fallback evidence are all captured.
 - Aligned JPA API parity integration bootstrapping to explicit servlet-mode test contexts so `MockMvc` parity lanes remain stable across vendor compatibility modes.
 - [Planned `1.11.0`] Deliver bounded `S3` governance follow-on and bounded `F1` advisory recovery/read-model hardening without expanding unsupported resume execution.
 - Documented control-plane JDBC duplicate-index startup tolerance behavior in the release notes for operational traceability.

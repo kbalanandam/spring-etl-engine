@@ -277,9 +277,9 @@ This table is the day-to-day execution view for the current product stage.
 | [S4](backlog-items/scheduler/S4-control-plane-operational-data-model.md) | Define control-plane operational data model for schedules, watchers, trigger events, run and step history, artifact lineage, and restartability anchors | Epic S | P1 | Done | M2 | S1, C1, C2 | Current-release S4a slice is shipped (schedule/trigger/run PK-cutover foundations); S4b baseline is complete with durable `step_record` + `artifact_record` schema, lineage guardrails, step+artifact projection writes, persisted read-model APIs, and Operator UI run-detail consumption; S4c first functional slice is now shipped for `attempt_link`/`checkpoint_anchor` persistence and recovery lookups, with any future semantic expansion explicitly aligned to `F1` restart decisions (see [`S4c checklist`](backlog-items/scheduler/S4c-attempt-link-checkpoint-anchor-checklist.md)). |
 | [R1](backlog-items/scheduler/R1-freeze-jpa-hibernate-control-plane-persistence-boundary.md) | Freeze JPA/Hibernate control-plane persistence boundary | Epic R | P1 | Done | M3 | S1, S4 | ADR-0014 and persistence boundary docs now freeze optional-control-plane invariants for multi-RDBMS follow-on work |
 | [R2](backlog-items/scheduler/R2-multi-rdbms-datasource-and-dialect-profile-contract.md) | Define multi-RDBMS datasource and dialect profile contract | Epic R | P1 | Done | M3 | R1 | Validation evidence captured (`target/tmp-r2-targeted-tests.log`, `target/tmp-r2-profile-tests.log`, `target/tmp-r2-verify-recent.log`, `target/tmp-r2-guard-tests.log`, `target/tmp-r2-next-task-tests.log`, `target/tmp-r2-verify-recent-unavailable-controlplane.log`); R2 acceptance scope closed |
-| [R3](backlog-items/scheduler/R3-jpa-hibernate-entities-and-repositories-for-control-plane-history.md) | Add JPA/Hibernate entities and repositories for control-plane history | Epic R | P1 | In Progress | M3 | R1, R2, S4 | Direct JPA-backed trigger/schedule/run-history slices are active under one-mode-per-run selection; remaining work is parity edge cases plus broader vendor evidence |
-| [R4](backlog-items/scheduler/R4-cross-rdbms-schema-migration-baseline.md) | Introduce cross-RDBMS schema migration baseline | Epic R | P1 | Ready | M3 | R2, R3 | Establish migration/versioning rules with portable-first DDL and isolated vendor deltas where required |
-| [R5](backlog-items/scheduler/R5-multi-rdbms-parity-and-fallback-verification.md) | Prove multi-RDBMS parity and fallback behavior | Epic R | P2 | Ready | M3 | R3, R4 | Validate parity for supported engines and keep direct selected-job ETL runs functional when control-plane persistence is disabled |
+| [R3](backlog-items/scheduler/R3-jpa-hibernate-entities-and-repositories-for-control-plane-history.md) | Add JPA/Hibernate entities and repositories for control-plane history | Epic R | P1 | Done | M3 | R1, R2, S4 | Direct JPA-backed trigger/schedule/run-history slices are active under one-mode-per-run selection with MySQL/MSSQL/PostgreSQL parity and ETL-worker independence evidence captured |
+| [R4](backlog-items/scheduler/R4-cross-rdbms-schema-migration-baseline.md) | Introduce cross-RDBMS schema migration baseline | Epic R | P1 | Done | M3 | R2, R3 | Portable-first migration/versioning rules are established with vendor deltas isolated where required and documented for supported lanes |
+| [R5](backlog-items/scheduler/R5-multi-rdbms-parity-and-fallback-verification.md) | Prove multi-RDBMS parity and fallback behavior | Epic R | P2 | Done | M3 | R3, R4 | Active automated parity lanes cover MySQL/MSSQL/PostgreSQL and control-plane-disabled direct selected-job execution remains proven |
 | [U1](backlog-items/operator-ui/U1-independent-operator-ui-shell-and-monitoring-read-model.md) | Stand up independent monitoring-first Operator UI shell with jobs and runs list views | Epic U | P1 | Done | M2 | C1 | Completed monitoring-first shell on `/operator` with read-only Jobs/Runs list views, placeholder deep links (`#/runs/{jobExecutionId}`, `#/jobs/{jobKey}`), client-side filter/sort controls, and hash-route state persistence; remains independent from ETL worker launch path |
 | [U2](backlog-items/operator-ui/U2-run-detail-drilldown-with-step-and-artifact-evidence.md) | Add job run detail drill-down with step outcomes, evidence links, and run-scoped log viewer | Epic U | P1 | Done | M2 | U1, C2 | Completed run-detail drill-down with step/failure/artifact evidence, independent/combined runs-list job + start-date filtering, and richer run-instance-scoped in-page log rendering (without widening scheduler/launch boundaries) |
 | [U3](backlog-items/operator-ui/U3-guarded-trigger-now-from-job-details.md) | Add guarded trigger-now action from job details without scheduler coupling | Epic U | P1 | Done | M2 | U1, S1 | Completed guarded trigger-now action on job detail with confirmation, traceable `triggerEventId`/decision feedback, categorized failure messages, and explicit selected-job boundary wording (no scheduler-management controls added) |
@@ -295,16 +295,15 @@ This table is the day-to-day execution view for the current product stage.
 
 Use this section as the near-term sequencing view behind the execution board:
 
-1. Treat the next phase as a **product-grade optional control-plane lane**: execute `R3` now, then continue into `R4`/`R5` without reopening MVP UI/scheduler scope.
-2. Keep `R1` closed as the freeze gate and use the shipped MySQL/SQL Server bootstrap parity plus vendor-neutral property surface as the starting proof point for Epic R execution.
-3. `R2` gate is now closed; begin `R3` first persistence implementation slice while preserving the same optional control-plane boundary.
-4. Start `R3` as an adapter/persistence seam exercise that preserves today’s read-model contracts (`runs`, `recovery`, step/artifact lineage) while reducing vendor-specific drift.
-5. Start `R4` only after `R3` parity is stable; migration/versioning must stay explicit and never become bootstrap-time repair logic.
-6. Keep `R5` close behind `R4` so parity and control-plane-disabled fallback are proven as part of the same product-grade lane, not a late cleanup phase.
-7. Treat `S1`, `S2`, `S4`, and `U5` as shipped foundations; the next scheduler/UI credibility slice is `S3` run-state-aware overlap governance and stronger trigger audit behavior.
-8. Keep `F1` active as implementation-oriented restartability hardening only: advisory recovery/read-model evidence is shipped, but any future resume execution must remain deliberate and target-aware.
-9. Start `G1` and `V4` in the same planning window as Epic R so secure configuration, release gating, and evidence retention are not deferred until after portability work lands.
-10. Leave advanced transform/parser/transport expansion deferred while the product-grade persistence, scheduler-governance, and release-control lane is being stabilized.
+1. Treat Epic R (`R1` -> `R5`) as a closed product-grade optional control-plane persistence lane for the current release scope.
+2. Keep the shipped vendor-neutral persistence profile surface and one-mode-per-run guardrails frozen while follow-on governance work proceeds.
+3. Preserve the completed JPA-backed run/recovery/step/artifact read-model contract as the baseline for future control-plane persistence enhancements.
+4. Preserve explicit migrations as the schema-evolution path; do not reintroduce bootstrap-time repair logic into supported relational lanes.
+5. Keep MySQL/MSSQL/PostgreSQL parity evidence plus control-plane-disabled ETL fallback proof as the release-facing portability baseline.
+6. Treat `S1`, `S2`, `S4`, and `U5` as shipped foundations; the next scheduler/UI credibility slice is `S3` run-state-aware overlap governance and stronger trigger audit behavior.
+7. Keep `F1` active as implementation-oriented restartability hardening only: advisory recovery/read-model evidence is shipped, but any future resume execution must remain deliberate and target-aware.
+8. Start `G1` and `V4` in the same planning window as the post-Epic-R follow-on so secure configuration, release gating, and evidence retention are not deferred again.
+9. Leave advanced transform/parser/transport expansion deferred while the scheduler-governance, restartability-hardening, and release-control lane is stabilized.
 
 ### Duplicate-handling checkpoint for next session
 
@@ -619,15 +618,15 @@ Support deploy-time selectable relational persistence for optional control-plane
 ### Backlog
 - [x] `R1` Freeze the JPA/Hibernate control-plane persistence boundary and non-goals before implementation expands
 - [x] `R2` Define one deploy-time datasource/dialect profile contract for PostgreSQL, SQL Server, MySQL, and Oracle
-- [ ] `R3` Implement JPA/Hibernate entity and repository mappings for retained scheduler/trigger/run/step/artifact history (`In Progress`; parity/vendor evidence closure remains)
-- [ ] `R4` Introduce schema migration/versioning rules that are portable-first with isolated vendor deltas where needed (`Ready`; baseline migrations and profile wiring are implemented, final board sync pending)
-- [ ] `R5` Prove behavior parity and fallback across supported engines without making control-plane persistence mandatory for direct ETL runs (`Ready`)
+- [x] `R3` Implement JPA/Hibernate entity and repository mappings for retained scheduler/trigger/run/step/artifact history (`Done`; parity/vendor evidence closure captured across MySQL/MSSQL/PostgreSQL)
+- [x] `R4` Introduce schema migration/versioning rules that are portable-first with isolated vendor deltas where needed (`Done`; baseline migrations, profile wiring, and handoff guidance aligned)
+- [x] `R5` Prove behavior parity and fallback across supported engines without making control-plane persistence mandatory for direct ETL runs (`Done`)
 
 ### Remaining Epic R execution checklist
-- [ ] Close `R3` acceptance gaps: broader parity evidence for run summary + step/artifact + recovery and explicit proof that direct ETL worker execution remains independent when control-plane persistence is unavailable.
-- [ ] Finalize `R4` rollout evidence/handoff across supported lanes (migration governance plus upgrade/operational guidance alignment).
-- [ ] Execute `R5` parity matrix lanes (automated PostgreSQL/MySQL, defined SQL Server/Oracle validation lanes, and control-plane-disabled fallback verification evidence).
-- [ ] Publish release-facing portability evidence references in verification artifacts and product-tracking docs.
+- [x] Close `R3` acceptance gaps: broader parity evidence for run summary + step/artifact + recovery and explicit proof that direct ETL worker execution remains independent when control-plane persistence is unavailable.
+- [x] Finalize `R4` rollout evidence/handoff across supported lanes (migration governance plus upgrade/operational guidance alignment).
+- [x] Execute `R5` parity matrix lanes (active automated MySQL/MSSQL/PostgreSQL lanes plus control-plane-disabled fallback verification evidence).
+- [x] Publish release-facing portability evidence references in verification artifacts and product-tracking docs.
 
 ### Done criteria
 - direct selected-job ETL runs remain valid when control-plane persistence is absent or disabled
