@@ -6,6 +6,17 @@ and this project adheres to **Semantic Versioning**.
 
 ## [Unreleased]
 
+### Changed
+- [Planned `1.11.0`] Deliver bounded `S3` governance follow-on and bounded `F1` advisory recovery/read-model hardening without expanding unsupported resume execution.
+
+### Fixed
+- [Planned `1.10.1`] Apply targeted fixes discovered during the `R2`-`R5` persistence lane rollout and verification hardening.
+
+### Security
+- [Planned `1.10.1`] Continue dependency/CVE remediations on the patch lane without expanding runtime scope.
+
+## [1.11.0-rc1] - 2026-09-05
+
 ### Added
 - Added `docs/product/release-1.11.0-r2-kickoff-checklist.md` to track `1.11.0` `R2` entry/exit gates and PR-stack kickoff execution.
 - Added `docs/operations/control-plane-non-sqlite-bring-up.md` with quick MySQL/SQL Server bring-up steps for optional control-plane persistence.
@@ -27,17 +38,13 @@ and this project adheres to **Semantic Versioning**.
 - Updated `R3`/`R5` scheduler backlog docs to align active vendor parity coverage and fallback evidence with the current JPA/API test matrix.
 - Closed `R3`, `R4`, and `R5` product/backlog/release-scope trackers now that parity, migration-baseline, and control-plane-disabled fallback evidence are all captured.
 - Aligned JPA API parity integration bootstrapping to explicit servlet-mode test contexts so `MockMvc` parity lanes remain stable across vendor compatibility modes.
-- [Planned `1.11.0`] Deliver bounded `S3` governance follow-on and bounded `F1` advisory recovery/read-model hardening without expanding unsupported resume execution.
 - Documented control-plane JDBC duplicate-index startup tolerance behavior in the release notes for operational traceability.
 
 ### Fixed
-- [Planned `1.10.1`] Apply targeted fixes discovered during the `R2`-`R5` persistence lane rollout and verification hardening.
 - Fixed JPA-backed trigger history so accepted job/schedule trigger events deterministically sort newest-first and surface `launchedRunId` after the matching run projection is recorded.
 - Fixed control-plane JDBC startup idempotency by tolerating duplicate-index creation races in `JdbcScheduleRegistry`, `JdbcTriggerEventRegistry`, and `JdbcRunSummaryRegistry` when indexes already exist.
 - Fixed JPA run-summary API parity assertions to validate the shipped `stepStatus` response field contract on `/api/v1/runs/{jobExecutionId}/step-records`.
 
-### Security
-- [Planned `1.10.1`] Continue dependency/CVE remediations on the patch lane without expanding runtime scope.
 
 ## [1.10.0] - 2026-07-24
 
