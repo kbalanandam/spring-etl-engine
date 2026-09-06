@@ -42,6 +42,8 @@
 		<tomcat.version>10.1.59</tomcat.version>
 		<!-- Temporary override until the Spring Boot parent line advances with equivalent Spring CVE remediations. -->
 		<spring-framework.version>6.2.19</spring-framework.version>
+		<!-- Pin to a remediated connector release instead of the vulnerable 9.7.0 line. -->
+		<mysql-connector-j.version>26.7.0</mysql-connector-j.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -157,6 +159,7 @@
 		<dependency>
 			<groupId>com.mysql</groupId>
 			<artifactId>mysql-connector-j</artifactId>
+			<version>${mysql-connector-j.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 	</dependencies>
@@ -183,6 +186,16 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+			</plugin>
+			<plugin>
+				<groupId>org.owasp</groupId>
+				<artifactId>dependency-check-maven</artifactId>
+				<version>12.1.1</version>
+				<configuration>
+					<suppressionFiles>
+						<suppressionFile>.github/dependency-check-suppressions.xml</suppressionFile>
+					</suppressionFiles>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
