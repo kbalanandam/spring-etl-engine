@@ -75,6 +75,22 @@
     <cve>CVE-2026-59283</cve>
     <cve>CVE-2026-59313</cve>
   </suppress>
+
+  <suppress until="2027-01-31Z">
+    <notes><![CDATA[
+    Temporary suppression for spring-jcl 6.2.19 on the Boot 3.5.x line.
+    Remove once Spring is upgraded to a patched line.
+    ]]></notes>
+    <packageUrl regex="true">^pkg:maven/org\.springframework/spring-jcl@6\.2\.19$</packageUrl>
+    <cve>CVE-2026-47890</cve>
+    <cve>CVE-2026-47891</cve>
+    <cve>CVE-2026-47892</cve>
+    <cve>CVE-2026-47893</cve>
+    <cve>CVE-2026-59282</cve>
+    <cve>CVE-2026-59283</cve>
+    <cve>CVE-2026-59313</cve>
+  </suppress>
 </suppressions>
+
 
 
