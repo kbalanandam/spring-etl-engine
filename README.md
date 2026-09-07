@@ -202,6 +202,7 @@ Use this table as the recommended reading order by goal:
 
 | Goal | Start here | Then go to |
 |---|---|---|
+| Complete first-time setup (single guide) | [`docs/operations/comprehensive-setup-and-validation.md`](docs/operations/comprehensive-setup-and-validation.md) | Run Modes + full verification workflow |
 | First local run | Quick Start | Run Modes |
 | Run a real scenario | Explicit job-config mode | [`docs/config/job-config.md`](docs/config/job-config.md) |
 | Understand the config model | [`docs/config/README.md`](docs/config/README.md) | [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md) |

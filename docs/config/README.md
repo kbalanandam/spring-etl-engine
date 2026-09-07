@@ -21,6 +21,8 @@ Use these docs in two ways:
 1. as a reference for what each config type supports today
 2. as a guide when creating scenario-specific YAML files under `src/main/resources/config-jobs/` or developer-local private bundles under `private-jobs/`
 
+For first-time machine and runtime bring-up (including MySQL/SQL Server control-plane lanes and full verification), start with [`../operations/comprehensive-setup-and-validation.md`](../operations/comprehensive-setup-and-validation.md) before deep-diving into config pages.
+
 ## Current folder map
 
 The active config documentation set is currently organized by runtime concern (not by architecture-layer categories):
