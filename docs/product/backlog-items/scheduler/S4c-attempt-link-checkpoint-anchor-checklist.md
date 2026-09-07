@@ -37,7 +37,7 @@ Use this checklist to execute the `S4c` slice under [`S4-control-plane-operation
 
 - [x] schema-shape tests for new tables/columns/indexes
 - [x] invariant tests for attempt/checkpoint ownership and linkage
-- [x] compatibility tests for startup on pre-S4c local SQLite state
+- [x] compatibility tests for startup on pre-S4c local SQLite state (historical legacy-state validation only)
 - [x] retention/cleanup tests covering cascading deletion from parent run records
 
 ## Docs and board alignment

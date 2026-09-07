@@ -2462,8 +2462,35 @@ public class JdbcRunSummaryRegistry implements RunSummaryRegistry {
 			}
 		});
 		if (!Boolean.TRUE.equals(exists)) {
-			jdbcTemplate.execute(createIndexSql);
+			try {
+				jdbcTemplate.execute(createIndexSql);
+			} catch (DataAccessException exception) {
+				if (!isExistingIndexCreationFailure(exception, indexName)) {
+					throw exception;
+				}
+			}
 		}
+	}
+
+	private boolean isExistingIndexCreationFailure(DataAccessException exception, String indexName) {
+		Throwable current = exception;
+		while (current != null) {
+			if (current instanceof java.sql.SQLException sqlException) {
+				String sqlState = sqlException.getSQLState();
+				int errorCode = sqlException.getErrorCode();
+				String message = sqlException.getMessage();
+				if ("42S11".equals(sqlState)
+						|| "42710".equals(sqlState)
+						|| errorCode == 42111
+						|| (message != null
+						&& message.toLowerCase(Locale.ROOT).contains("already exists")
+						&& message.toLowerCase(Locale.ROOT).contains(indexName.toLowerCase(Locale.ROOT)))) {
+					return true;
+				}
+			}
+			current = current.getCause();
+		}
+		return false;
 	}
 
 	private void createTableIfMissing(String tableName, String createTableSql) {

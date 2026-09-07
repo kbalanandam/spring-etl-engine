@@ -134,7 +134,7 @@ This item should define the contract, not over-implement it. The key guardrail i
 
 The built-in scheduler should therefore be treated as one optional launcher of that contract, not as the only supported launcher.
 
-For early local control-plane work, lightweight relational persistence such as SQLite is acceptable if it helps contributors build scheduler features on a personal laptop without adding infrastructure first. Broader retained OneFlow history and concurrent operator usage can move to stronger relational deployment targets later.
+For early local control-plane work, use the supported relational lanes so scheduler features stay aligned with the active persistence contract and retained-history expectations.
 
 ## Status notes
 

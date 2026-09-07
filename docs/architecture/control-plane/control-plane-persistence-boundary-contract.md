@@ -45,6 +45,13 @@ Compatibility expectations:
 - `R4`: establish cross-RDBMS migration baseline
 - `R5`: prove parity and fallback behavior
 
+## Current R3 bridge status
+
+- JPA/Hibernate entities and repositories now map retained `controlplane_*` history tables.
+- Mode `jpa` now ships direct repository-backed slices for trigger, schedule, run-summary, step-snapshot, advisory recovery, and log-checkpoint persistence behind the existing registry interfaces.
+- Runtime selection remains one aligned mode at a time (`memory`, `jdbc`, or `jpa`) across trigger/run/schedule persistence; benchmarking or rollout comparisons should happen across separate runs, not mixed writes in one process.
+- External IDs (`te-*`, `rr-*`, `sr-*`, `ar-*`, `al-*`, `ca-*`) remain stable and continue as the operator-facing identity contract.
+
 ## Related docs
 
 - [`ADR-0014: freeze JPA/Hibernate control-plane persistence boundary`](../../adr/control-plane/0014-freeze-jpa-hibernate-control-plane-persistence-boundary.md)

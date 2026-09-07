@@ -45,6 +45,15 @@ class TriggerEventPersistenceModeGuardTest {
 
 		assertEquals("memory", Files.readString(marker).trim());
 	}
+
+	@Test
+	void supportsJpaModeMarker() throws Exception {
+		Path marker = tempDir.resolve("jpa/trigger-mode.marker");
+		TriggerEventPersistenceModeGuard guard = new TriggerEventPersistenceModeGuard("jpa", marker.toString(), false);
+		guard.validateModeSwitch();
+
+		assertEquals("jpa", Files.readString(marker).trim());
+	}
 }
 
 
