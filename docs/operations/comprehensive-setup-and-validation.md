@@ -66,6 +66,17 @@ Verify:
 
 ## 4) Optional control-plane setup: MySQL lane
 
+`restart-controlplane.ps1` supports two startup modes:
+
+- `-CleanMode Preserve` (default): starts the control-plane without running `mvn clean`; keeps generated job-scoped model classes under `target/classes` so the selected-job runtime remains launch-ready.
+- `-CleanMode Clean`: runs a full Maven clean rebuild before startup; use this only when you intentionally want to regenerate all build outputs and model classes from scratch.
+
+Use `Preserve` for normal start/restart operations. Use `Clean` only for full rebuilds or when generated output may be stale.
+
+Use `setup-controlplane.ps1` only when you are provisioning a fresh control-plane database or reinitializing schema for the selected vendor. It creates/validates the database objects and is not the app startup command.
+
+Use `restart-controlplane.ps1` when you want to start or restart the control-plane application after the database is ready. It is the runtime lifecycle command; it does not create tables by itself.
+
 Set environment variables, bootstrap schema, and start profile.
 
 ```powershell
@@ -87,6 +98,17 @@ Get-Content "C:\spring-etl-engine\logs\startup\startup.log" -Tail 80
 ```
 
 ## 5) Optional control-plane setup: SQL Server lane
+
+`restart-controlplane.ps1` supports the same two startup modes:
+
+- `-CleanMode Preserve` (default): keep existing built artifacts and generated job-scoped classes.
+- `-CleanMode Clean`: force a clean rebuild before startup.
+
+Use `Preserve` for routine starts/restarts. Use `Clean` only when you intentionally want a full regeneration.
+
+Use `setup-controlplane.ps1` only when you are provisioning a fresh control-plane database or reinitializing schema for the selected vendor. It creates/validates the database objects and is not the app startup command.
+
+Use `restart-controlplane.ps1` when you want to start or restart the control-plane application after the database is ready. It is the runtime lifecycle command; it does not create tables by itself.
 
 Set environment variables, bootstrap schema, and start profile.
 
@@ -200,4 +222,4 @@ Action:
 - [`../config/README.md`](../config/README.md)
 - [`../config/job-config.md`](../config/job-config.md)
 - [`../config/control-plane/control-plane-persistence-profiles.md`](../config/control-plane/control-plane-persistence-profiles.md)
-- [`control-plane-non-sqlite-bring-up.md`](control-plane-non-sqlite-bring-up.md)
+- [`control-plane-database-setup.md`](control-plane-database-setup.md)

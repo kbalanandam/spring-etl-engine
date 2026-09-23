@@ -139,7 +139,7 @@ Remaining `R2` gate scope before moving status to `Done`:
 - [`Epic R`](../../epics/scheduler/epic-r-multi-rdbms-control-plane-persistence-via-jpa-hibernate.md)
 - [`docs/config/README.md`](../../../config/README.md)
 - [`docs/config/control-plane/control-plane-persistence-profiles.md`](../../../config/control-plane/control-plane-persistence-profiles.md)
-- [`docs/operations/control-plane-non-sqlite-bring-up.md`](../../../operations/control-plane-non-sqlite-bring-up.md)
+- [`docs/operations/control-plane-database-setup.md`](../../../operations/control-plane-database-setup.md)
 - [`Control-plane persistence boundary contract`](../../../architecture/control-plane/control-plane-persistence-boundary-contract.md)
 - [`application-controlplane.properties`](../../../../src/main/resources/application-controlplane.properties)
 

@@ -19,7 +19,7 @@ and this project adheres to **Semantic Versioning**.
 
 ### Added
 - Added `docs/product/release-1.11.0-r2-kickoff-checklist.md` to track `1.11.0` `R2` entry/exit gates and PR-stack kickoff execution.
-- Added `docs/operations/control-plane-non-sqlite-bring-up.md` with quick MySQL/SQL Server bring-up steps for optional control-plane persistence.
+- Added `docs/operations/control-plane-database-setup.md` with quick MySQL/SQL Server bring-up steps for optional control-plane persistence.
 - Added `ControlPlanePersistenceContractGuard` to enforce one-mode selection (`memory`, `jdbc`, or `jpa`) across trigger/run/schedule persistence, plus relational vendor/url/driver contract fail-fast checks for `postgresql`, `mysql`, `mssql`, and `oracle`.
 - Started `R3` first implementation slice for portable control-plane history persistence while preserving current read-model/API compatibility.
 - Added JPA/Hibernate entity and repository coverage for retained control-plane history tables together with a shared `JpaControlPlanePkAllocator` for stable control-plane surrogate key allocation.
