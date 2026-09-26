@@ -14,6 +14,7 @@ and this project adheres to **Semantic Versioning**.
 
 ### Security
 - [Planned `1.10.1`] Continue dependency/CVE remediations on the patch lane without expanding runtime scope.
+- Investigated dependency-check report of Spring Framework `6.2.19` and Spring Data JPA `3.5.13` CVE matches; independent CVE validator confirmed no known vulnerabilities exist for these exact coordinates, indicating the matches are likely false positives from an outdated/stale local NVD feed. The Spring `6.2.19` baseline remains valid for this release.
 
 ## [1.11.0-rc1] - 2026-09-05
 
