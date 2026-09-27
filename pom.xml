@@ -40,8 +40,7 @@
 		<log4j2.version>2.25.5</log4j2.version>
 		<!-- Overrides the Spring-managed Tomcat embed line to a CVE-remediated release. -->
 		<tomcat.version>10.1.59</tomcat.version>
-		<!-- Temporary override until the Spring Boot parent line advances with equivalent Spring CVE remediations. -->
-		<spring-framework.version>6.2.19</spring-framework.version>
+		<!-- Spring Framework version now managed by Spring Boot parent; removed manual override. -->
 		<!-- Pin to a remediated connector release instead of the vulnerable 9.7.0 line. -->
 		<mysql-connector-j.version>26.7.0</mysql-connector-j.version>
 	</properties>
