@@ -14,7 +14,8 @@ and this project adheres to **Semantic Versioning**.
 
 ### Security
 - [Planned `1.10.1`] Continue dependency/CVE remediations on the patch lane without expanding runtime scope.
-- Investigated dependency-check report of Spring Framework `6.2.19` and Spring Data JPA `3.5.13` CVE matches; independent CVE validator confirmed no known vulnerabilities exist for these exact coordinates, indicating the matches are likely false positives from an outdated/stale local NVD feed. The Spring `6.2.19` baseline remains valid for this release.
+- Removed manual `spring-framework.version` override in `pom.xml` so Spring Boot 3.5.16 manages transitive dependency versions and CVE remediations centrally; this eliminates repetitive manual CVE hunting and aligns the runtime with Spring Boot's security patch lifecycle.
+- Added `docs/operations/cve-management-strategy.md` documenting three-layer approach to CVE management: Spring Boot upstream remediation, temporary suppression for false positives, and future Renovate automation to prevent recurring PR friction from transitive dependency CVEs.
 
 ## [1.11.0-rc1] - 2026-09-05
 
