@@ -31,7 +31,7 @@ This document covers:
 - the relationship between scheduler backend services and operator UI screens
 - the minimal scheduler MVP versus later governance features
 - guardrails around retained history, overlap, and restart semantics
-- storage portability alignment with the SQLite-first direction and later PostgreSQL, SQL Server, or MySQL deployment targets
+- storage portability alignment across supported relational deployment targets (PostgreSQL, SQL Server, MySQL, and Oracle)
 
 This document does **not** define:
 

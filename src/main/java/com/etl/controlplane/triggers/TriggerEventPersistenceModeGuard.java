@@ -22,7 +22,7 @@ import java.util.Set;
 public class TriggerEventPersistenceModeGuard {
 
 	private static final Logger log = LoggerFactory.getLogger(TriggerEventPersistenceModeGuard.class);
-	private static final Set<String> SUPPORTED_MODES = Set.of("jdbc", "memory");
+	private static final Set<String> SUPPORTED_MODES = Set.of("jdbc", "jpa", "memory");
 
 	private final String currentMode;
 	private final Path markerPath;
@@ -41,14 +41,14 @@ public class TriggerEventPersistenceModeGuard {
 	void validateModeSwitch() {
 		if (!SUPPORTED_MODES.contains(currentMode)) {
 			throw new IllegalStateException("Unsupported controlplane.triggers.persistence.mode='" + currentMode
-					+ "'. Supported values: jdbc, memory.");
+					+ "'. Supported values: jdbc, jpa, memory.");
 		}
 
 		String previousMode = readExistingMode();
 		if (!previousMode.isBlank() && !previousMode.equals(currentMode)) {
 			if (!allowReset) {
 				throw new IllegalStateException("Trigger-event persistence mode switch detected: previous='" + previousMode
-						+ "', current='" + currentMode + "'. Switching between JDBC and memory can cause trigger-history gaps"
+						+ "', current='" + currentMode + "'. Switching between relational and memory lanes can cause trigger-history gaps"
 						+ " or duplicate operator interpretation. If this reset is intentional, restart with"
 						+ " controlplane.triggers.persistence.allow-mode-switch=true.");
 			}

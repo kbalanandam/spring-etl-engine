@@ -1,8 +1,11 @@
 package com.etl;
 
+import com.etl.controlplane.ControlPlaneApiApplication;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 
 /**
  * Spring Boot bootstrap entry point for the ETL runtime.
@@ -13,6 +16,7 @@ import org.springframework.context.ConfigurableApplicationContext;
  * than in this class.</p>
  */
 @SpringBootApplication
+@ComponentScan(excludeFilters = @ComponentScan.Filter(type = FilterType.ASSIGNABLE_TYPE, classes = ControlPlaneApiApplication.class))
 public class ETLEngineApplication {
 
 	public static void main(String[] args) {

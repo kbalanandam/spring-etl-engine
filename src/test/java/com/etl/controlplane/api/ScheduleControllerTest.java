@@ -24,6 +24,7 @@ import java.util.Optional;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.hamcrest.Matchers.containsString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -279,6 +280,29 @@ class ScheduleControllerTest {
 				.andExpect(jsonPath("$.triggerEventId").value("te-1"));
 
 		verify(selectedJobLaunchService, org.mockito.Mockito.never()).launchSelectedJob(org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any(), org.mockito.ArgumentMatchers.any());
+	}
+
+	@Test
+	void doesNotSuppressScheduleTriggerWhenExistingEventIsFutureDated() throws Exception {
+		when(scheduleService.findByScheduleId(eq("sch-1"))).thenReturn(Optional.of(schedule("sch-1", "daily-customers")));
+		when(triggerEventRegistry.listByScheduleId(eq("sch-1"), eq(5))).thenReturn(List.of(
+				new TriggerEventView("te-future", "customer-load", "ACCEPTED", "manual_operator_request", "operator-ui", Instant.now().plusSeconds(10), null, "accepted", "SCHEDULE")
+		));
+		when(triggerEventRegistry.recordAcceptedForSchedule(eq("sch-1"), eq("customer-load"), eq("manual_operator_request"), eq("operator-ui"), org.mockito.ArgumentMatchers.anyString()))
+				.thenReturn(new TriggerEventView("te-4", "customer-load", "ACCEPTED", "manual_operator_request", "operator-ui", Instant.now(), null, "accepted", "SCHEDULE"));
+		when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("SCHEDULE"), eq("sch-1"), eq("te-4")))
+				.thenReturn(new SelectedJobLaunchService.LaunchResult(true, "Worker launch started [pid=1234]."));
+
+		mockMvc.perform(post("/api/v1/schedules/sch-1:trigger-now")
+						.contentType("application/json")
+						.content("{\"reason\":\"manual_operator_request\",\"requestedBy\":\"operator-ui\"}"))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.decisionStatus").value("ACCEPTED"))
+				.andExpect(jsonPath("$.triggerEventId").value("te-4"))
+				.andExpect(jsonPath("$.message", containsString("future requestedAt timestamp")));
+
+		verify(triggerEventRegistry).recordAcceptedForSchedule(eq("sch-1"), eq("customer-load"), eq("manual_operator_request"), eq("operator-ui"), org.mockito.ArgumentMatchers.anyString());
+		verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("SCHEDULE"), eq("sch-1"), eq("te-4"));
 	}
 
 	@Test

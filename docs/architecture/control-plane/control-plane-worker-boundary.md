@@ -124,7 +124,7 @@ This boundary is formalized as an accepted decision in [`ADR-0008`](../../adr/co
 - External enterprise schedulers, orchestrators, workload platforms, and deployment-native trigger systems are first-class integration choices as long as they launch the same worker boundary.
 - File watching belongs to the optional trigger-control layer, not to an alternate execution runtime. A watcher may detect and classify candidate files, but the actual run must still resolve through the same selected-job launch contract.
 - Persisted operational history is an optional control-plane capability. It should enrich scheduling, watcher evidence, and operator workflows without becoming a hard prerequisite for core ETL execution.
-- The first control-plane implementation should stay Java-first and close to the existing stack. Lightweight relational persistence such as SQLite is acceptable for early local or single-node control-plane work, with stronger relational deployment targets added later.
+- The first control-plane implementation should stay Java-first and close to the existing stack, with supported relational lanes (MySQL/SQL Server and broader RDBMS targets) used for local and shared control-plane work.
 - Transformation capability remains a first-class roadmap track alongside control-plane maturity. Scheduler or UI work must not displace shared transformation growth.
 - OneFlow capability packaging should remain plug-and-play under one unified UI: teams may run selected capability bundles today, and each capability may later be extracted into an independent service only when objective extraction triggers are met.
 

@@ -3,6 +3,7 @@ package com.etl.controlplane.triggers;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -146,7 +147,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 					       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
 					from controlplane_trigger_event
 					where job_key = ?
-					order by requested_at desc, trigger_event_id desc
+					order by trigger_event_pk desc
 					offset ? rows fetch next ? rows only
 					""",
 					(rs, rowNum) -> toView(rs),
@@ -161,7 +162,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
 				from controlplane_trigger_event
 				where job_key = ?
-				order by requested_at desc, trigger_event_id desc
+				order by trigger_event_pk desc
 				limit ? offset ?
 				""",
 				(rs, rowNum) -> toView(rs),
@@ -207,7 +208,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 					       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
 					from controlplane_trigger_event
 					where schedule_pk = ?
-					order by requested_at desc, trigger_event_id desc
+					order by trigger_event_pk desc
 					offset ? rows fetch next ? rows only
 					""",
 					(rs, rowNum) -> toView(rs),
@@ -222,7 +223,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 						       (select source_code from controlplane_trigger_source ts where ts.trigger_source_pk = controlplane_trigger_event.trigger_source_pk) as trigger_source_code
 						from controlplane_trigger_event
 						where schedule_pk = ?
-						order by requested_at desc, trigger_event_id desc
+						order by trigger_event_pk desc
 						limit ? offset ?
 						""",
 						(rs, rowNum) -> toView(rs),
@@ -351,7 +352,7 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 				select trigger_event_id
 				from controlplane_trigger_event
 				where job_key = ?
-				order by requested_at desc, trigger_event_id desc
+				order by trigger_event_pk desc
 				""", String.class, jobKey);
 		if (ids.size() <= retentionPerJob) {
 			return;
@@ -441,8 +442,35 @@ public class JdbcTriggerEventRegistry implements TriggerEventRegistry {
 			}
 		});
 		if (!Boolean.TRUE.equals(exists)) {
-			jdbcTemplate.execute(createIndexSql);
+			try {
+				jdbcTemplate.execute(createIndexSql);
+			} catch (DataAccessException exception) {
+				if (!isExistingIndexCreationFailure(exception, indexName)) {
+					throw exception;
+				}
+			}
 		}
+	}
+
+	private boolean isExistingIndexCreationFailure(DataAccessException exception, String indexName) {
+		Throwable current = exception;
+		while (current != null) {
+			if (current instanceof java.sql.SQLException sqlException) {
+				String sqlState = sqlException.getSQLState();
+				int errorCode = sqlException.getErrorCode();
+				String message = sqlException.getMessage();
+				if ("42S11".equals(sqlState)
+						|| "42710".equals(sqlState)
+						|| errorCode == 42111
+						|| (message != null
+						&& message.toLowerCase(Locale.ROOT).contains("already exists")
+						&& message.toLowerCase(Locale.ROOT).contains(indexName.toLowerCase(Locale.ROOT)))) {
+					return true;
+				}
+			}
+			current = current.getCause();
+		}
+		return false;
 	}
 
 	private void createTableIfMissing(String tableName, String createTableSql) {

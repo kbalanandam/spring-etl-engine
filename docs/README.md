@@ -40,6 +40,7 @@ Start with the path that matches your goal:
 
 | If you want to... | Start here | Then go to |
 |---|---|---|
+| onboard a new engineer with one setup + validation guide | [`operations/comprehensive-setup-and-validation.md`](operations/comprehensive-setup-and-validation.md) | [`config/README.md`](config/README.md) and [`architecture/README.md`](architecture/README.md) |
 | run or configure one scenario | [`config/README.md`](config/README.md) | [`config/job-config.md`](config/job-config.md) and one preserved or private job bundle |
 | browse the architecture folder by topic | [`architecture/README.md`](architecture/README.md) | [`architecture/foundations/README.md`](architecture/foundations/README.md) and [`architecture/etl-core/README.md`](architecture/etl-core/README.md) |
 | understand the shipped runtime flow | [`architecture/etl-core/README.md`](architecture/etl-core/README.md) | [`architecture/etl-core/runtime-flow.md`](architecture/etl-core/runtime-flow.md), [`architecture/etl-core/runtime-flow-walkthrough.html`](architecture/etl-core/runtime-flow-walkthrough.html) for the hierarchy-aware product-flow walkthrough, and [`architecture/etl-core/csv-to-xml-runtime-flow.md`](architecture/etl-core/csv-to-xml-runtime-flow.md) for a flow-level operational deep dive |

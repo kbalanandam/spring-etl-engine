@@ -18,7 +18,7 @@ Use the linked `Epic` entry above to navigate to the shared epic-level product c
 
 ## Problem
 
-Current control-plane persistence behavior is implemented through SQLite-oriented JDBC SQL, making cross-database support difficult and creating risk of accidental coupling to one engine.
+At the time this item was opened, control-plane persistence behavior was implemented through SQLite-oriented JDBC SQL (historical baseline), making cross-database support difficult and creating risk of accidental coupling to one engine.
 
 ## Goal
 
