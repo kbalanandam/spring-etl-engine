@@ -5,6 +5,7 @@
     Temporary suppression for Spring Framework 6.2.19 findings on the Boot 3.5.x line.
     A patched 6.2.x BOM is not resolvable from Maven Central in this environment.
     Remove after upgrading to a patched Spring line.
+    Review in every dependency-focused PR and before the 2027-01-31 expiry.
     ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.springframework/spring-core@6\.2\.19$</packageUrl>
     <cve>CVE-2026-47890</cve>
@@ -20,6 +21,7 @@
     <notes><![CDATA[
     Mirrors the temporary suppression for spring-web 6.2.19 while Boot remains on 3.5.x.
     Remove once Spring is upgraded to a patched line.
+    Review in every dependency-focused PR and before the 2027-01-31 expiry.
     ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.springframework/spring-web@6\.2\.19$</packageUrl>
     <cve>CVE-2026-47890</cve>
@@ -35,6 +37,7 @@
     <notes><![CDATA[
     Temporary suppression for spring-tx 6.2.19 on the Boot 3.5.x line.
     Remove once Spring is upgraded to a patched line.
+    Review in every dependency-focused PR and before the 2027-01-31 expiry.
     ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.springframework/spring-tx@6\.2\.19$</packageUrl>
     <cve>CVE-2026-47890</cve>
@@ -50,6 +53,7 @@
     <notes><![CDATA[
     Temporary suppression for spring-webmvc 6.2.19 on the Boot 3.5.x line.
     Remove once Spring is upgraded to a patched line.
+    Review in every dependency-focused PR and before the 2027-01-31 expiry.
     ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.springframework/spring-webmvc@6\.2\.19$</packageUrl>
     <cve>CVE-2026-47890</cve>
@@ -65,6 +69,7 @@
     <notes><![CDATA[
     Temporary suppression for spring-aop 6.2.19 on the Boot 3.5.x line.
     Remove once Spring is upgraded to a patched line.
+    Review in every dependency-focused PR and before the 2027-01-31 expiry.
     ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.springframework/spring-aop@6\.2\.19$</packageUrl>
     <cve>CVE-2026-47890</cve>
@@ -80,6 +85,7 @@
     <notes><![CDATA[
     Temporary suppression for spring-jcl 6.2.19 on the Boot 3.5.x line.
     Remove once Spring is upgraded to a patched line.
+    Review in every dependency-focused PR and before the 2027-01-31 expiry.
     ]]></notes>
     <packageUrl regex="true">^pkg:maven/org\.springframework/spring-jcl@6\.2\.19$</packageUrl>
     <cve>CVE-2026-47890</cve>

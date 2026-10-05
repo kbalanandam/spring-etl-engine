@@ -8,6 +8,7 @@ and this project adheres to **Semantic Versioning**.
 
 ### Changed
 - [Planned `1.11.0`] Deliver bounded `S3` governance follow-on and bounded `F1` advisory recovery/read-model hardening without expanding unsupported resume execution.
+- Moved OWASP dependency scanning out of the broad PR test workflow into a dedicated dependency-security lane, added weekly Dependabot update automation, and tightened suppression/PR review guidance so unrelated PRs see less feed-driven CVE noise without dropping security coverage.
 
 ### Fixed
 - [Planned `1.10.1`] Apply targeted fixes discovered during the `R2`-`R5` persistence lane rollout and verification hardening.
