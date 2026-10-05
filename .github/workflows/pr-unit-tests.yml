@@ -43,8 +43,20 @@ jobs:
       - name: Run secret scan (Gitleaks)
         run: |
           set -euo pipefail
-          curl -sSfL -o /tmp/gitleaks_8.24.2_linux_x64.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.24.2/gitleaks_8.24.2_linux_x64.tar.gz
-          curl -sSfL -o /tmp/gitleaks_checksums.txt https://github.com/gitleaks/gitleaks/releases/download/v8.24.2/gitleaks_8.24.2_checksums.txt
+          download_with_retry() {
+            local output_path="$1"
+            local url="$2"
+            curl --silent --show-error --fail --location \
+              --retry 5 \
+              --retry-delay 5 \
+              --retry-max-time 120 \
+              --retry-all-errors \
+              -o "$output_path" \
+              "$url"
+          }
+
+          download_with_retry /tmp/gitleaks_8.24.2_linux_x64.tar.gz https://github.com/gitleaks/gitleaks/releases/download/v8.24.2/gitleaks_8.24.2_linux_x64.tar.gz
+          download_with_retry /tmp/gitleaks_checksums.txt https://github.com/gitleaks/gitleaks/releases/download/v8.24.2/gitleaks_8.24.2_checksums.txt
           grep " gitleaks_8.24.2_linux_x64.tar.gz$" /tmp/gitleaks_checksums.txt > /tmp/gitleaks_checksum.txt
           (cd /tmp && sha256sum -c /tmp/gitleaks_checksum.txt)
           tar -xzf /tmp/gitleaks_8.24.2_linux_x64.tar.gz -C /tmp
