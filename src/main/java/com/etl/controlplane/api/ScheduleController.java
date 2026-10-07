@@ -154,14 +154,21 @@ public class ScheduleController {
 		return scheduleService.findByScheduleId(scheduleId)
 				.map(schedule -> {
 					Instant now = Instant.now(clock);
+					var recentEvents = triggerEventRegistry.listByScheduleId(schedule.scheduleId(), RECENT_TRIGGER_SCAN_LIMIT);
 
-					var recentDuplicate = triggerEventRegistry.listByScheduleId(schedule.scheduleId(), RECENT_TRIGGER_SCAN_LIMIT).stream()
+					var recentDuplicate = recentEvents.stream()
 							.filter(event -> "ACCEPTED".equalsIgnoreCase(event.decisionStatus()))
 							.filter(event -> reason.equals(event.reason()))
 							.filter(event -> requestedBy.equals(event.requestedBy()))
 							.filter(event -> event.requestedAt() != null)
-							.filter(event -> Duration.between(event.requestedAt(), now).compareTo(MANUAL_TRIGGER_DUPLICATE_SUPPRESSION_WINDOW) < 0)
+							.filter(event -> isWithinDuplicateSuppressionWindow(event.requestedAt(), now))
 							.findFirst();
+					boolean hasFutureDatedMatch = recentEvents.stream()
+							.filter(event -> "ACCEPTED".equalsIgnoreCase(event.decisionStatus()))
+							.filter(event -> reason.equals(event.reason()))
+							.filter(event -> requestedBy.equals(event.requestedBy()))
+							.filter(event -> event.requestedAt() != null)
+							.anyMatch(event -> event.requestedAt().isAfter(now));
 					if (recentDuplicate.isPresent()) {
 						var duplicate = recentDuplicate.get();
 						String message = "Duplicate trigger request suppressed because a recent accepted schedule trigger already exists for this schedule and operator.";
@@ -191,6 +198,9 @@ public class ScheduleController {
 							launchResult.started(),
 							launchResult.message());
 					String responseMessage = message + " " + launchResult.message();
+					if (hasFutureDatedMatch) {
+						responseMessage += " A recent accepted trigger for this schedule/operator has a future requestedAt timestamp; recent-trigger ordering may place that event ahead until clocks align.";
+					}
 					String decisionStatus = launchResult.started() ? "ACCEPTED" : "LAUNCH_SKIPPED";
 					return ResponseEntity.accepted().body(new TriggerNowDecisionResponse(
 							schedule.selectedJobKey(),
@@ -227,6 +237,14 @@ public class ScheduleController {
 			return Integer.MAX_VALUE;
 		}
 		return (int) offset;
+	}
+
+	private boolean isWithinDuplicateSuppressionWindow(Instant requestedAt, Instant now) {
+		Duration age = Duration.between(requestedAt, now);
+		if (age.isNegative()) {
+			return false;
+		}
+		return age.compareTo(MANUAL_TRIGGER_DUPLICATE_SUPPRESSION_WINDOW) < 0;
 	}
 
 

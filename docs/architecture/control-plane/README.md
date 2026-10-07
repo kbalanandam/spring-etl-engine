@@ -18,7 +18,7 @@ Use it when you want to understand:
 - [`control-plane-worker-boundary.md`](control-plane-worker-boundary.md) - mandatory worker versus optional control-plane boundary
 - [`control-plane-persistence-boundary-contract.md`](control-plane-persistence-boundary-contract.md) - Epic R boundary contract for optional persistence portability work
 - [`control-plane-operational-data-model.md`](control-plane-operational-data-model.md) - retained conceptual model for trigger, run, step, and artifact history
-- [`control-plane-local-relational-schema.md`](control-plane-local-relational-schema.md) - MySQL-default local persistence direction (with SQLite compatibility bridge notes)
+- [`control-plane-local-relational-schema.md`](control-plane-local-relational-schema.md) - MySQL-default local persistence direction for supported relational lanes
 - [`trigger-execution-persistence-consistency-plan.md`](trigger-execution-persistence-consistency-plan.md) - review baseline and forward-linking target for trigger/run persistence consistency across API and UI surfaces
 - [`./scheduler-architecture-direction.md`](./scheduler-architecture-direction.md) - first scheduler-specific design direction under the control-plane layer
 - [`./operator-ui-mvp-api-surface.md`](./operator-ui-mvp-api-surface.md) - first control-plane API surface for Angular MVP screens (Jobs, Runs, Run detail, Schedules, System)

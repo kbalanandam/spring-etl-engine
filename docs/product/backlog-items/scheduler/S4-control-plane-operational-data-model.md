@@ -71,7 +71,7 @@ The preferred direction is:
 6. preserve artifact and evidence references explicitly so operators can trace input files, intermediate handoffs, final outputs, reject outputs, and archived originals where the runtime exposes them
 7. carry config identity and trigger origin through the retained model so later UI, audit, and support workflows can answer why a run started and which configuration it used
 8. keep restartability anchors limited to retained identifiers and attempt relationships first, leaving full restart semantics to `F1`
-9. allow early local or single-node implementations to use lightweight relational persistence such as SQLite, while keeping PostgreSQL, SQL Server, and MySQL targets open for later phases
+9. keep local and shared implementations aligned to supported relational lanes while preserving portability expectations across target vendors
 10. ensure native scheduler-triggered runs and externally orchestrated runs can both be represented in the same retained model
 
 ## Operator / runtime impact
@@ -133,7 +133,7 @@ S4 should continue as one phased track instead of reopening a new scheduler ID f
 - add durable `step_record` storage keyed to retained run identity
 - add durable `artifact_record` storage for run-level and step-level evidence references
 - enforce artifact ownership invariants so a row is unambiguous (run-level only, or step-level with matching run lineage)
-- add startup-safe schema initialization and compatibility behavior for existing local SQLite files
+- add startup-safe schema initialization and compatibility behavior for supported relational lanes
 - add focused JDBC tests for schema shape, writes, and key lookup/read paths
 - update architecture docs so ER semantics and ownership rules match shipped behavior
 - track delivery tasks in [`S4b step/artifact persistence checklist`](S4b-step-artifact-persistence-checklist.md)

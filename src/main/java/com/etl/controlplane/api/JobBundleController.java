@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/jobs")
@@ -141,13 +142,29 @@ public class JobBundleController {
 		}
 		Instant now = Instant.now(clock);
 
-		var recentDuplicate = triggerEventRegistry.listByJobKey(jobKey, RECENT_TRIGGER_SCAN_LIMIT).stream()
+		List<com.etl.controlplane.triggers.TriggerEventView> recentEvents;
+		try {
+			recentEvents = triggerEventRegistry.listByJobKey(jobKey, RECENT_TRIGGER_SCAN_LIMIT);
+		} catch (RuntimeException ex) {
+			// Keep manual launch operational even when optional trigger persistence is unavailable.
+			log.warn("CONTROLPLANE_TRIGGER event=trigger_registry_unavailable scope=JOB jobKey={} reason={} requestedBy={} message={} ",
+					jobKey, reason, requestedBy, ex.getMessage());
+			recentEvents = List.of();
+		}
+
+		var recentDuplicate = recentEvents.stream()
 				.filter(event -> "ACCEPTED".equalsIgnoreCase(event.decisionStatus()))
 				.filter(event -> reason.equals(event.reason()))
 				.filter(event -> requestedBy.equals(event.requestedBy()))
 				.filter(event -> event.requestedAt() != null)
-				.filter(event -> Duration.between(event.requestedAt(), now).compareTo(MANUAL_TRIGGER_DUPLICATE_SUPPRESSION_WINDOW) < 0)
+				.filter(event -> isWithinDuplicateSuppressionWindow(event.requestedAt(), now))
 				.findFirst();
+		boolean hasFutureDatedMatch = recentEvents.stream()
+				.filter(event -> "ACCEPTED".equalsIgnoreCase(event.decisionStatus()))
+				.filter(event -> reason.equals(event.reason()))
+				.filter(event -> requestedBy.equals(event.requestedBy()))
+				.filter(event -> event.requestedAt() != null)
+				.anyMatch(event -> event.requestedAt().isAfter(now));
 		if (recentDuplicate.isPresent()) {
 			var duplicate = recentDuplicate.get();
 			String message = "Duplicate trigger request suppressed because a recent accepted manual trigger already exists for this job and operator.";
@@ -162,26 +179,37 @@ public class JobBundleController {
 		}
 
 		String message = "Trigger request accepted for reason='" + reason + "' requestedBy='" + requestedBy + "'.";
-		var triggerEvent = triggerEventRegistry.recordAccepted(jobKey, reason, requestedBy, message);
+		com.etl.controlplane.triggers.TriggerEventView triggerEvent = null;
+		try {
+			triggerEvent = triggerEventRegistry.recordAccepted(jobKey, reason, requestedBy, message);
+		} catch (RuntimeException ex) {
+			log.warn("CONTROLPLANE_TRIGGER event=trigger_registry_record_failed scope=JOB jobKey={} reason={} requestedBy={} message={}",
+					jobKey, reason, requestedBy, ex.getMessage());
+		}
 		SelectedJobLaunchService.LaunchResult launchResult = selectedJobLaunchService.launchSelectedJob(
 				jobKey,
 				"MANUAL",
 				null,
-				triggerEvent.triggerEventId());
+				triggerEvent == null ? null : triggerEvent.triggerEventId());
 		log.info("CONTROLPLANE_TRIGGER event=trigger_now_accepted scope=JOB jobKey={} reason={} requestedBy={} triggerEventId={} launchStarted={} launchMessage={}",
 				jobKey,
 				reason,
 				requestedBy,
-				triggerEvent.triggerEventId(),
+				triggerEvent == null ? "n/a" : triggerEvent.triggerEventId(),
 				launchResult.started(),
 				launchResult.message());
-		String responseMessage = message + " " + launchResult.message();
+		String responseMessage = triggerEvent == null
+				? message + " Trigger event persistence unavailable; continuing with direct launch path. " + launchResult.message()
+				: message + " " + launchResult.message();
+		if (hasFutureDatedMatch) {
+			responseMessage += " A recent accepted trigger for this job/operator has a future requestedAt timestamp; recent-trigger ordering may place that event ahead until clocks align.";
+		}
 		String decisionStatus = launchResult.started() ? "ACCEPTED" : "LAUNCH_SKIPPED";
 		return ResponseEntity.status(HttpStatus.ACCEPTED).body(new TriggerNowDecisionResponse(
 				jobKey,
 				decisionStatus,
 				responseMessage,
-				triggerEvent.triggerEventId()
+				triggerEvent == null ? null : triggerEvent.triggerEventId()
 		));
 	}
 
@@ -205,6 +233,14 @@ public class JobBundleController {
 			return Integer.MAX_VALUE;
 		}
 		return (int) offset;
+	}
+
+	private boolean isWithinDuplicateSuppressionWindow(Instant requestedAt, Instant now) {
+		Duration age = Duration.between(requestedAt, now);
+		if (age.isNegative()) {
+			return false;
+		}
+		return age.compareTo(MANUAL_TRIGGER_DUPLICATE_SUPPRESSION_WINDOW) < 0;
 	}
 }
 

@@ -18,6 +18,7 @@ Describe what changed and why.
 - [ ] I updated tests when needed
 - [ ] I considered security impact (config abuse, path/zip handling, secret leakage, dependency risk) and added or updated checks when needed
 - [ ] I verified no credentials, tokens, or sensitive connection values are committed in this PR
+- [ ] If this PR changes `pom.xml`, `.github/dependency-check-suppressions.xml`, or dependency-security workflows, I explained the dependency/security rationale and checked the `Dependency Security` workflow impact
 - [ ] I updated `docs/architecture/*` if runtime/config/flow changed
 - [ ] I updated a Mermaid diagram if control flow changed materially
 - [ ] I added or updated an ADR if this PR introduced a meaningful design decision or tradeoff

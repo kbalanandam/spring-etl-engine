@@ -22,7 +22,9 @@ import java.util.Optional;
 import java.time.Instant;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -265,6 +267,29 @@ class JobBundleControllerTest {
 		verify(triggerEventRegistry).listByJobKey(eq("customer-load"), eq(5));
 		verify(triggerEventRegistry, never()).recordAccepted(any(), any(), any(), any());
 		verify(selectedJobLaunchService, never()).launchSelectedJob(any(), any(), any(), any());
+	}
+
+	@Test
+	void triggerNowContinuesWhenTriggerRegistryIsUnavailable() throws Exception {
+		when(jobBundleReadModelService.findBundle(eq("customer-load"))).thenReturn(Optional.of(
+				new JobBundleSummaryView("customer-load", "Customer Load",
+						"src/main/resources/config-jobs/customer-load/job-config.yaml", "READY", List.of())
+		));
+		when(triggerEventRegistry.listByJobKey(eq("customer-load"), eq(5))).thenThrow(new IllegalStateException("read unavailable"));
+		when(triggerEventRegistry.recordAccepted(eq("customer-load"), eq("manual_operator_request"), eq("operator@example"), anyString()))
+				.thenThrow(new IllegalStateException("write unavailable"));
+		when(selectedJobLaunchService.launchSelectedJob(eq("customer-load"), eq("MANUAL"), isNull(), isNull()))
+				.thenReturn(new SelectedJobLaunchService.LaunchResult(true, "Worker launch started [pid=2222]."));
+
+		mockMvc.perform(post("/api/v1/jobs/customer-load:trigger-now")
+						.contentType("application/json")
+						.content("{\"reason\":\"manual_operator_request\",\"requestedBy\":\"operator@example\"}"))
+				.andExpect(status().isAccepted())
+				.andExpect(jsonPath("$.jobKey").value("customer-load"))
+				.andExpect(jsonPath("$.decisionStatus").value("ACCEPTED"))
+				.andExpect(jsonPath("$.triggerEventId").value(org.hamcrest.Matchers.nullValue()));
+
+		verify(selectedJobLaunchService).launchSelectedJob(eq("customer-load"), eq("MANUAL"), isNull(), isNull());
 	}
 
 	@Test

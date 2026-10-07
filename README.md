@@ -138,7 +138,7 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\restart-controlplane.ps1 
 
 The shipped `controlplane` profile now uses one canonical datasource contract through `CONTROLPLANE_DB_VENDOR`, `CONTROLPLANE_DB_URL`, `CONTROLPLANE_DB_USERNAME`, `CONTROLPLANE_DB_PASSWORD`, and `CONTROLPLANE_DB_DRIVER_CLASS_NAME` so control-plane tables and worker-launched run metadata stay aligned in one relational store.
 
-SQLite migration helper scripts remain available for legacy local data recovery, but SQLite is no longer the default control-plane/dev datasource contract.
+SQLite is no longer a supported control-plane datasource contract; use MySQL or SQL Server for local control-plane bring-up.
 
 If startup fails locally with trigger-persistence mode-switch guardrails, use the explicit override once for intentional local mode resets:
 
@@ -202,6 +202,7 @@ Use this table as the recommended reading order by goal:
 
 | Goal | Start here | Then go to |
 |---|---|---|
+| Complete first-time setup (single guide) | [`docs/operations/comprehensive-setup-and-validation.md`](docs/operations/comprehensive-setup-and-validation.md) | Run Modes + full verification workflow |
 | First local run | Quick Start | Run Modes |
 | Run a real scenario | Explicit job-config mode | [`docs/config/job-config.md`](docs/config/job-config.md) |
 | Understand the config model | [`docs/config/README.md`](docs/config/README.md) | [`docs/config/processor/default-processor.md`](docs/config/processor/default-processor.md) |

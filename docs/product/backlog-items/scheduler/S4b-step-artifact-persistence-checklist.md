@@ -13,7 +13,7 @@ Use this checklist to execute the `S4b` slice under [`S4-control-plane-operation
 - [x] add `controlplane_step_record` table initialization
 - [x] add `controlplane_artifact_record` table initialization
 - [x] add indexes for expected lookup paths (run, step, status/time where applicable)
-- [x] ensure startup behavior is compatibility-safe for existing local SQLite files
+- [x] ensure startup behavior is compatibility-safe for existing local SQLite files (historical legacy-state validation only)
 
 ## Ownership and linkage invariants
 
@@ -38,7 +38,7 @@ Use this checklist to execute the `S4b` slice under [`S4-control-plane-operation
 - [x] schema-shape tests for new tables/columns/indexes
 - [x] invariant tests for artifact ownership/linkage
 - [x] write/read tests for step and artifact persistence
-- [x] compatibility tests for startup on pre-S4b local SQLite state
+- [x] compatibility tests for startup on pre-S4b local SQLite state (historical legacy-state validation only)
 
 ## Docs and board alignment
 
