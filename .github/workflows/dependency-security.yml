@@ -145,7 +145,7 @@ jobs:
 
       - name: Upload dependency scan report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dependency-check-report
           path: target/dependency-check-report/**
@@ -153,7 +153,7 @@ jobs:
 
       - name: Upload dependency scan logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: dependency-check-logs
           path: |
