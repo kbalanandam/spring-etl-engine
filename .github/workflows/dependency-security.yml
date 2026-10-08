@@ -58,7 +58,7 @@ jobs:
           echo "schema=v2" >> "$GITHUB_OUTPUT"
 
       - name: Restore dependency-check data cache
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: ~/.cache/dependency-check
           key: odc-data-${{ runner.os }}-12.1.1-${{ steps.odc-cache-key.outputs.schema }}-${{ steps.odc-cache-key.outputs.week }}
@@ -138,7 +138,7 @@ jobs:
 
       - name: Save dependency-check data cache
         if: always()
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: ~/.cache/dependency-check
           key: odc-data-${{ runner.os }}-12.1.1-${{ steps.odc-cache-key.outputs.schema }}-${{ steps.odc-cache-key.outputs.week }}
