@@ -25,10 +25,16 @@ Describe what changed and why.
 - [ ] I documented at least one Trade-off Snapshot (or explicitly noted "no material trade-off") in the relevant doc/backlog item
 - [ ] I reviewed `docs/README.md` for the documentation standard when the change affected architecture
 - [ ] I did not commit developer-local `private-jobs/` contents; only `private-jobs/README.md` is allowed to stay visible in Git
+- [ ] I applied the relevant labels for the PR's impact and governance scope
+
+## Label governance
+
+- Does this PR have the right area label(s) for its impact (`deps`, `security`, `ci`, `docs`, `runtime`, `control-plane`, `generated-models`, `config`, `governance`)?
+- If this PR came from automation, did it also carry the appropriate source label (`dependabot`, `automation`)?
+- If this PR changes policy or release-governance behavior, did you review `docs/operations/pr-label-governance.md`?
 
 ## Helpful links
 
 - [`docs/README.md`](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/README.md)
 - [`docs/architecture/foundations/TEMPLATE.md`](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/architecture/foundations/TEMPLATE.md)
 - [`docs/adr/TEMPLATE.md`](https://github.com/kbalanandam/spring-etl-engine/blob/master/docs/adr/TEMPLATE.md)
-

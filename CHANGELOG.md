@@ -17,6 +17,7 @@ and this project adheres to **Semantic Versioning**.
 - [Planned `1.10.1`] Continue dependency/CVE remediations on the patch lane without expanding runtime scope.
 - Removed manual `spring-framework.version` override in `pom.xml` so Spring Boot 3.5.16 manages transitive dependency versions and CVE remediations centrally; this eliminates repetitive manual CVE hunting and aligns the runtime with Spring Boot's security patch lifecycle.
 - Added `docs/operations/cve-management-strategy.md` documenting three-layer approach to CVE management: Spring Boot upstream remediation, temporary suppression for false positives, and future Renovate automation to prevent recurring PR friction from transitive dependency CVEs.
+- Added `docs/operations/pr-label-governance.md` and PR-template guidance so release and governance labels stay consistent across future reviews.
 
 ## [1.11.0-rc1] - 2026-09-05
 
@@ -581,4 +582,3 @@ and this project adheres to **Semantic Versioning**.
 - Basic CSV/XML Reader and Writer infrastructure.
 - Config-driven Source, Target, and Processor definitions.
 - Job, Step, Reader, Processor, Writer bootstrapping.
-
